@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'wanderling-cache-v1';
+const CACHE_VERSION = 'wanderling-cache-v2';
 
 const PRECACHE_URLS = [
   './',
@@ -6,6 +6,8 @@ const PRECACHE_URLS = [
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './icons/icon-maskable-192.png',
+  './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png',
 ];
 
@@ -40,6 +42,7 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
 
   event.respondWith(
     fetch(req)
@@ -51,7 +54,10 @@ self.addEventListener('fetch', (event) => {
         ) {
           const copy = networkResponse.clone();
           event.waitUntil(
-            caches.open(CACHE_VERSION).then((cache) => cache.put(req, copy))
+            caches
+              .open(CACHE_VERSION)
+              .then((cache) => cache.put(req, copy))
+              .catch(() => {})
           );
         }
         return networkResponse;
