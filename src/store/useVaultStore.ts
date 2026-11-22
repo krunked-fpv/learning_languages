@@ -72,12 +72,11 @@ function emptyLangProgress(): LanguageProgressState {
 }
 
 function createAllLangProgress(): Record<LanguageCode, LanguageProgressState> {
-  return {
-    es: emptyLangProgress(),
-    fr: emptyLangProgress(),
-    de: emptyLangProgress(),
-    it: emptyLangProgress(),
-  };
+  const progress = {} as Record<LanguageCode, LanguageProgressState>;
+  for (const lang of LANGUAGE_LIST) {
+    progress[lang] = emptyLangProgress();
+  }
+  return progress;
 }
 
 function makeFreshProfile(params: {
@@ -174,6 +173,12 @@ function cloneLangProgress(lp: LanguageProgressState): LanguageProgressState {
 }
 
 function cloneProfile(profile: KidProfile): KidProfile {
+  const languageProgress = {} as Record<LanguageCode, LanguageProgressState>;
+  for (const lang of LANGUAGE_LIST) {
+    const existing = profile.languageProgress[lang];
+    languageProgress[lang] = existing ? cloneLangProgress(existing) : emptyLangProgress();
+  }
+
   return {
     ...profile,
     secretArcadeUnlocked: Boolean(profile.secretArcadeUnlocked),
@@ -183,12 +188,7 @@ function cloneProfile(profile: KidProfile): KidProfile {
     unlockedCosmetics: [...profile.unlockedCosmetics],
     badges: [...profile.badges],
     stats: { ...profile.stats },
-    languageProgress: {
-      es: cloneLangProgress(profile.languageProgress.es),
-      fr: cloneLangProgress(profile.languageProgress.fr),
-      de: cloneLangProgress(profile.languageProgress.de),
-      it: cloneLangProgress(profile.languageProgress.it),
-    },
+    languageProgress,
   };
 }
 
@@ -369,12 +369,27 @@ function validateKidProfile(
   if (!isPlainObject(raw.languageProgress)) {
     return { ok: false, error: `${prefix}.languageProgress must be an object.` };
   }
-  const validatedLangProgress: Partial<Record<LanguageCode, LanguageProgressState>> = {};
+  const rawLangProgress = raw.languageProgress;
+  const hasAtLeastOneValidLang = LANGUAGE_LIST.some(
+    (lang) =>
+      Object.prototype.hasOwnProperty.call(rawLangProgress, lang) &&
+      rawLangProgress[lang] !== undefined
+  );
+  if (!hasAtLeastOneValidLang) {
+    return {
+      ok: false,
+      error: `${prefix}.languageProgress must contain at least one valid language entry.`,
+    };
+  }
+
+  const validatedLangProgress = {} as Record<LanguageCode, LanguageProgressState>;
   for (const lang of LANGUAGE_LIST) {
-    const res = validateLangProgress(
-      raw.languageProgress[lang],
-      `${prefix}.languageProgress.${lang}`
-    );
+    const rawEntry = rawLangProgress[lang];
+    if (rawEntry === undefined) {
+      validatedLangProgress[lang] = emptyLangProgress();
+      continue;
+    }
+    const res = validateLangProgress(rawEntry, `${prefix}.languageProgress.${lang}`);
     if (!res.ok) return res;
     validatedLangProgress[lang] = res.value;
   }
@@ -441,7 +456,7 @@ function validateKidProfile(
         bestComboStreak: Math.floor(raw.stats.bestComboStreak as number),
         accentSpotlightsSeen: Math.floor(raw.stats.accentSpotlightsSeen as number),
       },
-      languageProgress: validatedLangProgress as Record<LanguageCode, LanguageProgressState>,
+      languageProgress: validatedLangProgress,
     },
   };
 }
@@ -588,16 +603,11 @@ function updateActiveProfile(updater: (profile: KidProfile) => KidProfile): void
 }
 
 function mergeTwoProfiles(existing: KidProfile, incoming: KidProfile): KidProfile {
-  const mergedLanguageProgress: Record<LanguageCode, LanguageProgressState> = {
-    es: emptyLangProgress(),
-    fr: emptyLangProgress(),
-    de: emptyLangProgress(),
-    it: emptyLangProgress(),
-  };
+  const mergedLanguageProgress = createAllLangProgress();
 
   for (const lang of LANGUAGE_LIST) {
-    const a = existing.languageProgress[lang];
-    const b = incoming.languageProgress[lang];
+    const a = existing.languageProgress[lang] ?? emptyLangProgress();
+    const b = incoming.languageProgress[lang] ?? emptyLangProgress();
     const mergedStars: Record<string, 1 | 2 | 3> = { ...a.nodeStars };
     for (const [nodeId, star] of Object.entries(b.nodeStars)) {
       const prev = mergedStars[nodeId] ?? 0;
@@ -788,10 +798,19 @@ export const vaultActions = {
     });
   },
 
-  createProfile(input: { name: string; avatarId: AvatarId; bannerColor: string }): KidProfile {
+  createProfile(input: {
+    name: string;
+    avatarId: AvatarId;
+    bannerColor: string;
+    activeLanguage?: LanguageCode;
+  }): KidProfile {
     const cleanName = input.name.trim() || 'Explorer';
     const avatarId: AvatarId = VALID_AVATARS.has(input.avatarId) ? input.avatarId : 'pip_explorer';
     const bannerColor = input.bannerColor.trim() || '#2563EB';
+    const activeLanguage: LanguageCode =
+      input.activeLanguage && VALID_LANGUAGES.has(input.activeLanguage)
+        ? input.activeLanguage
+        : 'es';
     const id = generateUniqueProfileId(cleanName, memoryVault.profiles);
 
     const created = makeFreshProfile({
@@ -799,7 +818,7 @@ export const vaultActions = {
       name: cleanName,
       avatarId,
       bannerColor,
-      activeLanguage: 'es',
+      activeLanguage,
       gems: 80,
     });
 
@@ -844,11 +863,12 @@ export const vaultActions = {
     if (!VALID_LANGUAGES.has(lang)) return;
     const safeUnitIndex = Number.isFinite(unitIndex) ? Math.max(0, Math.floor(unitIndex)) : 0;
     updateActiveProfile((profile) => {
-      const langProg = profile.languageProgress[lang];
+      const langProg = profile.languageProgress[lang] ?? emptyLangProgress();
       if (langProg.currentUnitIndex === safeUnitIndex) return profile;
       return {
         ...profile,
         languageProgress: {
+          ...createAllLangProgress(),
           ...profile.languageProgress,
           [lang]: {
             ...langProg,
@@ -921,7 +941,7 @@ export const vaultActions = {
   }): void {
     if (!VALID_LANGUAGES.has(params.language)) return;
     updateActiveProfile((profile) => {
-      const langProg = profile.languageProgress[params.language];
+      const langProg = profile.languageProgress[params.language] ?? emptyLangProgress();
       const safeXp = Number.isFinite(params.xpEarned) ? Math.max(0, Math.round(params.xpEarned)) : 0;
       const isAlreadyClaimedChest = Boolean(
         params.isChest && langProg.claimedChestIds.includes(params.nodeId)
@@ -957,11 +977,12 @@ export const vaultActions = {
       const nextLessonsCompleted = profile.stats.lessonsCompleted + (isLesson ? 1 : 0);
 
       const nextLanguageProgress: Record<LanguageCode, LanguageProgressState> = {
+        ...createAllLangProgress(),
         ...profile.languageProgress,
         [params.language]: nextLangProg,
       };
       const totalCompletedNodes = LANGUAGE_LIST.reduce(
-        (sum, lang) => sum + nextLanguageProgress[lang].completedNodeIds.length,
+        (sum, lang) => sum + (nextLanguageProgress[lang]?.completedNodeIds.length ?? 0),
         0
       );
       const shouldUnlockSecretArcade =
@@ -1001,7 +1022,7 @@ export const vaultActions = {
   recordSeenExercises(lang: LanguageCode, exerciseIds: readonly string[]): void {
     if (!VALID_LANGUAGES.has(lang) || exerciseIds.length === 0) return;
     updateActiveProfile((profile) => {
-      const langProg = profile.languageProgress[lang];
+      const langProg = profile.languageProgress[lang] ?? emptyLangProgress();
       const existing = langProg.seenExerciseIds ?? [];
       const seenSet = new Set(existing);
       const toAppend: string[] = [];
@@ -1019,6 +1040,7 @@ export const vaultActions = {
       return {
         ...profile,
         languageProgress: {
+          ...createAllLangProgress(),
           ...profile.languageProgress,
           [lang]: {
             ...langProg,
@@ -1256,6 +1278,8 @@ export const vaultActions = {
   },
 };
 
+const EMPTY_PROGRESS_FALLBACK: LanguageProgressState = emptyLangProgress();
+
 export function useVaultStore(): {
   vault: SaveVault;
   activeProfile: KidProfile;
@@ -1271,6 +1295,7 @@ export function useVaultStore(): {
   );
   const activeProfile =
     vault.profiles.find((p) => p.id === vault.activeProfileId) ?? vault.profiles[0];
-  const activeProgress = activeProfile.languageProgress[activeProfile.activeLanguage];
+  const activeProgress =
+    activeProfile.languageProgress[activeProfile.activeLanguage] ?? EMPTY_PROGRESS_FALLBACK;
   return { vault, activeProfile, activeProgress };
 }

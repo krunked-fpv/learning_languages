@@ -223,22 +223,22 @@ export const BADGE_CATALOG: readonly BadgeDefinition[] = [
 function getRawBadgeProgress(badgeId: BadgeId, profile: KidProfile): number {
   const languagesPracticed = LANGUAGE_LIST.filter(
     (lang) =>
-      profile.languageProgress[lang].xpEarned > 0 ||
-      profile.languageProgress[lang].completedNodeIds.length > 0
+      (profile.languageProgress[lang]?.xpEarned ?? 0) > 0 ||
+      (profile.languageProgress[lang]?.completedNodeIds.length ?? 0) > 0
   ).length;
 
   const totalCompletedNodes = LANGUAGE_LIST.reduce(
-    (sum, lang) => sum + profile.languageProgress[lang].completedNodeIds.length,
+    (sum, lang) => sum + (profile.languageProgress[lang]?.completedNodeIds.length ?? 0),
     0
   );
 
   const totalUnlockedStickers = LANGUAGE_LIST.reduce(
-    (sum, lang) => sum + profile.languageProgress[lang].unlockedVocabIds.length,
+    (sum, lang) => sum + (profile.languageProgress[lang]?.unlockedVocabIds.length ?? 0),
     0
   );
 
   const totalClaimedChests = LANGUAGE_LIST.reduce(
-    (sum, lang) => sum + profile.languageProgress[lang].claimedChestIds.length,
+    (sum, lang) => sum + (profile.languageProgress[lang]?.claimedChestIds.length ?? 0),
     0
   );
 
