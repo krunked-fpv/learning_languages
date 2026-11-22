@@ -1,7 +1,7 @@
 {
   "name": "Wanderling: The Grand Atlas of Living Tongues",
   "short_name": "Wanderling",
-  "description": "An offline-ready, tactile 4-language adventure for young explorers learning Spanish, French, German, and Italian with Pip the Starling.",
+  "description": "An offline-ready, tactile 16-language Grand Atlas adventure for young explorers learning world languages across Latin, Arabic, Cyrillic, CJK, and Indic scripts with Pip the Starling.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

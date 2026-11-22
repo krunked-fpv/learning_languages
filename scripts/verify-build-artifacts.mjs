@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -9,6 +9,7 @@ const DIST_DIR = resolve(ROOT_DIR, 'dist');
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const WOFF2_SIGNATURE = Buffer.from('wOF2', 'ascii');
 const UNICODE_FLAG_REGEX = /[\u{1F1E6}-\u{1F1FF}]/u;
+const TEXT_FILE_EXT_REGEX = /\.(html|htm|js|mjs|cjs|css|json|webmanifest|svg|txt|xml|md|map)$/i;
 
 const EXPECTED_ICONS = new Map([
   ['icon-192.png', { width: 192, height: 192 }],
@@ -18,16 +19,63 @@ const EXPECTED_ICONS = new Map([
   ['apple-touch-icon.png', { width: 180, height: 180 }],
 ]);
 
+const EXPECTED_LANDMARKS = [
+  'El Camino del Sol',
+  'La Route des Étoiles',
+  'Der Märchenpfad',
+  'La Via del Mare',
+  'A Trilha Tropical',
+  'The Starlight Compass Isles',
+  'The Lantern Cloud Peaks',
+  'Sakura Sky Trail',
+  'The Marigold Palace Trail',
+  'The Lotus River Delta',
+  'Oasis of Golden Stars',
+  'Nile Felucca Breeze',
+  'The Starlight Frost Express',
+  'Emerald Archipelago Voyage',
+  'Lantern Bay & Bamboo Peaks',
+  'Savanna Sun & Dhow Coast',
+];
+
 const errors = [];
+const flagCheckedPaths = new Set();
 
 function fail(message) {
   errors.push(message);
 }
 
 function checkNoFlagEmojis(label, text) {
+  const normalized = label.replace(/\\/g, '/');
+  if (flagCheckedPaths.has(normalized)) return;
+  flagCheckedPaths.add(normalized);
   if (UNICODE_FLAG_REGEX.test(text)) {
-    fail(`${label}: contains prohibited Unicode regional indicator flag emoji (U+1F1E6-U+1F1FF).`);
+    fail(`${normalized}: contains prohibited Unicode regional indicator flag emoji (U+1F1E6-U+1F1FF).`);
   }
+}
+
+function decodeJsEscapes(text) {
+  return text.replace(
+    /\\u\{([0-9a-fA-F]+)\}|\\u([0-9a-fA-F]{4})|\\x([0-9a-fA-F]{2})/g,
+    (_, uBrace, u4, x2) => {
+      const code = Number.parseInt(uBrace || u4 || x2, 16);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : '';
+    }
+  );
+}
+
+function walkFiles(dir) {
+  const out = [];
+  for (const entry of readdirSync(dir)) {
+    const fullPath = join(dir, entry);
+    const st = statSync(fullPath);
+    if (st.isDirectory()) {
+      out.push(...walkFiles(fullPath));
+    } else if (st.isFile()) {
+      out.push(fullPath);
+    }
+  }
+  return out;
 }
 
 function verifyIndexHtml() {
@@ -77,6 +125,9 @@ function verifyIndexHtml() {
     if (!html.includes(snippet)) {
       fail(`dist/index.html is missing required PWA reference: ${snippet}`);
     }
+  }
+  if (!/scope\s*:\s*['"]\.\/['"]/.test(html)) {
+    fail(`dist/index.html must register Service Worker with relative scope './'.`);
   }
 }
 
@@ -162,6 +213,15 @@ function verifyServiceWorker() {
   }
   if (!sw.includes('CACHE_VERSION')) {
     fail('dist/sw.js must define CACHE_VERSION.');
+  }
+  if (!sw.includes('caches.delete')) {
+    fail('dist/sw.js must purge stale caches via caches.delete.');
+  }
+  if (/["']\/(?:assets|icons|manifest\.json|sw\.js)/i.test(sw)) {
+    fail('dist/sw.js contains forbidden root-relative path.');
+  }
+  if (/https?:\/\//i.test(sw)) {
+    fail('dist/sw.js contains forbidden external HTTP/HTTPS URL.');
   }
 }
 
@@ -257,7 +317,12 @@ function verifyCssFontReference(cssFileName, rawRef) {
 
 function verifyAssetsAndFonts() {
   const assetsDir = resolve(DIST_DIR, 'assets');
-  if (!existsSync(assetsDir)) return;
+  if (!existsSync(assetsDir)) {
+    fail('dist/assets directory is missing.');
+    return;
+  }
+
+  const jsBundles = [];
 
   for (const fileName of readdirSync(assetsDir)) {
     const fullPath = join(assetsDir, fileName);
@@ -278,6 +343,10 @@ function verifyAssetsAndFonts() {
     const content = readFileSync(fullPath, 'utf8');
     checkNoFlagEmojis(`dist/assets/${fileName}`, content);
 
+    if (/\.(js|mjs)$/i.test(fileName)) {
+      jsBundles.push(content);
+    }
+
     if (fileName.toLowerCase().endsWith('.css')) {
       const urlRegex = /url\(\s*([^)]+?)\s*\)/gi;
       let match;
@@ -285,6 +354,34 @@ function verifyAssetsAndFonts() {
         verifyCssFontReference(fileName, match[1]);
       }
     }
+  }
+
+  if (verifiedWoff2Count === 0) {
+    fail('dist/assets/ must contain at least one bundled .woff2 font binary.');
+  }
+
+  if (jsBundles.length === 0) {
+    fail('dist/assets/ must contain at least one built JS bundle.');
+  } else {
+    const combinedJs = jsBundles.join('\n');
+    const decodedJs = decodeJsEscapes(combinedJs);
+    for (const landmark of EXPECTED_LANDMARKS) {
+      if (!combinedJs.includes(landmark) && !decodedJs.includes(landmark)) {
+        fail(`Built JS bundle is missing expected 16-language cultural landmark: "${landmark}"`);
+      }
+    }
+  }
+}
+
+let verifiedTextFileCount = 0;
+
+function verifyAllDistTextNoFlags() {
+  for (const fullPath of walkFiles(DIST_DIR)) {
+    if (!TEXT_FILE_EXT_REGEX.test(fullPath)) continue;
+    const relLabel = `dist/${relative(DIST_DIR, fullPath).replace(/\\/g, '/')}`;
+    const text = readFileSync(fullPath, 'utf8');
+    checkNoFlagEmojis(relLabel, text);
+    verifiedTextFileCount += 1;
   }
 }
 
@@ -296,6 +393,7 @@ if (!existsSync(DIST_DIR)) {
   verifyServiceWorker();
   verifyPngIcons();
   verifyAssetsAndFonts();
+  verifyAllDistTextNoFlags();
 }
 
 if (errors.length > 0) {
@@ -307,5 +405,5 @@ if (errors.length > 0) {
 }
 
 console.log(
-  `[verify-build-artifacts] PASS: dist/index.html, dist/manifest.json, dist/sw.js, all 5 RGBA PNG icons, and ${verifiedWoff2Count} relative ./assets/*.woff2 font(s) verified.`
+  `[verify-build-artifacts] PASS: dist/index.html, dist/manifest.json, dist/sw.js, all 5 RGBA PNG icons, ${verifiedWoff2Count} relative ./assets/*.woff2 font(s), ${EXPECTED_LANDMARKS.length} cultural landmarks, and ${verifiedTextFileCount} dist/ text file(s) verified.`
 );
