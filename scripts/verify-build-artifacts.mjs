@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { inflateSync } from 'node:zlib';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = resolve(__dirname, '..');
@@ -10,6 +11,23 @@ const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0
 const WOFF2_SIGNATURE = Buffer.from('wOF2', 'ascii');
 const UNICODE_FLAG_REGEX = /[\u{1F1E6}-\u{1F1FF}]/u;
 const TEXT_FILE_EXT_REGEX = /\.(html|htm|js|mjs|cjs|css|json|webmanifest|svg|txt|xml|md|map)$/i;
+
+const CRC_TABLE = new Uint32Array(256);
+for (let n = 0; n < 256; n += 1) {
+  let c = n;
+  for (let k = 0; k < 8; k += 1) {
+    c = (c & 1) !== 0 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  }
+  CRC_TABLE[n] = c >>> 0;
+}
+
+function crc32(buffer) {
+  let crc = 0xffffffff;
+  for (let i = 0; i < buffer.length; i += 1) {
+    crc = CRC_TABLE[(crc ^ buffer[i]) & 0xff] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
 
 const EXPECTED_ICONS = new Map([
   ['icon-192.png', { width: 192, height: 192 }],
@@ -45,6 +63,11 @@ function fail(message) {
   errors.push(message);
 }
 
+function isInsideDist(targetPath) {
+  const distPrefix = DIST_DIR.endsWith(sep) ? DIST_DIR : `${DIST_DIR}${sep}`;
+  return targetPath === DIST_DIR || targetPath.startsWith(distPrefix);
+}
+
 function checkNoFlagEmojis(label, text) {
   const normalized = label.replace(/\\/g, '/');
   if (flagCheckedPaths.has(normalized)) return;
@@ -57,9 +80,12 @@ function checkNoFlagEmojis(label, text) {
 function decodeJsEscapes(text) {
   return text.replace(
     /\\u\{([0-9a-fA-F]+)\}|\\u([0-9a-fA-F]{4})|\\x([0-9a-fA-F]{2})/g,
-    (_, uBrace, u4, x2) => {
+    (fullMatch, uBrace, u4, x2) => {
       const code = Number.parseInt(uBrace || u4 || x2, 16);
-      return Number.isFinite(code) ? String.fromCodePoint(code) : '';
+      if (!Number.isFinite(code) || code < 0 || code > 0x10ffff) {
+        return fullMatch;
+      }
+      return String.fromCodePoint(code);
     }
   );
 }
@@ -93,6 +119,7 @@ function verifyIndexHtml() {
     { label: '"/icons/', regex: /["']\/icons\//i },
     { label: '"/manifest.json', regex: /["']\/manifest\.json/i },
     { label: '"/sw.js', regex: /["']\/sw\.js/i },
+    { label: 'root-relative src/href attribute', regex: /<(?:script|link|img|source)\b[^>]*?\b(?:src|href)\s*=\s*["']\/(?!\/)/i },
   ];
 
   for (const { label, regex } of bannedRootRelativePatterns) {
@@ -102,9 +129,10 @@ function verifyIndexHtml() {
   }
 
   const externalHotlinkPatterns = [
-    /<script\b[^>]*\bsrc\s*=\s*["']https?:\/\//i,
-    /<link\b[^>]*\bhref\s*=\s*["']https?:\/\//i,
-    /<img\b[^>]*\bsrc\s*=\s*["']https?:\/\//i,
+    /<script\b[^>]*?\bsrc\s*=\s*["'](?:https?:)?\/\//i,
+    /<link\b[^>]*?\bhref\s*=\s*["'](?:https?:)?\/\//i,
+    /<img\b[^>]*?\bsrc\s*=\s*["'](?:https?:)?\/\//i,
+    /<source\b[^>]*?\bsrc\s*=\s*["'](?:https?:)?\/\//i,
   ];
 
   for (const regex of externalHotlinkPatterns) {
@@ -129,6 +157,45 @@ function verifyIndexHtml() {
   if (!/scope\s*:\s*['"]\.\/['"]/.test(html)) {
     fail(`dist/index.html must register Service Worker with relative scope './'.`);
   }
+
+  const attrRefRegex = /<(script|link|img|source)\b[^>]*?\b(?:src|href)\s*=\s*(["'])([^"']+)\2[^>]*>/gi;
+  let hasEntryJsAsset = false;
+  let hasCssAsset = false;
+  let attrMatch;
+
+  while ((attrMatch = attrRefRegex.exec(html)) !== null) {
+    const rawRef = attrMatch[3].trim();
+    if (!rawRef || rawRef.startsWith('#') || rawRef.startsWith('data:') || rawRef.startsWith('blob:')) {
+      continue;
+    }
+    if (/^(?:https?:)?\/\//i.test(rawRef) || rawRef.startsWith('/')) {
+      continue; // Already reported above
+    }
+    if (!rawRef.startsWith('./')) {
+      fail(`dist/index.html asset reference must use relative "./" prefix, got ${JSON.stringify(rawRef)}`);
+      continue;
+    }
+
+    const cleanRel = rawRef.split(/[?#]/)[0];
+    if (/^\.\/assets\/.+\.m?js$/i.test(cleanRel)) {
+      hasEntryJsAsset = true;
+    }
+    if (/^\.\/assets\/.+\.css$/i.test(cleanRel)) {
+      hasCssAsset = true;
+    }
+
+    const targetPath = resolve(DIST_DIR, cleanRel);
+    if (!isInsideDist(targetPath) || !existsSync(targetPath)) {
+      fail(`dist/index.html references missing relative build asset: ${rawRef}`);
+    }
+  }
+
+  if (!hasEntryJsAsset) {
+    fail('dist/index.html must reference at least one relative ./assets/*.js module script.');
+  }
+  if (!hasCssAsset) {
+    fail('dist/index.html must reference at least one relative ./assets/*.css stylesheet.');
+  }
 }
 
 function verifyManifestJson() {
@@ -140,6 +207,9 @@ function verifyManifestJson() {
 
   const raw = readFileSync(manifestPath, 'utf8');
   checkNoFlagEmojis('dist/manifest.json', raw);
+  if (/https?:\/\//i.test(raw)) {
+    fail('dist/manifest.json contains forbidden external HTTP/HTTPS URL.');
+  }
 
   let manifest;
   try {
@@ -177,7 +247,7 @@ function verifyManifestJson() {
       continue;
     }
     const targetFile = resolve(DIST_DIR, icon.src);
-    if (!existsSync(targetFile)) {
+    if (!isInsideDist(targetFile) || !existsSync(targetFile)) {
       fail(`dist/manifest.json references missing icon file: ${icon.src}`);
     }
     if (typeof icon.purpose === 'string') {
@@ -211,8 +281,9 @@ function verifyServiceWorker() {
   if (!/addEventListener\s*\(\s*['"]install['"]/.test(sw)) {
     fail(`dist/sw.js must register an 'install' listener.`);
   }
-  if (!sw.includes('CACHE_VERSION')) {
-    fail('dist/sw.js must define CACHE_VERSION.');
+  const cacheVersionMatch = sw.match(/CACHE_VERSION\s*=\s*(['"])([^'"]+)\1/);
+  if (!cacheVersionMatch || !cacheVersionMatch[2].trim()) {
+    fail('dist/sw.js must define a non-empty CACHE_VERSION string.');
   }
   if (!sw.includes('caches.delete')) {
     fail('dist/sw.js must purge stale caches via caches.delete.');
@@ -222,6 +293,26 @@ function verifyServiceWorker() {
   }
   if (/https?:\/\//i.test(sw)) {
     fail('dist/sw.js contains forbidden external HTTP/HTTPS URL.');
+  }
+
+  const precacheMatch = sw.match(/PRECACHE_URLS\s*=\s*\[([\s\S]*?)\]/);
+  if (!precacheMatch) {
+    fail('dist/sw.js must define PRECACHE_URLS.');
+  } else {
+    const entryRegex = /(['"])([^'"]+)\1/g;
+    let entry;
+    while ((entry = entryRegex.exec(precacheMatch[1])) !== null) {
+      const precacheRef = entry[2];
+      if (!precacheRef.startsWith('./')) {
+        fail(`dist/sw.js PRECACHE_URLS entry must be relative "./", got ${JSON.stringify(precacheRef)}`);
+        continue;
+      }
+      if (precacheRef === './') continue;
+      const resolvedTarget = resolve(DIST_DIR, precacheRef);
+      if (!isInsideDist(resolvedTarget) || !existsSync(resolvedTarget)) {
+        fail(`dist/sw.js PRECACHE_URLS references missing dist file: ${precacheRef}`);
+      }
+    }
   }
 }
 
@@ -254,64 +345,132 @@ function verifyPngIcons() {
       continue;
     }
 
-    const ihdrLength = buf.readUInt32BE(8);
-    const ihdrType = buf.subarray(12, 16).toString('ascii');
-    if (ihdrType !== 'IHDR' || ihdrLength !== 13) {
-      fail(`dist/icons/${fileName} has invalid IHDR header (type=${ihdrType}, len=${ihdrLength}).`);
+    let offset = 8;
+    const chunkTypes = [];
+    const idatChunks = [];
+    let ihdrWidth = 0;
+    let ihdrHeight = 0;
+    let chunkError = false;
+
+    while (offset < buf.length) {
+      if (offset + 12 > buf.length) {
+        fail(`dist/icons/${fileName} has truncated PNG chunk header at offset ${offset}.`);
+        chunkError = true;
+        break;
+      }
+
+      const len = buf.readUInt32BE(offset);
+      const type = buf.subarray(offset + 4, offset + 8).toString('ascii');
+      const dataStart = offset + 8;
+      const dataEnd = dataStart + len;
+
+      if (dataEnd + 4 > buf.length) {
+        fail(`dist/icons/${fileName} chunk ${type} extends past EOF (len=${len}).`);
+        chunkError = true;
+        break;
+      }
+
+      const data = buf.subarray(dataStart, dataEnd);
+      const expectedCrc = buf.readUInt32BE(dataEnd);
+      const actualCrc = crc32(buf.subarray(offset + 4, dataEnd));
+      if (actualCrc !== expectedCrc) {
+        fail(`dist/icons/${fileName} chunk ${type} CRC32 mismatch.`);
+        chunkError = true;
+        break;
+      }
+
+      chunkTypes.push(type);
+      if (type === 'IHDR') {
+        if (len !== 13) {
+          fail(`dist/icons/${fileName} has invalid IHDR length ${len} (expected 13).`);
+          chunkError = true;
+          break;
+        }
+        ihdrWidth = data.readUInt32BE(0);
+        ihdrHeight = data.readUInt32BE(4);
+        const bitDepth = data[8];
+        const colorType = data[9];
+        if (bitDepth !== 8 || colorType !== 6) {
+          fail(
+            `dist/icons/${fileName} expected 8-bit RGBA (bitDepth=8, colorType=6), got bitDepth=${bitDepth}, colorType=${colorType}.`
+          );
+        }
+        const expectedDims = EXPECTED_ICONS.get(fileName);
+        if (expectedDims && (ihdrWidth !== expectedDims.width || ihdrHeight !== expectedDims.height)) {
+          fail(
+            `dist/icons/${fileName} expected ${expectedDims.width}x${expectedDims.height}, got ${ihdrWidth}x${ihdrHeight}.`
+          );
+        }
+      } else if (type === 'IDAT') {
+        idatChunks.push(data);
+      }
+
+      offset = dataEnd + 4;
+    }
+
+    if (chunkError) continue;
+
+    if (chunkTypes[0] !== 'IHDR') {
+      fail(`dist/icons/${fileName} first chunk must be IHDR, got ${chunkTypes[0]}.`);
+    }
+    if (chunkTypes[chunkTypes.length - 1] !== 'IEND') {
+      fail(`dist/icons/${fileName} is missing trailing IEND chunk.`);
+    }
+    if (idatChunks.length === 0) {
+      fail(`dist/icons/${fileName} contains no IDAT image data chunks.`);
       continue;
     }
 
-    const width = buf.readUInt32BE(16);
-    const height = buf.readUInt32BE(20);
-    const bitDepth = buf[24];
-    const colorType = buf[25];
-
-    if (bitDepth !== 8 || colorType !== 6) {
-      fail(`dist/icons/${fileName} expected 8-bit RGBA (bitDepth=8, colorType=6), got bitDepth=${bitDepth}, colorType=${colorType}.`);
-    }
-
-    const expectedDims = EXPECTED_ICONS.get(fileName);
-    if (expectedDims && (width !== expectedDims.width || height !== expectedDims.height)) {
-      fail(
-        `dist/icons/${fileName} expected ${expectedDims.width}x${expectedDims.height}, got ${width}x${height}.`
-      );
-    }
-
-    const iendType = buf.subarray(buf.length - 8, buf.length - 4).toString('ascii');
-    if (iendType !== 'IEND') {
-      fail(`dist/icons/${fileName} is missing trailing IEND chunk.`);
+    if (ihdrWidth > 0 && ihdrHeight > 0) {
+      try {
+        const inflated = inflateSync(Buffer.concat(idatChunks));
+        const expectedBytes = ihdrHeight * (1 + ihdrWidth * 4);
+        if (inflated.length !== expectedBytes) {
+          fail(
+            `dist/icons/${fileName} inflated IDAT byte length ${inflated.length} does not match expected ${expectedBytes}.`
+          );
+        }
+      } catch (err) {
+        fail(`dist/icons/${fileName} failed IDAT zlib inflation: ${err.message}`);
+      }
     }
   }
 }
 
 let verifiedWoff2Count = 0;
+let verifiedCssCount = 0;
+let jsChunkCount = 0;
+let totalJsBytes = 0;
 
-function verifyCssFontReference(cssFileName, rawRef) {
+function verifyCssFontReference(cssFullPath, cssRelLabel, rawRef) {
   const ref = rawRef.trim().replace(/^['"]|['"]$/g, '');
   if (!ref || ref.startsWith('data:') || ref.startsWith('#')) return;
 
   if (/^https?:\/\//i.test(ref) || ref.startsWith('//')) {
-    fail(`dist/assets/${cssFileName} contains external font/asset URL: ${ref}`);
+    fail(`${cssRelLabel} contains external font/asset URL: ${ref}`);
     return;
   }
 
   if (ref.startsWith('/')) {
-    fail(`dist/assets/${cssFileName} contains forbidden root-relative URL: ${ref}`);
+    fail(`${cssRelLabel} contains forbidden root-relative URL: ${ref}`);
     return;
   }
 
   const cleanRel = ref.split(/[?#]/)[0];
-  if (!cleanRel.toLowerCase().endsWith('.woff2')) return;
+  if (!/\.(woff2|woff|ttf|otf)$/i.test(cleanRel)) return;
 
-  const fromCssDir = resolve(DIST_DIR, 'assets', cleanRel);
+  const fromCssDir = resolve(dirname(cssFullPath), cleanRel);
+  const fromAssetsDir = resolve(DIST_DIR, 'assets', cleanRel);
   const fromDistRoot = resolve(DIST_DIR, cleanRel);
-  const targetExists =
-    (cleanRel.startsWith('./assets/') && existsSync(fromDistRoot)) ||
-    existsSync(fromCssDir) ||
-    existsSync(fromDistRoot);
+
+  const candidates = cleanRel.startsWith('./assets/')
+    ? [fromDistRoot, fromCssDir]
+    : [fromCssDir, fromAssetsDir, fromDistRoot];
+
+  const targetExists = candidates.some((candidate) => isInsideDist(candidate) && existsSync(candidate));
 
   if (!targetExists) {
-    fail(`dist/assets/${cssFileName} references missing bundled font ${ref}`);
+    fail(`${cssRelLabel} references missing bundled font ${ref}`);
   }
 }
 
@@ -322,36 +481,67 @@ function verifyAssetsAndFonts() {
     return;
   }
 
-  const jsBundles = [];
+  const foundLandmarks = new Set();
 
-  for (const fileName of readdirSync(assetsDir)) {
-    const fullPath = join(assetsDir, fileName);
-    if (!statSync(fullPath).isFile()) continue;
+  for (const fullPath of walkFiles(assetsDir)) {
+    const relLabel = `dist/${relative(DIST_DIR, fullPath).replace(/\\/g, '/')}`;
+    const lowerName = fullPath.toLowerCase();
 
-    if (fileName.toLowerCase().endsWith('.woff2')) {
+    if (lowerName.endsWith('.woff2')) {
       const buf = readFileSync(fullPath);
       if (buf.length < 4 || !buf.subarray(0, 4).equals(WOFF2_SIGNATURE)) {
-        fail(`./assets/${fileName} is not a valid WOFF2 font binary (missing wOF2 signature).`);
+        fail(`${relLabel} is not a valid WOFF2 font binary (missing wOF2 signature).`);
       } else {
         verifiedWoff2Count += 1;
       }
       continue;
     }
 
-    if (!/\.(js|mjs|css|html)$/i.test(fileName)) continue;
+    if (!/\.(js|mjs|css|html)$/i.test(lowerName)) continue;
 
     const content = readFileSync(fullPath, 'utf8');
-    checkNoFlagEmojis(`dist/assets/${fileName}`, content);
+    checkNoFlagEmojis(relLabel, content);
 
-    if (/\.(js|mjs)$/i.test(fileName)) {
-      jsBundles.push(content);
+    if (lowerName.endsWith('.js') || lowerName.endsWith('.mjs')) {
+      jsChunkCount += 1;
+      totalJsBytes += Buffer.byteLength(content, 'utf8');
+
+      if (content.trim().length === 0) {
+        fail(`${relLabel} built JS chunk is empty.`);
+        continue;
+      }
+
+      if (/["']\/(?:assets|icons|manifest\.json|sw\.js)/i.test(content)) {
+        fail(`${relLabel} contains forbidden root-relative asset path.`);
+      }
+
+      const missingLiterals = [];
+      for (const landmark of EXPECTED_LANDMARKS) {
+        if (foundLandmarks.has(landmark)) continue;
+        if (content.includes(landmark)) {
+          foundLandmarks.add(landmark);
+        } else {
+          missingLiterals.push(landmark);
+        }
+      }
+
+      if (missingLiterals.length > 0 && /\\(?:u|x)/.test(content)) {
+        const decodedChunk = decodeJsEscapes(content);
+        for (const landmark of missingLiterals) {
+          if (decodedChunk.includes(landmark)) {
+            foundLandmarks.add(landmark);
+          }
+        }
+      }
+      continue;
     }
 
-    if (fileName.toLowerCase().endsWith('.css')) {
+    if (lowerName.endsWith('.css')) {
+      verifiedCssCount += 1;
       const urlRegex = /url\(\s*([^)]+?)\s*\)/gi;
       let match;
       while ((match = urlRegex.exec(content)) !== null) {
-        verifyCssFontReference(fileName, match[1]);
+        verifyCssFontReference(fullPath, relLabel, match[1]);
       }
     }
   }
@@ -360,14 +550,16 @@ function verifyAssetsAndFonts() {
     fail('dist/assets/ must contain at least one bundled .woff2 font binary.');
   }
 
-  if (jsBundles.length === 0) {
+  if (verifiedCssCount === 0) {
+    fail('dist/assets/ must contain at least one built CSS stylesheet.');
+  }
+
+  if (jsChunkCount === 0) {
     fail('dist/assets/ must contain at least one built JS bundle.');
   } else {
-    const combinedJs = jsBundles.join('\n');
-    const decodedJs = decodeJsEscapes(combinedJs);
     for (const landmark of EXPECTED_LANDMARKS) {
-      if (!combinedJs.includes(landmark) && !decodedJs.includes(landmark)) {
-        fail(`Built JS bundle is missing expected 16-language cultural landmark: "${landmark}"`);
+      if (!foundLandmarks.has(landmark)) {
+        fail(`Built JS bundle(s) missing expected 16-language cultural landmark: "${landmark}"`);
       }
     }
   }
@@ -405,5 +597,5 @@ if (errors.length > 0) {
 }
 
 console.log(
-  `[verify-build-artifacts] PASS: dist/index.html, dist/manifest.json, dist/sw.js, all 5 RGBA PNG icons, ${verifiedWoff2Count} relative ./assets/*.woff2 font(s), ${EXPECTED_LANDMARKS.length} cultural landmarks, and ${verifiedTextFileCount} dist/ text file(s) verified.`
+  `[verify-build-artifacts] PASS: dist/index.html, dist/manifest.json, dist/sw.js, all 5 RGBA PNG icons, ${verifiedWoff2Count} relative ./assets/*.woff2 font(s), ${jsChunkCount} JS chunk(s) (${(totalJsBytes / 1024).toFixed(1)} KiB), ${EXPECTED_LANDMARKS.length} cultural landmarks, and ${verifiedTextFileCount} dist/ text file(s) verified.`
 );
