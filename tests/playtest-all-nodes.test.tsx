@@ -141,7 +141,7 @@ function playSingleExerciseInDom(ex: LessonExercise): void {
   }
 }
 
-describe('Phase 4+: End-to-End 140-Node Playtest, Deep Pool Zero-Repeats, Boss Recovery & Secret Mini-Game', () => {
+describe('Phase 4+ / Wave 3: End-to-End 224-Node Playtest, Deep Pool Zero-Repeats, Boss Recovery & Secret Mini-Game', () => {
   beforeEach(() => {
     window.localStorage.clear();
     vaultActions.resetVaultToDefaults();
@@ -155,7 +155,7 @@ describe('Phase 4+: End-to-End 140-Node Playtest, Deep Pool Zero-Repeats, Boss R
     vi.restoreAllMocks();
   });
 
-  it('plays ALL 140 MapNodes (35 x 4 languages) end-to-end through LessonArena with ZERO console errors/warnings', () => {
+  it('plays ALL 224 MapNodes (56 x 4 languages, Units 1-8) end-to-end through LessonArena with ZERO console errors/warnings', () => {
     vi.useFakeTimers();
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -165,8 +165,9 @@ describe('Phase 4+: End-to-End 140-Node Playtest, Deep Pool Zero-Repeats, Boss R
     for (const lang of LANGUAGE_LIST) {
       vaultActions.setActiveLanguage(lang);
       const course = COURSES[lang];
+      expect(course.units).toHaveLength(8);
       const allNodes: MapNode[] = course.units.flatMap((u) => u.nodes);
-      expect(allNodes).toHaveLength(35);
+      expect(allNodes).toHaveLength(56);
 
       for (const node of allNodes) {
         totalNodesPlayed += 1;
@@ -203,7 +204,7 @@ describe('Phase 4+: End-to-End 140-Node Playtest, Deep Pool Zero-Repeats, Boss R
       }
     }
 
-    expect(totalNodesPlayed).toBe(140);
+    expect(totalNodesPlayed).toBe(224);
 
     // Revisit an already-claimed chest node and verify NO duplicate +Gems badge appears (P2-4)
     const firstChest = COURSES.es.units[0].nodes.find((n) => n.nodeType === 'chest')!;
@@ -221,7 +222,7 @@ describe('Phase 4+: End-to-End 140-Node Playtest, Deep Pool Zero-Repeats, Boss R
 
     expect(errSpy, `Unexpected console.error calls: ${JSON.stringify(errSpy.mock.calls)}`).not.toHaveBeenCalled();
     expect(warnSpy, `Unexpected console.warn calls: ${JSON.stringify(warnSpy.mock.calls)}`).not.toHaveBeenCalled();
-  }, 120_000);
+  }, 180_000);
 
   it('verifies zero duplicate authored prompts, >= 14 pool size per lesson node, and 0% ID overlap on Play Fresh Remix', () => {
     vi.useFakeTimers();
@@ -324,39 +325,44 @@ describe('Phase 4+: End-to-End 140-Node Playtest, Deep Pool Zero-Repeats, Boss R
       }
     }
 
-    // Play a lesson node in LessonArena Run 1, then click "Play Fresh Remix!" -> 0% ID overlap!
-    const sampleLesson = COURSES.es.units[0].nodes.find((n) => n.nodeType === 'lesson')!;
-    const run1Expected = getPlayableNodeExercises('es', sampleLesson.id, [], false);
-    const run1Ids = new Set(run1Expected.map((e) => e.id));
+    // Play a Unit 1 AND Unit 8 lesson node in LessonArena Run 1, then click "Play Fresh Remix!" -> 0% ID overlap!
+    for (const unitIndex of [0, 7] as const) {
+      const sampleLesson = COURSES.es.units[unitIndex].nodes.find((n) => n.nodeType === 'lesson')!;
+      const seenBefore = loadVaultFromStorage().profiles[0].languageProgress.es.seenExerciseIds ?? [];
+      const run1Expected = getPlayableNodeExercises('es', sampleLesson.id, seenBefore, false);
+      const run1Ids = new Set(run1Expected.map((e) => e.id));
 
-    render(<LessonArena node={sampleLesson} language="es" onExit={vi.fn()} />);
-    for (const ex of run1Expected) {
-      playSingleExerciseInDom(ex);
+      const { unmount } = render(<LessonArena node={sampleLesson} language="es" onExit={vi.fn()} />);
+      for (const ex of run1Expected) {
+        playSingleExerciseInDom(ex);
+      }
+      expect(screen.getByText(`${sampleLesson.title} Complete!`)).toBeInTheDocument();
+
+      const savedSeenAfterRun1 = loadVaultFromStorage().profiles[0].languageProgress.es.seenExerciseIds ?? [];
+      for (const id of run1Ids) {
+        expect(savedSeenAfterRun1).toContain(id);
+      }
+
+      const run2Expected = getPlayableNodeExercises('es', sampleLesson.id, savedSeenAfterRun1, true);
+      expect(run2Expected.length).toBeGreaterThan(0);
+      for (const ex of run2Expected) {
+        expect(run1Ids.has(ex.id), `Unit ${unitIndex + 1} Run 2 repeated Run 1 exercise id "${ex.id}"`).toBe(false);
+      }
+
+      // Click "Play Fresh Remix!" in UI and complete Run 2 cleanly!
+      fireEvent.click(screen.getByRole('button', { name: /Play Fresh Remix!/i }));
+      expect(screen.getByText('Remix')).toBeInTheDocument();
+      for (const ex of run2Expected) {
+        playSingleExerciseInDom(ex);
+      }
+      expect(screen.getByText(`${sampleLesson.title} Complete!`)).toBeInTheDocument();
+
+      act(() => {
+        vi.runOnlyPendingTimers();
+      });
+      unmount();
+      cleanup();
     }
-    expect(screen.getByText(`${sampleLesson.title} Complete!`)).toBeInTheDocument();
-
-    const savedSeenAfterRun1 = loadVaultFromStorage().profiles[0].languageProgress.es.seenExerciseIds ?? [];
-    for (const id of run1Ids) {
-      expect(savedSeenAfterRun1).toContain(id);
-    }
-
-    const run2Expected = getPlayableNodeExercises('es', sampleLesson.id, savedSeenAfterRun1, true);
-    expect(run2Expected.length).toBeGreaterThan(0);
-    for (const ex of run2Expected) {
-      expect(run1Ids.has(ex.id), `Run 2 repeated Run 1 exercise id "${ex.id}"`).toBe(false);
-    }
-
-    // Click "Play Fresh Remix!" in UI and complete Run 2 cleanly!
-    fireEvent.click(screen.getByRole('button', { name: /Play Fresh Remix!/i }));
-    expect(screen.getByText('Remix')).toBeInTheDocument();
-    for (const ex of run2Expected) {
-      playSingleExerciseInDom(ex);
-    }
-    expect(screen.getByText(`${sampleLesson.title} Complete!`)).toBeInTheDocument();
-
-    act(() => {
-      vi.runOnlyPendingTimers();
-    });
   });
 
   it('preserves Boss Gauntlet turnIndex across Zero-Heart Recovery (P1-2)', () => {
