@@ -1201,9 +1201,37 @@ const extraGlossary: GlossaryMap = {
   quelque: { translation: 'some', phonetic: 'kehl-kuh' },
   chose: { translation: 'thing', phonetic: 'shohz' },
   panier: { translation: 'basket', phonetic: 'pah-NYAY' },
+  comment: { translation: 'how', phonetic: 'koh-MAHN' },
+  ça: { translation: 'that / it', phonetic: 'sah' },
+  va: { translation: 'goes', phonetic: 'vah' },
+  montmartre: { translation: 'Montmartre', phonetic: 'mohn-MAR-truh' },
+  voyager: { translation: 'to travel', phonetic: 'vwah-yah-ZHAY' },
+  sent: { translation: 'smells', phonetic: 'sahn' },
+  doux: { translation: 'soft / sweet', phonetic: 'doo' },
+  prépare: { translation: 'prepares', phonetic: 'pray-PAR' },
+  froide: { translation: 'cold (fem.)', phonetic: 'frwahd' },
+  croquante: { translation: 'crunchy (fem.)', phonetic: 'kroh-KAHNT' },
+  mmm: { translation: 'mmm!', phonetic: 'mmm' },
+  sentier: { translation: 'trail / path', phonetic: 'sahn-TYAY' },
+  branche: { translation: 'branch', phonetic: 'brahnsh' },
+  vers: { translation: 'toward', phonetic: 'vehr' },
+  sage: { translation: 'wise', phonetic: 'sahzh' },
+  chaque: { translation: 'every / each', phonetic: 'shahk' },
+  immense: { translation: 'huge', phonetic: 'ee-MAHNS' },
+  haute: { translation: 'tall / high (fem.)', phonetic: 'oht' },
+  belle: { translation: 'beautiful (fem.)', phonetic: 'behl' },
+  scintille: { translation: 'sparkles', phonetic: 'san-TEE' },
+  pleine: { translation: 'full (fem.)', phonetic: 'plehn' },
+  raconte: { translation: 'tells', phonetic: 'rah-KOHNT' },
+  histoires: { translation: 'stories', phonetic: 'ees-TWAR' },
+  comptent: { translation: 'count', phonetic: 'kohnt' },
+  toute: { translation: 'all / whole (fem.)', phonetic: 'toot' },
+  heureuse: { translation: 'happy (fem.)', phonetic: 'uh-RUHZ' },
+  guide: { translation: 'guides', phonetic: 'geed' },
 };
 
 const G = buildGlossaryFromCards(allCards, extraGlossary);
+export const frenchGlossary: GlossaryMap = G;
 
 const units: CourseUnit[] = [
   // =========================================================================
@@ -3523,12 +3551,12 @@ const units: CourseUnit[] = [
           wordBankToForeign(
             {
               id: 'fr-u5-n3-e7',
-              promptText: 'The museum is to the left.',
-              expectedSentence: 'Le musée est à gauche.',
-              targetTokens: ['Le', 'musée', 'est', 'à', 'gauche'],
-              distractorTokens: ['parapluie', 'parc', 'la'],
-              phoneticHint: 'luh moo-ZAY eh tah gohsh',
-              vocabIds: ['fr-u5-c9', 'fr-u5-c8'],
+              promptText: 'The park is to the left.',
+              expectedSentence: 'Le parc est à gauche.',
+              targetTokens: ['Le', 'parc', 'est', 'à', 'gauche'],
+              distractorTokens: ['parapluie', 'musée', 'la'],
+              phoneticHint: 'luh park eh tah gohsh',
+              vocabIds: ['fr-u5-c3', 'fr-u5-c8'],
             }
           ),
           pairMatchFromCards(

@@ -1113,9 +1113,41 @@ const extraGlossary: GlossaryMap = {
   esploratore: { translation: 'explorer', phonetic: 'ehs-ploh-rah-TOH-reh' },
   vediamo: { translation: 'we see', phonetic: 'veh-DYAH-moh' },
   domani: { translation: 'tomorrow', phonetic: 'doh-MAH-nee' },
+  stai: { translation: 'are you', phonetic: 'sty' },
+  piazza: { translation: 'plaza / square', phonetic: 'PYAHT-sah' },
+  "d'oro": { translation: 'golden / of gold', phonetic: 'DOH-roh' },
+  "d’oro": { translation: 'golden / of gold', phonetic: 'DOH-roh' },
+  caro: { translation: 'dear (masc.)', phonetic: 'KAH-roh' },
+  adoro: { translation: 'I love', phonetic: 'ah-DOH-roh' },
+  viaggiare: { translation: 'to travel', phonetic: 'vyahd-JAH-reh' },
+  conoscerti: { translation: 'to meet you', phonetic: 'koh-noh-SHEHR-tee' },
+  profuma: { translation: 'smells lovely', phonetic: 'proh-FOO-mah' },
+  benissimo: { translation: 'wonderfully', phonetic: 'beh-NEES-see-moh' },
+  ottimo: { translation: 'great / excellent', phonetic: 'OHT-tee-moh' },
+  colazione: { translation: 'breakfast', phonetic: 'koh-laht-SYOH-neh' },
+  dolcissima: { translation: 'super sweet (fem.)', phonetic: 'dohl-CHEES-see-mah' },
+  offre: { translation: 'offers', phonetic: 'OHF-freh' },
+  croccante: { translation: 'crispy', phonetic: 'krohk-KAHN-teh' },
+  mmm: { translation: 'mmm!', phonetic: 'mmm' },
+  sentiero: { translation: 'trail / path', phonetic: 'sehn-TYEH-roh' },
+  visita: { translation: 'visits', phonetic: 'VEE-zee-tah' },
+  ogni: { translation: 'every', phonetic: 'OH-nyee' },
+  altissimo: { translation: 'very tall', phonetic: 'ahl-TEES-see-moh' },
+  pieno: { translation: 'full', phonetic: 'PYEH-noh' },
+  prepara: { translation: 'prepares / makes', phonetic: 'preh-PAH-rah' },
+  disegna: { translation: 'draws', phonetic: 'dee-ZEH-nyah' },
+  ridono: { translation: 'laugh (pl.)', phonetic: 'REE-doh-noh' },
+  colore: { translation: 'color', phonetic: 'koh-LOH-reh' },
+  festeggia: { translation: 'celebrates', phonetic: 'fehs-TEHD-jah' },
+  città: { translation: 'city', phonetic: 'cheet-TAH' },
+  dorato: { translation: 'golden', phonetic: 'doh-RAH-toh' },
+  giochiamo: { translation: 'we play', phonetic: 'joh-KYAH-moh' },
+  visitiamo: { translation: 'we visit', phonetic: 'vee-zee-TYAH-moh' },
+  guida: { translation: 'guides', phonetic: 'GWEE-dah' },
 };
 
 const G = buildGlossaryFromCards(allCards, extraGlossary);
+export const italianGlossary: GlossaryMap = G;
 
 const units: CourseUnit[] = [
   // =========================================================================
@@ -2985,13 +3017,13 @@ const units: CourseUnit[] = [
           wordBankToForeign(
             {
               id: 'it-u4-n4-e7',
-              promptText: 'I have three green apples.',
-              expectedSentence: 'Ho tre mele verdi.',
-              acceptedSentences: ['Ho tre mele verde'],
-              targetTokens: ['Ho', 'tre', 'mele', 'verdi'],
-              distractorTokens: ['dieci', 'rosso', 'blu'],
-              phoneticHint: 'oh treh MEH-leh VEHR-dee',
-              vocabIds: ['it-u4-c11', 'it-u4-c10'],
+              promptText: 'Ten green apples.',
+              expectedSentence: 'Dieci mele verdi.',
+              acceptedSentences: ['Dieci mele verde'],
+              targetTokens: ['Dieci', 'mele', 'verdi'],
+              distractorTokens: ['tre', 'rosso', 'blu'],
+              phoneticHint: 'DYEH-chee MEH-leh VEHR-dee',
+              vocabIds: ['it-u4-c12', 'it-u4-c10'],
             }
           ),
           pairMatchFromCards(
@@ -3443,12 +3475,12 @@ const units: CourseUnit[] = [
           wordBankToForeign(
             {
               id: 'it-u5-n3-e7',
-              promptText: 'The museum is to the left.',
-              expectedSentence: 'Il museo è a sinistra.',
-              targetTokens: ['Il', 'museo', 'è', 'a', 'sinistra'],
-              distractorTokens: ["l'ombrello", 'parco', 'la'],
-              phoneticHint: 'eel moo-ZEH-oh eh ah see-NEES-trah',
-              vocabIds: ['it-u5-c9', 'it-u5-c8'],
+              promptText: 'The park is to the left.',
+              expectedSentence: 'Il parco è a sinistra.',
+              targetTokens: ['Il', 'parco', 'è', 'a', 'sinistra'],
+              distractorTokens: ["l'ombrello", 'museo', 'la'],
+              phoneticHint: 'eel PAR-koh eh ah see-NEES-trah',
+              vocabIds: ['it-u5-c3', 'it-u5-c8'],
             }
           ),
           pairMatchFromCards(

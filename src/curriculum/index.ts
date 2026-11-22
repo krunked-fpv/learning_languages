@@ -46,3 +46,5 @@ export function getArcadeLexicon(
 ): ArcadeLanternItem[] {
   return buildArcadeLexicon(COURSES[lang], unlockedVocabIds, currentUnitIndex);
 }
+
+export { getNodePoolSize, getPlayableNodeExercises } from './levelPool';
