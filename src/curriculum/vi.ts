@@ -23,6 +23,11 @@ import {
   vietnameseCards6to8,
   vietnameseExtraGlossary6to8,
 } from './viUnits6to8';
+import {
+  buildVietnameseUnits9to16,
+  vietnameseCards9to16,
+  vietnameseExtraGlossary9to16,
+} from './viUnits9to16';
 
 const U1 = 'vi-u1';
 const U2 = 'vi-u2';
@@ -1181,11 +1186,13 @@ const allCards: VocabCard[] = [
   ...u4Cards,
   ...u5Cards,
   ...vietnameseCards6to8,
+  ...vietnameseCards9to16,
 ];
 
 const G = buildGlossaryFromCards(allCards, {
   ...extraGlossary,
   ...vietnameseExtraGlossary6to8,
+  ...vietnameseExtraGlossary9to16,
 });
 
 export const vietnameseGlossary: GlossaryMap = G;
@@ -3718,5 +3725,5 @@ const localUnits: CourseUnit[] = [
   },
 ];
 
-const units: CourseUnit[] = [...localUnits, ...buildVietnameseUnits6to8(G)];
+const units: CourseUnit[] = [...localUnits, ...buildVietnameseUnits6to8(G), ...buildVietnameseUnits9to16(G)];
 export const vietnameseCourse: LanguageCourse = buildCourse('vi', units);

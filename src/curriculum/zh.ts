@@ -23,6 +23,11 @@ import {
   mandarinCards6to8,
   mandarinExtraGlossary6to8,
 } from './zhUnits6to8';
+import {
+  buildMandarinUnits9to16,
+  mandarinCards9to16,
+  mandarinExtraGlossary9to16,
+} from './zhUnits9to16';
 
 const U1 = 'zh-u1';
 const U2 = 'zh-u2';
@@ -1110,7 +1115,7 @@ const u5Cards: VocabCard[] = [
   }),
 ];
 
-const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards, ...mandarinCards6to8];
+const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards, ...mandarinCards6to8, ...mandarinCards9to16];
 
 const extraGlossary: GlossaryMap = {
   我: { translation: 'I / me', phonetic: 'woh', romanized: 'wǒ' },
@@ -1347,7 +1352,11 @@ const extraGlossary: GlossaryMap = {
   照亮: { translation: 'lights up', phonetic: 'jow-lyahng', romanized: 'zhàoliàng' },
 };
 
-const G = buildGlossaryFromCards(allCards, { ...extraGlossary, ...mandarinExtraGlossary6to8 });
+const G = buildGlossaryFromCards(allCards, {
+  ...extraGlossary,
+  ...mandarinExtraGlossary6to8,
+  ...mandarinExtraGlossary9to16,
+});
 export const mandarinGlossary: GlossaryMap = G;
 
 const units: CourseUnit[] = [
@@ -4157,6 +4166,7 @@ const units: CourseUnit[] = [
     ],
   },
   ...buildMandarinUnits6to8(G),
+  ...buildMandarinUnits9to16(G),
 ];
 
 export const mandarinCourse: LanguageCourse = buildCourse('zh', units);
