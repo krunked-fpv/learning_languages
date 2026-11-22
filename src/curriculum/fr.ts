@@ -23,6 +23,11 @@ import {
   frenchCards6to8,
   frenchExtraGlossary6to8,
 } from './frUnits6to8';
+import {
+  buildFrenchUnits9to16,
+  frenchCards9to16,
+  frenchExtraGlossary9to16,
+} from './frUnits9to16';
 
 const U1 = 'fr-u1';
 const U2 = 'fr-u2';
@@ -1036,7 +1041,15 @@ const u5Cards: VocabCard[] = [
   }),
 ];
 
-const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards, ...frenchCards6to8];
+const allCards = [
+  ...u1Cards,
+  ...u2Cards,
+  ...u3Cards,
+  ...u4Cards,
+  ...u5Cards,
+  ...frenchCards6to8,
+  ...frenchCards9to16,
+];
 
 const extraGlossary: GlossaryMap = {
   le: { translation: 'the (masculine)', phonetic: 'luh', articleNote: 'Masculine singular article' },
@@ -1235,7 +1248,11 @@ const extraGlossary: GlossaryMap = {
   guide: { translation: 'guides', phonetic: 'geed' },
 };
 
-const G = buildGlossaryFromCards(allCards, { ...extraGlossary, ...frenchExtraGlossary6to8 });
+const G = buildGlossaryFromCards(allCards, {
+  ...extraGlossary,
+  ...frenchExtraGlossary6to8,
+  ...frenchExtraGlossary9to16,
+});
 export const frenchGlossary: GlossaryMap = G;
 
 const units: CourseUnit[] = [
@@ -3898,6 +3915,7 @@ const units: CourseUnit[] = [
     ],
   },
   ...buildFrenchUnits6to8(G),
+  ...buildFrenchUnits9to16(G),
 ];
 
 export const frenchCourse: LanguageCourse = buildCourse('fr', units);
