@@ -167,8 +167,12 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
                   gap: 10,
                   padding: '10px 12px',
                   borderRadius: 18,
-                  border: `2px solid ${isActive ? profile.bannerColor : '#cbd5e1'}`,
+                  borderTopWidth: 2,
+                  borderRightWidth: 2,
+                  borderLeftWidth: 2,
                   borderBottomWidth: 4,
+                  borderStyle: 'solid',
+                  borderColor: isActive ? profile.bannerColor : '#cbd5e1',
                   background: isActive ? '#f8fafc' : '#ffffff',
                   flexWrap: 'wrap',
                 }}

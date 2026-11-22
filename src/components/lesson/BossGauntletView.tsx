@@ -11,6 +11,8 @@ export interface BossGauntletViewProps {
   exercise: BossGauntletExercise;
   language: LanguageCode;
   compact: boolean;
+  initialTurnIndex?: number;
+  onTurnIndexChange?: (turnIndex: number) => void;
   onTurtlePlay: () => void;
   onTurnResult: (params: { isCorrect: boolean; usedAccentCoaching?: boolean }) => void;
   onComplete: (bonusGems: number) => void;
@@ -20,11 +22,13 @@ export function BossGauntletView({
   exercise,
   language,
   compact,
+  initialTurnIndex = 0,
+  onTurnIndexChange,
   onTurtlePlay,
   onTurnResult,
   onComplete,
 }: BossGauntletViewProps) {
-  const [turnIndex, setTurnIndex] = useState(0);
+  const [turnIndex, setTurnIndex] = useState(initialTurnIndex);
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [selectedTileUids, setSelectedTileUids] = useState<string[]>([]);
   const [turnOutcome, setTurnOutcome] = useState<{
@@ -35,12 +39,12 @@ export function BossGauntletView({
   const [bossCleared, setBossCleared] = useState(false);
 
   useEffect(() => {
-    setTurnIndex(0);
+    setTurnIndex(initialTurnIndex);
     setSelectedChoice(null);
     setSelectedTileUids([]);
     setTurnOutcome(null);
     setBossCleared(false);
-  }, [exercise.id]);
+  }, [exercise.id, initialTurnIndex]);
 
   const currentTurn = exercise.turns[turnIndex];
 
@@ -171,7 +175,9 @@ export function BossGauntletView({
       playSfx('chest_open');
       setBossCleared(true);
     } else {
-      setTurnIndex((i) => i + 1);
+      const nextIdx = turnIndex + 1;
+      setTurnIndex(nextIdx);
+      onTurnIndexChange?.(nextIdx);
     }
   };
 

@@ -6,9 +6,10 @@ import {
   BADGE_CATALOG,
   LEAGUE_TIER_META,
   buildWeeklyLeaderboard,
+  getBadgeProgress,
 } from '../../core';
 import { useVaultStore } from '../../store/useVaultStore';
-import { LANGUAGE_LIST, type BadgeId, type KidProfile, type LeagueTier } from '../../types/contracts';
+import type { LeagueTier } from '../../types/contracts';
 
 const TIER_ORDER: readonly LeagueTier[] = [
   'bronze_acorn',
@@ -17,47 +18,6 @@ const TIER_ORDER: readonly LeagueTier[] = [
   'sapphire_sky',
   'starlight_legend',
 ];
-
-function computeBadgeProgress(profile: KidProfile, badgeId: BadgeId): number {
-  const langsStarted = LANGUAGE_LIST.filter(
-    (lang) => profile.languageProgress[lang].completedNodeIds.length > 0
-  ).length;
-  const totalVocab = LANGUAGE_LIST.reduce(
-    (sum, lang) => sum + profile.languageProgress[lang].unlockedVocabIds.length,
-    0
-  );
-  const totalChests = LANGUAGE_LIST.reduce(
-    (sum, lang) => sum + profile.languageProgress[lang].claimedChestIds.length,
-    0
-  );
-
-  switch (badgeId) {
-    case 'first_hello':
-      return profile.stats.lessonsCompleted;
-    case 'polyglot_explorer':
-      return langsStarted;
-    case 'turtle_listener':
-      return profile.stats.turtlePlaysCount;
-    case 'combo_comet':
-      return profile.stats.bestComboStreak;
-    case 'phrasebook_collector':
-      return totalVocab;
-    case 'arcade_ace':
-      return profile.stats.arcadeGamesWon;
-    case 'boss_befriender':
-      return profile.stats.bossesCleared;
-    case 'accent_scholar':
-      return profile.stats.accentSpotlightsSeen;
-    case 'streak_spark':
-      return profile.streakDays;
-    case 'chest_hunter':
-      return totalChests;
-    case 'story_reader':
-      return profile.stats.storiesCompleted;
-    case 'starlight_master':
-      return profile.totalXp;
-  }
-}
 
 export function LeagueAndBadges() {
   const { activeProfile } = useVaultStore();
@@ -74,8 +34,6 @@ export function LeagueAndBadges() {
     const third = leaderboard.find((e) => e.rank === 3);
     return [second, first, third].filter((e): e is NonNullable<typeof e> => Boolean(e));
   }, [leaderboard]);
-
-  const unlockedSet = useMemo(() => new Set(activeProfile.badges), [activeProfile.badges]);
 
   return (
     <section aria-label="Leagues and Badges" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -166,8 +124,12 @@ export function LeagueAndBadges() {
                     justifyContent: 'flex-end',
                     borderRadius: 18,
                     background: entry.isPlayer ? '#eef2ff' : '#ffffff',
-                    border: `2px solid ${isFirst ? '#f59e0b' : entry.isPlayer ? '#4f46e5' : '#cbd5e1'}`,
+                    borderTopWidth: 2,
+                    borderRightWidth: 2,
+                    borderLeftWidth: 2,
                     borderBottomWidth: 4,
+                    borderStyle: 'solid',
+                    borderColor: isFirst ? '#f59e0b' : entry.isPlayer ? '#4f46e5' : '#cbd5e1',
                     textAlign: 'center',
                   }}
                 >
@@ -248,10 +210,10 @@ export function LeagueAndBadges() {
             }}
           >
             {BADGE_CATALOG.map((badge) => {
-              const unlocked = unlockedSet.has(badge.id);
-              const progressVal = computeBadgeProgress(activeProfile, badge.id);
-              const clamped = Math.min(badge.targetCount, progressVal);
-              const pct = badge.targetCount > 0 ? Math.round((clamped / badge.targetCount) * 100) : 0;
+              const progress = getBadgeProgress(activeProfile, badge.id);
+              const unlocked = progress.unlocked;
+              const clamped = Math.min(progress.target, progress.current);
+              const pct = progress.target > 0 ? Math.round((clamped / progress.target) * 100) : 0;
 
               return (
                 <div
@@ -294,7 +256,7 @@ export function LeagueAndBadges() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', fontWeight: 800, color: unlocked ? '#065f46' : '#64748b', marginBottom: 4 }}>
                       <span>{unlocked ? 'Unlocked!' : 'Progress'}</span>
                       <span>
-                        {clamped} / {badge.targetCount}
+                        {clamped} / {progress.target}
                       </span>
                     </div>
                     <div style={{ height: 8, borderRadius: 999, background: '#e2e8f0', overflow: 'hidden' }}>
