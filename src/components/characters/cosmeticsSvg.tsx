@@ -20,14 +20,53 @@ export const COMPANION_ANCHORS: Record<CompanionId, CompanionAnchors> = {
   luca: { hatY: 61, hatScale: 0.98, eyeY: 96, eyeSpread: 17, mouthY: 113, shoulderY: 134 },
 };
 
-export const THEME_GLOW_PALETTE: Record<
-  'default' | 'theme_sunset_plaza' | 'theme_starlight_indigo' | 'theme_alpine_meadow',
-  { inner: string; outer: string; ring: string }
-> = {
-  default: { inner: '#DBEAFE', outer: '#EFF6FF', ring: '#93C5FD' },
-  theme_sunset_plaza: { inner: '#FED7AA', outer: '#FFF7ED', ring: '#FB923C' },
-  theme_starlight_indigo: { inner: '#C7D2FE', outer: '#EEF2FF', ring: '#818CF8' },
-  theme_alpine_meadow: { inner: '#A7F3D0', outer: '#ECFDF5', ring: '#34D399' },
+export interface ThemeGlowPalette {
+  inner: string;
+  mid: string;
+  outer: string;
+  ring: string;
+  nebula?: boolean;
+}
+
+export type ThemeCosmeticKey =
+  | 'default'
+  | 'theme_sunset_plaza'
+  | 'theme_starlight_indigo'
+  | 'theme_alpine_meadow'
+  | 'theme_cosmic_galaxy'
+  | 'theme_aurora_borealis'
+  | 'theme_candy_sakura'
+  | 'theme_ocean_lagoon'
+  | 'theme_royal_velvet';
+
+export const THEME_GLOW_PALETTE: Record<ThemeCosmeticKey, ThemeGlowPalette> = {
+  default: { inner: '#DBEAFE', mid: '#EFF6FF', outer: '#EFF6FF', ring: '#93C5FD' },
+  theme_sunset_plaza: { inner: '#FED7AA', mid: '#FFEDD5', outer: '#FFF7ED', ring: '#FB923C' },
+  theme_starlight_indigo: { inner: '#C7D2FE', mid: '#818CF8', outer: '#EEF2FF', ring: '#818CF8' },
+  theme_alpine_meadow: { inner: '#A7F3D0', mid: '#D1FAE5', outer: '#ECFDF5', ring: '#34D399' },
+  theme_cosmic_galaxy: {
+    inner: '#67E8F9',
+    mid: '#A855F7',
+    outer: '#1E1B4B',
+    ring: '#C084FC',
+    nebula: true,
+  },
+  theme_aurora_borealis: {
+    inner: '#6EE7B7',
+    mid: '#38BDF8',
+    outer: '#312E81',
+    ring: '#34D399',
+    nebula: true,
+  },
+  theme_candy_sakura: { inner: '#FBCFE8', mid: '#F472B6', outer: '#FFF1F2', ring: '#F472B6' },
+  theme_ocean_lagoon: { inner: '#67E8F9', mid: '#22D3EE', outer: '#ECFEFF', ring: '#06B6D4' },
+  theme_royal_velvet: {
+    inner: '#FDE047',
+    mid: '#A855F7',
+    outer: '#3B0764',
+    ring: '#FBBF24',
+    nebula: true,
+  },
 };
 
 export function AuraLayer({
@@ -362,14 +401,10 @@ export function HatLayer({
   );
 }
 
-export function resolveThemePalette(cosmetics?: EquippedCosmetics) {
+export function resolveThemePalette(cosmetics?: EquippedCosmetics): ThemeGlowPalette {
   const theme = cosmetics?.theme;
-  if (
-    theme === 'theme_sunset_plaza' ||
-    theme === 'theme_starlight_indigo' ||
-    theme === 'theme_alpine_meadow'
-  ) {
-    return THEME_GLOW_PALETTE[theme];
+  if (theme && theme in THEME_GLOW_PALETTE) {
+    return THEME_GLOW_PALETTE[theme as ThemeCosmeticKey];
   }
   return THEME_GLOW_PALETTE.default;
 }

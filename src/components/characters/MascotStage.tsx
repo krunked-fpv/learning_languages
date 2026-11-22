@@ -224,14 +224,44 @@ export function MascotStage({
       >
         <defs>
           <radialGradient id={`stage-halo-${uid}`} cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor={palette.inner} stopOpacity="0.9" />
-            <stop offset="70%" stopColor={palette.outer} stopOpacity="0.45" />
+            <stop offset="0%" stopColor={palette.inner} stopOpacity={palette.nebula ? '0.92' : '0.9'} />
+            <stop offset="52%" stopColor={palette.mid} stopOpacity={palette.nebula ? '0.58' : '0.6'} />
+            <stop offset="80%" stopColor={palette.outer} stopOpacity={palette.nebula ? '0.32' : '0.38'} />
             <stop offset="100%" stopColor={palette.outer} stopOpacity="0" />
           </radialGradient>
         </defs>
 
         {/* Soft themed stage backdrop aura */}
         <circle cx="110" cy="116" r="88" fill={`url(#stage-halo-${uid})`} />
+
+        {/* Subtle orbiting nebula sparkles for Cosmic Galaxy / Aurora / Royal Velvet palettes */}
+        {palette.nebula && (
+          <motion.g
+            data-theme-halo={equippedCosmetics?.theme}
+            style={{ originX: '110px', originY: '116px' }}
+            animate={{ rotate: 360 }}
+            transition={{ duration: 28, repeat: Infinity, ease: 'linear' }}
+          >
+            <circle
+              cx="110"
+              cy="116"
+              r="82"
+              fill="none"
+              stroke={palette.ring}
+              strokeWidth="1.4"
+              strokeDasharray="5 11"
+              opacity="0.52"
+            />
+            {[
+              { x: 46, y: 58, r: 3.4, c: palette.inner },
+              { x: 176, y: 64, r: 2.8, c: '#FEF08A' },
+              { x: 168, y: 170, r: 3.2, c: palette.ring },
+              { x: 52, y: 172, r: 2.6, c: palette.inner },
+            ].map((orb, idx) => (
+              <circle key={idx} cx={orb.x} cy={orb.y} r={orb.r} fill={orb.c} opacity="0.88" />
+            ))}
+          </motion.g>
+        )}
 
         {/* Ground contact shadow */}
         <motion.g
