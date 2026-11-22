@@ -1,4 +1,4 @@
-import type { SoundEffectId } from '../types/contracts';
+import type { SoundEffectId, SpeechSpeed } from '../types/contracts';
 
 export interface AudioPreferences {
   volume: number;
@@ -1069,6 +1069,422 @@ const SFX_RECIPES: Record<
       },
     ]);
   },
+
+  tier_unlock: (ctx, dest) => {
+    // Bright ascending heroic fifth (G4 -> D5 -> G5) + radiant upper shimmer
+    scheduleSequence(ctx, dest, [
+      {
+        freq: 392.0,
+        delay: 0,
+        wave: 'triangle',
+        subGain: 0.16,
+        harmonicGain: 0.22,
+        attack: 0.008,
+        decay: 0.22,
+        gain: 0.24,
+        filterCutoff: 2400,
+      },
+      {
+        freq: 587.33,
+        delay: 0.085,
+        wave: 'triangle',
+        harmonicGain: 0.26,
+        twelfthGain: 0.08,
+        attack: 0.007,
+        decay: 0.28,
+        gain: 0.26,
+        filterCutoff: 3000,
+      },
+      {
+        freq: 783.99,
+        delay: 0.175,
+        wave: 'sine',
+        harmonicGain: 0.28,
+        subGain: 0.14,
+        twelfthGain: 0.1,
+        attack: 0.007,
+        decay: 0.44,
+        gain: 0.27,
+        filterCutoff: 3400,
+      },
+      {
+        freq: 987.77,
+        delay: 0.22,
+        wave: 'sine',
+        harmonicGain: 0.22,
+        attack: 0.01,
+        decay: 0.36,
+        gain: 0.16,
+        filterCutoff: 3800,
+      },
+      {
+        freq: 1174.66,
+        delay: 0.265,
+        wave: 'sine',
+        harmonicGain: 0.2,
+        attack: 0.01,
+        decay: 0.42,
+        gain: 0.16,
+        filterCutoff: 4000,
+      },
+      {
+        freq: 1567.98,
+        delay: 0.31,
+        wave: 'sine',
+        attack: 0.012,
+        decay: 0.48,
+        gain: 0.12,
+        filterCutoff: 4200,
+      },
+    ]);
+  },
+
+  booster_spark: (ctx, dest) => {
+    // Twinkling starlight arpeggio across bright maj9 bell harmonics
+    const starNotes = [523.25, 659.25, 783.99, 987.77, 1174.66, 1567.98];
+    scheduleSequence(
+      ctx,
+      dest,
+      starNotes.map((freq, idx) => ({
+        freq,
+        delay: idx * 0.038,
+        wave: (idx < 2 ? 'triangle' : 'sine') as WarmWaveform,
+        harmonicGain: 0.24 + (idx >= 3 ? 0.04 : 0),
+        twelfthGain: idx === starNotes.length - 1 ? 0.08 : 0,
+        attack: 0.005,
+        decay: idx === starNotes.length - 1 ? 0.38 : 0.18 + idx * 0.018,
+        gain: idx === starNotes.length - 1 ? 0.17 : 0.2,
+        filterCutoff: 2800 + idx * 240,
+      }))
+    );
+  },
+
+  free_recall_ace: (ctx, dest) => {
+    // Crisp triumphant Dmaj9 flourish + warm chord bloom
+    scheduleSequence(ctx, dest, [
+      {
+        freq: 587.33,
+        delay: 0,
+        wave: 'triangle',
+        subGain: 0.14,
+        harmonicGain: 0.22,
+        attack: 0.004,
+        decay: 0.15,
+        gain: 0.24,
+        filterCutoff: 2800,
+      },
+      {
+        freq: 739.99,
+        delay: 0.042,
+        wave: 'triangle',
+        harmonicGain: 0.24,
+        attack: 0.004,
+        decay: 0.16,
+        gain: 0.23,
+        filterCutoff: 3100,
+      },
+      {
+        freq: 880.0,
+        delay: 0.084,
+        wave: 'sine',
+        harmonicGain: 0.24,
+        attack: 0.004,
+        decay: 0.2,
+        gain: 0.24,
+        filterCutoff: 3400,
+      },
+      {
+        freq: 1108.73,
+        delay: 0.126,
+        wave: 'sine',
+        harmonicGain: 0.22,
+        attack: 0.004,
+        decay: 0.28,
+        gain: 0.2,
+        filterCutoff: 3700,
+      },
+      {
+        freq: 587.33,
+        delay: 0.168,
+        wave: 'triangle',
+        subGain: 0.12,
+        attack: 0.006,
+        decay: 0.38,
+        gain: 0.14,
+        filterCutoff: 2400,
+      },
+      {
+        freq: 880.0,
+        delay: 0.168,
+        wave: 'sine',
+        attack: 0.006,
+        decay: 0.4,
+        gain: 0.14,
+        filterCutoff: 3000,
+      },
+      {
+        freq: 1318.51,
+        delay: 0.168,
+        wave: 'sine',
+        harmonicGain: 0.24,
+        twelfthGain: 0.08,
+        attack: 0.005,
+        decay: 0.42,
+        gain: 0.23,
+        filterCutoff: 4000,
+      },
+    ]);
+  },
+
+  laureate_fanfare: (ctx, dest) => {
+    // Grand multi-chord festival brass & marimba fanfare (I -> IV -> V -> I maj9)
+    scheduleSequence(ctx, dest, [
+      // Chord 1: C major herald
+      {
+        freq: 261.63,
+        delay: 0,
+        wave: 'triangle',
+        subGain: 0.16,
+        harmonicGain: 0.2,
+        attack: 0.01,
+        decay: 0.16,
+        gain: 0.18,
+        filterCutoff: 2000,
+      },
+      {
+        freq: 523.25,
+        delay: 0,
+        wave: 'triangle',
+        harmonicGain: 0.24,
+        attack: 0.007,
+        decay: 0.16,
+        gain: 0.21,
+        filterCutoff: 2800,
+      },
+      {
+        freq: 659.25,
+        delay: 0.012,
+        wave: 'sine',
+        harmonicGain: 0.2,
+        attack: 0.007,
+        decay: 0.16,
+        gain: 0.16,
+        filterCutoff: 3000,
+      },
+      // Passing marimba pickup
+      {
+        freq: 587.33,
+        delay: 0.12,
+        wave: 'triangle',
+        harmonicGain: 0.22,
+        attack: 0.006,
+        decay: 0.13,
+        gain: 0.2,
+        filterCutoff: 2800,
+      },
+      {
+        freq: 659.25,
+        delay: 0.205,
+        wave: 'triangle',
+        harmonicGain: 0.24,
+        attack: 0.006,
+        decay: 0.14,
+        gain: 0.21,
+        filterCutoff: 3000,
+      },
+      // Chord 2: F major subdominant lift
+      {
+        freq: 349.23,
+        delay: 0.295,
+        wave: 'triangle',
+        subGain: 0.18,
+        harmonicGain: 0.22,
+        attack: 0.01,
+        decay: 0.2,
+        gain: 0.19,
+        filterCutoff: 2200,
+      },
+      {
+        freq: 440.0,
+        delay: 0.295,
+        wave: 'triangle',
+        harmonicGain: 0.18,
+        attack: 0.01,
+        decay: 0.2,
+        gain: 0.16,
+        filterCutoff: 2600,
+      },
+      {
+        freq: 880.0,
+        delay: 0.305,
+        wave: 'sine',
+        harmonicGain: 0.26,
+        attack: 0.007,
+        decay: 0.22,
+        gain: 0.21,
+        filterCutoff: 3400,
+      },
+      // Chord 3: G major dominant tension
+      {
+        freq: 392.0,
+        delay: 0.455,
+        wave: 'triangle',
+        subGain: 0.18,
+        harmonicGain: 0.22,
+        attack: 0.01,
+        decay: 0.22,
+        gain: 0.19,
+        filterCutoff: 2300,
+      },
+      {
+        freq: 493.88,
+        delay: 0.455,
+        wave: 'triangle',
+        harmonicGain: 0.18,
+        attack: 0.01,
+        decay: 0.22,
+        gain: 0.16,
+        filterCutoff: 2700,
+      },
+      {
+        freq: 783.99,
+        delay: 0.465,
+        wave: 'sine',
+        harmonicGain: 0.26,
+        twelfthGain: 0.08,
+        attack: 0.007,
+        decay: 0.24,
+        gain: 0.22,
+        filterCutoff: 3400,
+      },
+      // Chord 4: Grand festival C major + 9th resolution
+      {
+        freq: 261.63,
+        delay: 0.625,
+        wave: 'triangle',
+        subGain: 0.18,
+        harmonicGain: 0.22,
+        twelfthGain: 0.08,
+        attack: 0.012,
+        decay: 0.85,
+        gain: 0.2,
+        filterCutoff: 2200,
+        filterEndCutoff: 1100,
+      },
+      {
+        freq: 392.0,
+        delay: 0.625,
+        wave: 'triangle',
+        harmonicGain: 0.2,
+        attack: 0.012,
+        decay: 0.82,
+        gain: 0.16,
+        filterCutoff: 2600,
+      },
+      {
+        freq: 523.25,
+        delay: 0.625,
+        wave: 'triangle',
+        harmonicGain: 0.24,
+        twelfthGain: 0.1,
+        attack: 0.01,
+        decay: 0.86,
+        gain: 0.22,
+        filterCutoff: 3200,
+      },
+      {
+        freq: 659.25,
+        delay: 0.635,
+        wave: 'sine',
+        harmonicGain: 0.22,
+        attack: 0.01,
+        decay: 0.84,
+        gain: 0.17,
+        filterCutoff: 3400,
+      },
+      {
+        freq: 1046.5,
+        delay: 0.655,
+        wave: 'sine',
+        harmonicGain: 0.28,
+        twelfthGain: 0.1,
+        attack: 0.008,
+        decay: 0.78,
+        gain: 0.22,
+        filterCutoff: 3800,
+      },
+      {
+        freq: 1174.66,
+        delay: 0.725,
+        wave: 'sine',
+        harmonicGain: 0.22,
+        attack: 0.008,
+        decay: 0.68,
+        gain: 0.15,
+        filterCutoff: 3900,
+      },
+      {
+        freq: 1318.51,
+        delay: 0.79,
+        wave: 'sine',
+        harmonicGain: 0.24,
+        attack: 0.008,
+        decay: 0.74,
+        gain: 0.17,
+        filterCutoff: 4100,
+      },
+    ]);
+  },
+
+  equip_prop_pet: (ctx, dest) => {
+    // Playful two-note wooden toy pop + bright little sparkle
+    scheduleSequence(ctx, dest, [
+      {
+        freq: 330.0,
+        endFreq: 523.25,
+        delay: 0,
+        wave: 'triangle',
+        harmonicGain: 0.16,
+        attack: 0.004,
+        decay: 0.075,
+        gain: 0.24,
+        filterCutoff: 1500,
+        filterEndCutoff: 700,
+      },
+      {
+        freq: 440.0,
+        endFreq: 698.46,
+        delay: 0.078,
+        wave: 'triangle',
+        harmonicGain: 0.2,
+        attack: 0.004,
+        decay: 0.09,
+        gain: 0.25,
+        filterCutoff: 1800,
+        filterEndCutoff: 850,
+      },
+      {
+        freq: 1046.5,
+        delay: 0.155,
+        wave: 'sine',
+        harmonicGain: 0.25,
+        attack: 0.005,
+        decay: 0.2,
+        gain: 0.18,
+        filterCutoff: 3600,
+      },
+      {
+        freq: 1567.98,
+        delay: 0.205,
+        wave: 'sine',
+        harmonicGain: 0.22,
+        attack: 0.005,
+        decay: 0.28,
+        gain: 0.16,
+        filterCutoff: 4000,
+      },
+    ]);
+  },
 };
 
 const PHRASE_PUNCT_SPLIT_RE =
@@ -1179,10 +1595,59 @@ export function stopPhoneticCadence(): void {
 const UNSTRESSED_MARIMBA_NOTES = [392.0, 440.0, 493.88, 523.25] as const;
 const STRESSED_MARIMBA_NOTES = [587.33, 659.25, 783.99, 880.0] as const;
 
-export function playPhoneticCadence(phonetic: string, slow = false): Promise<void> {
+interface CadenceTimingProfile {
+  stepSec: number;
+  wordPauseSec: number;
+  attack: number;
+  stressedDecay: number;
+  unstressedDecay: number;
+  stressedFilterCutoff: number;
+  unstressedFilterCutoff: number;
+}
+
+const CADENCE_TIMING_PROFILES: Record<SpeechSpeed, CadenceTimingProfile> = {
+  slow: {
+    stepSec: 0.275,
+    wordPauseSec: 0.14,
+    attack: 0.008,
+    stressedDecay: 0.26,
+    unstressedDecay: 0.18,
+    stressedFilterCutoff: 2400,
+    unstressedFilterCutoff: 1300,
+  },
+  normal: {
+    stepSec: 0.17,
+    wordPauseSec: 0.085,
+    attack: 0.008,
+    stressedDecay: 0.18,
+    unstressedDecay: 0.125,
+    stressedFilterCutoff: 2400,
+    unstressedFilterCutoff: 1300,
+  },
+  fluent: {
+    stepSec: 0.125,
+    wordPauseSec: 0.055,
+    attack: 0.006,
+    stressedDecay: 0.135,
+    unstressedDecay: 0.095,
+    stressedFilterCutoff: 2700,
+    unstressedFilterCutoff: 1550,
+  },
+};
+
+function resolveCadenceSpeed(speedOrSlow: boolean | SpeechSpeed): SpeechSpeed {
+  if (speedOrSlow === true || speedOrSlow === 'slow') return 'slow';
+  if (speedOrSlow === 'fluent') return 'fluent';
+  return 'normal';
+}
+
+export function playPhoneticCadence(
+  text: string,
+  speedOrSlow: boolean | SpeechSpeed = false
+): Promise<void> {
   stopPhoneticCadence();
 
-  if (typeof phonetic !== 'string' || !phonetic.trim()) {
+  if (typeof text !== 'string' || !text.trim()) {
     return Promise.resolve();
   }
 
@@ -1190,7 +1655,7 @@ export function playPhoneticCadence(phonetic: string, slow = false): Promise<voi
     return Promise.resolve();
   }
 
-  const syllables = parsePhoneticSyllables(phonetic);
+  const syllables = parsePhoneticSyllables(text);
   if (syllables.length === 0) {
     return Promise.resolve();
   }
@@ -1201,15 +1666,15 @@ export function playPhoneticCadence(phonetic: string, slow = false): Promise<voi
   }
 
   const token = ++cadenceTokenCounter;
-  const stepSec = slow ? 0.275 : 0.17;
-  const wordPauseSec = slow ? 0.14 : 0.085;
+  const speed = resolveCadenceSpeed(speedOrSlow);
+  const profile = CADENCE_TIMING_PROFILES[speed];
   const nodes: ScheduledNodeHandle[] = [];
 
   let offsetSec = 0;
   for (let i = 0; i < syllables.length; i += 1) {
     const syl = syllables[i];
     if (syl.wordBreakBefore) {
-      offsetSec += wordPauseSec;
+      offsetSec += profile.wordPauseSec;
     }
     if (offsetSec >= 3.95) {
       break;
@@ -1226,16 +1691,18 @@ export function playPhoneticCadence(phonetic: string, slow = false): Promise<voi
         delay: offsetSec,
         wave: syl.stressed ? 'triangle' : 'sine',
         harmonicGain: syl.stressed ? 0.24 : 0.08,
-        attack: 0.008,
-        decay: slow ? (syl.stressed ? 0.26 : 0.18) : syl.stressed ? 0.18 : 0.125,
+        attack: profile.attack,
+        decay: syl.stressed ? profile.stressedDecay : profile.unstressedDecay,
         gain: syl.stressed ? 0.28 : 0.18,
-        filterCutoff: syl.stressed ? 2400 : 1300,
+        filterCutoff: syl.stressed
+          ? profile.stressedFilterCutoff
+          : profile.unstressedFilterCutoff,
         filterEndCutoff: syl.stressed ? 900 : 550,
       },
       nodes
     );
 
-    offsetSec += stepSec;
+    offsetSec += profile.stepSec;
   }
 
   const totalMs = Math.min(4200, Math.round((offsetSec + 0.08) * 1000));

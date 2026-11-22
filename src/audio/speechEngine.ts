@@ -4,6 +4,7 @@ import type {
   SpeakOutcome,
   SpeakRequest,
   SpeechRuntimeState,
+  SpeechSpeed,
 } from '../types/contracts';
 import {
   getAudioPreferences,
@@ -31,8 +32,23 @@ export const SPEECH_LOCALE_MAP: Record<LanguageCode | 'en', readonly string[]> =
 };
 
 const WATCHDOG_TIMEOUT_MS = 4500;
-const NORMAL_SPEECH_RATE = 0.95;
 const SLOW_SPEECH_RATE = 0.65;
+const NORMAL_SPEECH_RATE = 0.95;
+const FLUENT_SPEECH_RATE = 1.12;
+
+const SPEECH_RATE_MAP: Record<SpeechSpeed, number> = {
+  slow: SLOW_SPEECH_RATE,
+  normal: NORMAL_SPEECH_RATE,
+  fluent: FLUENT_SPEECH_RATE,
+};
+
+function resolveSpeechSpeed(req: SpeakRequest): SpeechSpeed {
+  const candidate = req.speed ?? (req.slow ? 'slow' : 'normal');
+  if (candidate === 'slow' || candidate === 'normal' || candidate === 'fluent') {
+    return candidate;
+  }
+  return req.slow ? 'slow' : 'normal';
+}
 
 const SERVER_SPEECH_STATE: SpeechRuntimeState = {
   isSpeaking: false,
@@ -362,12 +378,12 @@ async function runFallbackCadence(
     return { usedNativeVoice: false, fallbackActive: true };
   }
 
-  const speed: 'normal' | 'slow' = req.slow ? 'slow' : 'normal';
+  const resolvedSpeed = resolveSpeechSpeed(req);
   commitRuntimeState(
     {
       isSpeaking: true,
       activeText: req.text,
-      activeSpeed: speed,
+      activeSpeed: resolvedSpeed,
       fallbackActive: true,
       voicesReady,
     },
@@ -376,7 +392,7 @@ async function runFallbackCadence(
 
   try {
     const cadenceSource = req.phonetic?.trim() ? req.phonetic : req.text;
-    await playPhoneticCadence(cadenceSource, Boolean(req.slow));
+    await playPhoneticCadence(cadenceSource, resolvedSpeed);
   } catch {
     // Never propagate audio cadence failures.
   }
@@ -459,14 +475,14 @@ export async function speakPhrase(req: SpeakRequest): Promise<SpeakOutcome> {
     return runFallbackCadence(token, req, voicesReady);
   }
 
-  const speed: 'normal' | 'slow' = req.slow ? 'slow' : 'normal';
+  const resolvedSpeed = resolveSpeechSpeed(req);
   const localeUsed = matchedVoice.lang || SPEECH_LOCALE_MAP[req.language][0];
 
   commitRuntimeState(
     {
       isSpeaking: true,
       activeText: req.text,
-      activeSpeed: speed,
+      activeSpeed: resolvedSpeed,
       fallbackActive: false,
       voicesReady: true,
     },
@@ -504,7 +520,7 @@ export async function speakPhrase(req: SpeakRequest): Promise<SpeakOutcome> {
       const utterance = new UtteranceCtor(req.text);
       utterance.voice = matchedVoice;
       utterance.lang = localeUsed;
-      utterance.rate = req.slow ? SLOW_SPEECH_RATE : NORMAL_SPEECH_RATE;
+      utterance.rate = SPEECH_RATE_MAP[resolvedSpeed];
       utterance.pitch = 1.0;
       utterance.volume = audioPrefs.volume;
 
