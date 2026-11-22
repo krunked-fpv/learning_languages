@@ -1,7 +1,53 @@
+import type { ReactNode } from 'react';
 import { useId } from 'react';
 import type { LanguageCode } from '../../types/contracts';
 
 const INK = '#1E293B';
+
+const SCENERY_SVG_STYLE = {
+  position: 'absolute',
+  inset: 0,
+  width: '100%',
+  height: '100%',
+  pointerEvents: 'none',
+  opacity: 0.9,
+} as const;
+
+function DioramaSvg({
+  unitOrder,
+  skyId,
+  skyTop,
+  skyMid,
+  skyBottom,
+  children,
+}: {
+  unitOrder: number;
+  skyId: string;
+  skyTop: string;
+  skyMid?: string;
+  skyBottom: string;
+  children: ReactNode;
+}) {
+  return (
+    <svg
+      viewBox="0 0 600 420"
+      preserveAspectRatio="xMidYMid slice"
+      aria-hidden="true"
+      data-unit-scenery={unitOrder}
+      style={SCENERY_SVG_STYLE}
+    >
+      <defs>
+        <linearGradient id={skyId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={skyTop} />
+          {skyMid ? <stop offset="56%" stopColor={skyMid} /> : null}
+          <stop offset="100%" stopColor={skyBottom} />
+        </linearGradient>
+      </defs>
+      <rect width="600" height="420" fill={`url(#${skyId})`} />
+      {children}
+    </svg>
+  );
+}
 
 function Unit6To8Overlay({
   language,
@@ -17,6 +63,18 @@ function Unit6To8Overlay({
     fr: { roof: '#4F46E5', glow: '#C4B5FD', hill: '#DDD6FE' },
     de: { roof: '#D97706', glow: '#6EE7B7', hill: '#BBF7D0' },
     it: { roof: '#059669', glow: '#67E8F9', hill: '#BAE6FD' },
+    pt: { roof: '#0D9488', glow: '#FDE047', hill: '#CCFBF1' },
+    en: { roof: '#1D4ED8', glow: '#FBBF24', hill: '#DBEAFE' },
+    zh: { roof: '#DC2626', glow: '#FDE047', hill: '#FEE2E2' },
+    ja: { roof: '#DB2777', glow: '#F9A8D4', hill: '#FCE7F3' },
+    hi: { roof: '#EA580C', glow: '#FDBA74', hill: '#FEF3C7' },
+    bn: { roof: '#047857', glow: '#6EE7B7', hill: '#D1FAE5' },
+    ar: { roof: '#059669', glow: '#F59E0B', hill: '#D1FAE5' },
+    arz: { roof: '#0284C7', glow: '#FDE047', hill: '#E0F2FE' },
+    ru: { roof: '#4F46E5', glow: '#FDA4AF', hill: '#E0E7FF' },
+    id: { roof: '#0891B2', glow: '#FB923C', hill: '#CFFAFE' },
+    vi: { roof: '#E11D48', glow: '#34D399', hill: '#FFE4E6' },
+    sw: { roof: '#D97706', glow: '#38BDF8', hill: '#FEF3C7' },
   };
   const tint = accentMap[language];
 
@@ -399,6 +457,581 @@ export function RegionalScenery({
           <rect x="38" y="68" width="16" height="30" rx="3" fill="#92400E" stroke={INK} strokeWidth="1.4" />
         </g>
       </svg>
+    );
+  }
+
+  if (language === 'pt') {
+    // Portuguese (pt — A Trilha Tropical: Sugarloaf bay & palm hills)
+    const flip = unitOrder % 2 === 0;
+    return (
+      <DioramaSvg unitOrder={unitOrder} skyId={`pt-sky-${uid}`} skyTop="#F0FDFA" skyBottom="#FEF3C7">
+        {/* Tropical Sun */}
+        <circle cx={flip ? 102 : 498} cy="68" r="34" fill="#FDE047" opacity="0.72" />
+        <circle cx={flip ? 102 : 498} cy="68" r="22" fill="#FBBF24" opacity="0.88" />
+
+        {/* Sugarloaf Granite Dome & Lush Coastal Morros */}
+        <path
+          d="M0 330Q120 278 260 320T600 300V420H0Z"
+          fill="#6EE7B7"
+          opacity="0.55"
+        />
+        <g transform={flip ? 'translate(410, 128)' : 'translate(22, 128)'} opacity="0.88">
+          <path
+            d="M14 205C22 120 42 18 76 16C110 18 134 115 148 205Z"
+            fill="#10B981"
+            stroke="#065F46"
+            strokeWidth="2"
+          />
+          <path
+            d="M52 24C64 16 88 16 100 26C86 42 74 80 76 125C62 85 52 50 52 24Z"
+            fill="#A7F3D0"
+            opacity="0.45"
+          />
+          <path d="M110 205C120 155 138 128 158 132C176 135 186 168 192 205Z" fill="#059669" />
+        </g>
+
+        {/* Sparkling Guanabara Bay */}
+        <path d="M0 336Q150 322 300 336T600 330V420H0Z" fill="#2DD4BF" opacity="0.6" />
+        <path
+          d="M40 366Q95 358 150 366M390 374Q450 366 510 374"
+          stroke="#FFFFFF"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          fill="none"
+          opacity="0.78"
+        />
+
+        {/* Swaying Coastal Palm Trees */}
+        <g transform={flip ? 'translate(22, 188)' : 'translate(490, 188)'} opacity="0.92">
+          <path d="M46 164Q54 102 36 52" fill="none" stroke="#92400E" strokeWidth="8" strokeLinecap="round" />
+          <path d="M46 164Q54 102 36 52" fill="none" stroke={INK} strokeWidth="1.6" strokeLinecap="round" />
+          <circle cx="34" cy="54" r="5" fill="#78350F" />
+          <circle cx="41" cy="57" r="5" fill="#78350F" />
+          <path d="M36 50Q12 36 0 54Q18 52 36 50Z" fill="#16A34A" stroke={INK} strokeWidth="1.4" />
+          <path d="M36 50Q18 18 42 12Q42 32 36 50Z" fill="#22C55E" stroke={INK} strokeWidth="1.4" />
+          <path d="M36 50Q66 26 78 46Q56 48 36 50Z" fill="#16A34A" stroke={INK} strokeWidth="1.4" />
+          <path d="M36 50Q60 58 68 78Q48 68 36 50Z" fill="#15803D" stroke={INK} strokeWidth="1.4" />
+        </g>
+
+        {/* Sailboat on the Bay */}
+        <g transform={flip ? 'translate(135, 308)' : 'translate(420, 308)'} opacity="0.9">
+          <path d="M4 28H46L40 38H10Z" fill="#EA580C" stroke={INK} strokeWidth="1.6" strokeLinejoin="round" />
+          <path d="M24 28V4L41 24Z" fill="#FFFFFF" stroke={INK} strokeWidth="1.5" strokeLinejoin="round" />
+          <path d="M22 28V9L8 24Z" fill="#FDE047" stroke={INK} strokeWidth="1.5" strokeLinejoin="round" />
+        </g>
+      </DioramaSvg>
+    );
+  }
+
+  if (language === 'en') {
+    // English (en — The Starlight Compass Isles: coastal lighthouse & clocktower harbor)
+    const flip = unitOrder % 2 === 0;
+    return (
+      <DioramaSvg unitOrder={unitOrder} skyId={`en-sky-${uid}`} skyTop="#EFF6FF" skyBottom="#DBEAFE">
+        {/* Soft Storybook Clouds & Starlight Compass Gleam */}
+        <g fill="#FFFFFF" opacity="0.82">
+          <ellipse cx="145" cy="58" rx="34" ry="14" />
+          <ellipse cx="168" cy="52" rx="22" ry="12" />
+          <ellipse cx="430" cy="64" rx="36" ry="14" />
+          <ellipse cx="452" cy="57" rx="22" ry="12" />
+        </g>
+
+        {/* Rolling Green Headlands */}
+        <path d="M0 308Q140 264 300 306T600 294V420H0Z" fill="#86EFAC" opacity="0.65" />
+        <path d="M0 338Q180 315 360 340T600 332V420H0Z" fill="#38BDF8" opacity="0.58" />
+        <path
+          d="M55 368Q110 360 165 368M410 378Q465 370 520 378"
+          stroke="#FFFFFF"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          fill="none"
+          opacity="0.7"
+        />
+
+        {/* Striped Coastal Lighthouse with Golden Beam */}
+        <g transform={flip ? 'translate(474, 152)' : 'translate(22, 152)'} opacity="0.92">
+          <polygon
+            points={flip ? '36,42 -60,12 -60,72' : '36,42 132,12 132,72'}
+            fill="#FDE047"
+            opacity="0.28"
+          />
+          <rect x="22" y="54" width="28" height="106" fill="#FFFFFF" stroke={INK} strokeWidth="1.8" />
+          <rect x="22" y="74" width="28" height="22" fill="#EF4444" stroke={INK} strokeWidth="1.4" />
+          <rect x="22" y="116" width="28" height="22" fill="#EF4444" stroke={INK} strokeWidth="1.4" />
+          <rect x="18" y="48" width="36" height="8" rx="2" fill="#1E293B" />
+          <rect x="24" y="28" width="24" height="20" rx="2" fill="#FDE047" stroke={INK} strokeWidth="1.8" />
+          <path d="M18 28L36 10L54 28Z" fill="#DC2626" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+        </g>
+
+        {/* Storybook Sandstone Clocktower Harbor */}
+        <g transform={flip ? 'translate(24, 158)' : 'translate(486, 158)'} opacity="0.9">
+          <rect x="18" y="46" width="52" height="122" rx="3" fill="#FDE68A" stroke="#92400E" strokeWidth="1.8" />
+          <path d="M12 46L44 4L76 46Z" fill="#1D4ED8" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+          <circle cx="44" cy="76" r="15" fill="#FFFFFF" stroke="#92400E" strokeWidth="2.2" />
+          <path d="M44 76V66M44 76L52 79" stroke={INK} strokeWidth="2.2" strokeLinecap="round" />
+          <rect x="28" y="106" width="12" height="24" rx="5" fill="#92400E" opacity="0.55" />
+          <rect x="48" y="106" width="12" height="24" rx="5" fill="#92400E" opacity="0.55" />
+        </g>
+      </DioramaSvg>
+    );
+  }
+
+  if (language === 'zh') {
+    // Mandarin Chinese (zh — The Lantern Cloud Peaks: karst peaks, moon-gate & glowing lanterns)
+    const flip = unitOrder % 2 === 0;
+    return (
+      <DioramaSvg unitOrder={unitOrder} skyId={`zh-sky-${uid}`} skyTop="#FEF2F2" skyBottom="#FFEDD5">
+        {/* Misty Layered Karst Peaks */}
+        <path
+          d="M0 320C28 210 66 155 96 225C124 140 164 145 198 255C232 185 270 190 302 275C338 170 382 175 416 260C450 135 495 140 534 235C562 175 585 195 600 265V420H0Z"
+          fill="#99F6E4"
+          opacity="0.55"
+        />
+        <path
+          d="M0 340C48 255 98 250 142 315C192 245 244 255 296 320C350 245 408 255 460 315C510 245 562 250 600 310V420H0Z"
+          fill="#5EEAD4"
+          opacity="0.45"
+        />
+        <ellipse cx="220" cy="242" rx="74" ry="12" fill="#FFFFFF" opacity="0.62" />
+        <ellipse cx="420" cy="222" rx="68" ry="11" fill="#FFFFFF" opacity="0.58" />
+
+        {/* Overhead Glowing Red & Gold Festival Lanterns */}
+        <path d="M0 24Q150 54 300 22T600 24" fill="none" stroke="#991B1B" strokeWidth="2" opacity="0.6" />
+        {[64, 152, 448, 536].map((x) => (
+          <g key={x} transform={`translate(${x}, 32)`}>
+            <circle cx="0" cy="20" r="20" fill="#FDE047" opacity="0.28" />
+            <rect x="-11" y="6" width="22" height="26" rx="10" fill="#DC2626" stroke={INK} strokeWidth="1.6" />
+            <rect x="-7" y="3" width="14" height="4" rx="1.5" fill="#FACC15" stroke={INK} strokeWidth="1" />
+            <rect x="-7" y="31" width="14" height="4" rx="1.5" fill="#FACC15" stroke={INK} strokeWidth="1" />
+            <line x1="0" y1="35" x2="0" y2="44" stroke="#F59E0B" strokeWidth="2.4" strokeLinecap="round" />
+          </g>
+        ))}
+
+        {/* Moon-Gate Pavilion Archway */}
+        <g transform={flip ? 'translate(462, 232)' : 'translate(18, 232)'} opacity="0.92">
+          <path d="M-4 32Q60 2 124 32L112 42H8Z" fill="#DC2626" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+          <rect x="8" y="42" width="104" height="94" rx="4" fill="#FEF3C7" stroke="#92400E" strokeWidth="1.8" />
+          <circle cx="60" cy="94" r="32" fill="#FFF7ED" stroke="#B91C1C" strokeWidth="4" />
+        </g>
+
+        {/* Jade Bamboo Stalks */}
+        <g transform={flip ? 'translate(22, 195)' : 'translate(514, 195)'} opacity="0.88">
+          <line x1="16" y1="0" x2="16" y2="160" stroke="#16A34A" strokeWidth="6" strokeLinecap="round" />
+          <line x1="36" y1="22" x2="36" y2="160" stroke="#22C55E" strokeWidth="5" strokeLinecap="round" />
+          <path d="M16 32L0 20L14 24Z M18 64L34 52L20 56Z M36 74L54 62L38 66Z" fill="#15803D" />
+        </g>
+      </DioramaSvg>
+    );
+  }
+
+  if (language === 'ja') {
+    // Japanese (ja — Sakura Sky Trail: vermilion torii gate, sakura blossoms & Mt. Fuji)
+    const flip = unitOrder % 2 === 0;
+    return (
+      <DioramaSvg unitOrder={unitOrder} skyId={`ja-sky-${uid}`} skyTop="#FDF2F8" skyBottom="#E0E7FF">
+        {/* Snow-Capped Mt. Fuji Backdrop */}
+        <path
+          d="M120 355C195 275 245 190 272 136H328C355 190 405 275 480 355Z"
+          fill="#818CF8"
+          opacity="0.42"
+        />
+        <path
+          d="M244 190L272 136H328L356 190L334 176L316 194L300 176L284 194L266 176Z"
+          fill="#FFFFFF"
+          opacity="0.92"
+        />
+        <path d="M0 322Q160 282 320 322T600 310V420H0Z" fill="#A7F3D0" opacity="0.48" />
+
+        {/* Vermilion Torii Gate */}
+        <g transform={flip ? 'translate(454, 214)' : 'translate(24, 214)'} opacity="0.92">
+          <path d="M0 16Q60 26 120 16L114 28Q60 36 6 28Z" fill="#DC2626" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+          <rect x="14" y="42" width="92" height="10" rx="2" fill="#EF4444" stroke={INK} strokeWidth="1.6" />
+          <rect x="26" y="28" width="12" height="114" fill="#DC2626" stroke={INK} strokeWidth="1.8" />
+          <rect x="82" y="28" width="12" height="114" fill="#DC2626" stroke={INK} strokeWidth="1.8" />
+          <rect x="22" y="132" width="20" height="12" rx="2" fill="#1E293B" />
+          <rect x="78" y="132" width="20" height="12" rx="2" fill="#1E293B" />
+        </g>
+
+        {/* Arching Sakura Cherry Blossom Branch & Drifting Petals */}
+        <g transform={flip ? 'translate(0, 12)' : 'translate(410, 12)'} opacity="0.92">
+          <path
+            d={flip ? 'M0 78Q68 48 134 62' : 'M190 78Q122 48 56 62'}
+            fill="none"
+            stroke="#78350F"
+            strokeWidth="6"
+            strokeLinecap="round"
+          />
+          {[
+            [flip ? 34 : 156, 54, 14],
+            [flip ? 74 : 116, 42, 16],
+            [flip ? 114 : 76, 58, 13],
+            [flip ? 56 : 134, 82, 12],
+          ].map(([cx, cy, r], idx) => (
+            <g key={idx}>
+              <circle cx={cx} cy={cy} r={r} fill="#F9A8D4" stroke="#DB2777" strokeWidth="1.2" />
+              <circle cx={cx} cy={cy} r={r * 0.36} fill="#FEF08A" />
+            </g>
+          ))}
+        </g>
+        {[
+          [210, 64],
+          [340, 48],
+          [420, 118],
+          [165, 134],
+        ].map(([x, y], idx) => (
+          <ellipse key={idx} cx={x} cy={y} rx="5" ry="3" transform={`rotate(${idx * 35} ${x} ${y})`} fill="#F472B6" opacity="0.72" />
+        ))}
+      </DioramaSvg>
+    );
+  }
+
+  if (language === 'hi') {
+    // Hindi (hi — The Marigold Palace Trail: marigold arches & sandstone palace domes)
+    const flip = unitOrder % 2 === 0;
+    return (
+      <DioramaSvg unitOrder={unitOrder} skyId={`hi-sky-${uid}`} skyTop="#FFF7ED" skyBottom="#FEF3C7">
+        {/* Warm Rajasthan Sun */}
+        <circle cx={flip ? 105 : 495} cy="72" r="34" fill="#FDE047" opacity="0.75" />
+        <circle cx={flip ? 105 : 495} cy="72" r="23" fill="#FB923C" opacity="0.75" />
+
+        {/* Draped Marigold & Mango-Leaf Garlands */}
+        <path d="M0 24Q150 56 300 24T600 24" fill="none" stroke="#15803D" strokeWidth="2.4" opacity="0.7" />
+        {[48, 92, 136, 464, 508, 552].map((x, idx) => (
+          <circle
+            key={x}
+            cx={x}
+            cy={idx % 2 === 0 ? 36 : 42}
+            r="9"
+            fill={idx % 2 === 0 ? '#F97316' : '#FACC15'}
+            stroke="#9A3412"
+            strokeWidth="1.2"
+          />
+        ))}
+
+        {/* Sandstone Palace Pavilion Domes */}
+        <g transform={flip ? 'translate(454, 198)' : 'translate(20, 198)'} opacity="0.9">
+          <path d="M36 46C36 16 62 4 62 4C62 4 88 16 88 46Z" fill="#FB923C" stroke="#9A3412" strokeWidth="1.8" />
+          <line x1="62" y1="0" x2="62" y2="8" stroke="#9A3412" strokeWidth="2.4" strokeLinecap="round" />
+          <rect x="14" y="46" width="96" height="104" rx="4" fill="#FDBA74" stroke="#9A3412" strokeWidth="1.8" />
+          <path d="M38 150V96C38 78 62 66 62 66C62 66 86 78 86 96V150Z" fill="#FFF7ED" stroke="#9A3412" strokeWidth="1.8" />
+        </g>
+
+        {/* Secondary Chhatri Turret & Reflection Pool */}
+        <g transform={flip ? 'translate(24, 240)' : 'translate(490, 240)'} opacity="0.88">
+          <path d="M20 34C20 12 44 4 44 4C44 4 68 12 68 34Z" fill="#F59E0B" stroke="#9A3412" strokeWidth="1.8" />
+          <rect x="14" y="34" width="60" height="84" rx="4" fill="#FED7AA" stroke="#9A3412" strokeWidth="1.8" />
+          <path d="M32 118V66C32 54 56 54 56 66V118Z" fill="#FFFBEB" stroke="#9A3412" strokeWidth="1.6" />
+        </g>
+        <path d="M0 346Q300 338 600 346V420H0Z" fill="#38BDF8" opacity="0.42" />
+      </DioramaSvg>
+    );
+  }
+
+  if (language === 'bn') {
+    // Bengali (bn — The Lotus River Delta: lotus river delta & wooden country boat)
+    const flip = unitOrder % 2 === 0;
+    return (
+      <DioramaSvg unitOrder={unitOrder} skyId={`bn-sky-${uid}`} skyTop="#ECFDF5" skyBottom="#FEF9C3">
+        {/* Lush Green Delta Banks & Coconut Palms */}
+        <path d="M0 296Q160 260 320 296T600 288V420H0Z" fill="#6EE7B7" opacity="0.62" />
+        <g transform={flip ? 'translate(496, 178)' : 'translate(24, 178)'} opacity="0.9">
+          <path d="M36 146Q46 92 28 42" fill="none" stroke="#92400E" strokeWidth="7" strokeLinecap="round" />
+          <path d="M28 42Q6 30 -2 46Q14 44 28 42Z" fill="#059669" stroke={INK} strokeWidth="1.3" />
+          <path d="M28 42Q20 14 42 10Q40 28 28 42Z" fill="#10B981" stroke={INK} strokeWidth="1.3" />
+          <path d="M28 42Q54 24 64 42Q46 44 28 42Z" fill="#059669" stroke={INK} strokeWidth="1.3" />
+        </g>
+
+        {/* Wide Padma River Delta & Blooming Pink Lotuses */}
+        <path d="M0 322Q150 310 300 324T600 318V420H0Z" fill="#38BDF8" opacity="0.56" />
+        {[72, 134, 470, 535].map((x, idx) => (
+          <g key={x} transform={`translate(${x}, ${idx % 2 === 0 ? 356 : 374})`}>
+            <ellipse cx="0" cy="6" rx="18" ry="6" fill="#16A34A" stroke={INK} strokeWidth="1.2" />
+            <path d="M-8 4C-8 -6 -2 -10 0 -10C2 -10 8 -6 8 4Z" fill="#FB7185" stroke={INK} strokeWidth="1.2" />
+            <path d="M-12 5C-11 -2 -6 -5 -3 4Z" fill="#F472B6" stroke={INK} strokeWidth="1.1" />
+            <path d="M12 5C11 -2 6 -5 3 4Z" fill="#F472B6" stroke={INK} strokeWidth="1.1" />
+          </g>
+        ))}
+
+        {/* Wooden Country Nouka Boat with Striped Chhai Canopy */}
+        <g transform={flip ? 'translate(40, 306)' : 'translate(415, 306)'} opacity="0.94">
+          <path d="M4 32C28 48 104 48 134 26L118 44C92 54 40 54 18 44Z" fill="#92400E" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+          <path d="M42 34C42 12 90 12 90 34Z" fill="#FDE047" stroke={INK} strokeWidth="1.8" />
+          <path d="M56 34C56 14 76 14 76 34Z" fill="#047857" opacity="0.85" />
+          <line x1="108" y1="22" x2="86" y2="54" stroke="#78350F" strokeWidth="3" strokeLinecap="round" />
+        </g>
+      </DioramaSvg>
+    );
+  }
+
+  if (language === 'ar') {
+    // Modern Standard Arabic (ar — Oasis of Golden Stars: starlit desert oasis palms & astrolabe arch)
+    const flip = unitOrder % 2 === 0;
+    return (
+      <DioramaSvg
+        unitOrder={unitOrder}
+        skyId={`ar-sky-${uid}`}
+        skyTop="#0F766E"
+        skyMid="#34D399"
+        skyBottom="#FEF3C7"
+      >
+        {/* Starlit Crescent & Golden Stars */}
+        <path
+          d="M505 42C490 45 480 58 482 73C484 87 497 96 512 94C499 92 493 80 493 68C493 56 499 47 505 42Z"
+          fill="#FDE047"
+        />
+        {[
+          [82, 46, 2.5],
+          [164, 34, 2.1],
+          [265, 58, 2.4],
+          [380, 40, 2.2],
+          [448, 72, 2.5],
+        ].map(([x, y, r], i) => (
+          <circle key={i} cx={x} cy={y} r={r} fill="#FEF08A" opacity="0.9" />
+        ))}
+
+        {/* Rolling Golden Desert Dunes & Turquoise Oasis Pool */}
+        <path d="M0 304Q170 258 340 304T600 294V420H0Z" fill="#FDE68A" opacity="0.82" />
+        <path d="M0 344Q210 312 420 348T600 336V420H0Z" fill="#FBBF24" opacity="0.6" />
+        <ellipse cx={flip ? 145 : 455} cy="368" rx="92" ry="18" fill="#06B6D4" stroke="#0E7490" strokeWidth="1.6" opacity="0.85" />
+
+        {/* Oasis Date Palms */}
+        <g transform={flip ? 'translate(30, 200)' : 'translate(495, 200)'} opacity="0.94">
+          <path d="M32 160Q42 104 28 50" fill="none" stroke="#92400E" strokeWidth="8" strokeLinecap="round" />
+          <path d="M28 50Q2 38 -6 56Q14 54 28 50Z" fill="#15803D" stroke={INK} strokeWidth="1.4" />
+          <path d="M28 50Q14 18 38 14Q38 32 28 50Z" fill="#16A34A" stroke={INK} strokeWidth="1.4" />
+          <path d="M28 50Q56 30 66 50Q46 52 28 50Z" fill="#15803D" stroke={INK} strokeWidth="1.4" />
+        </g>
+
+        {/* Ornate Desert Arch with Brass Astrolabe */}
+        <g transform={flip ? 'translate(474, 218)' : 'translate(22, 218)'} opacity="0.92">
+          <rect x="6" y="34" width="92" height="108" rx="6" fill="#FEF3C7" stroke="#92400E" strokeWidth="1.8" />
+          <path d="M22 142V76C22 50 52 38 52 38C52 38 82 50 82 76V142Z" fill="#065F46" stroke="#D97706" strokeWidth="2.4" />
+          <line x1="52" y1="40" x2="52" y2="58" stroke="#FDE047" strokeWidth="1.8" />
+          <circle cx="52" cy="74" r="14" fill="none" stroke="#FACC15" strokeWidth="2.4" />
+          <circle cx="52" cy="74" r="7" fill="none" stroke="#FDE047" strokeWidth="1.4" />
+          <circle cx="52" cy="74" r="2.2" fill="#FDE047" />
+        </g>
+      </DioramaSvg>
+    );
+  }
+
+  if (language === 'arz') {
+    // Egyptian Arabic (arz — Nile Felucca Breeze: golden Nile pyramids & white-sailed felucca)
+    const flip = unitOrder % 2 === 0;
+    return (
+      <DioramaSvg unitOrder={unitOrder} skyId={`arz-sky-${uid}`} skyTop="#E0F2FE" skyBottom="#FEF3C7">
+        {/* Warm Egyptian Sun */}
+        <circle cx={flip ? 95 : 505} cy="70" r="32" fill="#FDE047" opacity="0.82" />
+        <circle cx={flip ? 95 : 505} cy="70" r="22" fill="#F59E0B" opacity="0.72" />
+
+        {/* Golden Giza Pyramids on Desert Horizon */}
+        <g transform={flip ? 'translate(350, 178)' : 'translate(20, 178)'} opacity="0.9">
+          <polygon points="74,24 18,148 92,148" fill="#FBBF24" stroke="#92400E" strokeWidth="1.8" strokeLinejoin="round" />
+          <polygon points="74,24 92,148 134,148" fill="#D97706" stroke="#92400E" strokeWidth="1.8" strokeLinejoin="round" />
+          <polygon points="154,54 114,148 164,148" fill="#FDE047" stroke="#92400E" strokeWidth="1.8" strokeLinejoin="round" />
+          <polygon points="154,54 164,148 196,148" fill="#D97706" stroke="#92400E" strokeWidth="1.8" strokeLinejoin="round" />
+        </g>
+
+        {/* Nile River Waterfront */}
+        <path d="M0 322Q150 310 300 322T600 318V420H0Z" fill="#0EA5E9" opacity="0.56" />
+        <path
+          d="M35 366Q95 358 155 366M420 374Q485 366 545 374"
+          stroke="#FFFFFF"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          fill="none"
+          opacity="0.75"
+        />
+
+        {/* White-Sailed Nile Felucca */}
+        <g transform={flip ? 'translate(48, 250)' : 'translate(428, 250)'} opacity="0.95">
+          <path d="M6 86H104L90 102H18Z" fill="#92400E" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+          <line x1="52" y1="86" x2="52" y2="12" stroke="#78350F" strokeWidth="3.2" strokeLinecap="round" />
+          <path d="M52 10Q102 44 96 80L52 80Z" fill="#FFFFFF" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+        </g>
+      </DioramaSvg>
+    );
+  }
+
+  if (language === 'ru') {
+    // Russian (ru — The Starlight Frost Express: colorful onion domes & snowy northern pines)
+    const flip = unitOrder % 2 === 0;
+    return (
+      <DioramaSvg unitOrder={unitOrder} skyId={`ru-sky-${uid}`} skyTop="#EEF2FF" skyBottom="#E0F2FE">
+        {/* Soft Aurora Ribbon & Snowflakes */}
+        <path d="M40 76Q220 28 380 78T560 56" fill="none" stroke="#818CF8" strokeWidth="14" opacity="0.22" strokeLinecap="round" />
+        {[
+          [92, 46],
+          [190, 82],
+          [320, 48],
+          [440, 84],
+          [520, 44],
+        ].map(([x, y], i) => (
+          <circle key={i} cx={x} cy={y} r="3" fill="#FFFFFF" opacity="0.88" />
+        ))}
+
+        {/* Snow-Blanketed Hills */}
+        <path d="M0 318Q150 282 300 318T600 312V420H0Z" fill="#F8FAFC" opacity="0.92" />
+
+        {/* Colorful Onion-Domed Cathedral Towers */}
+        <g transform={flip ? 'translate(454, 168)' : 'translate(22, 168)'} opacity="0.92">
+          {/* Left Blue Dome Tower */}
+          <rect x="10" y="76" width="32" height="90" fill="#FFFBEB" stroke={INK} strokeWidth="1.8" />
+          <path d="M26 24C10 46 8 64 14 76H38C44 64 42 46 26 24Z" fill="#2563EB" stroke={INK} strokeWidth="1.8" />
+          {/* Center Crimson & Gold Striped Dome */}
+          <rect x="44" y="64" width="38" height="102" fill="#FEF3C7" stroke={INK} strokeWidth="1.8" />
+          <path d="M63 6C42 32 40 52 46 64H80C86 52 84 32 63 6Z" fill="#E11D48" stroke={INK} strokeWidth="1.8" />
+          <path d="M63 6C56 32 56 52 63 64C70 52 70 32 63 6Z" fill="#FACC15" opacity="0.88" />
+          {/* Right Emerald Dome Tower */}
+          <rect x="84" y="84" width="30" height="82" fill="#FFFBEB" stroke={INK} strokeWidth="1.8" />
+          <path d="M99 36C85 56 83 72 88 84H110C115 72 113 56 99 36Z" fill="#10B981" stroke={INK} strokeWidth="1.8" />
+        </g>
+
+        {/* Snowy Northern Pines */}
+        {(flip ? [26, 66] : [510, 550]).map((x, idx) => (
+          <g key={x} transform={`translate(${x}, ${idx % 2 === 0 ? 196 : 220})`} opacity="0.9">
+            <rect x="13" y="76" width="8" height="28" fill="#78350F" />
+            <path d="M17 0L34 38H0Z" fill="#15803D" stroke={INK} strokeWidth="1.5" strokeLinejoin="round" />
+            <path d="M17 0L25 18L17 14L9 18Z" fill="#FFFFFF" />
+            <path d="M17 24L38 64H-4Z" fill="#166534" stroke={INK} strokeWidth="1.5" strokeLinejoin="round" />
+            <path d="M17 44L41 82H-7Z" fill="#14532D" stroke={INK} strokeWidth="1.5" strokeLinejoin="round" />
+          </g>
+        ))}
+      </DioramaSvg>
+    );
+  }
+
+  if (language === 'id') {
+    // Indonesian (id — Emerald Archipelago Voyage: volcanic peaks & outrigger prahu)
+    const flip = unitOrder % 2 === 0;
+    return (
+      <DioramaSvg unitOrder={unitOrder} skyId={`id-sky-${uid}`} skyTop="#ECFEFF" skyBottom="#FEF9C3">
+        {/* Tropical Sun */}
+        <circle cx={flip ? 110 : 490} cy="68" r="30" fill="#FDE047" opacity="0.82" />
+
+        {/* Twin Emerald Volcanic Island Peaks */}
+        <g transform={flip ? 'translate(380, 152)' : 'translate(16, 152)'} opacity="0.9">
+          <ellipse cx="66" cy="14" rx="22" ry="9" fill="#FFFFFF" opacity="0.72" />
+          <path d="M60 28L74 28L124 175H10Z" fill="#059669" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+          <path d="M132 58L142 58L190 175H90Z" fill="#10B981" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+        </g>
+
+        {/* Sparkling Turquoise Archipelago Sea */}
+        <path d="M0 322Q150 310 300 324T600 318V420H0Z" fill="#06B6D4" opacity="0.58" />
+        <path
+          d="M38 364Q92 356 146 364M412 372Q470 364 528 372"
+          stroke="#FFFFFF"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          fill="none"
+          opacity="0.78"
+        />
+
+        {/* Traditional Outrigger Prahu Sailboat */}
+        <g transform={flip ? 'translate(38, 258)' : 'translate(435, 258)'} opacity="0.94">
+          <path d="M8 78C34 92 86 92 112 72L98 88H22Z" fill="#92400E" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+          <line x1="18" y1="88" x2="104" y2="88" stroke="#78350F" strokeWidth="3.5" strokeLinecap="round" />
+          <line x1="58" y1="78" x2="58" y2="10" stroke="#78350F" strokeWidth="3" />
+          <path d="M58 10L106 68H58Z" fill="#F97316" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+          <path d="M58 26L88 68H58Z" fill="#FACC15" opacity="0.9" />
+        </g>
+      </DioramaSvg>
+    );
+  }
+
+  if (language === 'vi') {
+    // Vietnamese (vi — Lantern Bay & Bamboo Peaks: emerald karst bay & floating silk lanterns)
+    const flip = unitOrder % 2 === 0;
+    return (
+      <DioramaSvg unitOrder={unitOrder} skyId={`vi-sky-${uid}`} skyTop="#FFF1F2" skyBottom="#ECFDF5">
+        {/* Emerald Limestone Karst Bay Peaks */}
+        <path
+          d="M0 326L34 222L72 246L108 175L146 258L192 232L224 326Z"
+          fill="#10B981"
+          opacity="0.65"
+        />
+        <path
+          d="M382 326L416 205L458 242L494 178L538 250L572 218L600 326Z"
+          fill="#059669"
+          opacity="0.62"
+        />
+
+        {/* Overhead Strung Hoi An Silk Lanterns */}
+        <path d="M0 24Q150 52 300 22T600 26" fill="none" stroke="#78350F" strokeWidth="1.8" opacity="0.55" />
+        {[
+          [56, '#E11D48'],
+          [134, '#FACC15'],
+          [466, '#0EA5E9'],
+          [544, '#A855F7'],
+        ].map(([x, color]) => (
+          <g key={x as number} transform={`translate(${x}, 32)`}>
+            <circle cx="0" cy="18" r="18" fill={color as string} opacity="0.22" />
+            <ellipse cx="0" cy="18" rx="10" ry="13" fill={color as string} stroke={INK} strokeWidth="1.5" />
+            <rect x="-5" y="4" width="10" height="3.5" rx="1" fill="#FDE047" />
+            <line x1="0" y1="31" x2="0" y2="39" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" />
+          </g>
+        ))}
+
+        {/* Jade Bay Water & Floating Lotus Silk Lanterns */}
+        <path d="M0 324Q150 312 300 326T600 320V420H0Z" fill="#14B8A6" opacity="0.55" />
+        {[120, 295, 480].map((x, idx) => (
+          <g key={x} transform={`translate(${x}, ${idx === 1 ? 365 : 352})`}>
+            <ellipse cx="0" cy="7" rx="16" ry="5" fill="#FFFFFF" opacity="0.32" />
+            <path d="M-9 5L0 -8L9 5Z" fill="#FB7185" stroke={INK} strokeWidth="1.3" strokeLinejoin="round" />
+            <circle cx="0" cy="0" r="2.5" fill="#FEF08A" />
+          </g>
+        ))}
+
+        {/* Graceful Corner Bamboo */}
+        <g transform={flip ? 'translate(518, 198)' : 'translate(18, 198)'} opacity="0.88">
+          <line x1="16" y1="0" x2="16" y2="145" stroke="#16A34A" strokeWidth="5.5" strokeLinecap="round" />
+          <line x1="34" y1="20" x2="34" y2="145" stroke="#22C55E" strokeWidth="4.5" strokeLinecap="round" />
+          <path d="M16 32L0 20L14 24Z M18 60L34 48L20 52Z" fill="#15803D" />
+        </g>
+      </DioramaSvg>
+    );
+  }
+
+  if (language === 'sw') {
+    // Swahili (sw — Savanna Sun & Dhow Coast: golden savanna acacias, Kilimanjaro & Zanzibar dhow)
+    const flip = unitOrder % 2 === 0;
+    return (
+      <DioramaSvg unitOrder={unitOrder} skyId={`sw-sky-${uid}`} skyTop="#FFFBEB" skyBottom="#FED7AA">
+        {/* Savanna Sun */}
+        <circle cx={flip ? 105 : 495} cy="72" r="36" fill="#FDE047" opacity="0.82" />
+        <circle cx={flip ? 105 : 495} cy="72" r="24" fill="#F59E0B" opacity="0.82" />
+
+        {/* Distant Broad Snow-Capped Mt. Kilimanjaro */}
+        <path
+          d="M140 315L238 190H362L460 315Z"
+          fill="#94A3B8"
+          opacity="0.48"
+        />
+        <path
+          d="M214 222L238 190H362L386 222L354 206L328 224L300 206L272 224L246 206Z"
+          fill="#FFFFFF"
+          opacity="0.92"
+        />
+
+        {/* Golden Savanna Plains & Turquoise Zanzibar Coast */}
+        <path d="M0 312Q180 282 360 314T600 306V420H0Z" fill="#FCD34D" opacity="0.62" />
+        <path d="M290 342Q440 320 600 336V420H290Z" fill="#0EA5E9" opacity="0.58" />
+
+        {/* Flat-Topped Savanna Acacia Tree */}
+        <g transform={flip ? 'translate(430, 198)' : 'translate(18, 198)'} opacity="0.92">
+          <path d="M62 128V74M62 84L38 64M62 80L88 64" stroke="#78350F" strokeWidth="6.5" strokeLinecap="round" />
+          <ellipse cx="62" cy="56" rx="54" ry="15" fill="#15803D" stroke={INK} strokeWidth="1.6" />
+          <ellipse cx="42" cy="48" rx="28" ry="10" fill="#65A30D" opacity="0.85" />
+          <ellipse cx="82" cy="50" rx="26" ry="9" fill="#65A30D" opacity="0.85" />
+        </g>
+
+        {/* Zanzibar White-Sailed Dhow Boat */}
+        <g transform="translate(455, 290)" opacity="0.94">
+          <path d="M8 52H92L80 66H18Z" fill="#92400E" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+          <line x1="48" y1="52" x2="48" y2="8" stroke="#78350F" strokeWidth="2.8" />
+          <path d="M48 8L92 46H48Z" fill="#FFFFFF" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+        </g>
+      </DioramaSvg>
     );
   }
 
