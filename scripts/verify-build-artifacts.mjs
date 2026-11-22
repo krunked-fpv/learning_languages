@@ -7,6 +7,7 @@ const ROOT_DIR = resolve(__dirname, '..');
 const DIST_DIR = resolve(ROOT_DIR, 'dist');
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const WOFF2_SIGNATURE = Buffer.from('wOF2', 'ascii');
 const UNICODE_FLAG_REGEX = /[\u{1F1E6}-\u{1F1FF}]/u;
 
 const EXPECTED_ICONS = new Map([
@@ -223,16 +224,67 @@ function verifyPngIcons() {
   }
 }
 
-function verifyBuiltAssetsForFlags() {
+let verifiedWoff2Count = 0;
+
+function verifyCssFontReference(cssFileName, rawRef) {
+  const ref = rawRef.trim().replace(/^['"]|['"]$/g, '');
+  if (!ref || ref.startsWith('data:') || ref.startsWith('#')) return;
+
+  if (/^https?:\/\//i.test(ref) || ref.startsWith('//')) {
+    fail(`dist/assets/${cssFileName} contains external font/asset URL: ${ref}`);
+    return;
+  }
+
+  if (ref.startsWith('/')) {
+    fail(`dist/assets/${cssFileName} contains forbidden root-relative URL: ${ref}`);
+    return;
+  }
+
+  const cleanRel = ref.split(/[?#]/)[0];
+  if (!cleanRel.toLowerCase().endsWith('.woff2')) return;
+
+  const fromCssDir = resolve(DIST_DIR, 'assets', cleanRel);
+  const fromDistRoot = resolve(DIST_DIR, cleanRel);
+  const targetExists =
+    (cleanRel.startsWith('./assets/') && existsSync(fromDistRoot)) ||
+    existsSync(fromCssDir) ||
+    existsSync(fromDistRoot);
+
+  if (!targetExists) {
+    fail(`dist/assets/${cssFileName} references missing bundled font ${ref}`);
+  }
+}
+
+function verifyAssetsAndFonts() {
   const assetsDir = resolve(DIST_DIR, 'assets');
   if (!existsSync(assetsDir)) return;
 
   for (const fileName of readdirSync(assetsDir)) {
-    if (!/\.(js|mjs|css|html)$/i.test(fileName)) continue;
     const fullPath = join(assetsDir, fileName);
     if (!statSync(fullPath).isFile()) continue;
+
+    if (fileName.toLowerCase().endsWith('.woff2')) {
+      const buf = readFileSync(fullPath);
+      if (buf.length < 4 || !buf.subarray(0, 4).equals(WOFF2_SIGNATURE)) {
+        fail(`./assets/${fileName} is not a valid WOFF2 font binary (missing wOF2 signature).`);
+      } else {
+        verifiedWoff2Count += 1;
+      }
+      continue;
+    }
+
+    if (!/\.(js|mjs|css|html)$/i.test(fileName)) continue;
+
     const content = readFileSync(fullPath, 'utf8');
     checkNoFlagEmojis(`dist/assets/${fileName}`, content);
+
+    if (fileName.toLowerCase().endsWith('.css')) {
+      const urlRegex = /url\(\s*([^)]+?)\s*\)/gi;
+      let match;
+      while ((match = urlRegex.exec(content)) !== null) {
+        verifyCssFontReference(fileName, match[1]);
+      }
+    }
   }
 }
 
@@ -243,7 +295,7 @@ if (!existsSync(DIST_DIR)) {
   verifyManifestJson();
   verifyServiceWorker();
   verifyPngIcons();
-  verifyBuiltAssetsForFlags();
+  verifyAssetsAndFonts();
 }
 
 if (errors.length > 0) {
@@ -254,4 +306,6 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log('[verify-build-artifacts] PASS: dist/index.html, dist/manifest.json, dist/sw.js, and all 5 RGBA PNG icons verified.');
+console.log(
+  `[verify-build-artifacts] PASS: dist/index.html, dist/manifest.json, dist/sw.js, all 5 RGBA PNG icons, and ${verifiedWoff2Count} relative ./assets/*.woff2 font(s) verified.`
+);
