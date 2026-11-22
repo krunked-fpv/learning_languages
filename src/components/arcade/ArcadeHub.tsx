@@ -402,9 +402,9 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                     fontSize: isNarrow ? '0.67rem' : '0.76rem',
                     fontWeight: 700,
                     color: 'var(--text-muted, #475569)',
-                    lineHeight: 1.24,
+                    lineHeight: 1.26,
                     display: '-webkit-box',
-                    WebkitLineClamp: isNarrow ? 2 : 3,
+                    WebkitLineClamp: isNarrow ? 1 : 3,
                     WebkitBoxOrient: 'vertical',
                     overflow: 'hidden',
                   }}

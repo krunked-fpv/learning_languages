@@ -889,6 +889,8 @@ export function AdventureMap({
                         top: 'calc(100% + 2px)',
                         left: '50%',
                         transform: 'translateX(-50%)',
+                        width: 'max-content',
+                        maxWidth: isCompactWidth ? 102 : 134,
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
