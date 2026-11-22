@@ -73,8 +73,8 @@ export function DiscoveryCardView({
             gap: 5,
             padding: '4px 10px',
             borderRadius: 999,
-            background: 'var(--lang-tint)',
-            color: 'var(--lang-bevel)',
+            background: 'var(--tint-indigo-bg)',
+            color: 'var(--tint-indigo-ink)',
             fontSize: '0.75rem',
             fontWeight: 900,
             letterSpacing: '0.03em',
@@ -107,7 +107,7 @@ export function DiscoveryCardView({
         <VocabIllustration
           illustrationKey={vocabCard.illustrationKey}
           language={language}
-          size={compact ? 82 : 120}
+          size={compact ? 80 : 114}
         />
       </div>
 
@@ -115,15 +115,15 @@ export function DiscoveryCardView({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <div
           style={{
-            fontSize: compact ? '1.45rem' : '1.9rem',
+            fontSize: compact ? '1.4rem' : '1.85rem',
             fontWeight: 900,
-            color: 'var(--lang-bevel)',
+            color: 'var(--lang-primary)',
             lineHeight: 1.15,
           }}
         >
           {vocabCard.foreignWithArticle}
         </div>
-        <div style={{ fontSize: compact ? '0.96rem' : '1.12rem', fontWeight: 800, color: '#0f172a' }}>
+        <div style={{ fontSize: compact ? '0.96rem' : '1.12rem', fontWeight: 800, color: 'var(--text-main)' }}>
           {vocabCard.english}
         </div>
         <div
@@ -134,8 +134,8 @@ export function DiscoveryCardView({
             margin: '2px auto 0',
             padding: '3px 12px',
             borderRadius: 999,
-            background: '#eef2ff',
-            color: '#3730a3',
+            background: 'var(--tint-indigo-bg)',
+            color: 'var(--tint-indigo-ink)',
             fontSize: compact ? '0.82rem' : '0.9rem',
             fontWeight: 800,
           }}
@@ -175,9 +175,9 @@ export function DiscoveryCardView({
           style={{
             padding: '5px 12px',
             borderRadius: 12,
-            background: '#fffbeb',
-            border: '2px solid #fcd34d',
-            color: '#92400e',
+            background: 'var(--tint-amber-bg)',
+            border: '2px solid var(--tint-amber-border)',
+            color: 'var(--tint-amber-ink)',
             fontSize: '0.8rem',
             fontWeight: 800,
           }}
@@ -192,15 +192,15 @@ export function DiscoveryCardView({
           width: '100%',
           padding: compact ? '8px 10px' : '10px 14px',
           borderRadius: 16,
-          background: '#f8fafc',
-          border: '2px solid #e2e8f0',
+          background: 'var(--card-soft-bg)',
+          border: '2px solid var(--card-border)',
           display: 'flex',
           flexDirection: 'column',
           gap: 3,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: compact ? '0.92rem' : '1rem', fontWeight: 800, color: '#1e1b4b' }}>
+          <span style={{ fontSize: compact ? '0.92rem' : '1rem', fontWeight: 800, color: 'var(--text-main)' }}>
             <TapHintText
               tokens={exampleTokens}
               fallbackText={vocabCard.exampleForeign}
@@ -224,13 +224,13 @@ export function DiscoveryCardView({
             <Volume2 size={14} />
           </button>
         </div>
-        <div style={{ fontSize: compact ? '0.78rem' : '0.86rem', color: '#475569', fontWeight: 700 }}>
+        <div style={{ fontSize: compact ? '0.78rem' : '0.86rem', color: 'var(--text-muted)', fontWeight: 700 }}>
           {vocabCard.exampleEnglish}
         </div>
       </div>
 
       {exercise.promptHint ? (
-        <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 700 }}>
+        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>
           Tip: {exercise.promptHint}
         </div>
       ) : null}

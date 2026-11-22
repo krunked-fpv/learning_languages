@@ -78,11 +78,11 @@ export function WordBankTray({
       <div
         aria-label="Answer tray"
         style={{
-          minHeight: compact ? 58 : 70,
-          padding: compact ? '8px 10px' : '12px 14px',
+          minHeight: compact ? 54 : 66,
+          padding: compact ? '8px 10px' : '11px 14px',
           borderRadius: 18,
-          background: '#f8fafc',
-          border: '2px dashed #cbd5e1',
+          background: 'var(--card-soft-bg)',
+          border: '2px dashed var(--card-border)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
@@ -90,7 +90,7 @@ export function WordBankTray({
         }}
       >
         {selectedTileUids.length === 0 ? (
-          <span style={{ color: '#64748b', fontWeight: 700, fontSize: '0.88rem', textAlign: 'center' }}>
+          <span style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.88rem', textAlign: 'center' }}>
             Tap word tiles below in order
           </span>
         ) : (
@@ -124,12 +124,12 @@ export function WordBankTray({
               style={{
                 fontSize: '0.8rem',
                 fontWeight: 700,
-                color: '#475569',
-                borderTop: '1px solid #e2e8f0',
+                color: 'var(--text-muted)',
+                borderTop: '1px solid var(--card-border)',
                 paddingTop: 4,
               }}
             >
-              Preview: <span style={{ color: '#1e1b4b', fontWeight: 800 }}>{assembledPreview}</span>
+              Preview: <span style={{ color: 'var(--text-main)', fontWeight: 800 }}>{assembledPreview}</span>
             </div>
           </>
         )}

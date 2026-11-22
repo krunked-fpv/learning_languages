@@ -108,8 +108,8 @@ export function WordBankView({
           style={{
             padding: '4px 10px',
             borderRadius: 999,
-            background: 'var(--lang-tint)',
-            color: 'var(--lang-bevel)',
+            background: 'var(--tint-indigo-bg)',
+            color: 'var(--tint-indigo-ink)',
             fontSize: '0.75rem',
             fontWeight: 900,
             textTransform: 'uppercase',
@@ -149,8 +149,8 @@ export function WordBankView({
         style={{
           padding: compact ? '10px 12px' : '14px 16px',
           borderRadius: 18,
-          background: '#f8fafc',
-          border: '2px solid #e2e8f0',
+          background: 'var(--card-soft-bg)',
+          border: '2px solid var(--card-border)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -159,7 +159,7 @@ export function WordBankView({
         }}
       >
         <div style={{ flex: '1 1 200px' }}>
-          <div style={{ fontSize: compact ? '1.12rem' : '1.35rem', fontWeight: 900, color: '#1e1b4b' }}>
+          <div style={{ fontSize: compact ? '1.12rem' : '1.35rem', fontWeight: 900, color: 'var(--text-main)' }}>
             {exercise.direction === 'to_english' && exercise.promptTokens.length > 0 ? (
               <TapHintText
                 tokens={exercise.promptTokens}
@@ -171,12 +171,12 @@ export function WordBankView({
             )}
           </div>
           {exercise.promptPhonetic ? (
-            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginTop: 2 }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', marginTop: 2 }}>
               {exercise.promptPhonetic}
             </div>
           ) : null}
           {exercise.direction === 'to_english' && exercise.promptTokens.length > 0 ? (
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', marginTop: 3 }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', marginTop: 3 }}>
               Tap any dotted word to peek!
             </div>
           ) : null}
@@ -268,8 +268,8 @@ export function WordBankView({
               borderColor: 'var(--lang-primary)',
               fontSize: '1rem',
               fontWeight: 800,
-              color: '#1e1b4b',
-              background: '#ffffff',
+              color: 'var(--text-main)',
+              background: 'var(--input-bg)',
               outline: 'none',
             }}
           />

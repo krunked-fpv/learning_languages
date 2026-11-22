@@ -102,8 +102,8 @@ export function ListenDecodeView({
           style={{
             padding: '4px 10px',
             borderRadius: 999,
-            background: 'var(--lang-tint)',
-            color: 'var(--lang-bevel)',
+            background: 'var(--tint-indigo-bg)',
+            color: 'var(--tint-indigo-ink)',
             fontSize: '0.75rem',
             fontWeight: 900,
             textTransform: 'uppercase',
@@ -165,18 +165,18 @@ export function ListenDecodeView({
           style={{
             padding: compact ? '8px 12px' : '11px 14px',
             borderRadius: 16,
-            background: '#fffbeb',
-            border: '2px solid #fbbf24',
+            background: 'var(--tint-amber-bg)',
+            border: '2px solid var(--tint-amber-border)',
             display: 'flex',
             flexDirection: 'column',
             gap: 6,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#b45309', fontWeight: 900, fontSize: '0.82rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--tint-amber-ink)', fontWeight: 900, fontSize: '0.82rem' }}>
             <Sparkles size={15} />
             <span>Phonetic Sound Clue</span>
           </div>
-          <div style={{ fontSize: '0.86rem', fontWeight: 800, color: '#78350f' }}>
+          <div style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-main)' }}>
             {exercise.voiceFallbackPhoneticPrompt}
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 5 }}>
@@ -203,7 +203,7 @@ export function ListenDecodeView({
                   {syl.text}
                 </span>
                 {idx < syllables.length - 1 ? (
-                  <span aria-hidden="true" style={{ color: '#d97706', fontWeight: 900 }}>
+                  <span aria-hidden="true" style={{ color: '#f59e0b', fontWeight: 900 }}>
                     {syl.isWordEnd ? ' ' : '•'}
                   </span>
                 ) : null}
@@ -237,9 +237,9 @@ export function ListenDecodeView({
                 style={{
                   justifyContent: 'space-between',
                   padding: compact ? '10px 14px' : '13px 16px',
-                  background: isSelected ? '#eef2ff' : '#ffffff',
-                  borderColor: isSelected ? '#4f46e5' : '#cbd5e1',
-                  color: isSelected ? '#312e81' : '#1e1b4b',
+                  background: isSelected ? 'var(--tile-selected-bg)' : 'var(--tile-bg)',
+                  borderColor: isSelected ? 'var(--lang-primary)' : 'var(--tile-border)',
+                  color: isSelected ? 'var(--tile-selected-ink)' : 'var(--text-main)',
                   textAlign: 'left',
                 }}
                 onClick={() => {
@@ -271,8 +271,8 @@ export function ListenDecodeView({
           style={{
             padding: '8px 12px',
             borderRadius: 14,
-            background: '#f8fafc',
-            border: '2px solid #cbd5e1',
+            background: 'var(--card-soft-bg)',
+            border: '2px solid var(--card-border)',
             fontSize: '0.9rem',
             fontWeight: 800,
           }}

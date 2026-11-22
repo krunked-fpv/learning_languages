@@ -100,15 +100,15 @@ export function MiniStoryView({
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 8,
-          borderBottom: '2px solid #e2e8f0',
+          borderBottom: '2px solid var(--card-border)',
           paddingBottom: 8,
         }}
       >
         <div>
-          <div style={{ fontSize: compact ? '1rem' : '1.18rem', fontWeight: 900, color: '#1e1b4b' }}>
+          <div style={{ fontSize: compact ? '1rem' : '1.18rem', fontWeight: 900, color: 'var(--text-main)' }}>
             {exercise.title}
           </div>
-          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569' }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>
             {exercise.settingSubtitle}
           </div>
         </div>
@@ -116,8 +116,8 @@ export function MiniStoryView({
           style={{
             padding: '4px 10px',
             borderRadius: 999,
-            background: 'var(--lang-tint)',
-            color: 'var(--lang-bevel)',
+            background: 'var(--tint-indigo-bg)',
+            color: 'var(--tint-indigo-ink)',
             fontSize: '0.76rem',
             fontWeight: 900,
           }}
@@ -143,13 +143,13 @@ export function MiniStoryView({
                 maxWidth: '90%',
                 padding: compact ? '9px 12px' : '12px 15px',
                 borderRadius: 18,
-                background: isRight ? 'var(--lang-tint)' : '#f8fafc',
+                background: isRight ? 'var(--tint-indigo-bg)' : 'var(--card-soft-bg)',
                 borderTopWidth: 2,
                 borderRightWidth: 2,
                 borderLeftWidth: 2,
                 borderBottomWidth: 4,
                 borderStyle: 'solid',
-                borderColor: isRight ? 'var(--lang-primary)' : '#cbd5e1',
+                borderColor: isRight ? 'var(--lang-primary)' : 'var(--card-border)',
               }}
             >
               <div
@@ -161,7 +161,7 @@ export function MiniStoryView({
                   marginBottom: 4,
                 }}
               >
-                <span style={{ fontSize: '0.76rem', fontWeight: 900, color: 'var(--lang-bevel)' }}>
+                <span style={{ fontSize: '0.76rem', fontWeight: 900, color: 'var(--lang-primary)' }}>
                   {bubble.speakerName}
                 </span>
                 <div style={{ display: 'flex', gap: 4 }}>
@@ -210,7 +210,7 @@ export function MiniStoryView({
                 </div>
               </div>
 
-              <div style={{ fontSize: compact ? '0.96rem' : '1.06rem', fontWeight: 800, color: '#1e1b4b' }}>
+              <div style={{ fontSize: compact ? '0.96rem' : '1.06rem', fontWeight: 800, color: 'var(--text-main)' }}>
                 <TapHintText
                   tokens={bubble.tapHints}
                   fallbackText={bubble.foreignText}
@@ -218,7 +218,7 @@ export function MiniStoryView({
                 />
               </div>
 
-              <div style={{ fontSize: '0.76rem', color: '#475569', fontWeight: 700, marginTop: 2 }}>
+              <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', fontWeight: 700, marginTop: 2 }}>
                 {bubble.phonetic}
               </div>
 
@@ -227,10 +227,10 @@ export function MiniStoryView({
                   style={{
                     marginTop: 6,
                     paddingTop: 5,
-                    borderTop: '1px dashed #cbd5e1',
+                    borderTop: '1px dashed var(--card-border)',
                     fontSize: '0.84rem',
                     fontWeight: 700,
-                    color: '#334155',
+                    color: 'var(--text-muted)',
                   }}
                 >
                   {bubble.englishText}
@@ -248,19 +248,19 @@ export function MiniStoryView({
             style={{
               padding: compact ? '10px 12px' : '14px 16px',
               borderRadius: 18,
-              background: '#fffbeb',
+              background: 'var(--tint-amber-bg)',
               borderTopWidth: 2,
               borderRightWidth: 2,
               borderLeftWidth: 2,
               borderBottomWidth: 4,
               borderStyle: 'solid',
-              borderColor: '#f59e0b',
+              borderColor: 'var(--tint-amber-border)',
               display: 'flex',
               flexDirection: 'column',
               gap: 8,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 900, color: '#b45309' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 900, color: 'var(--tint-amber-ink)' }}>
               <Sparkles size={16} />
               <span>Story Choice: {activeDecision.questionEnglish}</span>
             </div>
@@ -298,7 +298,7 @@ export function MiniStoryView({
                   <div>
                     <div>{opt.label}</div>
                     {opt.phonetic ? (
-                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{opt.phonetic}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{opt.phonetic}</div>
                     ) : null}
                   </div>
                 </button>
@@ -312,9 +312,9 @@ export function MiniStoryView({
             style={{
               padding: '9px 12px',
               borderRadius: 14,
-              background: decisionNote.ok ? '#ecfdf5' : '#fff1f2',
-              border: `2px solid ${decisionNote.ok ? '#34d399' : '#fda4af'}`,
-              color: decisionNote.ok ? '#065f46' : '#9f1239',
+              background: decisionNote.ok ? 'var(--tint-emerald-bg)' : 'var(--tint-rose-bg)',
+              border: `2px solid ${decisionNote.ok ? 'var(--tint-emerald-border)' : 'var(--tint-rose-border)'}`,
+              color: decisionNote.ok ? 'var(--tint-emerald-ink)' : 'var(--tint-rose-ink)',
               fontWeight: 800,
               fontSize: '0.86rem',
             }}

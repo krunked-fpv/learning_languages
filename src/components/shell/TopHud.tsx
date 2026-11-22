@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
+  Check,
   ChevronDown,
   Compass,
   Download,
@@ -9,22 +10,32 @@ import {
   Gamepad2,
   Gem,
   Heart,
+  Palette,
   Shield,
+  Sparkles,
   Volume2,
   VolumeX,
 } from 'lucide-react';
 import { AvatarBadge } from '../../art/AvatarBadge';
 import { FlagIcon } from '../../art/FlagIcon';
 import { playSfx, setAudioPreferences } from '../../audio';
+import { COSMETIC_CATALOG } from '../../core';
 import { useVaultStore, vaultActions } from '../../store/useVaultStore';
-import { LANGUAGE_LIST, LANGUAGE_META, type LanguageCode } from '../../types/contracts';
+import {
+  LANGUAGE_LIST,
+  LANGUAGE_META,
+  type CosmeticId,
+  type LanguageCode,
+} from '../../types/contracts';
 import { clampPopoverPosition } from '../lesson/lessonHelpers';
+import { PaletteOrbSwatches, THEME_SWATCH_TRIPLES } from '../meta/paletteSwatches';
 
-type OpenPopover = 'lang' | 'hearts' | 'audio' | null;
+type OpenPopover = 'lang' | 'palette' | 'hearts' | 'audio' | null;
 
 export interface TopHudProps {
   onOpenProfileModal: () => void;
   onOpenArcade: () => void;
+  onOpenShop?: () => void;
   canInstallApp: boolean;
   onInstallApp: () => void;
 }
@@ -32,6 +43,7 @@ export interface TopHudProps {
 export function TopHud({
   onOpenProfileModal,
   onOpenArcade,
+  onOpenShop,
   canInstallApp,
   onInstallApp,
 }: TopHudProps) {
@@ -42,6 +54,7 @@ export function TopHud({
   const [compassAnimKey, setCompassAnimKey] = useState(0);
 
   const langBtnRef = useRef<HTMLButtonElement | null>(null);
+  const paletteBtnRef = useRef<HTMLButtonElement | null>(null);
   const heartsBtnRef = useRef<HTMLButtonElement | null>(null);
   const audioBtnRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -49,17 +62,19 @@ export function TopHud({
   const activeAnchorRef =
     openPopover === 'lang'
       ? langBtnRef
-      : openPopover === 'hearts'
-        ? heartsBtnRef
-        : openPopover === 'audio'
-          ? audioBtnRef
-          : null;
+      : openPopover === 'palette'
+        ? paletteBtnRef
+        : openPopover === 'hearts'
+          ? heartsBtnRef
+          : openPopover === 'audio'
+            ? audioBtnRef
+            : null;
 
   useLayoutEffect(() => {
     if (!openPopover || !activeAnchorRef?.current) return;
     const rect = activeAnchorRef.current.getBoundingClientRect();
-    const desiredW = openPopover === 'lang' ? 276 : 244;
-    const measuredH = popoverRef.current?.offsetHeight || 190;
+    const desiredW = openPopover === 'lang' || openPopover === 'palette' ? 286 : 246;
+    const measuredH = popoverRef.current?.offsetHeight || 200;
     setPopoverCoords(clampPopoverPosition(rect, desiredW, measuredH));
   }, [openPopover, activeAnchorRef]);
 
@@ -71,6 +86,7 @@ export function TopHud({
         t &&
         (popoverRef.current?.contains(t) ||
           langBtnRef.current?.contains(t) ||
+          paletteBtnRef.current?.contains(t) ||
           heartsBtnRef.current?.contains(t) ||
           audioBtnRef.current?.contains(t))
       ) {
@@ -93,6 +109,12 @@ export function TopHud({
     setCompassTaps(0);
   }, [activeProfile.id]);
 
+  const unlockedThemes = useMemo(() => {
+    const owned = new Set(activeProfile.unlockedCosmetics);
+    return COSMETIC_CATALOG.filter((item) => item.slot === 'theme' && owned.has(item.id));
+  }, [activeProfile.unlockedCosmetics]);
+
+  const activeThemeId = activeProfile.equippedCosmetics.theme ?? 'default';
   const activeLangMeta = LANGUAGE_META[activeProfile.activeLanguage];
   const { volume, muted } = vault.audioSettings;
 
@@ -104,6 +126,12 @@ export function TopHud({
   const handleSelectLanguage = (lang: LanguageCode) => {
     playSfx('whoosh_transition');
     vaultActions.setActiveLanguage(lang);
+    setOpenPopover(null);
+  };
+
+  const handleSelectTheme = (themeId?: CosmeticId) => {
+    playSfx('tile_tap');
+    vaultActions.equipCosmetic('theme', themeId);
     setOpenPopover(null);
   };
 
@@ -130,9 +158,11 @@ export function TopHud({
       aria-label={
         openPopover === 'lang'
           ? 'Switch Language'
-          : openPopover === 'hearts'
-            ? 'Hearts & Recharge'
-            : 'Audio Volume'
+          : openPopover === 'palette'
+            ? 'Color Palettes'
+            : openPopover === 'hearts'
+              ? 'Hearts & Recharge'
+              : 'Audio Volume'
       }
       className="hud-popover"
       style={{
@@ -143,7 +173,7 @@ export function TopHud({
     >
       {openPopover === 'lang' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={{ fontSize: '0.78rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>
+          <div style={{ fontSize: '0.76rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
             Choose Expedition Land
           </div>
           {LANGUAGE_LIST.map((lang) => {
@@ -157,17 +187,18 @@ export function TopHud({
                 style={{
                   justifyContent: 'flex-start',
                   padding: '8px 10px',
-                  background: isSelected ? meta.accentPalette.surfaceTint : '#ffffff',
-                  borderColor: isSelected ? meta.accentPalette.primary : '#cbd5e1',
+                  background: isSelected ? 'var(--tint-indigo-bg)' : 'var(--tile-bg)',
+                  borderColor: isSelected ? meta.accentPalette.primary : 'var(--card-border)',
+                  color: 'var(--text-main)',
                 }}
                 onClick={() => handleSelectLanguage(lang)}
               >
                 <FlagIcon language={lang} size={26} />
                 <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: '0.88rem', fontWeight: 900, color: '#1e1b4b' }}>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 800 }}>
                     {meta.name} ({meta.nativeName})
                   </div>
-                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b' }}>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)' }}>
                     {meta.landTitle}
                   </div>
                 </div>
@@ -177,14 +208,83 @@ export function TopHud({
         </div>
       ) : null}
 
+      {openPopover === 'palette' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: '0.76rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+            Unlocked Color Palettes
+          </div>
+
+          <button
+            type="button"
+            className="tactile-btn"
+            style={{
+              justifyContent: 'space-between',
+              padding: '8px 10px',
+              background: activeThemeId === 'default' ? 'var(--tint-indigo-bg)' : 'var(--tile-bg)',
+              borderColor: activeThemeId === 'default' ? 'var(--lang-primary)' : 'var(--card-border)',
+            }}
+            onClick={() => handleSelectTheme(undefined)}
+          >
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <PaletteOrbSwatches colors={THEME_SWATCH_TRIPLES.default} size={12} />
+              <span style={{ fontSize: '0.84rem' }}>Storybook Parchment</span>
+            </span>
+            {activeThemeId === 'default' ? <Check size={15} /> : null}
+          </button>
+
+          {unlockedThemes.map((themeItem) => {
+            const isSelected = activeThemeId === themeItem.id;
+            const swatches = THEME_SWATCH_TRIPLES[themeItem.id] ?? THEME_SWATCH_TRIPLES.default;
+            return (
+              <button
+                key={themeItem.id}
+                type="button"
+                className="tactile-btn"
+                style={{
+                  justifyContent: 'space-between',
+                  padding: '8px 10px',
+                  background: isSelected ? 'var(--tint-indigo-bg)' : 'var(--tile-bg)',
+                  borderColor: isSelected ? themeItem.accentColor : 'var(--card-border)',
+                }}
+                onClick={() => handleSelectTheme(themeItem.id)}
+              >
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                  <PaletteOrbSwatches colors={swatches} size={12} />
+                  <span style={{ fontSize: '0.84rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {themeItem.name}
+                  </span>
+                </span>
+                {isSelected ? <Check size={15} /> : null}
+              </button>
+            );
+          })}
+
+          {onOpenShop ? (
+            <button
+              type="button"
+              className="tactile-btn tactile-btn-indigo"
+              style={{ width: '100%', padding: '8px 10px', fontSize: '0.8rem' }}
+              onClick={() => {
+                playSfx('button_click');
+                setOpenPopover(null);
+                onOpenShop();
+              }}
+            >
+              <Sparkles size={15} />
+              <span>Get Cosmic Galaxy & Palettes in Gem Shop</span>
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       {openPopover === 'hearts' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'center' }}>
-          <div style={{ fontWeight: 900, fontSize: '0.96rem', color: '#be123c' }}>
+          <div style={{ fontWeight: 900, fontSize: '0.96rem', color: 'var(--tint-rose-ink)' }}>
             Hearts: {activeProfile.hearts} / {activeProfile.maxHearts}
           </div>
-          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#475569' }}>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)' }}>
             {activeProfile.hearts >= activeProfile.maxHearts
-              ? 'Pip has full hearts! Play Sky-Catcher anytime for bonus Gems!'
+              ? 'Pip has full hearts! Play Arcade anytime for bonus Gems!'
               : 'Recharge +1 to +5 Hearts anytime in Sky-Catcher Fiesta!'}
           </div>
           <button
@@ -243,7 +343,7 @@ export function TopHud({
   return (
     <header className="top-hud">
       <div className="top-hud-inner">
-        {/* Left: Kid Profile Switcher + Flag Language Switcher + Golden Starlight Compass */}
+        {/* Left: Kid Profile Switcher + Flag Language Switcher + Palette Switcher + Golden Starlight Compass */}
         <div className="hud-group">
           <button
             type="button"
@@ -254,7 +354,7 @@ export function TopHud({
               onOpenProfileModal();
             }}
           >
-            <AvatarBadge avatarId={activeProfile.avatarId} size={26} />
+            <AvatarBadge avatarId={activeProfile.avatarId} size={24} />
             <span>{activeProfile.name}</span>
           </button>
 
@@ -266,9 +366,21 @@ export function TopHud({
             aria-expanded={openPopover === 'lang'}
             onClick={() => togglePopover('lang')}
           >
-            <FlagIcon language={activeProfile.activeLanguage} size={24} />
+            <FlagIcon language={activeProfile.activeLanguage} size={22} />
             <span className="hud-hide-xs">{activeLangMeta.name}</span>
-            <ChevronDown size={14} />
+            <ChevronDown size={13} />
+          </button>
+
+          <button
+            ref={paletteBtnRef}
+            type="button"
+            className="hud-pill"
+            aria-label="Color palettes"
+            aria-expanded={openPopover === 'palette'}
+            onClick={() => togglePopover('palette')}
+          >
+            <Palette size={15} />
+            <span className="hud-hide-xs">Theme</span>
           </button>
 
           <button
@@ -281,10 +393,9 @@ export function TopHud({
                 : 'Golden Starlight Compass'
             }
             style={{
-              background: '#fffbeb',
-              borderColor: '#f59e0b',
-              color: '#b45309',
-              padding: '6px 9px',
+              background: 'var(--tint-amber-bg)',
+              borderColor: 'var(--tint-amber-border)',
+              color: 'var(--tint-amber-ink)',
             }}
             onClick={handleGoldenCompassTap}
           >
@@ -295,7 +406,7 @@ export function TopHud({
               transition={{ type: 'spring', stiffness: 460, damping: 14 }}
               style={{ display: 'inline-flex', alignItems: 'center' }}
             >
-              <Compass size={17} color="#d97706" />
+              <Compass size={16} />
             </motion.span>
             {compassTaps > 0 && !activeProfile.secretArcadeUnlocked ? (
               <span style={{ fontSize: '0.7rem', fontWeight: 900 }}>{compassTaps}/5</span>
@@ -308,20 +419,28 @@ export function TopHud({
           <span
             className="hud-pill hud-pill-static"
             title={`${activeProfile.streakDays} day streak • ${activeProfile.streakShields} Streak Shields`}
-            style={{ background: '#fff7ed', borderColor: '#fdba74', color: '#c2410c' }}
+            style={{
+              background: 'var(--tint-amber-bg)',
+              borderColor: 'var(--tint-amber-border)',
+              color: 'var(--tint-amber-ink)',
+            }}
           >
-            <Flame size={15} fill="#f97316" />
+            <Flame size={15} fill="#f97316" color="#f97316" />
             <span>{activeProfile.streakDays}</span>
-            <Shield size={14} color="#0284c7" />
+            <Shield size={13} color="#38bdf8" />
             <span>{activeProfile.streakShields}</span>
           </span>
 
           <span
             className="hud-pill hud-pill-static"
             title={`${activeProfile.gems} Gems`}
-            style={{ background: '#eff6ff', borderColor: '#93c5fd', color: '#1d4ed8' }}
+            style={{
+              background: 'var(--tint-indigo-bg)',
+              borderColor: 'var(--tint-indigo-border)',
+              color: 'var(--tint-indigo-ink)',
+            }}
           >
-            <Gem size={15} color="#2563eb" />
+            <Gem size={14} />
             <span>{activeProfile.gems}</span>
           </span>
 
@@ -331,10 +450,14 @@ export function TopHud({
             className="hud-pill"
             aria-label={`Hearts: ${activeProfile.hearts} of ${activeProfile.maxHearts}`}
             aria-expanded={openPopover === 'hearts'}
-            style={{ background: '#fff1f2', borderColor: '#fda4af', color: '#be123c' }}
+            style={{
+              background: 'var(--tint-rose-bg)',
+              borderColor: 'var(--tint-rose-border)',
+              color: 'var(--tint-rose-ink)',
+            }}
             onClick={() => togglePopover('hearts')}
           >
-            <Heart size={15} fill="#f43f5e" />
+            <Heart size={14} fill="#f43f5e" color="#f43f5e" />
             <span>
               {activeProfile.hearts}/{activeProfile.maxHearts}
             </span>
@@ -348,7 +471,7 @@ export function TopHud({
             aria-expanded={openPopover === 'audio'}
             onClick={() => togglePopover('audio')}
           >
-            {muted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
+            {muted || volume === 0 ? <VolumeX size={15} /> : <Volume2 size={15} />}
           </button>
 
           {canInstallApp ? (
@@ -356,16 +479,16 @@ export function TopHud({
               type="button"
               className="hud-pill"
               style={{
-                background: '#eef2ff',
-                borderColor: '#6366f1',
-                color: '#312e81',
+                background: 'var(--tint-indigo-bg)',
+                borderColor: 'var(--tint-indigo-border)',
+                color: 'var(--tint-indigo-ink)',
               }}
               onClick={() => {
                 playSfx('button_click');
                 onInstallApp();
               }}
             >
-              <Download size={15} />
+              <Download size={14} />
               <span>Install App</span>
             </button>
           ) : null}

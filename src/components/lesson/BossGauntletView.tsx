@@ -86,16 +86,16 @@ export function BossGauntletView({
           size={compact ? 110 : 148}
           badgeText="Friendship Maxed!"
         />
-        <div style={{ fontSize: '1.35rem', fontWeight: 900, color: '#065f46' }}>
+        <div style={{ fontSize: '1.35rem', fontWeight: 900, color: 'var(--tint-emerald-ink)' }}>
           {exercise.companionName} Cheered You On!
         </div>
         <div
           style={{
             padding: '8px 16px',
             borderRadius: 999,
-            background: '#fef3c7',
-            border: '2px solid #f59e0b',
-            color: '#92400e',
+            background: 'var(--tint-amber-bg)',
+            border: '2px solid var(--tint-amber-border)',
+            color: 'var(--tint-amber-ink)',
             fontWeight: 900,
           }}
         >
@@ -202,7 +202,7 @@ export function BossGauntletView({
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: compact ? '0.96rem' : '1.1rem', fontWeight: 900, color: '#1e1b4b' }}>
+            <span style={{ fontSize: compact ? '0.96rem' : '1.1rem', fontWeight: 900, color: 'var(--text-main)' }}>
               {exercise.title}
             </span>
             <span
@@ -212,8 +212,8 @@ export function BossGauntletView({
                 gap: 4,
                 fontSize: '0.76rem',
                 fontWeight: 900,
-                color: '#065f46',
-                background: '#d1fae5',
+                color: 'var(--tint-emerald-ink)',
+                background: 'var(--tint-emerald-bg)',
                 padding: '3px 9px',
                 borderRadius: 999,
               }}
@@ -222,7 +222,7 @@ export function BossGauntletView({
             </span>
           </div>
 
-          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569', marginTop: 2 }}>
+          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', marginTop: 2 }}>
             Friendship Charge: {chargePct}%
           </div>
           <div
@@ -230,7 +230,7 @@ export function BossGauntletView({
               marginTop: 4,
               height: 11,
               borderRadius: 999,
-              background: '#e2e8f0',
+              background: 'rgba(148, 163, 184, 0.28)',
               overflow: 'hidden',
             }}
           >
@@ -251,15 +251,15 @@ export function BossGauntletView({
         style={{
           padding: compact ? '8px 11px' : '12px 14px',
           borderRadius: 16,
-          background: '#f8fafc',
-          border: '2px solid #cbd5e1',
+          background: 'var(--card-soft-bg)',
+          border: '2px solid var(--card-border)',
           display: 'flex',
           flexDirection: 'column',
           gap: 4,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: 900, fontSize: '0.8rem', color: 'var(--lang-bevel)' }}>
+          <span style={{ fontWeight: 900, fontSize: '0.8rem', color: 'var(--lang-primary)' }}>
             {exercise.companionName} says:
           </span>
           <div style={{ display: 'flex', gap: 6 }}>
@@ -298,20 +298,20 @@ export function BossGauntletView({
           </div>
         </div>
 
-        <div style={{ fontSize: compact ? '0.98rem' : '1.1rem', fontWeight: 900, color: '#1e1b4b' }}>
+        <div style={{ fontSize: compact ? '0.98rem' : '1.1rem', fontWeight: 900, color: 'var(--text-main)' }}>
           <TapHintText
             tokens={currentTurn.tapHints}
             fallbackText={currentTurn.companionSayForeign}
             language={language}
           />
         </div>
-        <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569' }}>
+        <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
           {currentTurn.companionSayEnglish} • ({currentTurn.companionPhonetic})
         </div>
       </div>
 
       {/* Player Prompt */}
-      <div style={{ fontSize: compact ? '0.88rem' : '0.96rem', fontWeight: 900, color: '#312e81' }}>
+      <div style={{ fontSize: compact ? '0.88rem' : '0.96rem', fontWeight: 900, color: 'var(--text-main)' }}>
         Your reply: {currentTurn.promptEnglish}
       </div>
 
@@ -335,8 +335,9 @@ export function BossGauntletView({
                 style={{
                   justifyContent: 'space-between',
                   padding: compact ? '8px 12px' : '11px 14px',
-                  background: isSelected ? '#eef2ff' : '#ffffff',
-                  borderColor: isSelected ? '#4f46e5' : '#cbd5e1',
+                  background: isSelected ? 'var(--tile-selected-bg)' : 'var(--tile-bg)',
+                  borderColor: isSelected ? 'var(--lang-primary)' : 'var(--tile-border)',
+                  color: isSelected ? 'var(--tile-selected-ink)' : 'var(--text-main)',
                   textAlign: 'left',
                 }}
                 onClick={() => {
@@ -383,9 +384,9 @@ export function BossGauntletView({
               flex: '1 1 200px',
               padding: '7px 12px',
               borderRadius: 14,
-              background: turnOutcome.kind === 'ok' ? '#ecfdf5' : '#fff1f2',
-              border: `2px solid ${turnOutcome.kind === 'ok' ? '#34d399' : '#fda4af'}`,
-              color: turnOutcome.kind === 'ok' ? '#065f46' : '#9f1239',
+              background: turnOutcome.kind === 'ok' ? 'var(--tint-emerald-bg)' : 'var(--tint-rose-bg)',
+              border: `2px solid ${turnOutcome.kind === 'ok' ? 'var(--tint-emerald-border)' : 'var(--tint-rose-border)'}`,
+              color: turnOutcome.kind === 'ok' ? 'var(--tint-emerald-ink)' : 'var(--tint-rose-ink)',
               fontSize: '0.84rem',
               fontWeight: 800,
             }}
@@ -399,7 +400,7 @@ export function BossGauntletView({
             ) : null}
           </div>
         ) : (
-          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748b' }}>
+          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
             {exercise.introLine}
           </span>
         )}
