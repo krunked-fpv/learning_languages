@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Award, CheckCircle2, Crown, Sparkles, Trophy } from 'lucide-react';
 import { AvatarBadge } from '../../art/AvatarBadge';
 import { VocabIllustration } from '../../art/VocabIllustration';
@@ -8,6 +8,7 @@ import {
   buildWeeklyLeaderboard,
   getBadgeProgress,
 } from '../../core';
+import { playSfx } from '../../audio';
 import { useVaultStore } from '../../store/useVaultStore';
 import type { LeagueTier } from '../../types/contracts';
 
@@ -21,6 +22,7 @@ const TIER_ORDER: readonly LeagueTier[] = [
 
 export function LeagueAndBadges() {
   const { activeProfile } = useVaultStore();
+  const [mobileView, setMobileView] = useState<'league' | 'badges'>('league');
 
   const tierMeta = LEAGUE_TIER_META[activeProfile.leagueTier];
   const leaderboard = useMemo(
@@ -36,244 +38,315 @@ export function LeagueAndBadges() {
   }, [leaderboard]);
 
   return (
-    <section aria-label="Leagues and Badges" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      {/* League Tier Crest Card */}
-      <div
-        className="tactile-card"
-        style={{
-          padding: 20,
-          background: `linear-gradient(135deg, ${tierMeta.crestBg} 0%, #ffffff 100%)`,
-          borderColor: tierMeta.color,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 14,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: 16,
-                background: tierMeta.color,
-                color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Trophy size={26} />
-            </div>
-            <div>
-              <h1 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 900, color: '#1e1b4b' }}>
-                {tierMeta.label} League
-              </h1>
-              <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#475569' }}>
-                This week’s expedition score: <strong>{activeProfile.weeklyXp} XP</strong>
+    <section
+      aria-label="Leagues and Badges"
+      style={{
+        height: '100%',
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        overflow: 'hidden',
+      }}
+    >
+      {/* Narrow-Screen Toggle Bar */}
+      <div className="leagues-mobile-tabs">
+        <button
+          type="button"
+          className={`tactile-btn ${mobileView === 'league' ? 'tactile-btn-primary' : 'tactile-btn-soft'}`}
+          style={{ flex: 1, padding: '7px 10px', fontSize: '0.84rem' }}
+          onClick={() => {
+            playSfx('tile_tap');
+            setMobileView('league');
+          }}
+        >
+          <Trophy size={15} /> Weekly League
+        </button>
+        <button
+          type="button"
+          className={`tactile-btn ${mobileView === 'badges' ? 'tactile-btn-primary' : 'tactile-btn-soft'}`}
+          style={{ flex: 1, padding: '7px 10px', fontSize: '0.84rem' }}
+          onClick={() => {
+            playSfx('tile_tap');
+            setMobileView('badges');
+          }}
+        >
+          <Award size={15} /> Badges ({activeProfile.badges.length} / {BADGE_CATALOG.length || 12})
+        </button>
+      </div>
+
+      <div className="leagues-console-grid">
+        {/* Left Pane: Weekly League Podium + Rival Table */}
+        <div
+          className={`tactile-card leagues-pane-card ${
+            mobileView !== 'league' ? 'is-hidden-mobile' : ''
+          }`}
+          style={{
+            padding: 16,
+            borderColor: tierMeta.color,
+            gap: 10,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 14,
+                  background: tierMeta.color,
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Trophy size={22} />
+              </div>
+              <div>
+                <h1 style={{ margin: 0, fontSize: '1.18rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                  {tierMeta.label} League
+                </h1>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                  Weekly score: <strong>{activeProfile.weeklyXp} XP</strong>
+                </div>
               </div>
             </div>
+
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {TIER_ORDER.map((tier) => {
+                const m = LEAGUE_TIER_META[tier];
+                const isCurrent = tier === activeProfile.leagueTier;
+                return (
+                  <span
+                    key={tier}
+                    style={{
+                      padding: '3px 7px',
+                      borderRadius: 999,
+                      background: isCurrent ? m.color : 'var(--card-soft-bg)',
+                      color: isCurrent ? '#ffffff' : 'var(--text-muted)',
+                      fontSize: '0.68rem',
+                      fontWeight: 900,
+                    }}
+                  >
+                    {m.label}
+                  </span>
+                );
+              })}
+            </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {TIER_ORDER.map((tier) => {
-              const m = LEAGUE_TIER_META[tier];
-              const isCurrent = tier === activeProfile.leagueTier;
-              return (
-                <span
-                  key={tier}
-                  style={{
-                    padding: '4px 9px',
-                    borderRadius: 999,
-                    background: isCurrent ? m.color : '#f1f5f9',
-                    color: isCurrent ? '#ffffff' : '#64748b',
-                    fontSize: '0.72rem',
-                    fontWeight: 900,
-                  }}
-                >
-                  {m.label}
-                </span>
-              );
-            })}
-          </div>
-        </div>
+          {/* Internally Bounded Scrollable Podium & Rivals */}
+          <div className="console-scroll-pane" style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', gap: 10, paddingRight: 4 }}>
+            {podiumTop3.length > 0 ? (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${podiumTop3.length}, minmax(0, 1fr))`,
+                  alignItems: 'end',
+                  gap: 8,
+                  paddingTop: 4,
+                }}
+              >
+                {podiumTop3.map((entry) => {
+                  const isFirst = entry.rank === 1;
+                  return (
+                    <div
+                      key={entry.id}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 4,
+                        padding: isFirst ? '12px 8px' : '8px 6px',
+                        minHeight: isFirst ? 128 : entry.rank === 2 ? 108 : 98,
+                        justifyContent: 'flex-end',
+                        borderRadius: 16,
+                        background: entry.isPlayer ? 'var(--tint-indigo-bg)' : 'var(--card-soft-bg)',
+                        borderTopWidth: 2,
+                        borderRightWidth: 2,
+                        borderLeftWidth: 2,
+                        borderBottomWidth: 4,
+                        borderStyle: 'solid',
+                        borderColor: isFirst
+                          ? '#f59e0b'
+                          : entry.isPlayer
+                            ? 'var(--lang-primary)'
+                            : 'var(--card-border)',
+                        textAlign: 'center',
+                      }}
+                    >
+                      {isFirst ? <Crown size={18} color="#f59e0b" /> : null}
+                      <AvatarBadge avatarId={entry.avatarId} size={isFirst ? 42 : 34} />
+                      <div style={{ fontWeight: 900, fontSize: '0.82rem', color: 'var(--text-main)' }}>
+                        #{entry.rank} {entry.name}
+                      </div>
+                      <div style={{ fontSize: '0.74rem', fontWeight: 800, color: 'var(--lang-primary)' }}>
+                        {entry.weeklyXp} XP
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
 
-        {/* Stepped Podium (#2 - #1 - #3) */}
-        {podiumTop3.length > 0 ? (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${podiumTop3.length}, minmax(0, 1fr))`,
-              alignItems: 'end',
-              gap: 10,
-              paddingTop: 8,
-            }}
-          >
-            {podiumTop3.map((entry) => {
-              const isFirst = entry.rank === 1;
-              return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {leaderboard.map((entry) => (
                 <div
                   key={entry.id}
                   style={{
                     display: 'flex',
-                    flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 6,
-                    padding: isFirst ? '16px 10px' : '10px 8px',
-                    minHeight: isFirst ? 148 : entry.rank === 2 ? 124 : 112,
-                    justifyContent: 'flex-end',
-                    borderRadius: 18,
-                    background: entry.isPlayer ? '#eef2ff' : '#ffffff',
-                    borderTopWidth: 2,
-                    borderRightWidth: 2,
-                    borderLeftWidth: 2,
-                    borderBottomWidth: 4,
-                    borderStyle: 'solid',
-                    borderColor: isFirst ? '#f59e0b' : entry.isPlayer ? '#4f46e5' : '#cbd5e1',
-                    textAlign: 'center',
+                    justifyContent: 'space-between',
+                    gap: 10,
+                    padding: '8px 12px',
+                    borderRadius: 14,
+                    background: entry.isPlayer ? 'var(--tint-indigo-bg)' : 'var(--card-soft-bg)',
+                    border: `2px solid ${entry.isPlayer ? 'var(--lang-primary)' : 'var(--card-border)'}`,
                   }}
                 >
-                  {isFirst ? <Crown size={20} color="#f59e0b" /> : null}
-                  <AvatarBadge avatarId={entry.avatarId} size={isFirst ? 48 : 38} />
-                  <div style={{ fontWeight: 900, fontSize: '0.88rem', color: '#1e1b4b' }}>
-                    #{entry.rank} {entry.name}
-                  </div>
-                  <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#4f46e5' }}>
-                    {entry.weeklyXp} XP
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : null}
-
-        {/* Full Rival Table */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {leaderboard.map((entry) => (
-            <div
-              key={entry.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 10,
-                padding: '9px 14px',
-                borderRadius: 14,
-                background: entry.isPlayer ? '#eef2ff' : '#ffffff',
-                border: `2px solid ${entry.isPlayer ? '#4f46e5' : '#e2e8f0'}`,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ width: 28, fontWeight: 900, color: '#475569' }}>#{entry.rank}</span>
-                <AvatarBadge avatarId={entry.avatarId} size={32} />
-                <strong style={{ color: '#1e1b4b' }}>{entry.name}</strong>
-                {entry.isPlayer ? (
-                  <span
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: 999,
-                      background: '#4f46e5',
-                      color: '#ffffff',
-                      fontSize: '0.7rem',
-                      fontWeight: 900,
-                    }}
-                  >
-                    YOU
-                  </span>
-                ) : null}
-              </div>
-              <span style={{ fontWeight: 900, color: '#1e1b4b' }}>{entry.weeklyXp} XP</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 12 Achievement Badges Grid */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Award size={22} color="#f59e0b" />
-          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900 }} className="shell-dark-text-zone">
-            Expedition Badges ({activeProfile.badges.length} / {BADGE_CATALOG.length || 12})
-          </h2>
-        </div>
-
-        {BADGE_CATALOG.length === 0 ? (
-          <div className="tactile-card" style={{ padding: 20, fontWeight: 700, color: '#64748b' }}>
-            Complete lessons, collect stickers, and play Sky-Catcher Fiesta to earn badges!
-          </div>
-        ) : (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-              gap: 12,
-            }}
-          >
-            {BADGE_CATALOG.map((badge) => {
-              const progress = getBadgeProgress(activeProfile, badge.id);
-              const unlocked = progress.unlocked;
-              const clamped = Math.min(progress.target, progress.current);
-              const pct = progress.target > 0 ? Math.round((clamped / progress.target) * 100) : 0;
-
-              return (
-                <div
-                  key={badge.id}
-                  className="tactile-card"
-                  style={{
-                    padding: 14,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 8,
-                    background: unlocked
-                      ? 'linear-gradient(180deg, #fffbeb 0%, #ffffff 100%)'
-                      : '#f8fafc',
-                    borderColor: unlocked ? '#f59e0b' : '#cbd5e1',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ filter: unlocked ? 'none' : 'grayscale(1)', opacity: unlocked ? 1 : 0.45 }}>
-                      <VocabIllustration illustrationKey={badge.iconKey} size={52} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
-                        <strong style={{ fontSize: '0.96rem', color: '#1e1b4b' }}>
-                          {badge.name}
-                        </strong>
-                        {unlocked ? (
-                          <CheckCircle2 size={18} color="#059669" />
-                        ) : (
-                          <Sparkles size={15} color="#94a3b8" />
-                        )}
-                      </div>
-                      <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569', marginTop: 2 }}>
-                        {badge.description}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Progress Meter */}
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', fontWeight: 800, color: unlocked ? '#065f46' : '#64748b', marginBottom: 4 }}>
-                      <span>{unlocked ? 'Unlocked!' : 'Progress'}</span>
-                      <span>
-                        {clamped} / {progress.target}
-                      </span>
-                    </div>
-                    <div style={{ height: 8, borderRadius: 999, background: '#e2e8f0', overflow: 'hidden' }}>
-                      <div
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 24, fontWeight: 900, color: 'var(--text-muted)' }}>
+                      #{entry.rank}
+                    </span>
+                    <AvatarBadge avatarId={entry.avatarId} size={28} />
+                    <strong style={{ color: 'var(--text-main)', fontSize: '0.9rem' }}>
+                      {entry.name}
+                    </strong>
+                    {entry.isPlayer ? (
+                      <span
                         style={{
-                          width: `${unlocked ? 100 : pct}%`,
-                          height: '100%',
-                          background: unlocked ? '#10b981' : '#6366f1',
+                          padding: '2px 7px',
+                          borderRadius: 999,
+                          background: 'var(--lang-primary)',
+                          color: '#ffffff',
+                          fontSize: '0.68rem',
+                          fontWeight: 900,
                         }}
-                      />
-                    </div>
+                      >
+                        YOU
+                      </span>
+                    ) : null}
                   </div>
+                  <span style={{ fontWeight: 900, color: 'var(--text-main)', fontSize: '0.86rem' }}>
+                    {entry.weeklyXp} XP
+                  </span>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        )}
+        </div>
+
+        {/* Right Pane: 12 Achievement Badges Grid */}
+        <div
+          className={`tactile-card leagues-pane-card ${
+            mobileView !== 'badges' ? 'is-hidden-mobile' : ''
+          }`}
+          style={{
+            padding: 16,
+            gap: 10,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <Award size={20} color="#f59e0b" />
+            <h2 style={{ margin: 0, fontSize: '1.16rem', fontWeight: 900, color: 'var(--text-main)' }}>
+              Expedition Badges ({activeProfile.badges.length} / {BADGE_CATALOG.length || 12})
+            </h2>
+          </div>
+
+          <div className="console-scroll-pane" style={{ flex: '1 1 auto', paddingRight: 4 }}>
+            {BADGE_CATALOG.length === 0 ? (
+              <div style={{ padding: 16, fontWeight: 700, color: 'var(--text-muted)' }}>
+                Complete lessons, collect stickers, and play Sky-Catcher Fiesta to earn badges!
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(215px, 1fr))',
+                  gap: 10,
+                  paddingBottom: 4,
+                }}
+              >
+                {BADGE_CATALOG.map((badge) => {
+                  const progress = getBadgeProgress(activeProfile, badge.id);
+                  const unlocked = progress.unlocked;
+                  const clamped = Math.min(progress.target, progress.current);
+                  const pct =
+                    progress.target > 0 ? Math.round((clamped / progress.target) * 100) : 0;
+
+                  return (
+                    <div
+                      key={badge.id}
+                      style={{
+                        padding: 12,
+                        borderRadius: 16,
+                        borderTopWidth: 2,
+                        borderRightWidth: 2,
+                        borderLeftWidth: 2,
+                        borderBottomWidth: 4,
+                        borderStyle: 'solid',
+                        borderColor: unlocked ? 'var(--tint-amber-border)' : 'var(--card-border)',
+                        background: unlocked ? 'var(--tint-amber-bg)' : 'var(--card-soft-bg)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ filter: unlocked ? 'none' : 'grayscale(1)', opacity: unlocked ? 1 : 0.45 }}>
+                          <VocabIllustration illustrationKey={badge.iconKey} size={46} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+                            <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)' }}>
+                              {badge.name}
+                            </strong>
+                            {unlocked ? (
+                              <CheckCircle2 size={16} color="#10b981" />
+                            ) : (
+                              <Sparkles size={14} color="var(--text-muted)" />
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginTop: 2 }}>
+                            {badge.description}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            fontSize: '0.72rem',
+                            fontWeight: 800,
+                            color: unlocked ? 'var(--tint-emerald-ink)' : 'var(--text-muted)',
+                            marginBottom: 4,
+                          }}
+                        >
+                          <span>{unlocked ? 'Unlocked!' : 'Progress'}</span>
+                          <span>
+                            {clamped} / {progress.target}
+                          </span>
+                        </div>
+                        <div style={{ height: 7, borderRadius: 999, background: 'rgba(148, 163, 184, 0.25)', overflow: 'hidden' }}>
+                          <div
+                            style={{
+                              width: `${unlocked ? 100 : pct}%`,
+                              height: '100%',
+                              background: unlocked ? '#10b981' : '#6366f1',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </section>
   );

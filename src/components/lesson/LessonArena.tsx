@@ -12,6 +12,7 @@ import { playSfx, speakPhrase, stopSpeech } from '../../audio';
 import { useVaultStore, vaultActions } from '../../store/useVaultStore';
 import { MascotStage } from '../characters/MascotStage';
 import { SkyCatcherArcade } from '../arcade/SkyCatcherArcade';
+import { AmbientBackdrop } from '../fx/AmbientBackdrop';
 import { ConfettiBurst, CountUpTicker, FloatingPopToast, type PopToastItem } from '../fx/JuiceEngine';
 import type {
   AccentCoaching,
@@ -392,6 +393,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
       onPointerMove={(e) => setPointerTarget({ x: e.clientX, y: e.clientY })}
       onPointerLeave={() => setPointerTarget(null)}
     >
+      <AmbientBackdrop theme={activeProfile.equippedCosmetics.theme ?? 'default'} />
       <ConfettiBurst
         active={lessonWon || chestClaimed || burstActive}
         intensity={lessonWon || chestClaimed ? 'grand' : 'medium'}
@@ -421,7 +423,11 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
         {replayNonce > 0 ? (
           <span
             className="hud-pill hud-pill-static"
-            style={{ background: '#eef2ff', borderColor: '#818cf8', color: '#3730a3' }}
+            style={{
+              background: 'var(--tint-indigo-bg)',
+              borderColor: 'var(--tint-indigo-border)',
+              color: 'var(--tint-indigo-ink)',
+            }}
           >
             Remix
           </span>
@@ -431,12 +437,12 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
           <span
             className="hud-pill hud-pill-static"
             style={{
-              background: '#fffbeb',
-              borderColor: '#f59e0b',
-              color: '#b45309',
+              background: 'var(--tint-amber-bg)',
+              borderColor: 'var(--tint-amber-border)',
+              color: 'var(--tint-amber-ink)',
             }}
           >
-            <Flame size={15} fill="#f59e0b" />
+            <Flame size={15} fill="#f59e0b" color="#f59e0b" />
             <span>{comboMeta.label}</span>
           </span>
         ) : null}
@@ -444,13 +450,13 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
         <span
           className="hud-pill hud-pill-static"
           style={{
-            background: '#fff1f2',
-            borderColor: '#fda4af',
-            color: '#be123c',
+            background: 'var(--tint-rose-bg)',
+            borderColor: 'var(--tint-rose-border)',
+            color: 'var(--tint-rose-ink)',
           }}
           aria-label={`${activeProfile.hearts} of ${activeProfile.maxHearts} hearts`}
         >
-          <Heart size={15} fill="#f43f5e" />
+          <Heart size={15} fill="#f43f5e" color="#f43f5e" />
           <span>
             {activeProfile.hearts}/{activeProfile.maxHearts}
           </span>
@@ -496,7 +502,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                 pose={chestClaimed ? 'victory_dance' : 'happy'}
                 equippedCosmetics={activeProfile.equippedCosmetics}
                 pointerTarget={pointerTarget}
-                size={compact ? 116 : 152}
+                size={compact ? 98 : 144}
                 badgeText={
                   chestClaimed
                     ? chestWasAlreadyClaimed
@@ -505,10 +511,10 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                     : 'Milestone Chest!'
                 }
               />
-              <h2 style={{ margin: 0, fontSize: compact ? '1.3rem' : '1.6rem', fontWeight: 900 }}>
+              <h2 style={{ margin: 0, fontSize: compact ? '1.25rem' : '1.55rem', fontWeight: 900, color: 'var(--text-main)' }}>
                 {node.title}
               </h2>
-              <p style={{ margin: 0, fontWeight: 700, color: '#475569' }}>{node.subtitle}</p>
+              <p style={{ margin: 0, fontWeight: 700, color: 'var(--text-muted)' }}>{node.subtitle}</p>
 
               {!chestClaimed ? (
                 <button
@@ -526,9 +532,9 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                       style={{
                         padding: '8px 14px',
                         borderRadius: 999,
-                        background: '#eef2ff',
-                        border: '2px solid #818cf8',
-                        color: '#3730a3',
+                        background: 'var(--tint-indigo-bg)',
+                        border: '2px solid var(--tint-indigo-border)',
+                        color: 'var(--tint-indigo-ink)',
                         fontWeight: 900,
                       }}
                     >
@@ -540,16 +546,24 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                     {!chestWasAlreadyClaimed ? (
                       <span
                         className="hud-pill hud-pill-static"
-                        style={{ background: '#eff6ff', borderColor: '#60a5fa', color: '#1d4ed8' }}
+                        style={{
+                          background: 'var(--tint-indigo-bg)',
+                          borderColor: 'var(--tint-indigo-border)',
+                          color: 'var(--tint-indigo-ink)',
+                        }}
                       >
                         <Gem size={16} /> +{node.gemReward} Gems
                       </span>
                     ) : null}
                     <span
                       className="hud-pill hud-pill-static"
-                      style={{ background: '#fffbeb', borderColor: '#fbbf24', color: '#b45309' }}
+                      style={{
+                        background: 'var(--tint-amber-bg)',
+                        borderColor: 'var(--tint-amber-border)',
+                        color: 'var(--tint-amber-ink)',
+                      }}
                     >
-                      <Star size={16} fill="#f59e0b" /> +{node.xpReward} XP
+                      <Star size={16} fill="#f59e0b" color="#f59e0b" /> +{node.xpReward} XP
                     </span>
                   </div>
 
@@ -562,10 +576,10 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                           <div
                             key={vid}
                             style={{
-                              padding: '6px 10px',
+                              padding: '5px 10px',
                               borderRadius: 14,
-                              background: '#f8fafc',
-                              border: '2px solid #cbd5e1',
+                              background: 'var(--card-soft-bg)',
+                              border: '2px solid var(--card-border)',
                               display: 'flex',
                               alignItems: 'center',
                               gap: 6,
@@ -574,9 +588,9 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                             <VocabIllustration
                               illustrationKey={card.illustrationKey}
                               language={language}
-                              size={34}
+                              size={32}
                             />
-                            <span style={{ fontWeight: 800, fontSize: '0.84rem' }}>
+                            <span style={{ fontWeight: 800, fontSize: '0.82rem', color: 'var(--text-main)' }}>
                               {card.foreignWithArticle}
                             </span>
                           </div>
@@ -608,11 +622,11 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
               transition={{ type: 'spring', stiffness: 360, damping: 26 }}
               className="tactile-card"
               style={{
-                padding: compact ? 18 : 28,
+                padding: compact ? 14 : 24,
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: compact ? 10 : 14,
+                gap: compact ? 8 : 12,
                 textAlign: 'center',
               }}
             >
@@ -622,16 +636,16 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                 equippedCosmetics={activeProfile.equippedCosmetics}
                 pointerTarget={pointerTarget}
                 comboCount={maxCombo}
-                size={compact ? 116 : 156}
+                size={compact ? 94 : 144}
                 badgeText="Expedition Complete!"
               />
 
               <h2
                 style={{
                   margin: 0,
-                  fontSize: compact ? '1.35rem' : '1.7rem',
+                  fontSize: compact ? '1.25rem' : '1.6rem',
                   fontWeight: 900,
-                  color: '#065f46',
+                  color: 'var(--tint-emerald-ink)',
                 }}
               >
                 {node.title} Complete!
@@ -652,7 +666,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                       transition={{ type: 'spring', stiffness: 460, damping: 18 }}
                     >
                       <Star
-                        size={compact ? 28 : 34}
+                        size={compact ? 26 : 32}
                         color="#d97706"
                         fill={earned && popped ? '#fbbf24' : 'transparent'}
                       />
@@ -661,31 +675,43 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                 })}
               </div>
 
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
                 <span
                   className="hud-pill hud-pill-static"
-                  style={{ background: '#fffbeb', borderColor: '#fbbf24', color: '#b45309' }}
+                  style={{
+                    background: 'var(--tint-amber-bg)',
+                    borderColor: 'var(--tint-amber-border)',
+                    color: 'var(--tint-amber-ink)',
+                  }}
                 >
-                  <Sparkles size={16} /> +<CountUpTicker target={victoryRewards.xpEarned} /> XP
+                  <Sparkles size={15} /> +<CountUpTicker target={victoryRewards.xpEarned} /> XP
                 </span>
                 <span
                   className="hud-pill hud-pill-static"
-                  style={{ background: '#eff6ff', borderColor: '#60a5fa', color: '#1d4ed8' }}
+                  style={{
+                    background: 'var(--tint-indigo-bg)',
+                    borderColor: 'var(--tint-indigo-border)',
+                    color: 'var(--tint-indigo-ink)',
+                  }}
                 >
-                  <Gem size={16} /> +<CountUpTicker target={victoryRewards.gemsEarned} /> Gems
+                  <Gem size={15} /> +<CountUpTicker target={victoryRewards.gemsEarned} /> Gems
                 </span>
                 {maxCombo > 1 ? (
                   <span
                     className="hud-pill hud-pill-static"
-                    style={{ background: '#fff7ed', borderColor: '#fb923c', color: '#c2410c' }}
+                    style={{
+                      background: 'var(--tint-amber-bg)',
+                      borderColor: 'var(--tint-amber-border)',
+                      color: 'var(--tint-amber-ink)',
+                    }}
                   >
-                    <Flame size={16} /> Best Combo: {maxCombo}x
+                    <Flame size={15} /> Best Combo: {maxCombo}x
                   </span>
                 ) : null}
               </div>
 
               {node.rewardVocabIds.length > 0 ? (
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
                   {node.rewardVocabIds.slice(0, 4).map((vid) => {
                     const card = getVocabCard(language, vid);
                     if (!card) return null;
@@ -693,10 +719,10 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                       <div
                         key={vid}
                         style={{
-                          padding: '5px 10px',
-                          borderRadius: 14,
-                          background: '#f8fafc',
-                          border: '2px solid #cbd5e1',
+                          padding: '4px 9px',
+                          borderRadius: 12,
+                          background: 'var(--card-soft-bg)',
+                          border: '2px solid var(--card-border)',
                           display: 'flex',
                           alignItems: 'center',
                           gap: 6,
@@ -705,9 +731,9 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                         <VocabIllustration
                           illustrationKey={card.illustrationKey}
                           language={language}
-                          size={30}
+                          size={26}
                         />
-                        <span style={{ fontWeight: 800, fontSize: '0.8rem' }}>
+                        <span style={{ fontWeight: 800, fontSize: '0.78rem', color: 'var(--text-main)' }}>
                           {card.foreignWithArticle}
                         </span>
                       </div>
@@ -913,7 +939,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
               <>
                 <span
                   className="hud-hide-xs"
-                  style={{ fontWeight: 800, color: '#475569', fontSize: '0.9rem' }}
+                  style={{ fontWeight: 800, color: 'var(--text-muted)', fontSize: '0.9rem' }}
                 >
                   Listen & tap any word to peek, then collect your sticker!
                 </span>
@@ -939,10 +965,10 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                       fontSize: '1rem',
                       color:
                         feedback.kind === 'correct'
-                          ? '#065f46'
+                          ? 'var(--tint-emerald-ink)'
                           : feedback.kind === 'accent'
-                            ? '#b45309'
-                            : '#9f1239',
+                            ? 'var(--tint-amber-ink)'
+                            : 'var(--tint-rose-ink)',
                     }}
                   >
                     <span>{feedback.headline}</span>
@@ -967,19 +993,19 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                   </div>
 
                   {feedback.accentCoaching ? (
-                    <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#78350f' }}>
+                    <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--tint-amber-ink)' }}>
                       Spell with accents: <strong>{feedback.accentCoaching.expected}</strong> (
                       {feedback.accentCoaching.highlightedChars.join(', ')}) —{' '}
                       {feedback.accentCoaching.friendlyTip}
                     </div>
                   ) : feedback.detail ? (
-                    <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#334155' }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-main)' }}>
                       {feedback.detail}
                     </div>
                   ) : null}
 
                   {feedback.articleCoaching ? (
-                    <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1d4ed8' }}>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--tint-indigo-ink)' }}>
                       Article Tip ({feedback.articleCoaching.article}):{' '}
                       {feedback.articleCoaching.note}
                     </div>
@@ -1003,7 +1029,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
               <>
                 <span
                   className="hud-hide-xs"
-                  style={{ fontWeight: 700, color: '#64748b', fontSize: '0.88rem' }}
+                  style={{ fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.88rem' }}
                 >
                   Assemble your answer, then check!
                 </span>
@@ -1040,12 +1066,12 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                 margin: '0 0 6px',
                 fontSize: '1.35rem',
                 fontWeight: 900,
-                color: '#1e1b4b',
+                color: 'var(--text-main)',
               }}
             >
               Pip’s Hearts Need a Recharge!
             </h2>
-            <p style={{ margin: '0 0 16px', fontWeight: 700, color: '#475569' }}>
+            <p style={{ margin: '0 0 16px', fontWeight: 700, color: 'var(--text-muted)' }}>
               No worries, explorer! Hop into a quick round of Sky-Catcher Fiesta to win back +1 to
               +5 Hearts and bonus Gems, then jump right back here!
             </p>

@@ -131,14 +131,14 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="modal-card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="modal-card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {/* Modal Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 900 }}>
+            <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 900, color: 'var(--text-main)' }}>
               Explorer Profiles & Vault
             </h2>
-            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b' }}>
+            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)' }}>
               Switch kids or back up progress to .wanderling-save.json
             </div>
           </div>
@@ -172,8 +172,8 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
                   borderLeftWidth: 2,
                   borderBottomWidth: 4,
                   borderStyle: 'solid',
-                  borderColor: isActive ? profile.bannerColor : '#cbd5e1',
-                  background: isActive ? '#f8fafc' : '#ffffff',
+                  borderColor: isActive ? profile.bannerColor : 'var(--card-border)',
+                  background: isActive ? 'var(--card-soft-bg)' : 'var(--tile-bg)',
                   flexWrap: 'wrap',
                 }}
               >
@@ -189,6 +189,7 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
                     padding: 0,
                     cursor: 'pointer',
                     textAlign: 'left',
+                    color: 'var(--text-main)',
                   }}
                   onClick={() => {
                     playSfx('button_click');
@@ -207,15 +208,17 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
                   </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <strong style={{ fontSize: '1rem', color: '#1e1b4b' }}>{profile.name}</strong>
+                      <strong style={{ fontSize: '1rem', color: 'var(--text-main)' }}>
+                        {profile.name}
+                      </strong>
                       <FlagIcon language={profile.activeLanguage} size={20} />
                       {isActive ? (
                         <span
                           style={{
                             padding: '2px 8px',
                             borderRadius: 999,
-                            background: '#dcfce7',
-                            color: '#15803d',
+                            background: 'var(--tint-emerald-bg)',
+                            color: 'var(--tint-emerald-ink)',
                             fontSize: '0.7rem',
                             fontWeight: 900,
                           }}
@@ -224,7 +227,17 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
                         </span>
                       ) : null}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.78rem', fontWeight: 700, color: '#475569', marginTop: 2 }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        color: 'var(--text-muted)',
+                        marginTop: 2,
+                      }}
+                    >
                       <span>{profile.totalXp} XP</span>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                         <Gem size={12} /> {profile.gems}
@@ -274,8 +287,8 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
             style={{
               padding: 14,
               borderRadius: 18,
-              background: '#f8fafc',
-              border: '2px solid #cbd5e1',
+              background: 'var(--card-soft-bg)',
+              border: '2px solid var(--card-border)',
               display: 'flex',
               flexDirection: 'column',
               gap: 10,
@@ -284,6 +297,7 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
             <div style={{ fontWeight: 900, fontSize: '0.95rem' }}>Create New Kid Explorer</div>
             <input
               type="text"
+              className="themed-input"
               value={newName}
               maxLength={20}
               onChange={(e) => setNewName(e.target.value)}
@@ -291,15 +305,12 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
               aria-label="New explorer name"
               style={{
                 padding: '9px 12px',
-                borderRadius: 12,
-                border: '2px solid #cbd5e1',
-                fontWeight: 800,
                 fontSize: '0.95rem',
               }}
             />
 
             <div>
-              <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#475569', marginBottom: 5 }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: 5 }}>
                 Pick Avatar:
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -313,8 +324,8 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
                       style={{
                         padding: '5px 8px',
                         borderRadius: 14,
-                        background: selected ? '#eef2ff' : '#ffffff',
-                        borderColor: selected ? '#4f46e5' : '#cbd5e1',
+                        background: selected ? 'var(--tint-indigo-bg)' : 'var(--tile-bg)',
+                        borderColor: selected ? 'var(--lang-primary)' : 'var(--card-border)',
                       }}
                       onClick={() => setNewAvatar(av.id)}
                     >
@@ -327,7 +338,7 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
             </div>
 
             <div>
-              <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#475569', marginBottom: 5 }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: 5 }}>
                 Pick Banner Color:
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -342,8 +353,8 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
                       height: 28,
                       borderRadius: 999,
                       background: hex,
-                      border: newBanner === hex ? '3px solid #1e1b4b' : '2px solid #ffffff',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                      border: newBanner === hex ? '3px solid var(--text-main)' : '2px solid #ffffff',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
                       cursor: 'pointer',
                     }}
                   />
@@ -375,8 +386,8 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
           style={{
             padding: 14,
             borderRadius: 18,
-            background: '#f8fafc',
-            border: '2px solid #e2e8f0',
+            background: 'var(--card-soft-bg)',
+            border: '2px solid var(--card-border)',
             display: 'flex',
             flexDirection: 'column',
             gap: 10,
@@ -437,6 +448,7 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <textarea
                 rows={4}
+                className="themed-input"
                 value={pasteJsonText}
                 onChange={(e) => setPasteJsonText(e.target.value)}
                 placeholder="Paste exported JSON save data here..."
@@ -444,8 +456,6 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
                 style={{
                   width: '100%',
                   padding: 8,
-                  borderRadius: 12,
-                  border: '2px solid #cbd5e1',
                   fontFamily: 'monospace',
                   fontSize: '0.78rem',
                 }}
@@ -470,9 +480,15 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
                 gap: 8,
                 padding: '8px 12px',
                 borderRadius: 12,
-                background: vaultFeedback.kind === 'ok' ? '#ecfdf5' : '#fff1f2',
-                border: `2px solid ${vaultFeedback.kind === 'ok' ? '#34d399' : '#fda4af'}`,
-                color: vaultFeedback.kind === 'ok' ? '#065f46' : '#9f1239',
+                background:
+                  vaultFeedback.kind === 'ok' ? 'var(--tint-emerald-bg)' : 'var(--tint-rose-bg)',
+                border: `2px solid ${
+                  vaultFeedback.kind === 'ok'
+                    ? 'var(--tint-emerald-border)'
+                    : 'var(--tint-rose-border)'
+                }`,
+                color:
+                  vaultFeedback.kind === 'ok' ? 'var(--tint-emerald-ink)' : 'var(--tint-rose-ink)',
                 fontWeight: 800,
                 fontSize: '0.84rem',
               }}

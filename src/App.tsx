@@ -4,6 +4,7 @@ import { Music, Sparkles } from 'lucide-react';
 import { playSfx, setAudioPreferences } from './audio';
 import { ArcadeHub, type ArcadeGameMode } from './components/arcade/ArcadeHub';
 import { MascotStage } from './components/characters/MascotStage';
+import { AmbientBackdrop } from './components/fx/AmbientBackdrop';
 import { ConfettiBurst } from './components/fx/JuiceEngine';
 import { LessonArena } from './components/lesson/LessonArena';
 import { AdventureMap } from './components/map/AdventureMap';
@@ -116,45 +117,52 @@ export function App() {
       data-language={activeProfile.activeLanguage}
       style={rootStyle}
     >
+      <AmbientBackdrop theme={equippedTheme} />
+
       {activeNode ? (
-        <LessonArena
-          node={activeNode}
-          language={activeProfile.activeLanguage}
-          onExit={() => setActiveNode(null)}
-        />
+        <motion.div
+          key={`arena-${activeNode.id}`}
+          initial={{ opacity: 0, scale: 0.985 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', stiffness: 420, damping: 30, duration: 0.21 }}
+          style={{ position: 'relative', zIndex: 45 }}
+        >
+          <LessonArena
+            node={activeNode}
+            language={activeProfile.activeLanguage}
+            onExit={() => setActiveNode(null)}
+          />
+        </motion.div>
       ) : (
         <div className="app-shell-body">
-          <BottomNav
-            activeTab={activeTab}
-            unlockedPhraseCount={activeProgress.unlockedVocabIds.length}
-            activeLanguage={activeProfile.activeLanguage}
-            onSelectTab={(tab) => {
-              if (tab === 'arcade') {
-                setArcadeInitialMode('hub');
-              }
-              setActiveTab(tab);
+          <TopHud
+            onOpenProfileModal={() => setProfileModalOpen(true)}
+            onOpenArcade={() => {
+              setArcadeInitialMode('sky_catcher');
+              setActiveTab('arcade');
+            }}
+            onOpenShop={() => setActiveTab('shop')}
+            canInstallApp={Boolean(installPrompt) && !isStandalone}
+            onInstallApp={() => {
+              void handleInstallClick();
             }}
           />
 
           <div className="app-main-column">
-            <TopHud
-              onOpenProfileModal={() => setProfileModalOpen(true)}
-              onOpenArcade={() => {
-                setArcadeInitialMode('sky_catcher');
-                setActiveTab('arcade');
-              }}
-              canInstallApp={Boolean(installPrompt) && !isStandalone}
-              onInstallApp={() => {
-                void handleInstallClick();
-              }}
-            />
-
             <main className="app-main-content">
               <motion.div
                 key={`${activeTab}-${activeProfile.activeLanguage}`}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.18, ease: 'easeOut' }}
+                initial={{ opacity: 0, scale: 0.985 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 420, damping: 30, duration: 0.21 }}
+                style={{
+                  flex: '1 1 auto',
+                  minHeight: 0,
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                }}
               >
                 {activeTab === 'map' ? (
                   <AdventureMap
@@ -183,6 +191,18 @@ export function App() {
               </motion.div>
             </main>
           </div>
+
+          <BottomNav
+            activeTab={activeTab}
+            unlockedPhraseCount={activeProgress.unlockedVocabIds.length}
+            activeLanguage={activeProfile.activeLanguage}
+            onSelectTab={(tab) => {
+              if (tab === 'arcade') {
+                setArcadeInitialMode('hub');
+              }
+              setActiveTab(tab);
+            }}
+          />
         </div>
       )}
 
@@ -217,8 +237,8 @@ export function App() {
                 gap: 6,
                 padding: '4px 12px',
                 borderRadius: 999,
-                background: '#fef3c7',
-                color: '#b45309',
+                background: 'var(--tint-amber-bg)',
+                color: 'var(--tint-amber-ink)',
                 fontWeight: 900,
                 fontSize: '0.8rem',
                 marginBottom: 8,
@@ -226,10 +246,10 @@ export function App() {
             >
               <Sparkles size={14} /> GOLDEN DISCOVERY!
             </div>
-            <h2 style={{ margin: '0 0 8px', fontSize: '1.35rem', fontWeight: 900, color: '#1e1b4b' }}>
+            <h2 style={{ margin: '0 0 8px', fontSize: '1.35rem', fontWeight: 900, color: 'var(--text-main)' }}>
               SECRET UNLOCKED: Starlight Critter Choir!
             </h2>
-            <p style={{ margin: '0 0 16px', fontWeight: 700, color: '#475569' }}>
+            <p style={{ margin: '0 0 16px', fontWeight: 700, color: 'var(--text-muted)' }}>
               You awakened the musical Starlight Critter Choir mini-game! Pop singing word
               bubbles with all 5 companions and hit Disco Fever!
             </p>

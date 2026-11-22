@@ -100,7 +100,7 @@ export function TapHintText({
           marginBottom: 6,
         }}
       >
-        <strong style={{ fontSize: '1.05rem', color: 'var(--lang-bevel)' }}>
+        <strong style={{ fontSize: '1.05rem', color: 'var(--lang-primary)' }}>
           {activeToken.surface}
         </strong>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -132,11 +132,11 @@ export function TapHintText({
         </div>
       </div>
 
-      <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>
+      <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
         {activeToken.translation}
       </div>
-      <div style={{ fontSize: '0.82rem', color: '#475569', marginTop: 2 }}>
-        Say: <strong style={{ color: '#312e81' }}>{activeToken.phonetic}</strong>
+      <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: 2 }}>
+        Say: <strong style={{ color: 'var(--text-main)' }}>{activeToken.phonetic}</strong>
       </div>
 
       {activeToken.articleNote ? (
@@ -145,8 +145,8 @@ export function TapHintText({
             marginTop: 6,
             padding: '4px 8px',
             borderRadius: 10,
-            background: '#eff6ff',
-            color: '#1d4ed8',
+            background: 'var(--tint-indigo-bg)',
+            color: 'var(--tint-indigo-ink)',
             fontSize: '0.76rem',
             fontWeight: 700,
           }}
@@ -161,8 +161,8 @@ export function TapHintText({
             marginTop: 6,
             padding: '4px 8px',
             borderRadius: 10,
-            background: '#fffbeb',
-            color: '#b45309',
+            background: 'var(--tint-amber-bg)',
+            color: 'var(--tint-amber-ink)',
             fontSize: '0.76rem',
             fontWeight: 700,
           }}

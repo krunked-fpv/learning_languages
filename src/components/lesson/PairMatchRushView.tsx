@@ -120,10 +120,10 @@ export function PairMatchRushView({
       {/* Header + Countdown Bonus Meter */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: compact ? '0.98rem' : '1.12rem', fontWeight: 900, color: '#1e1b4b' }}>
+          <div style={{ fontSize: compact ? '0.98rem' : '1.12rem', fontWeight: 900, color: 'var(--text-main)' }}>
             {exercise.title}
           </div>
-          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569' }}>
+          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
             Match each word with its English partner ({matchedIds.length}/{exercise.pairs.length})
           </div>
         </div>
@@ -135,9 +135,9 @@ export function PairMatchRushView({
             gap: 6,
             padding: '5px 11px',
             borderRadius: 999,
-            background: timeLeftMs > 0 ? '#eff6ff' : '#fef3c7',
-            border: `2px solid ${timeLeftMs > 0 ? '#60a5fa' : '#f59e0b'}`,
-            color: timeLeftMs > 0 ? '#1d4ed8' : '#b45309',
+            background: timeLeftMs > 0 ? 'var(--tint-indigo-bg)' : 'var(--tint-amber-bg)',
+            border: `2px solid ${timeLeftMs > 0 ? 'var(--tint-indigo-border)' : 'var(--tint-amber-border)'}`,
+            color: timeLeftMs > 0 ? 'var(--tint-indigo-ink)' : 'var(--tint-amber-ink)',
             fontWeight: 900,
             fontSize: '0.84rem',
           }}
@@ -153,7 +153,7 @@ export function PairMatchRushView({
         style={{
           height: 10,
           borderRadius: 999,
-          background: '#e2e8f0',
+          background: 'rgba(148, 163, 184, 0.28)',
           overflow: 'hidden',
         }}
       >
@@ -200,20 +200,24 @@ export function PairMatchRushView({
                     fontSize: compact ? '0.85rem' : '0.94rem',
                     justifyContent: 'space-between',
                     background: isMatched
-                      ? '#dcfce7'
+                      ? 'var(--tint-emerald-bg)'
                       : isShaking
-                        ? '#ffe4e6'
+                        ? 'var(--tint-rose-bg)'
                         : isSelected
-                          ? '#eef2ff'
-                          : '#ffffff',
+                          ? 'var(--tile-selected-bg)'
+                          : 'var(--tile-bg)',
                     borderColor: isMatched
-                      ? '#4ade80'
+                      ? 'var(--tint-emerald-border)'
                       : isShaking
-                        ? '#fb7185'
+                        ? 'var(--tint-rose-border)'
                         : isSelected
-                          ? '#4f46e5'
-                          : '#cbd5e1',
-                    color: isMatched ? '#15803d' : '#1e1b4b',
+                          ? 'var(--lang-primary)'
+                          : 'var(--tile-border)',
+                    color: isMatched
+                      ? 'var(--tint-emerald-ink)'
+                      : isSelected
+                        ? 'var(--tile-selected-ink)'
+                        : 'var(--text-main)',
                     opacity: isMatched ? 0.72 : 1,
                   }}
                 >
@@ -257,20 +261,24 @@ export function PairMatchRushView({
                   fontSize: compact ? '0.85rem' : '0.94rem',
                   justifyContent: 'space-between',
                   background: isMatched
-                    ? '#dcfce7'
+                    ? 'var(--tint-emerald-bg)'
                     : isShaking
-                      ? '#ffe4e6'
+                      ? 'var(--tint-rose-bg)'
                       : isSelected
-                        ? '#eef2ff'
-                        : '#ffffff',
+                        ? 'var(--tile-selected-bg)'
+                        : 'var(--tile-bg)',
                   borderColor: isMatched
-                    ? '#4ade80'
+                    ? 'var(--tint-emerald-border)'
                     : isShaking
-                      ? '#fb7185'
+                      ? 'var(--tint-rose-border)'
                       : isSelected
-                        ? '#4f46e5'
-                        : '#cbd5e1',
-                  color: isMatched ? '#15803d' : '#1e1b4b',
+                        ? 'var(--lang-primary)'
+                        : 'var(--tile-border)',
+                  color: isMatched
+                    ? 'var(--tint-emerald-ink)'
+                    : isSelected
+                      ? 'var(--tile-selected-ink)'
+                      : 'var(--text-main)',
                   opacity: isMatched ? 0.72 : 1,
                   textAlign: 'left',
                 }}
@@ -293,12 +301,12 @@ export function PairMatchRushView({
             gap: 10,
             padding: '10px 14px',
             borderRadius: 16,
-            background: '#ecfdf5',
-            border: '2px solid #34d399',
+            background: 'var(--tint-emerald-bg)',
+            border: '2px solid var(--tint-emerald-border)',
             flexWrap: 'wrap',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#065f46', fontWeight: 900 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--tint-emerald-ink)', fontWeight: 900 }}>
             <Sparkles size={18} />
             <span>
               All {exercise.pairs.length} pairs matched!

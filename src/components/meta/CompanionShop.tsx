@@ -4,24 +4,27 @@ import { COSMETIC_CATALOG, STREAK_SHIELD_COST_GEMS } from '../../core';
 import { playSfx } from '../../audio';
 import { useVaultStore, vaultActions } from '../../store/useVaultStore';
 import { MascotStage } from '../characters/MascotStage';
+import { useCompactViewport } from '../lesson/lessonHelpers';
 import type {
   CharacterPose,
   CosmeticItem,
   CosmeticSlot,
   EquippedCosmetics,
 } from '../../types/contracts';
+import { PaletteOrbSwatches, THEME_SWATCH_TRIPLES } from './paletteSwatches';
 
 const SLOT_FILTERS: readonly { id: 'all' | CosmeticSlot; label: string }[] = [
   { id: 'all', label: 'All Gear' },
+  { id: 'theme', label: 'UI Themes' },
   { id: 'hat', label: 'Hats' },
   { id: 'glasses', label: 'Glasses' },
   { id: 'cape', label: 'Capes' },
   { id: 'aura', label: 'Auras' },
-  { id: 'theme', label: 'UI Themes' },
 ];
 
 export function CompanionShop() {
   const { activeProfile } = useVaultStore();
+  const compact = useCompactViewport();
   const [slotFilter, setSlotFilter] = useState<'all' | CosmeticSlot>('all');
   const [previewItem, setPreviewItem] = useState<CosmeticItem | null>(null);
   const [pose, setPose] = useState<CharacterPose>('happy');
@@ -94,38 +97,36 @@ export function CompanionShop() {
   };
 
   return (
-    <section aria-label="Companion Gem Shop" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Live Preview Stage + Streak Shield Card */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
-          gap: 14,
-          alignItems: 'stretch',
-        }}
-      >
-        {/* Live Mascot Preview */}
+    <section aria-label="Companion Gem Shop" className="shop-console-grid">
+      {/* Left Console Pedestal: Live Mascot + Streak Freeze Shield */}
+      <div className="shop-pedestal-col">
         <div
           className="tactile-card"
           style={{
-            padding: 18,
+            padding: compact ? 12 : 16,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 10,
+            gap: 8,
             textAlign: 'center',
-            background: 'linear-gradient(180deg, #eef2ff 0%, #ffffff 100%)',
+            background: 'var(--card-bg)',
+            flexShrink: 0,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 900, color: '#1e1b4b' }}>
-              <ShoppingBag size={18} /> Pip’s Wardrobe Preview
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 8 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 900, fontSize: '0.92rem' }}>
+              <ShoppingBag size={16} /> Pip’s Wardrobe
             </span>
             <span
               className="hud-pill hud-pill-static"
-              style={{ background: '#eff6ff', borderColor: '#60a5fa', color: '#1d4ed8' }}
+              style={{
+                background: 'var(--tint-indigo-bg)',
+                borderColor: 'var(--tint-indigo-border)',
+                color: 'var(--tint-indigo-ink)',
+                padding: '3px 9px',
+              }}
             >
-              <Gem size={15} /> {activeProfile.gems} Gems
+              <Gem size={14} /> {activeProfile.gems}
             </span>
           </div>
 
@@ -133,267 +134,279 @@ export function CompanionShop() {
             companionId="pip"
             pose={pose}
             equippedCosmetics={previewCosmetics}
-            size={172}
+            size={compact ? 104 : 152}
             badgeText={previewItem ? `Trying: ${previewItem.name}` : 'Live Outfit'}
           />
 
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
             <button
               type="button"
               className="tactile-btn tactile-btn-soft"
-              style={{ padding: '6px 12px', fontSize: '0.82rem' }}
+              style={{ padding: '5px 10px', fontSize: '0.78rem' }}
               onClick={() => {
                 playSfx('button_click');
                 setPose((p) => (p === 'victory_dance' ? 'happy' : 'victory_dance'));
               }}
             >
-              <Sparkles size={15} /> Dance Pose
+              <Sparkles size={14} /> Dance
             </button>
             {previewItem ? (
               <button
                 type="button"
                 className="tactile-btn tactile-btn-soft"
-                style={{ padding: '6px 12px', fontSize: '0.82rem' }}
+                style={{ padding: '5px 10px', fontSize: '0.78rem' }}
                 onClick={() => setPreviewItem(null)}
               >
-                Reset Preview
+                Reset
               </button>
             ) : null}
           </div>
         </div>
 
-        {/* Streak Freeze Shield Power-Up */}
+        {/* Compact Streak Freeze Shield Power-Up */}
         <div
           className="tactile-card"
           style={{
-            padding: 18,
+            padding: compact ? 12 : 14,
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            gap: 12,
+            gap: 8,
+            minWidth: compact ? 220 : 'auto',
+            flexShrink: 0,
           }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '4px 10px',
-                  borderRadius: 999,
-                  background: '#e0f2fe',
-                  color: '#0369a1',
-                  fontWeight: 900,
-                  fontSize: '0.78rem',
-                }}
-              >
-                <Shield size={14} /> Expedition Power-Up
-              </span>
-              <span style={{ fontWeight: 900, color: '#0369a1', fontSize: '0.88rem' }}>
-                Owned: {activeProfile.streakShields}
-              </span>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '3px 9px',
+                borderRadius: 999,
+                background: 'var(--tint-indigo-bg)',
+                color: 'var(--tint-indigo-ink)',
+                fontWeight: 900,
+                fontSize: '0.74rem',
+              }}
+            >
+              <Shield size={13} /> Power-Up
+            </span>
+            <span style={{ fontWeight: 900, color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+              Owned: {activeProfile.streakShields}
+            </span>
+          </div>
 
-            <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1.06rem', fontWeight: 900 }}>
               Streak Freeze Shield
             </h2>
-            <p style={{ margin: 0, fontSize: '0.88rem', fontWeight: 700, color: '#475569' }}>
-              Automatically protects your daily learning streak if you miss 1 calendar day!
+            <p style={{ margin: '3px 0 0', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+              Protects your daily streak if you miss 1 day!
             </p>
           </div>
 
           <button
             type="button"
-            className="tactile-btn tactile-btn-hero tactile-btn-primary"
+            className="tactile-btn tactile-btn-primary"
+            style={{ width: '100%', padding: '8px 12px', fontSize: '0.84rem' }}
             disabled={activeProfile.gems < STREAK_SHIELD_COST_GEMS}
             onClick={handleBuyShield}
           >
-            <Shield size={18} />
+            <Shield size={16} />
             <span>Buy Shield ({STREAK_SHIELD_COST_GEMS} Gems)</span>
           </button>
         </div>
       </div>
 
-      {shopNotice ? (
-        <div
-          role="status"
-          className="tactile-card"
-          style={{
-            padding: '10px 14px',
-            background: '#ecfdf5',
-            borderColor: '#34d399',
-            color: '#065f46',
-            fontWeight: 900,
-            fontSize: '0.9rem',
-          }}
-        >
-          {shopNotice}
-        </div>
-      ) : null}
-
-      {/* Category Tabs */}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {SLOT_FILTERS.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            className={`tactile-tile ${slotFilter === f.id ? 'is-selected' : ''}`}
-            onClick={() => {
-              playSfx('tile_tap');
-              setSlotFilter(f.id);
+      {/* Right Console Cabinet: Category Tabs + Bounded Scroll Grid */}
+      <div className="shop-cabinet-col">
+        {shopNotice ? (
+          <div
+            role="status"
+            className="tactile-card"
+            style={{
+              padding: '8px 12px',
+              background: 'var(--tint-emerald-bg)',
+              borderColor: 'var(--tint-emerald-border)',
+              color: 'var(--tint-emerald-ink)',
+              fontWeight: 900,
+              fontSize: '0.86rem',
+              flexShrink: 0,
             }}
           >
-            {f.label}
-          </button>
-        ))}
-      </div>
+            {shopNotice}
+          </div>
+        ) : null}
 
-      {/* Cosmetics Catalog Grid */}
-      {filteredItems.length === 0 ? (
-        <div className="tactile-card" style={{ padding: 22, fontWeight: 700, color: '#64748b' }}>
-          No cosmetic items available in this category yet.
+        {/* Category Pills */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flexShrink: 0 }}>
+          {SLOT_FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              className={`tactile-tile ${slotFilter === f.id ? 'is-selected' : ''}`}
+              style={{ padding: '6px 11px', fontSize: '0.82rem' }}
+              onClick={() => {
+                playSfx('tile_tap');
+                setSlotFilter(f.id);
+              }}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
-      ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(235px, 1fr))',
-            gap: 12,
-          }}
-        >
-          {filteredItems.map((item) => {
-            const isEquipped = activeProfile.equippedCosmetics[item.slot] === item.id;
-            const isUnlocked = unlockedSet.has(item.id);
-            const canAfford = activeProfile.gems >= item.costGems;
-            const isPreviewing = previewItem?.id === item.id;
 
-            return (
-              <div
-                key={item.id}
-                className="tactile-card"
-                style={{
-                  padding: 14,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: 10,
-                  borderColor: isEquipped ? '#10b981' : isPreviewing ? '#4f46e5' : 'var(--card-border)',
-                  background: isEquipped ? '#ecfdf5' : '#ffffff',
-                }}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        fontSize: '0.74rem',
-                        fontWeight: 900,
-                        textTransform: 'uppercase',
-                        color: '#475569',
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: 14,
-                          height: 14,
-                          borderRadius: 999,
-                          background: item.accentColor,
-                          border: '2px solid #1e1b4b',
-                        }}
-                      />
-                      {item.slot}
-                    </span>
+        {/* Internally Scrollable Cabinet Grid */}
+        <div className="console-scroll-pane" style={{ flex: '1 1 auto', paddingRight: 4 }}>
+          {filteredItems.length === 0 ? (
+            <div className="tactile-card" style={{ padding: 20, fontWeight: 700, color: 'var(--text-muted)' }}>
+              No cosmetic items available in this category yet.
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                gap: 10,
+                paddingBottom: 6,
+              }}
+            >
+              {filteredItems.map((item) => {
+                const isEquipped = activeProfile.equippedCosmetics[item.slot] === item.id;
+                const isUnlocked = unlockedSet.has(item.id);
+                const canAfford = activeProfile.gems >= item.costGems;
+                const isPreviewing = previewItem?.id === item.id;
+                const swatches = THEME_SWATCH_TRIPLES[item.id] ?? [
+                  item.accentColor,
+                  '#FBBF24',
+                  '#38BDF8',
+                ];
 
-                    {isEquipped ? (
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          padding: '2px 8px',
-                          borderRadius: 999,
-                          background: '#10b981',
-                          color: '#ffffff',
-                          fontSize: '0.72rem',
-                          fontWeight: 900,
-                        }}
-                      >
-                        <Check size={12} /> Equipped
-                      </span>
-                    ) : isUnlocked ? (
-                      <span
-                        style={{
-                          padding: '2px 8px',
-                          borderRadius: 999,
-                          background: '#e0e7ff',
-                          color: '#3730a3',
-                          fontSize: '0.72rem',
-                          fontWeight: 900,
-                        }}
-                      >
-                        Owned
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <div style={{ fontSize: '1.04rem', fontWeight: 900, color: '#1e1b4b' }}>
-                    {item.name}
-                  </div>
-                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#475569' }}>
-                    {item.description}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <button
-                    type="button"
-                    className="tactile-btn tactile-btn-soft"
-                    style={{ padding: '7px 10px', fontSize: '0.8rem' }}
-                    aria-label={`Preview ${item.name}`}
-                    onClick={() => {
-                      playSfx('tile_tap');
-                      setPreviewItem((cur) => (cur?.id === item.id ? null : item));
-                      if (item.slot === 'theme') {
-                        setShopNotice(`Previewing ${item.name} on Pip! Buy & equip to apply theme.`);
-                      }
+                return (
+                  <div
+                    key={item.id}
+                    className="tactile-card"
+                    style={{
+                      padding: 12,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                      borderColor: isEquipped
+                        ? 'var(--tint-emerald-border)'
+                        : isPreviewing
+                          ? 'var(--lang-primary)'
+                          : 'var(--card-border)',
+                      background: isEquipped ? 'var(--tint-emerald-bg)' : 'var(--card-bg)',
                     }}
                   >
-                    <Eye size={15} />
-                  </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            fontSize: '0.72rem',
+                            fontWeight: 900,
+                            textTransform: 'uppercase',
+                            color: 'var(--text-muted)',
+                          }}
+                        >
+                          <PaletteOrbSwatches colors={swatches} size={item.slot === 'theme' ? 13 : 10} />
+                          <span>{item.slot === 'theme' ? 'Palette' : item.slot}</span>
+                        </span>
 
-                  <button
-                    type="button"
-                    className={`tactile-btn ${
-                      isEquipped
-                        ? 'tactile-btn-soft'
-                        : isUnlocked
-                          ? 'tactile-btn-success'
-                          : 'tactile-btn-amber'
-                    }`}
-                    style={{ flex: 1, padding: '8px 10px', fontSize: '0.84rem' }}
-                    disabled={!isUnlocked && !canAfford}
-                    onClick={() => handleBuyOrEquip(item)}
-                  >
-                    {isEquipped ? (
-                      'Unequip'
-                    ) : isUnlocked ? (
-                      'Equip'
-                    ) : (
-                      <>
-                        <Gem size={14} />
-                        <span>Buy & Equip ({item.costGems})</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+                        {isEquipped ? (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              padding: '2px 8px',
+                              borderRadius: 999,
+                              background: '#10b981',
+                              color: '#ffffff',
+                              fontSize: '0.7rem',
+                              fontWeight: 900,
+                            }}
+                          >
+                            <Check size={11} /> Equipped
+                          </span>
+                        ) : isUnlocked ? (
+                          <span
+                            style={{
+                              padding: '2px 8px',
+                              borderRadius: 999,
+                              background: 'var(--tint-indigo-bg)',
+                              color: 'var(--tint-indigo-ink)',
+                              fontSize: '0.7rem',
+                              fontWeight: 900,
+                            }}
+                          >
+                            Owned
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div style={{ fontSize: '1rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                        {item.name}
+                      </div>
+                      <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                        {item.description}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        className="tactile-btn tactile-btn-soft"
+                        style={{ padding: '7px 10px', fontSize: '0.78rem' }}
+                        aria-label={`Preview ${item.name}`}
+                        onClick={() => {
+                          playSfx('tile_tap');
+                          setPreviewItem((cur) => (cur?.id === item.id ? null : item));
+                          if (item.slot === 'theme') {
+                            setShopNotice(`Previewing ${item.name} on Pip! Buy & equip to apply theme.`);
+                          }
+                        }}
+                      >
+                        <Eye size={14} />
+                      </button>
+
+                      <button
+                        type="button"
+                        className={`tactile-btn ${
+                          isEquipped
+                            ? 'tactile-btn-soft'
+                            : isUnlocked
+                              ? 'tactile-btn-success'
+                              : 'tactile-btn-amber'
+                        }`}
+                        style={{ flex: 1, padding: '7px 10px', fontSize: '0.82rem' }}
+                        disabled={!isUnlocked && !canAfford}
+                        onClick={() => handleBuyOrEquip(item)}
+                      >
+                        {isEquipped ? (
+                          'Unequip'
+                        ) : isUnlocked ? (
+                          'Equip'
+                        ) : (
+                          <>
+                            <Gem size={14} />
+                            <span>Buy & Equip ({item.costGems})</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </section>
   );
 }
