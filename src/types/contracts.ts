@@ -464,6 +464,88 @@ export const GENDER_BADGE_META: Record<GenderCategory, GenderBadgeMeta> = {
   },
 };
 
+export type ProficiencyTier = 'A1' | 'A2' | 'B1' | 'B2' | 'C1_C2';
+
+export interface ProficiencyTierMeta {
+  id: ProficiencyTier;
+  cefrLabel: string;
+  title: string;
+  subtitle: string;
+  unitRange: readonly [number, number];
+  badgeColor: string;
+  surfaceTint: string;
+  scaffoldingMode: 'guided' | 'bridge' | 'fluent';
+}
+
+export const PROFICIENCY_TIERS: readonly ProficiencyTier[] = [
+  'A1',
+  'A2',
+  'B1',
+  'B2',
+  'C1_C2',
+] as const;
+
+export const PROFICIENCY_TIER_META: Record<ProficiencyTier, ProficiencyTierMeta> = {
+  A1: {
+    id: 'A1',
+    cefrLabel: 'A1',
+    title: 'Sprout',
+    subtitle: 'Core greetings, cafe treats, nature, family & survival phrases',
+    unitRange: [1, 4],
+    badgeColor: '#10B981',
+    surfaceTint: '#ECFDF5',
+    scaffoldingMode: 'guided',
+  },
+  A2: {
+    id: 'A2',
+    cefrLabel: 'A2',
+    title: 'Trailblazer',
+    subtitle: 'Expeditions, hobbies, cozy home, cosmos & everyday conversations',
+    unitRange: [5, 8],
+    badgeColor: '#0EA5E9',
+    surfaceTint: '#E0F2FE',
+    scaffoldingMode: 'guided',
+  },
+  B1: {
+    id: 'B1',
+    cefrLabel: 'B1',
+    title: 'Storyweaver',
+    subtitle: 'Past adventures, future dreams, empathy & cause-and-effect connectors',
+    unitRange: [9, 11],
+    badgeColor: '#8B5CF6',
+    surfaceTint: '#EDE9FE',
+    scaffoldingMode: 'bridge',
+  },
+  B2: {
+    id: 'B2',
+    cefrLabel: 'B2',
+    title: 'Wayfinder Diplomat',
+    subtitle: 'Science curiosity, living folklore, register nuances & respectful persuasion',
+    unitRange: [12, 14],
+    badgeColor: '#F59E0B',
+    surfaceTint: '#FEF3C7',
+    scaffoldingMode: 'bridge',
+  },
+  C1_C2: {
+    id: 'C1_C2',
+    cefrLabel: 'C1+',
+    title: 'Polyglot Laureate',
+    subtitle: 'Native idioms, proverbs, multi-clause synthesis & Grand Symposium mastery',
+    unitRange: [15, 16],
+    badgeColor: '#EC4899',
+    surfaceTint: '#FCE7F3',
+    scaffoldingMode: 'fluent',
+  },
+};
+
+export function resolveUnitProficiencyTier(unitOrder: number): ProficiencyTier {
+  if (unitOrder <= 4) return 'A1';
+  if (unitOrder <= 8) return 'A2';
+  if (unitOrder <= 11) return 'B1';
+  if (unitOrder <= 14) return 'B2';
+  return 'C1_C2';
+}
+
 export const ILLUSTRATION_KEYS = [
   // Unit 1: Greetings, Smiles & Magic Words
   'wave_hello',
@@ -543,9 +625,59 @@ export const ILLUSTRATION_KEYS = [
   'ringed_planet',
   'starlight_rocket',
   'rainbow_arc',
+  // Unit 9 (B1): Past Adventures & Storytelling
+  'hourglass_memory',
+  'travel_journal',
+  'campfire_story',
+  'ancient_ruins',
+  'vintage_postcard',
+  // Unit 10 (B1): Future Dreams & Plans
+  'architect_blueprint',
+  'horizon_telescope',
+  'graduation_cap',
+  'sprouting_seedling',
+  'calendar_milestone',
+  // Unit 11 (B1): Wellness, Feelings & Empathy
+  'warm_teacup',
+  'helping_hands',
+  'calm_lotus',
+  'bandaid_care',
+  'feelings_weather',
+  // Unit 12 (B2): Science, Curiosity & Nature
+  'science_microscope',
+  'crystal_beaker',
+  'magnifying_discovery',
+  'solar_wind_planet',
+  'coral_reef_ecosystem',
+  // Unit 13 (B2): Festivals, Folklore & Register
+  'festival_lanterns',
+  'folklore_mask',
+  'ceremonial_tea_set',
+  'woven_tapestry',
+  'royal_bow_greeting',
+  // Unit 14 (B2): Perspectives & Persuasion
+  'balance_scales',
+  'debate_podium',
+  'lightbulb_idea',
+  'bridge_connection',
+  'peace_olive_dove',
+  // Unit 15 (C1–C2): Idiomatic Wit & Proverbs
+  'idiom_scroll',
+  'golden_key_proverb',
+  'theater_comedy_masks',
+  'clever_fox_lantern',
+  'lightning_wit',
+  // Unit 16 (C1–C2): Grand Polyglot Symposium
+  'laureate_wreath',
+  'grand_symposium_globe',
+  'quill_inkwell',
+  'symphony_conductor',
+  'crystal_owl_crest',
 ] as const;
 
 export type IllustrationKey = (typeof ILLUSTRATION_KEYS)[number];
+
+export type RegisterNuanceTag = 'polite' | 'casual' | 'idiom' | 'connector' | 'grammar';
 
 export interface TapHintToken {
   surface: string;
@@ -555,6 +687,8 @@ export interface TapHintToken {
   romanized?: string;
   articleNote?: string;
   accentNote?: string;
+  registerNote?: string;
+  grammarNote?: string;
   speakText: string;
 }
 
@@ -568,6 +702,7 @@ export interface VocabCard {
   id: string;
   language: LanguageCode;
   unitId: string;
+  proficiencyTier?: ProficiencyTier;
   foreignWithArticle: string;
   bareForeign: string;
   article?: string;
@@ -578,6 +713,8 @@ export interface VocabCard {
   phonetic: string;
   romanized?: string;
   accentCallout?: AccentCallout;
+  registerNote?: string;
+  grammarNote?: string;
   illustrationKey: IllustrationKey;
   exampleForeign: string;
   exampleEnglish: string;
@@ -607,6 +744,27 @@ export interface WordBankExercise {
   distractorTokens: string[];
   phoneticHint: string;
   articleHint?: string;
+  nuanceNote?: string;
+  registerTag?: RegisterNuanceTag;
+  allowFreeRecall?: boolean;
+  vocabIds: string[];
+}
+
+export interface ContextClozeExercise {
+  type: 'context_cloze';
+  id: string;
+  sentenceBeforeBlank: string;
+  sentenceAfterBlank: string;
+  fullForeignSentence: string;
+  englishTranslation: string;
+  phonetic: string;
+  romanized?: string;
+  choices: string[];
+  expectedBlank: string;
+  acceptedBlanks: string[];
+  nuanceNote: string;
+  registerTag?: RegisterNuanceTag;
+  tapHints: TapHintToken[];
   vocabIds: string[];
 }
 
@@ -697,6 +855,9 @@ export interface BossTurn {
   romanizedAnswer?: string;
   victoryReplyForeign: string;
   victoryReplyEnglish: string;
+  nuanceNote?: string;
+  registerTag?: RegisterNuanceTag;
+  allowFreeRecall?: boolean;
 }
 
 export interface BossGauntletExercise {
@@ -714,6 +875,7 @@ export interface BossGauntletExercise {
 export type LessonExercise =
   | DiscoveryCardExercise
   | WordBankExercise
+  | ContextClozeExercise
   | ListenDecodeExercise
   | PairMatchRushExercise
   | MiniStoryExercise
@@ -726,6 +888,8 @@ export interface MapNode {
   unitId: string;
   order: number;
   nodeType: MapNodeType;
+  proficiencyTier?: ProficiencyTier;
+  checkpointTargetTier?: Exclude<ProficiencyTier, 'A1'>;
   title: string;
   subtitle: string;
   xpReward: number;
@@ -738,6 +902,7 @@ export interface CourseUnit {
   id: string;
   language: LanguageCode;
   order: number;
+  proficiencyTier?: ProficiencyTier;
   title: string;
   culturalLandmark: string;
   subtitle: string;
@@ -753,6 +918,8 @@ export interface LanguageCourse {
   vocabById: Record<string, VocabCard>;
 }
 
+export type ArcadeProficiencyTier = 'sprout' | 'voyager' | 'master';
+
 export interface ArcadeLanternItem {
   id: string;
   language: LanguageCode;
@@ -761,6 +928,11 @@ export interface ArcadeLanternItem {
   phonetic: string;
   romanized?: string;
   illustrationKey: IllustrationKey;
+  proficiencyTier?: ProficiencyTier;
+  exampleForeign?: string;
+  exampleEnglish?: string;
+  examplePhonetic?: string;
+  exampleRomanized?: string;
 }
 
 // ==========================================
@@ -802,18 +974,52 @@ export interface GradeResult {
 // Cosmetics, Badges, Leagues & Multi-Kid Vault
 // ==========================================
 
-export type CosmeticSlot = 'hat' | 'glasses' | 'cape' | 'aura' | 'theme';
+export type CosmeticSlot = 'hat' | 'glasses' | 'cape' | 'aura' | 'prop' | 'pet' | 'theme';
 
 export type CosmeticId =
+  // Hats (9)
   | 'hat_explorer_beret'
   | 'hat_fiesta_sombrero'
   | 'hat_alpine_tyrolean'
   | 'hat_gondolier_boater'
   | 'hat_starlight_wizard'
+  | 'hat_sakura_crown'
+  | 'hat_desert_turban_star'
+  | 'hat_astronomer_mitre'
+  | 'hat_laureate_wreath'
+  // Glasses (5)
   | 'glasses_brass_aviator'
+  | 'glasses_starlight_frames'
+  | 'glasses_scholar_monocle'
+  | 'glasses_pixel_visor'
+  | 'glasses_constellation_shades'
+  // Capes (4)
   | 'cape_rainbow_wings'
+  | 'cape_traveler_cloak'
+  | 'cape_aurora_mantle'
+  | 'cape_velvet_laureate'
+  // Auras (5)
   | 'aura_golden_compass'
   | 'aura_fireflies'
+  | 'aura_sakura_breeze'
+  | 'aura_polyglot_glyphs'
+  | 'aura_laureate_supernova'
+  // Handheld Props (7)
+  | 'prop_explorer_ukulele'
+  | 'prop_starlight_telescope'
+  | 'prop_golden_quill'
+  | 'prop_festival_lantern'
+  | 'prop_boulangerie_whisk'
+  | 'prop_compass_astrolabe'
+  | 'prop_laureate_scroll'
+  // Mini Sidekick Pets (6)
+  | 'pet_origami_crane'
+  | 'pet_clockwork_owl'
+  | 'pet_axolotl_sprite'
+  | 'pet_desert_fennec'
+  | 'pet_starlight_seahorse'
+  | 'pet_phoenix_chick'
+  // UI Themes (14)
   | 'theme_sunset_plaza'
   | 'theme_starlight_indigo'
   | 'theme_alpine_meadow'
@@ -821,13 +1027,21 @@ export type CosmeticId =
   | 'theme_aurora_borealis'
   | 'theme_candy_sakura'
   | 'theme_ocean_lagoon'
-  | 'theme_royal_velvet';
+  | 'theme_royal_velvet'
+  | 'theme_kyoto_matcha'
+  | 'theme_sahara_mirage'
+  | 'theme_emerald_rainforest'
+  | 'theme_neon_night_market'
+  | 'theme_nordic_fjord'
+  | 'theme_laureate_imperial';
 
 export interface EquippedCosmetics {
   hat?: CosmeticId;
   glasses?: CosmeticId;
   cape?: CosmeticId;
   aura?: CosmeticId;
+  prop?: CosmeticId;
+  pet?: CosmeticId;
   theme?: CosmeticId;
 }
 
@@ -838,6 +1052,7 @@ export interface CosmeticItem {
   description: string;
   costGems: number;
   accentColor: string;
+  tierHint?: ProficiencyTier;
 }
 
 export type AvatarId =
@@ -846,7 +1061,42 @@ export type AvatarId =
   | 'colette_baker'
   | 'benni_tinker'
   | 'luca_captain'
-  | 'star_compass';
+  | 'star_compass'
+  | 'origami_crane_crest'
+  | 'clockwork_owl_crest'
+  | 'fennec_voyager'
+  | 'grand_laureate_crest';
+
+export const STREAK_SHIELD_COST_GEMS = 45;
+export const HEART_ELIXIR_COST_GEMS = 35;
+export const HEART_CRYSTAL_COST_GEMS = 110;
+export const MAX_HEART_CONTAINERS = 8;
+export const XP_BOOSTER_COST_GEMS = 65;
+export const XP_BOOSTER_CHARGES_PER_BUY = 3;
+export const FREE_RECALL_BONUS_XP = 10;
+export const FREE_RECALL_BONUS_GEMS = 3;
+
+export const STARTER_AVATAR_IDS: readonly AvatarId[] = [
+  'pip_explorer',
+  'mateo_chef',
+  'colette_baker',
+  'benni_tinker',
+  'luca_captain',
+  'star_compass',
+] as const;
+
+export const UNLOCKABLE_AVATAR_COSTS: Record<AvatarId, number> = {
+  pip_explorer: 0,
+  mateo_chef: 0,
+  colette_baker: 0,
+  benni_tinker: 0,
+  luca_captain: 0,
+  star_compass: 0,
+  origami_crane_crest: 60,
+  clockwork_owl_crest: 90,
+  fennec_voyager: 120,
+  grand_laureate_crest: 220,
+};
 
 export type BadgeId =
   | 'first_hello'
@@ -860,7 +1110,19 @@ export type BadgeId =
   | 'streak_spark'
   | 'chest_hunter'
   | 'story_reader'
-  | 'starlight_master';
+  | 'starlight_master'
+  | 'globe_trotter_5'
+  | 'grand_atlas_10'
+  | 'storyweaver_b1'
+  | 'diplomat_b2'
+  | 'polyglot_laureate_c2'
+  | 'free_recall_virtuoso'
+  | 'nuance_detective'
+  | 'fluent_listener'
+  | 'wardrobe_stylist'
+  | 'crystal_heart_guardian'
+  | 'arcade_champion'
+  | 'laureate_legend_xp';
 
 export interface BadgeDefinition {
   id: BadgeId;
@@ -875,7 +1137,10 @@ export type LeagueTier =
   | 'silver_compass'
   | 'gold_feather'
   | 'sapphire_sky'
-  | 'starlight_legend';
+  | 'starlight_legend'
+  | 'emerald_diplomat'
+  | 'amethyst_symposium'
+  | 'grand_polyglot_laureate';
 
 export interface LeagueEntry {
   id: string;
@@ -894,6 +1159,7 @@ export interface LanguageProgressState {
   currentUnitIndex: number;
   xpEarned: number;
   seenExerciseIds?: string[];
+  unlockedTiers?: ProficiencyTier[];
 }
 
 export interface KidProfile {
@@ -908,6 +1174,9 @@ export interface KidProfile {
   streakDays: number;
   lastPracticeISO: string | null;
   streakShields: number;
+  heartElixirs?: number;
+  xpBoosterCharges?: number;
+  unlockedAvatars?: AvatarId[];
   equippedCosmetics: EquippedCosmetics;
   unlockedCosmetics: CosmeticId[];
   badges: BadgeId[];
@@ -925,6 +1194,10 @@ export interface KidProfile {
     turtlePlaysCount: number;
     bestComboStreak: number;
     accentSpotlightsSeen: number;
+    freeRecallSolved?: number;
+    fluentPlaysCount?: number;
+    checkpointsPassed?: number;
+    clozeSolved?: number;
   };
   languageProgress: Record<LanguageCode, LanguageProgressState>;
 }
@@ -977,12 +1250,20 @@ export type SoundEffectId =
   | 'star_pop'
   | 'whoosh_transition'
   | 'bubble_pop'
-  | 'secret_fanfare';
+  | 'secret_fanfare'
+  | 'tier_unlock'
+  | 'booster_spark'
+  | 'free_recall_ace'
+  | 'laureate_fanfare'
+  | 'equip_prop_pet';
+
+export type SpeechSpeed = 'normal' | 'slow' | 'fluent';
 
 export interface SpeakRequest {
   text: string;
   language: LanguageCode | 'en';
   slow?: boolean;
+  speed?: SpeechSpeed;
   phonetic?: string;
 }
 
@@ -995,7 +1276,7 @@ export interface SpeakOutcome {
 export interface SpeechRuntimeState {
   isSpeaking: boolean;
   activeText: string | null;
-  activeSpeed: 'normal' | 'slow' | null;
+  activeSpeed: SpeechSpeed | null;
   fallbackActive: boolean;
   voicesReady: boolean;
 }
