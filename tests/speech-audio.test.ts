@@ -288,7 +288,7 @@ describe('Challenge 3-speech: Zero-Stall Speech Fallback, Watchdog & ListenDecod
     expect(getSpeechRuntimeState().isSpeaking).toBe(false);
   });
 
-  it('synthesizes all 14 SoundEffectIds using strictly warm sine/triangle waves (no harsh square/sawtooth)', async () => {
+  it('synthesizes all 23 SoundEffectIds using strictly warm sine/triangle waves (no harsh square/sawtooth)', async () => {
     const { createdMock, oscTypes } = createMockAudioContext();
     Object.defineProperty(window, 'AudioContext', {
       configurable: true,
@@ -315,7 +315,13 @@ describe('Challenge 3-speech: Zero-Stall Speech Fallback, Watchdog & ListenDecod
       'whoosh_transition',
       'bubble_pop',
       'secret_fanfare',
+      'tier_unlock',
+      'booster_spark',
+      'free_recall_ace',
+      'laureate_fanfare',
+      'equip_prop_pet',
     ];
+    expect(allSfx).toHaveLength(23);
 
     for (let i = 0; i < allSfx.length; i++) {
       expect(() => playSfx(allSfx[i], i)).not.toThrow();
@@ -326,6 +332,127 @@ describe('Challenge 3-speech: Zero-Stall Speech Fallback, Watchdog & ListenDecod
     await vi.advanceTimersByTimeAsync(1500);
     await cadencePromise;
 
+    expect(oscTypes.length).toBeGreaterThan(0);
+    for (const wave of oscTypes) {
+      expect(['sine', 'triangle']).toContain(wave);
+    }
+  });
+
+  it('supports 1.12x fluent speech rate, runtimeState.activeSpeed tracking, and crisp marimba cadence across slow/normal/fluent', async () => {
+    const { createdMock, oscTypes } = createMockAudioContext();
+    Object.defineProperty(window, 'AudioContext', {
+      configurable: true,
+      writable: true,
+      value: createdMock,
+    });
+
+    // 1. Native speech rate check: slow = 0.65, normal = 0.95, fluent = 1.12
+    const { FakeUtterance, created } = createFakeUtteranceCtor();
+    Object.defineProperty(globalThis, 'SpeechSynthesisUtterance', {
+      configurable: true,
+      writable: true,
+      value: FakeUtterance,
+    });
+
+    const esVoice = {
+      name: 'Google español',
+      lang: 'es-MX',
+      localService: true,
+      default: true,
+      voiceURI: 'es-mx',
+    } as SpeechSynthesisVoice;
+
+    Object.defineProperty(window, 'speechSynthesis', {
+      configurable: true,
+      writable: true,
+      value: {
+        getVoices: () => [esVoice],
+        speak: (utt: MockUtterance) => {
+          // Verify activeSpeed while utterance is in flight
+          const inFlightSpeed = getSpeechRuntimeState().activeSpeed;
+          queueMicrotask(() => {
+            expect(['slow', 'normal', 'fluent']).toContain(inFlightSpeed);
+            utt.onend?.(new Event('end'));
+          });
+        },
+        cancel: vi.fn(),
+        speaking: false,
+        pending: false,
+        paused: false,
+        onvoiceschanged: null,
+        addEventListener: vi.fn(),
+      },
+    });
+
+    const slowOut = await speakPhrase({ text: 'Buenos días', language: 'es', speed: 'slow' });
+    const normOut = await speakPhrase({ text: 'Buenos días', language: 'es', speed: 'normal' });
+    const fluentOut = await speakPhrase({ text: 'Buenos días', language: 'es', speed: 'fluent' });
+
+    expect(slowOut.usedNativeVoice).toBe(true);
+    expect(normOut.usedNativeVoice).toBe(true);
+    expect(fluentOut.usedNativeVoice).toBe(true);
+    expect(created[0].rate).toBe(0.65);
+    expect(created[1].rate).toBe(0.95);
+    expect(created[2].rate).toBe(1.12);
+    expect(getSpeechRuntimeState().activeSpeed).toBeNull();
+
+    // 2. Fallback marimba cadence timing: fluent finishes faster than normal and slow
+    Object.defineProperty(window, 'speechSynthesis', {
+      configurable: true,
+      writable: true,
+      value: {
+        getVoices: () => [],
+        speak: vi.fn(),
+        cancel: vi.fn(),
+        speaking: false,
+        pending: false,
+        paused: false,
+        onvoiceschanged: null,
+        addEventListener: vi.fn(),
+      },
+    });
+
+    vi.useFakeTimers();
+    let fluentDone = false;
+    const fluentCadence = playPhoneticCadence('ah-MEE-goh sah-LOOD', 'fluent').then(() => {
+      fluentDone = true;
+    });
+    await vi.advanceTimersByTimeAsync(800);
+    await fluentCadence;
+    expect(fluentDone).toBe(true);
+
+    let normalDone = false;
+    const normalCadence = playPhoneticCadence('ah-MEE-goh sah-LOOD', 'normal').then(() => {
+      normalDone = true;
+    });
+    await vi.advanceTimersByTimeAsync(800);
+    expect(normalDone).toBe(false);
+    await vi.advanceTimersByTimeAsync(300);
+    await normalCadence;
+    expect(normalDone).toBe(true);
+
+    let slowDone = false;
+    const slowCadence = playPhoneticCadence('ah-MEE-goh sah-LOOD', 'slow').then(() => {
+      slowDone = true;
+    });
+    await vi.advanceTimersByTimeAsync(1100);
+    expect(slowDone).toBe(false);
+    await vi.advanceTimersByTimeAsync(600);
+    await slowCadence;
+    expect(slowDone).toBe(true);
+
+    const speakFluentFallback = speakPhrase({
+      text: 'Aunque el camino sea largo, seguimos adelante.',
+      language: 'es',
+      phonetic: 'OWN-keh el kah-MEE-noh SEH-ah LAR-goh',
+      speed: 'fluent',
+    });
+    expect(getSpeechRuntimeState().isSpeaking).toBe(true);
+    expect(getSpeechRuntimeState().activeSpeed).toBe('fluent');
+    await vi.advanceTimersByTimeAsync(2000);
+    const fbOutcome = await speakFluentFallback;
+    expect(fbOutcome).toEqual({ usedNativeVoice: false, fallbackActive: true });
+    expect(getSpeechRuntimeState().activeSpeed).toBeNull();
     expect(oscTypes.length).toBeGreaterThan(0);
     for (const wave of oscTypes) {
       expect(['sine', 'triangle']).toContain(wave);
@@ -359,8 +486,9 @@ describe('Challenge 3-speech: Zero-Stall Speech Fallback, Watchdog & ListenDecod
     expect(selectEx).toBeDefined();
     expect(assembleEx).toBeDefined();
 
-    // 1. Standalone ListenDecodeView (select_meaning): 1.0x, 0.65x, visible phonetic fallback, draft completion
+    // 1. Standalone ListenDecodeView (select_meaning): 1.0x, 0.65x, 1.12x, visible phonetic fallback, draft completion
     const onTurtle1 = vi.fn();
+    const onFluent1 = vi.fn();
     const onDraft1 = vi.fn();
     const { unmount } = render(
       createElement(ListenDecodeView, {
@@ -370,6 +498,7 @@ describe('Challenge 3-speech: Zero-Stall Speech Fallback, Watchdog & ListenDecod
         locked: false,
         revealed: false,
         onTurtlePlay: onTurtle1,
+        onFluentPlay: onFluent1,
         onDraftChange: onDraft1,
       })
     );
@@ -379,7 +508,9 @@ describe('Challenge 3-speech: Zero-Stall Speech Fallback, Watchdog & ListenDecod
 
     fireEvent.click(screen.getByRole('button', { name: '1.0x Normal speed audio' }));
     fireEvent.click(screen.getByRole('button', { name: '0.65x Slow Turtle audio' }));
+    fireEvent.click(screen.getByRole('button', { name: '1.12x Fluent speed audio' }));
     expect(onTurtle1).toHaveBeenCalledTimes(1);
+    expect(onFluent1).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole('radio', { name: selectEx.englishMeaning }));
     expect(onDraft1).toHaveBeenLastCalledWith(

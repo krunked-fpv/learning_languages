@@ -8,6 +8,7 @@ import { joinWordBankTokens } from '../src/components/lesson/lessonHelpers';
 import { gradeAnswer } from '../src/core';
 import {
   COURSES,
+  buildTierCheckpointNode,
   getArcadeLexicon,
   getNodePoolSize,
   getPlayableNodeExercises,
@@ -17,6 +18,7 @@ import {
   LANGUAGE_LIST,
   type BossGauntletExercise,
   type CompanionId,
+  type ContextClozeExercise,
   type LessonExercise,
   type ListenDecodeExercise,
   type MapNode,
@@ -94,6 +96,22 @@ function playSingleExerciseInDom(ex: LessonExercise): void {
     clickTokensInTray(wb.targetTokens);
     fireEvent.click(requireButtonByText('Check'));
     expect(document.body.textContent ?? '').not.toContain('Almost there!');
+    fireEvent.click(requireButtonByText('Continue'));
+    return;
+  }
+
+  if (ex.type === 'context_cloze') {
+    const cloze = ex as ContextClozeExercise;
+    const radioBtn = Array.from(document.querySelectorAll('button[role="radio"]')).find(
+      (b) => b.textContent?.trim() === cloze.expectedBlank
+    );
+    expect(radioBtn, `Missing context_cloze choice "${cloze.expectedBlank}"`).toBeDefined();
+    fireEvent.click(radioBtn!);
+    fireEvent.click(requireButtonByText('Check'));
+    expect(document.body.textContent ?? '').not.toContain('Almost there!');
+    expect(screen.getByRole('note', { name: 'Nuance and Register Spotlight' })).toHaveTextContent(
+      cloze.nuanceNote
+    );
     fireEvent.click(requireButtonByText('Continue'));
     return;
   }
@@ -194,7 +212,7 @@ function playSingleExerciseInDom(ex: LessonExercise): void {
   }
 }
 
-describe('Phase 4+ / Wave 3: End-to-End 896-Node Playtest across 16 Languages, Deep Pool Zero-Repeats, Boss Recovery & Secret Mini-Game', () => {
+describe('Phase 4+ / Megapack: End-to-End 1,792-Node Playtest across 16 Languages x 16 Units, Deep Pool Zero-Repeats, Tier Checkpoints & Boss Recovery', () => {
   beforeEach(() => {
     window.localStorage.clear();
     vaultActions.resetVaultToDefaults();
@@ -208,19 +226,20 @@ describe('Phase 4+ / Wave 3: End-to-End 896-Node Playtest across 16 Languages, D
     vi.restoreAllMocks();
   });
 
-  it('plays ALL 896 MapNodes (56 x 16 languages, Units 1-8) end-to-end through LessonArena with ZERO console errors/warnings', () => {
-    vi.useFakeTimers();
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  let totalNodesPlayed = 0;
 
-    let totalNodesPlayed = 0;
+  for (const lang of LANGUAGE_LIST) {
+    it(`plays ALL 112 ${lang} MapNodes (Units 1-16) end-to-end through LessonArena with ZERO console errors/warnings`, () => {
+      vi.useFakeTimers();
+      const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    for (const lang of LANGUAGE_LIST) {
+      vaultActions.resetVaultToDefaults();
       vaultActions.setActiveLanguage(lang);
       const course = COURSES[lang];
-      expect(course.units).toHaveLength(8);
+      expect(course.units).toHaveLength(16);
       const allNodes: MapNode[] = course.units.flatMap((u) => u.nodes);
-      expect(allNodes).toHaveLength(56);
+      expect(allNodes).toHaveLength(112);
 
       for (const node of allNodes) {
         totalNodesPlayed += 1;
@@ -248,34 +267,37 @@ describe('Phase 4+ / Wave 3: End-to-End 896-Node Playtest across 16 Languages, D
           expect(onExit).toHaveBeenCalledTimes(1);
         }
 
-        // Drain any scheduled star/toast/confetti timers inside act before unmounting
+        // Clear any scheduled star/toast/confetti/motion timers before unmounting
         act(() => {
-          vi.runOnlyPendingTimers();
+          vi.clearAllTimers();
         });
         unmount();
         cleanup();
       }
-    }
 
-    expect(totalNodesPlayed).toBe(896);
+      if (lang === 'es') {
+        // Revisit an already-claimed chest node and verify NO duplicate +Gems badge appears (P2-4)
+        const firstChest = COURSES.es.units[0].nodes.find((n) => n.nodeType === 'chest')!;
+        const gemsBeforeRevisit = loadVaultFromStorage().profiles[0].gems;
+        render(<LessonArena node={firstChest} language="es" onExit={vi.fn()} />);
+        fireEvent.click(screen.getByRole('button', { name: 'Open Treasure Chest!' }));
+        expect(screen.getByText(/Treasure Vault Re-Visited!/i)).toBeInTheDocument();
+        expect(screen.queryByText(`+${firstChest.gemReward} Gems`)).not.toBeInTheDocument();
+        expect(loadVaultFromStorage().profiles[0].gems).toBe(gemsBeforeRevisit);
+        act(() => {
+          vi.clearAllTimers();
+        });
+        cleanup();
+      }
 
-    // Revisit an already-claimed chest node and verify NO duplicate +Gems badge appears (P2-4)
-    const firstChest = COURSES.es.units[0].nodes.find((n) => n.nodeType === 'chest')!;
-    vaultActions.setActiveLanguage('es');
-    const gemsBeforeRevisit = loadVaultFromStorage().profiles[0].gems;
-    render(<LessonArena node={firstChest} language="es" onExit={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Open Treasure Chest!' }));
-    expect(screen.getByText(/Treasure Vault Re-Visited!/i)).toBeInTheDocument();
-    expect(screen.queryByText(`+${firstChest.gemReward} Gems`)).not.toBeInTheDocument();
-    expect(loadVaultFromStorage().profiles[0].gems).toBe(gemsBeforeRevisit);
-    act(() => {
-      vi.runOnlyPendingTimers();
-    });
-    cleanup();
+      expect(errSpy, `Unexpected console.error calls for ${lang}: ${JSON.stringify(errSpy.mock.calls)}`).not.toHaveBeenCalled();
+      expect(warnSpy, `Unexpected console.warn calls for ${lang}: ${JSON.stringify(warnSpy.mock.calls)}`).not.toHaveBeenCalled();
+    }, 120_000);
+  }
 
-    expect(errSpy, `Unexpected console.error calls: ${JSON.stringify(errSpy.mock.calls)}`).not.toHaveBeenCalled();
-    expect(warnSpy, `Unexpected console.warn calls: ${JSON.stringify(warnSpy.mock.calls)}`).not.toHaveBeenCalled();
-  }, 360_000);
+  it('confirms all 1,792 MapNodes across 16 languages were playtested', () => {
+    expect(totalNodesPlayed).toBe(1792);
+  });
 
   it('verifies zero duplicate authored prompts, >= 14 pool size per lesson node, and 0% ID overlap on Play Fresh Remix', () => {
     vi.useFakeTimers();
@@ -335,6 +357,14 @@ describe('Phase 4+ / Wave 3: End-to-End 896-Node Playtest across 16 Languages, D
                   language: pex.direction === 'to_foreign' ? lang : 'en',
                 });
                 expect(res.isCorrect, `Pool ${pex.id} failed gradeAnswer for "${assembled}"`).toBe(true);
+              } else if (pex.type === 'context_cloze') {
+                const res = gradeAnswer({
+                  submitted: pex.expectedBlank,
+                  expected: pex.expectedBlank,
+                  accepted: pex.acceptedBlanks,
+                  language: lang,
+                });
+                expect(res.isCorrect, `Pool context_cloze ${pex.id} failed gradeAnswer`).toBe(true);
               } else if (pex.type === 'listen_decode') {
                 expect(pex.voiceFallbackPhoneticPrompt.trim()).not.toBe('');
                 expect(pex.tapHints.length, `${pex.id} missing tapHints`).toBeGreaterThan(0);
@@ -378,10 +408,10 @@ describe('Phase 4+ / Wave 3: End-to-End 896-Node Playtest across 16 Languages, D
       }
     }
 
-    // Play a Unit 1 AND Unit 8 lesson node in LessonArena Run 1, then click "Play Fresh Remix!" -> 0% ID overlap!
+    // Play a Unit 1, Unit 8, AND Unit 16 (C1+) lesson node in LessonArena Run 1, then click "Play Fresh Remix!" -> 0% ID overlap!
     for (const sampleLang of ['es', 'ar', 'zh'] as const) {
       vaultActions.setActiveLanguage(sampleLang);
-      for (const unitIndex of [0, 7] as const) {
+      for (const unitIndex of [0, 7, 15] as const) {
         const sampleLesson = COURSES[sampleLang].units[unitIndex].nodes.find((n) => n.nodeType === 'lesson')!;
         const seenBefore = loadVaultFromStorage().profiles[0].languageProgress[sampleLang].seenExerciseIds ?? [];
         const run1Expected = getPlayableNodeExercises(sampleLang, sampleLesson.id, seenBefore, false);
@@ -578,5 +608,38 @@ describe('Phase 4+ / Wave 3: End-to-End 896-Node Playtest across 16 Languages, D
       });
     }
     expect(loadVaultFromStorage().profiles[0].secretArcadeUnlocked).toBe(true);
+  });
+
+  it('plays Tier Placement Checkpoint nodes (B1, B2) through LessonArena to unlock tiers & skipped prerequisites cleanly', () => {
+    vi.useFakeTimers();
+
+    vaultActions.setActiveLanguage('es');
+    const b1Checkpoint = buildTierCheckpointNode('es', 'B1');
+    const onExit = vi.fn();
+    const { unmount } = render(<LessonArena node={b1Checkpoint} language="es" onExit={onExit} />);
+
+    for (const ex of b1Checkpoint.exercises) {
+      playSingleExerciseInDom(ex);
+    }
+
+    expect(document.body.textContent ?? '').toContain(`${b1Checkpoint.title} Complete!`);
+    expect(document.body.textContent ?? '').toContain('Tier Unlocked:');
+
+    const profileAfter = loadVaultFromStorage().profiles[0];
+    expect(profileAfter.languageProgress.es.unlockedTiers).toContain('B1');
+    expect(profileAfter.languageProgress.es.currentUnitIndex).toBe(8);
+    expect(profileAfter.stats.checkpointsPassed).toBe(1);
+    expect(profileAfter.badges).toContain('storyweaver_b1');
+    // Units 1-8 (56 nodes) marked as completed prerequisites
+    expect(profileAfter.languageProgress.es.completedNodeIds.length).toBeGreaterThanOrEqual(56);
+
+    fireEvent.click(requireButtonByText('Return to Atlas Map'));
+    expect(onExit).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      vi.runOnlyPendingTimers();
+    });
+    unmount();
+    cleanup();
   });
 });

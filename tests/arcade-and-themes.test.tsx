@@ -5,15 +5,17 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { ArcadeHub } from '../src/components/arcade/ArcadeHub';
+import { CafeOrderRushArcade } from '../src/components/arcade/CafeOrderRushArcade';
+import { StarlightBridgeArcade } from '../src/components/arcade/StarlightBridgeArcade';
 import { FALLBACK_ARCADE_LEXICON } from '../src/components/arcade/arcadeShared';
 import { AdventureMap } from '../src/components/map/AdventureMap';
 import { getCourse } from '../src/curriculum';
 import { createDefaultVault, loadVaultFromStorage, vaultActions } from '../src/store/useVaultStore';
-import { LANGUAGE_LIST, LANGUAGE_META } from '../src/types/contracts';
+import { LANGUAGE_LIST, LANGUAGE_META, PROFICIENCY_TIERS } from '../src/types/contracts';
 
 const ROOT_DIR = resolve(__dirname, '..');
 
-describe('Wave 3 Adversarial UI: Zero-Scroll 100dvh Shell, 8-Chapter Map, Cosmic Galaxy Themes & All 7 Arcade Games', () => {
+describe('Wave 3 Adversarial UI: Zero-Scroll 100dvh Shell, 16-Unit 5-Tier Map, 15 UI Palettes & All 9 Proficiency-Scaled Arcade Games', () => {
   beforeEach(() => {
     window.localStorage.clear();
     vaultActions.resetVaultToDefaults();
@@ -25,7 +27,7 @@ describe('Wave 3 Adversarial UI: Zero-Scroll 100dvh Shell, 8-Chapter Map, Cosmic
     vi.restoreAllMocks();
   });
 
-  it('enforces zero-scroll 100dvh game console shell and all 8 theme palettes in src/styles/theme.css', () => {
+  it('enforces zero-scroll 100dvh game console shell and all 15 UI palettes (default + 14 theme_*) in src/styles/theme.css', () => {
     const css = readFileSync(resolve(ROOT_DIR, 'src/styles/theme.css'), 'utf8');
 
     // Global root lock: no outer page scrollbars
@@ -34,7 +36,8 @@ describe('Wave 3 Adversarial UI: Zero-Scroll 100dvh Shell, 8-Chapter Map, Cosmic
     expect(css).toMatch(/\.app-main-column\s*\{[^}]*flex:\s*1\s+1\s+auto;[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;/s);
     expect(css).toMatch(/\.app-main-content\s*\{[^}]*flex:\s*1\s+1\s+auto;[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;/s);
 
-    // Every unlockable palette theme must define CSS variables
+    expect(css).toContain(':root');
+    // Every unlockable palette theme (14 themes + default = 15 total palettes) must define CSS variables
     const themeSelectors = [
       'theme_sunset_plaza',
       'theme_starlight_indigo',
@@ -44,21 +47,29 @@ describe('Wave 3 Adversarial UI: Zero-Scroll 100dvh Shell, 8-Chapter Map, Cosmic
       'theme_candy_sakura',
       'theme_ocean_lagoon',
       'theme_royal_velvet',
+      'theme_kyoto_matcha',
+      'theme_sahara_mirage',
+      'theme_emerald_rainforest',
+      'theme_neon_night_market',
+      'theme_nordic_fjord',
+      'theme_laureate_imperial',
     ];
+    expect(themeSelectors).toHaveLength(14);
     for (const id of themeSelectors) {
       expect(css, `Missing CSS variables block for ${id}`).toContain(`[data-theme='${id}']`);
     }
   });
 
-  it('switches Chapters 1..8 cleanly on AdventureMap across all 16 languages without console errors/warnings', async () => {
+  it('switches Chapters 1..16 cleanly with 5-tier CEFR Atlas Ribbon and placement checkpoint trigger across all 16 languages without console errors/warnings', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     for (const lang of LANGUAGE_LIST) {
       const course = getCourse(lang);
-      expect(course.units).toHaveLength(8);
+      expect(course.units).toHaveLength(16);
       const profile = createDefaultVault().profiles[0];
       const onSelectUnit = vi.fn();
+      const onStartTierCheckpoint = vi.fn();
 
       const { unmount } = render(
         <AdventureMap
@@ -67,14 +78,21 @@ describe('Wave 3 Adversarial UI: Zero-Scroll 100dvh Shell, 8-Chapter Map, Cosmic
           equippedCosmetics={profile.equippedCosmetics}
           onSelectNode={vi.fn()}
           onSelectUnit={onSelectUnit}
+          onStartTierCheckpoint={onStartTierCheckpoint}
         />
       );
 
       expect(document.querySelector(`svg[data-flag="${lang}"]`)).toBeInTheDocument();
 
+      // 5-tier CEFR Atlas Ribbon present
+      const ribbon = screen.getByRole('navigation', { name: 'CEFR proficiency tiers' });
+      for (const tier of PROFICIENCY_TIERS) {
+        expect(ribbon.querySelector(`[data-tier-pill="${tier}"]`), `Missing tier pill ${tier}`).toBeInTheDocument();
+      }
+
       const tabList = screen.getByRole('tablist', { name: 'Unit quick-jump tabs' });
       const tabs = within(tabList).getAllByRole('tab');
-      expect(tabs).toHaveLength(8);
+      expect(tabs).toHaveLength(16);
 
       // Step forward using Next chapter arrow (0 -> 1)
       fireEvent.click(screen.getByRole('button', { name: 'Next chapter' }));
@@ -84,25 +102,35 @@ describe('Wave 3 Adversarial UI: Zero-Scroll 100dvh Shell, 8-Chapter Map, Cosmic
       });
       expect(screen.getByText(course.units[1].title)).toBeInTheDocument();
 
-      // Jump straight to Chapter 8
-      const unit8 = course.units[7];
-      fireEvent.click(within(tabList).getByRole('tab', { name: `Chapter 8: ${unit8.title}` }));
-      expect(onSelectUnit).toHaveBeenLastCalledWith(7);
+      // Jump via B1 tier pill -> Unit 9 and trigger "Test into B1" checkpoint
+      fireEvent.click(ribbon.querySelector('[data-tier-pill="B1"]')!);
+      expect(onSelectUnit).toHaveBeenLastCalledWith(8);
       await waitFor(() => {
-        expect(document.querySelector(`[data-unit-id="${unit8.id}"]`)).toBeInTheDocument();
+        expect(document.querySelector(`[data-unit-id="${course.units[8].id}"]`)).toBeInTheDocument();
       });
-      expect(screen.getByText(unit8.title)).toBeInTheDocument();
-      for (const node of unit8.nodes) {
+      const checkpointBtn = screen.getByRole('button', { name: 'Test into B1' });
+      fireEvent.click(checkpointBtn);
+      expect(onStartTierCheckpoint).toHaveBeenLastCalledWith('B1');
+
+      // Jump straight to Chapter 16 (C1+)
+      const unit16 = course.units[15];
+      fireEvent.click(within(tabList).getByRole('tab', { name: `Chapter 16: ${unit16.title}` }));
+      expect(onSelectUnit).toHaveBeenLastCalledWith(15);
+      await waitFor(() => {
+        expect(document.querySelector(`[data-unit-id="${unit16.id}"]`)).toBeInTheDocument();
+      });
+      expect(screen.getByText(unit16.title)).toBeInTheDocument();
+      for (const node of unit16.nodes) {
         expect(document.querySelector(`[data-node-id="${node.id}"]`)).toBeInTheDocument();
       }
 
-      // Return via Previous chapter arrow (7 -> 6)
+      // Return via Previous chapter arrow (15 -> 14)
       fireEvent.click(screen.getByRole('button', { name: 'Previous chapter' }));
-      expect(onSelectUnit).toHaveBeenLastCalledWith(6);
+      expect(onSelectUnit).toHaveBeenLastCalledWith(14);
       await waitFor(() => {
-        expect(document.querySelector(`[data-unit-id="${course.units[6].id}"]`)).toBeInTheDocument();
+        expect(document.querySelector(`[data-unit-id="${course.units[14].id}"]`)).toBeInTheDocument();
       });
-      expect(screen.getByText(course.units[6].title)).toBeInTheDocument();
+      expect(screen.getByText(course.units[14].title)).toBeInTheDocument();
 
       unmount();
       cleanup();
@@ -155,28 +183,38 @@ describe('Wave 3 Adversarial UI: Zero-Scroll 100dvh Shell, 8-Chapter Map, Cosmic
     expect(warnSpy, `Unexpected console.warn calls: ${JSON.stringify(warnSpy.mock.calls)}`).not.toHaveBeenCalled();
   });
 
-  it('launches, plays interactive turns, records high scores, and exits all 7 Arcade mini-games cleanly via ArcadeHub', () => {
+  it('launches, plays interactive turns, scales Sprout/Voyager/Master XP, records high scores, and exits all 9 Arcade mini-games cleanly via ArcadeHub', () => {
     vi.useFakeTimers();
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 1);
     vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    // Unlock the 7th secret game so all 7 cabinets are playable in ArcadeHub
+    // Unlock the 9th secret game so all 9 cabinets are playable in ArcadeHub
     expect(vaultActions.unlockSecretArcade()).toBe(true);
     const onExitToMap = vi.fn();
 
     render(<ArcadeHub onExitToMap={onExitToMap} />);
     expect(screen.getByRole('region', { name: 'Wanderling Arcade Hub' })).toBeInTheDocument();
 
-    // All 7 games visible on hub
+    // All 9 games visible on hub
     expect(screen.getByText('Sky-Catcher Fiesta')).toBeInTheDocument();
     expect(screen.getByText('Cosmic Meteor Blaster')).toBeInTheDocument();
     expect(screen.getByText('Gelato & Pastry Tower')).toBeInTheDocument();
     expect(screen.getByText('Constellation Memory Twins')).toBeInTheDocument();
     expect(screen.getByText('Alpine Express Switcher')).toBeInTheDocument();
     expect(screen.getByText('Beat Kitchen Rhythm')).toBeInTheDocument();
+    expect(screen.getByText('Polyglot Café Order Rush')).toBeInTheDocument();
+    expect(screen.getByText('Starlight Bridge Cloze Builder')).toBeInTheDocument();
     expect(screen.getByText('Starlight Critter Choir')).toBeInTheDocument();
+
+    // Selectable Sprout / Voyager / Master tier buttons
+    const tierGroup = screen.getByRole('group', { name: 'Arcade proficiency tier' });
+    expect(within(tierGroup).getByRole('button', { name: /Sprout/i })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(within(tierGroup).getByRole('button', { name: /Voyager/i }));
+    expect(within(tierGroup).getByRole('button', { name: /Voyager/i })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(within(tierGroup).getByRole('button', { name: /Master/i }));
+    expect(within(tierGroup).getByRole('button', { name: /Master/i })).toHaveAttribute('aria-pressed', 'true');
 
     // 1. Sky-Catcher Fiesta (sky_catcher)
     fireEvent.click(screen.getByRole('button', { name: 'Play Sky-Catcher' }));
@@ -229,15 +267,32 @@ describe('Wave 3 Adversarial UI: Zero-Scroll 100dvh Shell, 8-Chapter Map, Cosmic
     expect(screen.getByText('Beat Kitchen Rhythm Complete!')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Back to Arcade Hub' }));
 
-    // 7. Starlight Critter Choir (starlight_choir)
+    // 7. Polyglot Café Order Rush (cafe_order_rush)
+    fireEvent.click(screen.getByRole('button', { name: 'Serve Café Rush' }));
+    fireEvent.click(screen.getByRole('button', { name: /Start Café Rush!/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Platter 1/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
+    expect(screen.getByText('Polyglot Café Order Rush Complete!')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Arcade Hub' }));
+
+    // 8. Starlight Bridge Cloze Builder (starlight_bridge)
+    fireEvent.click(screen.getByRole('button', { name: 'Build Star Bridge' }));
+    fireEvent.click(screen.getByRole('button', { name: /Start Bridge Sprint!/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Plank 1/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
+    expect(screen.getByText('Starlight Bridge Complete!')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Arcade Hub' }));
+
+    // 9. Starlight Critter Choir (starlight_choir)
     fireEvent.click(screen.getByRole('button', { name: /Play Starlight Critter Choir!/i }));
     fireEvent.click(screen.getByRole('button', { name: /Start Critter Choir!/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Claim Rewards' }));
     expect(screen.getByText('Encore! Starlight Critter Choir Complete!')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Back to Arcade Hub' }));
 
-    // All 7 game IDs must now exist in activeProfile.arcadeHighScores
+    // All 9 game IDs must now exist in activeProfile.arcadeHighScores and Master tier XP scaled cleanly
     const profileAfter = loadVaultFromStorage().profiles[0];
+    expect(profileAfter.totalXp).toBeGreaterThanOrEqual(500);
     for (const gameId of [
       'sky_catcher',
       'meteor_blaster',
@@ -245,6 +300,8 @@ describe('Wave 3 Adversarial UI: Zero-Scroll 100dvh Shell, 8-Chapter Map, Cosmic
       'constellation_memory',
       'train_switcher',
       'rhythm_chef',
+      'cafe_order_rush',
+      'starlight_bridge',
       'starlight_choir',
     ]) {
       expect(
@@ -334,5 +391,70 @@ describe('Wave 3 Adversarial UI: Zero-Scroll 100dvh Shell, 8-Chapter Map, Cosmic
 
     expect(errSpy, `Unexpected console.error calls: ${JSON.stringify(errSpy.mock.calls)}`).not.toHaveBeenCalled();
     expect(warnSpy, `Unexpected console.warn calls: ${JSON.stringify(warnSpy.mock.calls)}`).not.toHaveBeenCalled();
+  });
+
+  it('supports RTL/romanized rendering in CafeOrderRushArcade and StarlightBridgeArcade and switches new UI palettes (Kyoto Matcha & Laureate Imperial)', () => {
+    vi.useFakeTimers();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 1);
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+
+    for (const lang of ['ar', 'arz', 'zh', 'ja'] as const) {
+      vaultActions.setActiveLanguage(lang);
+
+      const { container: cafeCont, unmount: unmountCafe } = render(
+        <CafeOrderRushArcade arcadeTier="voyager" onExit={vi.fn()} />
+      );
+      fireEvent.click(screen.getByRole('button', { name: /Start Café Rush!/i }));
+      if (LANGUAGE_META[lang].dir === 'rtl') {
+        expect(cafeCont.querySelectorAll('[dir="rtl"]').length).toBeGreaterThan(0);
+      }
+      fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
+      expect(screen.getByText('Polyglot Café Order Rush Complete!')).toBeInTheDocument();
+      unmountCafe();
+      cleanup();
+
+      const { container: bridgeCont, unmount: unmountBridge } = render(
+        <StarlightBridgeArcade arcadeTier="master" onExit={vi.fn()} />
+      );
+      fireEvent.click(screen.getByRole('button', { name: /Start Bridge Sprint!/i }));
+      if (LANGUAGE_META[lang].dir === 'rtl') {
+        expect(bridgeCont.querySelectorAll('[dir="rtl"]').length).toBeGreaterThan(0);
+      }
+      fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
+      expect(screen.getByText('Starlight Bridge Complete!')).toBeInTheDocument();
+      unmountBridge();
+      cleanup();
+    }
+
+    // Unlock and equip the 6 new UI palettes via CompanionShop -> TopHud
+    vaultActions.completeMapNode({
+      language: 'ja',
+      nodeId: 'ja-seed',
+      stars: 3,
+      xpEarned: 30,
+      gemsEarned: 500,
+      unlockedVocabIds: [],
+      maxCombo: 0,
+    });
+    render(<App />);
+    const appRoot = document.querySelector('.app-root');
+    fireEvent.click(screen.getByRole('button', { name: /Gem Shop/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'UI Themes' }));
+    expect(screen.getByText('Kyoto Matcha Courtyard')).toBeInTheDocument();
+    expect(screen.getByText('Sahara Starlight Mirage')).toBeInTheDocument();
+    expect(screen.getByText('Emerald Canopy Mist')).toBeInTheDocument();
+    expect(screen.getByText('Lantern Night Market')).toBeInTheDocument();
+    expect(screen.getByText('Nordic Fjord Frost')).toBeInTheDocument();
+    expect(screen.getByText('Grand Laureate Imperial')).toBeInTheDocument();
+    const matchaRow = screen.getByRole('button', { name: 'Preview Kyoto Matcha Courtyard' }).parentElement!;
+    fireEvent.click(within(matchaRow).getByRole('button', { name: /Buy & Equip/i }));
+    expect(appRoot?.getAttribute('data-theme')).toBe('theme_kyoto_matcha');
+    const imperialRow = screen.getByRole('button', { name: 'Preview Grand Laureate Imperial' }).parentElement!;
+    fireEvent.click(within(imperialRow).getByRole('button', { name: /Buy & Equip/i }));
+    expect(appRoot?.getAttribute('data-theme')).toBe('theme_laureate_imperial');
+
+    act(() => {
+      vi.runOnlyPendingTimers();
+    });
   });
 });

@@ -6,12 +6,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { SkyCatcherArcade } from '../src/components/arcade/SkyCatcherArcade';
 import { BossGauntletView } from '../src/components/lesson/BossGauntletView';
+import { ContextClozeView } from '../src/components/lesson/ContextClozeView';
 import { DiscoveryCardView } from '../src/components/lesson/DiscoveryCardView';
 import { LessonArena } from '../src/components/lesson/LessonArena';
 import { ListenDecodeView } from '../src/components/lesson/ListenDecodeView';
 import { MiniStoryView } from '../src/components/lesson/MiniStoryView';
 import { PairMatchRushView } from '../src/components/lesson/PairMatchRushView';
 import { TapHintText } from '../src/components/lesson/TapHintText';
+import { WordBankTray } from '../src/components/lesson/WordBankTray';
 import { WordBankView } from '../src/components/lesson/WordBankView';
 import { AdventureMap } from '../src/components/map/AdventureMap';
 import { CompanionShop } from '../src/components/meta/CompanionShop';
@@ -20,11 +22,14 @@ import { PhrasebookVault } from '../src/components/meta/PhrasebookVault';
 import { ProfileVaultModal } from '../src/components/shell/ProfileVaultModal';
 import { TopHud } from '../src/components/shell/TopHud';
 import { getCourse } from '../src/curriculum';
-import { createDefaultVault, vaultActions } from '../src/store/useVaultStore';
+import { createDefaultVault, loadVaultFromStorage, vaultActions } from '../src/store/useVaultStore';
 import {
+  FREE_RECALL_BONUS_GEMS,
+  FREE_RECALL_BONUS_XP,
   LANGUAGE_LIST,
   LANGUAGE_META,
   type BossGauntletExercise,
+  type ContextClozeExercise,
   type ListenDecodeExercise,
   type MapNode,
   type MiniStoryExercise,
@@ -497,9 +502,13 @@ describe('Challenge 6: UI/CSS/Component Static & DOM Red-Team Audit', () => {
     expect(onBossComplete).toHaveBeenCalledWith(bossEx.rewardChestGems);
     unmountBoss();
 
-    // 5. LeagueAndBadges renders all 12 badges and leaderboard
+    // 5. LeagueAndBadges renders all 24 badges and all 8 league tiers
     render(<LeagueAndBadges />);
-    expect(screen.getByText(/Expedition Badges \(0 \/ 12\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Expedition Badges \(0 \/ 24\)/i)).toBeInTheDocument();
+    expect(screen.getByText('Grand Polyglot Laureate')).toBeInTheDocument();
+    expect(screen.getByText('Amethyst Symposium')).toBeInTheDocument();
+    expect(screen.getByText('Emerald Diplomat')).toBeInTheDocument();
+    expect(screen.getByText('Laureate Legend')).toBeInTheDocument();
   });
 
   it('renders all 16 SVG flags and bounded pickers in TopHud, PhrasebookVault, and ProfileVaultModal', () => {
@@ -806,5 +815,234 @@ describe('Challenge 6: UI/CSS/Component Static & DOM Red-Team Audit', () => {
       unmount();
       cleanup();
     }
+  });
+
+  it('plays ContextClozeView inside LessonArena with bridge Peek toggle, 1.12x fluent speech, Nuance Spotlight, and clozeSolved tracking', () => {
+    const u9Cloze = getCourse('es').units[8].nodes
+      .flatMap((n) => n.exercises)
+      .find((ex): ex is ContextClozeExercise => ex.type === 'context_cloze')!;
+    expect(u9Cloze).toBeDefined();
+
+    const clozeNode: MapNode = {
+      id: 'test-cloze-b1',
+      unitId: 'es-u9',
+      order: 1,
+      nodeType: 'lesson',
+      proficiencyTier: 'B1',
+      title: 'Storyweaver Cloze Trial',
+      subtitle: 'Context nuance verification',
+      xpReward: 40,
+      gemReward: 20,
+      exercises: [u9Cloze],
+      rewardVocabIds: u9Cloze.vocabIds,
+    };
+
+    render(<LessonArena node={clozeNode} language="es" onExit={vi.fn()} />);
+
+    // B1 bridge mode hides phonetics until Peek Phonetic / Romanized is toggled
+    const peekBtn = screen.getByRole('button', { name: /Peek Phonetic \/ Romanized/i });
+    fireEvent.click(peekBtn);
+    expect(screen.getByRole('button', { name: /Hide Phonetic \/ Romanized/i })).toBeInTheDocument();
+
+    // 1.12x Fluent speed audio increments fluentPlaysCount
+    fireEvent.click(screen.getByRole('button', { name: '1.12x Fluent speed audio' }));
+    expect(loadVaultFromStorage().profiles[0].stats.fluentPlaysCount).toBe(1);
+
+    // Choose expectedBlank and check
+    fireEvent.click(screen.getByRole('radio', { name: u9Cloze.expectedBlank }));
+    fireEvent.click(screen.getByRole('button', { name: 'Check' }));
+
+    const spotlight = screen.getByRole('note', { name: 'Nuance and Register Spotlight' });
+    expect(spotlight).toHaveTextContent(u9Cloze.nuanceNote);
+    expect(loadVaultFromStorage().profiles[0].stats.clozeSolved).toBe(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(screen.getByText(`${clozeNode.title} Complete!`)).toBeInTheDocument();
+
+    // Verify standalone ContextClozeView also renders Arabic RTL cleanly
+    cleanup();
+    const arCloze = getCourse('ar').units[12].nodes
+      .flatMap((n) => n.exercises)
+      .find((ex): ex is ContextClozeExercise => ex.type === 'context_cloze')!;
+    const { container } = render(
+      <ContextClozeView
+        exercise={arCloze}
+        language="ar"
+        compact={false}
+        locked={false}
+        revealed
+        scaffoldingMode="bridge"
+        onTurtlePlay={vi.fn()}
+        onDraftChange={vi.fn()}
+      />
+    );
+    expect(container.querySelector('[dir="rtl"]')).toBeInTheDocument();
+  });
+
+  it('supports C1+ dense WordBankTray chips, Keyboard Free-Recall mode with helperAccents & bonus XP/Gems, and Zero-Heart Elixir recovery', () => {
+    // 1. Dense chip tray when >= 9 tokens
+    const denseTokens = Array.from({ length: 10 }, (_, i) => `tok${i + 1}`);
+    const { unmount: unmountTray } = render(
+      <WordBankTray
+        seed="dense-test"
+        targetTokens={denseTokens}
+        distractorTokens={['extra1', 'extra2']}
+        selectedTileUids={[]}
+        onChangeSelected={vi.fn()}
+      />
+    );
+    expect(screen.getByLabelText('Answer tray')).toHaveAttribute('data-dense', 'true');
+    expect(document.querySelectorAll('.word-bank-chip.is-dense').length).toBeGreaterThanOrEqual(10);
+    unmountTray();
+    cleanup();
+
+    // 2. C1_C2 Keyboard Free-Recall on WordBank + Zero-Heart Elixir Recovery
+    const frEx: WordBankExercise = {
+      type: 'word_bank',
+      id: 'free-recall-es-c1',
+      direction: 'to_foreign',
+      promptText: 'The key proverb shines today!',
+      promptTokens: [],
+      expectedSentence: 'El niño escribió una canción',
+      acceptedSentences: ['El niño escribió una canción'],
+      targetTokens: ['El', 'niño', 'escribió', 'una', 'canción'],
+      distractorTokens: ['ayer'],
+      phoneticHint: 'el NEE-nyoh',
+      allowFreeRecall: true,
+      vocabIds: [],
+    };
+    const c1Node: MapNode = {
+      id: 'es-u16-test',
+      unitId: 'es-u16',
+      order: 1,
+      nodeType: 'lesson',
+      proficiencyTier: 'C1_C2',
+      title: 'Laureate Recall Trial',
+      subtitle: 'Free-recall & elixir check',
+      xpReward: 65,
+      gemReward: 35,
+      exercises: [frEx],
+      rewardVocabIds: [],
+    };
+
+    // Leave 1 heart so 1 mistake triggers Zero-Heart Modal, with default 80 gems (> 35g Elixir)
+    for (let i = 0; i < 4; i++) {
+      vaultActions.recordAnswerOutcome({ isCorrect: false, comboCount: 0 });
+    }
+    render(<LessonArena node={c1Node} language="es" onExit={vi.fn()} />);
+
+    // Open Keyboard Free-Recall mode
+    const recallBtn = screen.getByRole('button', { name: /Keyboard Free-Recall/i });
+    fireEvent.click(recallBtn);
+    expect(screen.getByText(/Keyboard Free-Recall Active!/i)).toBeInTheDocument();
+
+    // Submit wrong answer -> 0 hearts -> Zero-Heart Recovery Modal offers Buy & Use Heart Refill Elixir (35 Gems)
+    const input = screen.getByLabelText('Type your translation');
+    fireEvent.change(input, { target: { value: 'respuesta equivocada' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Check' }));
+
+    const rechargeDialog = screen.getByRole('dialog', { name: 'Recharge Hearts' });
+    fireEvent.click(within(rechargeDialog).getByRole('button', { name: /Buy & Use Heart Refill Elixir \(35 Gems\)/i }));
+    expect(screen.queryByRole('dialog', { name: 'Recharge Hearts' })).not.toBeInTheDocument();
+    expect(loadVaultFromStorage().profiles[0].hearts).toBe(5);
+
+    // WordBankView stays in free-recall typing mode after Elixir refill
+    const retryInput = screen.getByLabelText('Type your translation') as HTMLInputElement;
+    fireEvent.change(retryInput, { target: { value: 'El ni' } });
+    fireEvent.click(within(screen.getByLabelText('Accent character bar')).getByRole('button', { name: 'ñ' }));
+    expect(retryInput.value).toBe('El niñ');
+    fireEvent.change(retryInput, { target: { value: 'El niño escribio una cancion' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Check' }));
+
+    expect(screen.getByText(/Free-Recall \+ Accent Spotlight!/i)).toBeInTheDocument();
+    expect(loadVaultFromStorage().profiles[0].stats.freeRecallSolved).toBe(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(screen.getByText(`${c1Node.title} Complete!`)).toBeInTheDocument();
+    const afterVictoryProfile = loadVaultFromStorage().profiles[0];
+    expect(afterVictoryProfile.totalXp).toBe(65 + 2 + FREE_RECALL_BONUS_XP);
+    expect(afterVictoryProfile.gems).toBe(80 - 35 + 35 + FREE_RECALL_BONUS_GEMS);
+  });
+
+  it('exercises CompanionShop Companion Switcher (5 companions), Props/Pets slots, Power-Ups, Avatars, TopHud 2x XP/8 hearts, ProfileVaultModal pack, and PhrasebookVault CEFR tier filters', () => {
+    // Give plenty of gems to buy props, pets, Heart Crystal, 2x XP Booster, and Avatar crest
+    vaultActions.completeMapNode({
+      language: 'es',
+      nodeId: 'es-seed-shop',
+      stars: 3,
+      xpEarned: 30,
+      gemsEarned: 700,
+      unlockedVocabIds: ['es-u1-c1', getCourse('es').units[8].vocabCards[0].id],
+      maxCombo: 2,
+    });
+
+    const { unmount: unmountApp } = render(<App />);
+
+    // Navigate to Gem Shop
+    fireEvent.click(screen.getByRole('button', { name: /Gem Shop/i }));
+    expect(screen.getByRole('region', { name: 'Companion Gem Shop' })).toBeInTheDocument();
+
+    // Switch preview pedestal across Mateo, Colette, Benni, Luca, Pip
+    const switcher = screen.getByRole('group', { name: 'Preview companion switcher' });
+    fireEvent.click(within(switcher).getByRole('button', { name: 'Mateo' }));
+    expect(document.querySelector('[data-companion="mateo"]')).toBeInTheDocument();
+    fireEvent.click(within(switcher).getByRole('button', { name: 'Colette' }));
+    expect(document.querySelector('[data-companion="colette"]')).toBeInTheDocument();
+    fireEvent.click(within(switcher).getByRole('button', { name: 'Benni' }));
+    expect(document.querySelector('[data-companion="benni"]')).toBeInTheDocument();
+    fireEvent.click(within(switcher).getByRole('button', { name: 'Luca' }));
+    expect(document.querySelector('[data-companion="luca"]')).toBeInTheDocument();
+
+    // Buy & equip a Prop and a Pet and check MascotStage data-equipped-cosmetics
+    fireEvent.click(screen.getByRole('button', { name: 'Props' }));
+    expect(screen.getByText('Campfire Explorer Ukulele')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Buy & Equip \(70\)/i }));
+    expect(document.querySelector('[data-companion="luca"]')?.getAttribute('data-equipped-cosmetics')).toContain('prop_explorer_ukulele');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pets' }));
+    expect(screen.getByText('Origami Sky Crane')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Buy & Equip \(90\)/i }));
+    expect(document.querySelector('[data-companion="luca"]')?.getAttribute('data-equipped-cosmetics')).toContain('pet_origami_crane');
+
+    // Buy Power-Ups: Heart Refill Elixir (pack +1), Heart Container Crystal (maxHearts 5 -> 6), 2x XP Booster (+3 charges)
+    fireEvent.click(screen.getByRole('button', { name: 'Power-Ups' }));
+    fireEvent.click(screen.getByRole('button', { name: /Buy Elixir \(35 Gems\)/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Upgrade Heart \(110 Gems\)/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Buy \+3 Charges \(65 Gems\)/i }));
+
+    // TopHud immediately shows 2x XP Booster badge (3 charges) and 6 of 6 Hearts!
+    expect(screen.getByLabelText('2x XP Booster: 3 charges remaining')).toBeInTheDocument();
+    expect(screen.getByLabelText('Hearts: 6 of 6')).toBeInTheDocument();
+
+    // Unlock Avatar crest in Avatars shelf
+    fireEvent.click(screen.getByRole('button', { name: 'Avatars' }));
+    fireEvent.click(screen.getAllByRole('button', { name: /Unlock Crest \(60 Gems\)/i })[0]);
+    expect(loadVaultFromStorage().profiles[0].avatarId).toBe('origami_crane_crest');
+
+    // ProfileVaultModal displays Elixirs, 2x XP charges, and newly unlocked Origami Crane avatar
+    fireEvent.click(screen.getByRole('button', { name: /Switch kid profile/i }));
+    const profileModal = screen.getByRole('dialog', { name: 'Explorer Profiles and Save Vault' });
+    expect(profileModal).toHaveTextContent('Elixirs: 1');
+    expect(profileModal).toHaveTextContent('2x XP: 3');
+    expect(within(profileModal).getByRole('button', { name: /Origami Crane$/i })).toBeInTheDocument();
+    fireEvent.click(within(profileModal).getByRole('button', { name: 'Close profiles modal' }));
+
+    // PhrasebookVault CEFR Proficiency Tier filter pills & 1.12x fluent audio
+    fireEvent.click(screen.getByRole('button', { name: /Phrasebook/i }));
+    const tierFilterGroup = screen.getByRole('group', { name: 'Filter phrasebook by CEFR tier' });
+    expect(within(tierFilterGroup).getByRole('button', { name: /All Tiers/i })).toBeInTheDocument();
+    expect(within(tierFilterGroup).getByRole('button', { name: /B1 · Storyweaver/i })).toBeInTheDocument();
+    expect(within(tierFilterGroup).getByRole('button', { name: /C1\+ · Polyglot Laureate/i })).toBeInTheDocument();
+
+    // Filter to B1 Storyweaver -> shows U9, U10, U11 only
+    fireEvent.click(within(tierFilterGroup).getByRole('button', { name: /B1 · Storyweaver/i }));
+    expect(screen.getByRole('button', { name: /^Unit 9:/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Unit 1:/i })).not.toBeInTheDocument();
+
+    // Click 1.12x fluent speech button on unlocked Unit 9 card
+    const b1Card = getCourse('es').units[8].vocabCards[0];
+    fireEvent.click(screen.getByRole('button', { name: `Speak ${b1Card.bareForeign} fluently` }));
+    expect(loadVaultFromStorage().profiles[0].stats.fluentPlaysCount).toBe(1);
+
+    unmountApp();
   });
 });

@@ -459,4 +459,155 @@ describe('Challenge 2: Adversarial Grader (Diacritics, Elisions, Smart Quotes, P
       expect(res.articleCoaching!.note).not.toContain('introduces this noun in');
     }
   });
+
+  it('grades multi-clause C1/C2 sentences cleanly across Latin, CJK (，；。), Arabic (،؛), and Indic (।॥) punctuation without false heart penalties', () => {
+    const exactMultiClauseCases = [
+      {
+        submitted: 'Although the voyage was long, we arrived safely; moreover — we learned much!',
+        expected: 'Although the voyage was long — we arrived safely; moreover, we learned much.',
+        lang: 'en' as const,
+      },
+      {
+        submitted: 'Aunque llovía mucho, seguimos adelante; sin embargo, llegamos a tiempo.',
+        expected: 'Aunque llovía mucho — seguimos adelante: sin embargo, llegamos a tiempo',
+        lang: 'es' as const,
+      },
+      {
+        submitted: "C'est pourquoi j'aime l'aventure — l'horizon s'ouvre, et l'espoir grandit!",
+        expected: "C'est pourquoi j' aime l' aventure, l'horizon s'ouvre; et l'espoir grandit",
+        lang: 'fr' as const,
+      },
+      {
+        submitted: "Anche se l'amica era stanca, continuò — d'altronde, l'idea era brillante.",
+        expected: "Anche se l' amica era stanca; continuò, d' altronde l' idea era brillante",
+        lang: 'it' as const,
+      },
+      {
+        submitted: 'Obwohl die Straße lang war — fanden wir große Freude; alle lächelten.',
+        expected: 'Obwohl die Straße lang war, fanden wir große Freude — alle lächelten!',
+        lang: 'de' as const,
+      },
+      {
+        submitted: '虽然路很远，但是我们坚持下去了；最后，大家都笑了！',
+        expected: '虽然路很远；但是我们坚持下去了 — 最后大家都笑了。',
+        lang: 'zh' as const,
+      },
+      {
+        submitted: '道は遠かったけれども、みんなで協力しました；そして、夢が叶いました！',
+        expected: '道は遠かったけれども；みんなで協力しました。そして夢が叶いました',
+        lang: 'ja' as const,
+      },
+      {
+        submitted: 'رغم أن الطريق طويل، واصلنا الرحلة؛ وفي النهاية، وصلنا إلى القمة؟',
+        expected: 'رغم أن الطريق طويل؛ واصلنا الرحلة، وفي النهاية وصلنا إلى القمة',
+        lang: 'ar' as const,
+      },
+      {
+        submitted: 'مع إن المشوار كان طويل، كملنا الرحلة؛ وفي الآخر فرحنا جداً!',
+        expected: 'مع إن المشوار كان طويل؛ كملنا الرحلة، وفي الآخر فرحنا جداً',
+        lang: 'arz' as const,
+      },
+      {
+        submitted: 'हालांकि रास्ता लंबा था, हमने हिम्मत नहीं हारी। अंत में हम सफल हुए॥',
+        expected: 'हालांकि रास्ता लंबा था; हमने हिम्मत नहीं हारी — अंत में हम सफल हुए',
+        lang: 'hi' as const,
+      },
+      {
+        submitted: 'পথ দীর্ঘ হলেও আমরা থামিনি। অবশেষে আমরা সফল হয়েছি॥',
+        expected: 'পথ দীর্ঘ হলেও আমরা থামিনি; অবশেষে আমরা সফল হয়েছি',
+        lang: 'bn' as const,
+      },
+    ];
+
+    for (const c of exactMultiClauseCases) {
+      const res = gradeAnswer({
+        submitted: c.submitted,
+        expected: c.expected,
+        language: c.lang,
+      });
+      expect(res.isCorrect, `Multi-clause grade failed for "${c.submitted}"`).toBe(true);
+      expect(res.exactMatch, `Multi-clause exactMatch failed for "${c.submitted}"`).toBe(true);
+      expect(res.heartPenalty).toBe(0);
+    }
+  });
+
+  it('supports diacritic-forgiving free-recall grading on multi-clause B2/C1/C2 sentences with structured AccentCoaching', () => {
+    const forgivingFreeRecallCases = [
+      {
+        submitted: 'Aunque llovia mucho, el nino sonrio; mas vale tarde que nunca',
+        expected: 'Aunque llovía mucho, el niño sonrió; más vale tarde que nunca.',
+        lang: 'es' as const,
+        highlights: ['í', 'ñ', 'ó', 'á'],
+      },
+      {
+        submitted: "C'est une idee brillante; neanmoins, l'etre humain prefere la serenite",
+        expected: "C'est une idée brillante; néanmoins, l'être humain préfère la sérénité.",
+        lang: 'fr' as const,
+        highlights: ['é', 'ê', 'è'],
+      },
+      {
+        submitted: 'Grosse Traume brauchen Geduld — fur die Zukunft offnen wir neue Turen',
+        expected: 'Große Träume brauchen Geduld — für die Zukunft öffnen wir neue Türen.',
+        lang: 'de' as const,
+        highlights: ['ß', 'ä', 'ü', 'ö'],
+      },
+      {
+        submitted: 'Embora a viagem seja longa, a esperanca nao desaparece; o coracao segue firme',
+        expected: 'Embora a viagem seja longa, a esperança não desaparece; o coração segue firme.',
+        lang: 'pt' as const,
+        highlights: ['ç', 'ã'],
+      },
+      {
+        submitted: 'Duong di tuy dai nhung chung ta van kien tri; thanh cong se den',
+        expected: 'Đường đi tuy dài nhưng chúng ta vẫn kiên trì; thành công sẽ đến.',
+        lang: 'vi' as const,
+        highlights: ['đ', 'ờ', 'à'],
+      },
+      {
+        submitted: 'Звезды сияют ярко; тем не менее, мы продолжаем путь вперед',
+        expected: 'Звёзды сияют ярко; тем не менее, мы продолжаем путь вперёд.',
+        lang: 'ru' as const,
+        highlights: ['ё'],
+      },
+      {
+        submitted: 'رغم ان الرحله طويله، فان الصبر مفتاح الفرج',
+        expected: 'رغم أن الرحلة طويلة، فإن الصبر مفتاح الفرج.',
+        lang: 'ar' as const,
+        highlights: ['أ', 'ة', 'إ'],
+      },
+      {
+        submitted: 'yi zhi du xiu — shuang shuang cheng dui',
+        expected: '一枝独秀 — 双双成对',
+        accepted: ['yī zhī dú xiù — shuāng shuāng chéng duì'],
+        lang: 'zh' as const,
+        highlights: ['ī', 'ú'],
+      },
+    ];
+
+    for (const c of forgivingFreeRecallCases) {
+      const res = gradeAnswer({
+        submitted: c.submitted,
+        expected: c.expected,
+        accepted: c.accepted,
+        language: c.lang,
+      });
+      expect(res.isCorrect, `Forgiving free-recall failed for "${c.submitted}"`).toBe(true);
+      expect(res.exactMatch).toBe(false);
+      expect(res.heartPenalty).toBe(0);
+      expect(res.accentCoaching, `Missing accentCoaching for "${c.submitted}"`).toBeDefined();
+      for (const h of c.highlights) {
+        expect(res.accentCoaching!.highlightedChars).toContain(h);
+      }
+      expect(res.accentCoaching!.friendlyTip.trim().length).toBeGreaterThan(10);
+    }
+
+    // Wrong multi-clause answer must still fail with heartPenalty: 1
+    const wrongMulti = gradeAnswer({
+      submitted: 'Aunque llovia mucho, nos fuimos a dormir inmediatamente',
+      expected: 'Aunque llovía mucho, seguimos adelante con alegría.',
+      language: 'es',
+    });
+    expect(wrongMulti.isCorrect).toBe(false);
+    expect(wrongMulti.heartPenalty).toBe(1);
+  });
 });
