@@ -9,6 +9,8 @@ import {
   GlassesLayer,
   HatLayer,
   MASCOT_INK,
+  PetLayer,
+  PropLayer,
   resolveThemePalette,
 } from './cosmeticsSvg';
 
@@ -208,13 +210,15 @@ export function MascotStage({
   const palette = resolveThemePalette(equippedCosmetics);
   const showSparkleBurst = comboCount >= 3 || pose === 'streak_fire' || pose === 'victory_dance';
   const bodyMotion = getBodyPoseMotion(pose);
-  const hasCustomGlasses = equippedCosmetics?.glasses === 'glasses_brass_aviator';
+  const hasCustomGlasses = Boolean(equippedCosmetics?.glasses);
 
   const equippedList = [
     equippedCosmetics?.hat,
     equippedCosmetics?.glasses,
     equippedCosmetics?.cape,
     equippedCosmetics?.aura,
+    equippedCosmetics?.prop,
+    equippedCosmetics?.pet,
     equippedCosmetics?.theme,
   ]
     .filter(Boolean)
@@ -348,8 +352,15 @@ export function MascotStage({
           <CapeLayer cape={equippedCosmetics?.cape} shoulderY={anchor.shoulderY} />
           <TailAndBackLayer companionId={companionId} pose={pose} uid={uid} />
 
-          {/* Layer 3: Torso + Expressive Arms/Wings */}
+          {/* Layer 3: Torso + Expressive Arms/Wings + Handheld Prop */}
           <BodyAndArmsLayer companionId={companionId} pose={pose} uid={uid} />
+          <PropLayer
+            prop={equippedCosmetics?.prop}
+            propX={anchor.propX}
+            propY={anchor.propY}
+            propSide={anchor.propSide}
+            uid={uid}
+          />
 
           {/* Layer 4 & 5: Head Group (micro-springs toward pointerTarget + joyful pose nod) + Face Cosmetics */}
           <motion.g
@@ -388,6 +399,14 @@ export function MascotStage({
             />
           </motion.g>
         </motion.g>
+
+        {/* Layer 5b: Animated Mini Sidekick Pet */}
+        <PetLayer
+          pet={equippedCosmetics?.pet}
+          petX={anchor.petX}
+          petY={anchor.petY}
+          uid={uid}
+        />
 
         {/* Pose-Specific Storytelling Props */}
         {pose === 'thinking' && (
