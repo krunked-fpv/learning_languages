@@ -3,12 +3,13 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { VOCAB_ILLUSTRATIONS } from '../src/art/VocabIllustration';
 import { joinWordBankTokens } from '../src/components/lesson/lessonHelpers';
-import { gradeAnswer } from '../src/core';
+import { gradeAnswer, normalizeAnswer } from '../src/core';
 import {
   COURSES,
   getArcadeLexicon,
   getCourse,
   getNodeById,
+  getPlayableNodeExercises,
   getUnitById,
   getVocabCard,
 } from '../src/curriculum';
@@ -16,6 +17,7 @@ import {
   ILLUSTRATION_KEYS,
   LANGUAGE_LIST,
   LANGUAGE_META,
+  type LessonExercise,
   type TapHintToken,
 } from '../src/types/contracts';
 
@@ -52,7 +54,7 @@ describe('Challenge 1: Curriculum Symmetry, Integrity, Safety & Art Coverage', (
   it('maps every single ILLUSTRATION_KEYS entry in VOCAB_ILLUSTRATIONS with zero missing or extra keys', () => {
     const expectedKeys = new Set<string>(ILLUSTRATION_KEYS);
     const implKeys = Object.keys(VOCAB_ILLUSTRATIONS);
-    expect(expectedKeys.size).toBe(60);
+    expect(expectedKeys.size).toBe(72);
     expect(implKeys.length).toBe(expectedKeys.size);
 
     for (const key of ILLUSTRATION_KEYS) {
@@ -80,18 +82,22 @@ describe('Challenge 1: Curriculum Symmetry, Integrity, Safety & Art Coverage', (
     }
   });
 
-  it('verifies all 4 courses have >= 5 units, >= 50 unique VocabCards, valid helpers, and symmetrical node structure', () => {
+  it('verifies all 4 courses have 8 units (56 nodes/lang = 224 total), >= 100 unique VocabCards each, valid helpers, and symmetrical node structure', () => {
     const validIllustrations = new Set<string>(ILLUSTRATION_KEYS);
     const globalCardIds = new Set<string>();
     const globalUnitIds = new Set<string>();
     const globalNodeIds = new Set<string>();
     const globalExerciseIds = new Set<string>();
+    let totalNodes = 0;
 
     for (const lang of LANGUAGE_LIST) {
       const course = COURSES[lang];
       expect(getCourse(lang)).toBe(course);
       expect(course.language).toBe(lang);
-      expect(course.units.length).toBeGreaterThanOrEqual(5);
+      expect(course.units).toHaveLength(8);
+      const courseNodes = course.units.flatMap((u) => u.nodes);
+      expect(courseNodes).toHaveLength(56);
+      totalNodes += courseNodes.length;
 
       const courseCardIds = new Set<string>();
       const usedIllustrations = new Set<string>();
@@ -293,12 +299,15 @@ describe('Challenge 1: Curriculum Symmetry, Integrity, Safety & Art Coverage', (
         }
       }
 
-      expect(courseCardIds.size, `${lang} must have >= 50 unique VocabCards`).toBeGreaterThanOrEqual(50);
+      expect(courseCardIds.size, `${lang} must have >= 100 unique VocabCards`).toBeGreaterThanOrEqual(100);
       expect(Object.keys(course.vocabById).length).toBe(courseCardIds.size);
       expect(listenMeaningCount, `${lang} needs select_meaning exercises`).toBeGreaterThan(0);
       expect(listenAssembleCount, `${lang} needs assemble_heard exercises`).toBeGreaterThan(0);
-      expect(usedIllustrations.size, `${lang} should cover rich variety of illustration keys`).toBeGreaterThanOrEqual(50);
+      expect(usedIllustrations.size, `${lang} should cover all 72 illustration keys`).toBeGreaterThanOrEqual(70);
     }
+
+    expect(globalCardIds.size).toBeGreaterThanOrEqual(400);
+    expect(totalNodes).toBe(224);
   });
 
   it('returns rich unique ArcadeLanternItems from getArcadeLexicon even for fresh profiles', () => {
@@ -325,6 +334,161 @@ describe('Challenge 1: Curriculum Symmetry, Integrity, Safety & Art Coverage', (
       const u5Card = COURSES[lang].units[4].vocabCards[0];
       const withUnlocked = getArcadeLexicon(lang, [u5Card.id], 0);
       expect(withUnlocked.some((item) => item.id === u5Card.id)).toBe(true);
+    }
+  });
+
+  it('enforces Linguistic Quality Gate: zero duplicate choices, zero wrong choice colliding with accepted answers, and clean token hygiene', () => {
+    const ELISION_SPACE_RE =
+      /\b(?:l|d|j|c|m|n|s|t|qu|un|dell|all|dall|nell|sull|quest|quell)'\s+[a-z\u00C0-\u024F]/i;
+
+    const verifyExerciseLinguistics = (lang: (typeof LANGUAGE_LIST)[number], ex: LessonExercise, ctx: string) => {
+      if (ex.type === 'word_bank') {
+        expect(ex.targetTokens.length, `${ctx}: empty targetTokens`).toBeGreaterThan(0);
+        for (const tok of [...ex.targetTokens, ...ex.distractorTokens]) {
+          expect(tok.trim(), `${ctx}: empty/whitespace word-bank token`).not.toBe('');
+          expect(tok, `${ctx}: untrimmed token "${tok}"`).toBe(tok.trim());
+        }
+        expect(
+          ELISION_SPACE_RE.test(ex.expectedSentence),
+          `${ctx}: broken space after elision in expectedSentence "${ex.expectedSentence}"`
+        ).toBe(false);
+        expect(
+          ELISION_SPACE_RE.test(ex.promptText),
+          `${ctx}: broken space after elision in promptText "${ex.promptText}"`
+        ).toBe(false);
+      } else if (ex.type === 'listen_decode') {
+        expect(
+          ELISION_SPACE_RE.test(ex.audioText),
+          `${ctx}: broken space after elision in audioText "${ex.audioText}"`
+        ).toBe(false);
+
+        if (ex.mode === 'select_meaning' && ex.choices) {
+          const seenChoices = new Set<string>();
+          for (const choice of ex.choices) {
+            const norm = normalizeAnswer(choice, { stripAccents: true });
+            expect(norm, `${ctx}: empty choice`).not.toBe('');
+            expect(seenChoices.has(norm), `${ctx}: duplicate choice "${choice}"`).toBe(false);
+            seenChoices.add(norm);
+
+            const isExpectedExact =
+              normalizeAnswer(choice, { stripAccents: true }) ===
+              normalizeAnswer(ex.englishMeaning, { stripAccents: true });
+            if (!isExpectedExact) {
+              const distractorGrade = gradeAnswer({
+                submitted: choice,
+                expected: ex.englishMeaning,
+                accepted: ex.acceptedAnswers,
+                language: lang,
+              });
+              expect(
+                distractorGrade.isCorrect,
+                `${ctx}: distractor "${choice}" collides with acceptedAnswers for "${ex.englishMeaning}"`
+              ).toBe(false);
+            }
+          }
+        } else if (ex.mode === 'assemble_heard' && ex.targetTokens) {
+          for (const tok of [...ex.targetTokens, ...(ex.distractorTokens ?? [])]) {
+            expect(tok.trim(), `${ctx}: empty listen token`).not.toBe('');
+            expect(tok, `${ctx}: untrimmed listen token "${tok}"`).toBe(tok.trim());
+          }
+        }
+      } else if (ex.type === 'mini_story') {
+        for (const bubble of ex.bubbles) {
+          expect(
+            ELISION_SPACE_RE.test(bubble.foreignText),
+            `${ctx}: broken space after elision in bubble ${bubble.id} "${bubble.foreignText}"`
+          ).toBe(false);
+        }
+        for (const dec of ex.decisions) {
+          const seenOpt = new Set<string>();
+          for (const opt of dec.options) {
+            const norm = normalizeAnswer(opt.label, { stripAccents: true });
+            expect(seenOpt.has(norm), `${ctx}: duplicate story decision option "${opt.label}"`).toBe(false);
+            seenOpt.add(norm);
+          }
+        }
+      } else if (ex.type === 'boss_gauntlet') {
+        for (const turn of ex.turns) {
+          expect(
+            ELISION_SPACE_RE.test(turn.companionSayForeign),
+            `${ctx}: broken space after elision in turn ${turn.id} "${turn.companionSayForeign}"`
+          ).toBe(false);
+          expect(
+            ELISION_SPACE_RE.test(turn.expectedAnswer),
+            `${ctx}: broken space after elision in turn ${turn.id} "${turn.expectedAnswer}"`
+          ).toBe(false);
+
+          if (turn.mode === 'choice' && turn.choices) {
+            const seenChoices = new Set<string>();
+            for (const choice of turn.choices) {
+              const norm = normalizeAnswer(choice, { stripAccents: true, expandGerman: lang === 'de' });
+              expect(seenChoices.has(norm), `${ctx}:${turn.id}: duplicate boss choice "${choice}"`).toBe(false);
+              seenChoices.add(norm);
+
+              const isExpected =
+                normalizeAnswer(choice, { stripAccents: true, expandGerman: lang === 'de' }) ===
+                normalizeAnswer(turn.expectedAnswer, { stripAccents: true, expandGerman: lang === 'de' });
+              if (!isExpected) {
+                const distractorGrade = gradeAnswer({
+                  submitted: choice,
+                  expected: turn.expectedAnswer,
+                  accepted: turn.acceptedAnswers,
+                  language: lang,
+                });
+                expect(
+                  distractorGrade.isCorrect,
+                  `${ctx}:${turn.id}: wrong boss choice "${choice}" collides with acceptedAnswers`
+                ).toBe(false);
+              }
+            }
+          }
+        }
+      }
+    };
+
+    for (const lang of LANGUAGE_LIST) {
+      const course = COURSES[lang];
+      for (const unit of course.units) {
+        for (const card of unit.vocabCards) {
+          expect(
+            ELISION_SPACE_RE.test(card.foreignWithArticle),
+            `Card ${card.id}: broken space after elision "${card.foreignWithArticle}"`
+          ).toBe(false);
+          expect(
+            ELISION_SPACE_RE.test(card.exampleForeign),
+            `Card ${card.id}: broken space after elision "${card.exampleForeign}"`
+          ).toBe(false);
+
+          if (lang === 'de') {
+            const singleDeNoun = /^(der|die|das|ein|eine)\s+([a-zäöüß][^\s]*)$/u.exec(
+              card.foreignWithArticle.trim()
+            );
+            expect(
+              singleDeNoun,
+              `German card ${card.id} noun should be capitalized in "${card.foreignWithArticle}"`
+            ).toBeNull();
+          }
+          if (lang === 'es') {
+            expect(/\b(la|una)\s+agua\b/i.test(`${card.foreignWithArticle} ${card.exampleForeign}`)).toBe(false);
+          }
+          if (lang === 'it') {
+            expect(/\bun['’]\s*[aeiouàèéìòù]/i.test(card.foreignWithArticle) && /\bun'\s+amico\b/i.test(card.foreignWithArticle)).toBe(false);
+            expect(/\bun['’]\s+[a-z]/i.test(card.foreignWithArticle)).toBe(false);
+          }
+        }
+
+        for (const node of unit.nodes) {
+          for (const ex of node.exercises) {
+            verifyExerciseLinguistics(lang, ex, `${lang}:authored:${ex.id}`);
+          }
+          if (node.nodeType !== 'chest') {
+            const deepPool = getPlayableNodeExercises(lang, node.id, [], false);
+            for (const ex of deepPool) {
+              verifyExerciseLinguistics(lang, ex, `${lang}:pool:${node.id}:${ex.id}`);
+            }
+          }
+        }
+      }
     }
   });
 });

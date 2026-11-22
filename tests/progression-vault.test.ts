@@ -57,6 +57,11 @@ const ALL_COSMETIC_IDS: readonly CosmeticId[] = [
   'theme_sunset_plaza',
   'theme_starlight_indigo',
   'theme_alpine_meadow',
+  'theme_cosmic_galaxy',
+  'theme_aurora_borealis',
+  'theme_candy_sakura',
+  'theme_ocean_lagoon',
+  'theme_royal_velvet',
 ];
 
 function cloneDefaultLeo(): KidProfile {
@@ -203,13 +208,27 @@ describe('Challenge 3-vault: Progression, Streaks, Badges, Leagues & Multi-Kid V
     }
   });
 
-  it('defines all 12 cosmetics and supports purchasing, equipping, Streak Shields, and multi-kid isolation', () => {
-    expect(COSMETIC_CATALOG.length).toBe(12);
+  it('defines all 17 cosmetics (including 8 UI themes led by Cosmic Galaxy Nebula) and supports purchasing, equipping, Streak Shields, and multi-kid isolation', () => {
+    expect(COSMETIC_CATALOG.length).toBe(17);
     expect(STREAK_SHIELD_COST_GEMS).toBe(45);
     const cosIds = new Set(COSMETIC_CATALOG.map((c) => c.id));
     for (const id of ALL_COSMETIC_IDS) {
       expect(cosIds.has(id), `Missing cosmetic ${id}`).toBe(true);
     }
+    const themeCatalogIds = COSMETIC_CATALOG.filter((c) => c.slot === 'theme').map((c) => c.id);
+    expect(themeCatalogIds).toEqual([
+      'theme_sunset_plaza',
+      'theme_starlight_indigo',
+      'theme_alpine_meadow',
+      'theme_cosmic_galaxy',
+      'theme_aurora_borealis',
+      'theme_candy_sakura',
+      'theme_ocean_lagoon',
+      'theme_royal_velvet',
+    ]);
+    const cosmicTheme = COSMETIC_CATALOG.find((c) => c.id === 'theme_cosmic_galaxy');
+    expect(cosmicTheme).toBeDefined();
+    expect(cosmicTheme?.costGems).toBe(40);
 
     const { result } = renderHook(() => useVaultStore());
     expect(result.current.vault.profiles.map((p) => p.name)).toEqual(['Leo', 'Maya']);
@@ -500,5 +519,58 @@ describe('Challenge 3-vault: Progression, Streaks, Badges, Leagues & Multi-Kid V
     legacy.profiles = legacyProfiles;
     const legacyRes = importVaultJson(JSON.stringify(legacy), 'replace');
     expect(legacyRes.ok).toBe(true);
+  });
+
+  it('records high scores, gems, and clamped hearts across all 7 arcade game IDs and preserves them across vault export/import', () => {
+    const ALL_ARCADE_GAME_IDS = [
+      'sky_catcher',
+      'meteor_blaster',
+      'tower_stack',
+      'constellation_memory',
+      'train_switcher',
+      'rhythm_chef',
+      'starlight_choir',
+    ] as const;
+
+    // Drain hearts down to 1 before playing
+    for (let i = 0; i < 4; i++) {
+      vaultActions.recordAnswerOutcome({ isCorrect: false, comboCount: 0 });
+    }
+    expect(loadVaultFromStorage().profiles[0].hearts).toBe(1);
+
+    ALL_ARCADE_GAME_IDS.forEach((gameId, idx) => {
+      const firstScore = 100 + idx * 25;
+      vaultActions.recordArcadeGameResult({
+        gameId,
+        score: firstScore,
+        heartsWon: 1,
+        bonusGems: 5,
+      });
+      // Lower replay score must NOT overwrite existing best score
+      vaultActions.recordArcadeGameResult({
+        gameId,
+        score: 20,
+        heartsWon: 2,
+        bonusGems: 2,
+      });
+    });
+
+    const afterGames = loadVaultFromStorage().profiles[0];
+    expect(afterGames.hearts).toBe(5); // clamped to maxHearts
+    expect(afterGames.gems).toBe(80 + ALL_ARCADE_GAME_IDS.length * 7);
+    expect(afterGames.stats.arcadeGamesWon).toBe(ALL_ARCADE_GAME_IDS.length * 2);
+    expect(afterGames.secretArcadeBestScore).toBe(250);
+    ALL_ARCADE_GAME_IDS.forEach((gameId, idx) => {
+      expect(afterGames.arcadeHighScores?.[gameId]).toBe(100 + idx * 25);
+    });
+
+    // Save/import preserves arcadeHighScores
+    const savedJson = exportVaultJson();
+    vaultActions.resetVaultToDefaults();
+    expect(loadVaultFromStorage().profiles[0].arcadeHighScores ?? {}).toEqual({});
+    const reimported = importVaultJson(savedJson, 'replace');
+    expect(reimported.ok).toBe(true);
+    const restored = loadVaultFromStorage().profiles[0];
+    expect(restored.arcadeHighScores).toEqual(afterGames.arcadeHighScores);
   });
 });
