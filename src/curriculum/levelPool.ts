@@ -767,16 +767,28 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
   const langName = LANGUAGE_META[lang].name;
 
   let seq = 1;
+  const stride = cards.length % 3 !== 0 ? 3 : cards.length % 5 !== 0 ? 5 : 1;
   for (let i = 0; i < cards.length && turnsPool.length < 8; i++) {
-    const sayCard = cards[(i * 2 + unit.order) % cards.length];
-    const answerCard = cards[(i * 2 + unit.order + 3) % cards.length];
-    const isChoiceTurn = seq % 2 === 1;
-
+    const sayIdx = (i * stride + unit.order) % cards.length;
+    const sayCard = cards[sayIdx];
     const sayKey = normalizeSentenceKey(sayCard.exampleForeign, glossary);
-    const ansText = isChoiceTurn ? answerCard.foreignWithArticle : answerCard.exampleForeign;
-    const ansKey = normalizeSentenceKey(ansText, glossary);
+    if (usedSay.has(sayKey)) continue;
 
-    if (usedSay.has(sayKey) || usedExpected.has(ansKey)) continue;
+    const isChoiceTurn = seq % 2 === 1;
+    let answerCard: VocabCard | undefined;
+    let ansKey = '';
+    for (let offset = 0; offset < cards.length; offset++) {
+      const cand = cards[(sayIdx + 3 + offset) % cards.length];
+      const candText = isChoiceTurn ? cand.foreignWithArticle : cand.exampleForeign;
+      const candKey = normalizeSentenceKey(candText, glossary);
+      if (!usedExpected.has(candKey)) {
+        answerCard = cand;
+        ansKey = candKey;
+        break;
+      }
+    }
+    if (!answerCard) continue;
+
     usedSay.add(sayKey);
     usedExpected.add(ansKey);
 
