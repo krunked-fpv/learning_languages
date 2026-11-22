@@ -23,6 +23,11 @@ import {
   hindiCards6to8,
   hindiExtraGlossary6to8,
 } from './hiUnits6to8';
+import {
+  buildHindiUnits9to16,
+  hindiCards9to16,
+  hindiExtraGlossary9to16,
+} from './hiUnits9to16';
 
 const U1 = 'hi-u1';
 const U2 = 'hi-u2';
@@ -1105,7 +1110,15 @@ const u5Cards: VocabCard[] = [
   }),
 ];
 
-const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards, ...hindiCards6to8];
+const allCards = [
+  ...u1Cards,
+  ...u2Cards,
+  ...u3Cards,
+  ...u4Cards,
+  ...u5Cards,
+  ...hindiCards6to8,
+  ...hindiCards9to16,
+];
 
 const extraGlossary: GlossaryMap = {
   पिप: { translation: 'Pip (our starling!)', phonetic: 'peep', romanized: 'Pip' },
@@ -1405,7 +1418,11 @@ const extraGlossary: GlossaryMap = {
   सात: { translation: 'seven', phonetic: 'saat', romanized: 'sāt' },
 };
 
-const G = buildGlossaryFromCards(allCards, { ...extraGlossary, ...hindiExtraGlossary6to8 });
+const G = buildGlossaryFromCards(allCards, {
+  ...extraGlossary,
+  ...hindiExtraGlossary6to8,
+  ...hindiExtraGlossary9to16,
+});
 export const hindiGlossary: GlossaryMap = G;
 
 const units: CourseUnit[] = [
@@ -4206,6 +4223,7 @@ const units: CourseUnit[] = [
     ],
   },
   ...buildHindiUnits6to8(G),
+  ...buildHindiUnits9to16(G),
 ];
 
 export const hindiCourse: LanguageCourse = buildCourse('hi', units);
