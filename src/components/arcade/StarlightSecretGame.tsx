@@ -1,43 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Gem, Heart, Music, Play, RotateCcw, Sparkles, Star, Volume2, X } from 'lucide-react';
+import { Music, Play, Star, Volume2, X } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
-import { getArcadeLexicon } from '../../curriculum';
 import { playSfx, speakPhrase } from '../../audio';
 import { useVaultStore, vaultActions } from '../../store/useVaultStore';
+import type { ArcadeLanternItem, CharacterPose, CompanionId } from '../../types/contracts';
 import { MascotStage } from '../characters/MascotStage';
-import { ConfettiBurst } from '../fx/JuiceEngine';
-import type { ArcadeLanternItem, CharacterPose, CompanionId, LanguageCode } from '../../types/contracts';
+import {
+  ARCADE_SHELL_STYLE,
+  ArcadeSummaryCard,
+  CARD_SURFACE_STYLE,
+  SOFT_BTN_STYLE,
+  useArcadeContainerMetrics,
+  useArcadeDeck,
+} from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 45;
 const CHOIR_COMPANIONS: readonly CompanionId[] = ['pip', 'mateo', 'colette', 'benni', 'luca'];
-
-const FALLBACK_CHOIR_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> = {
-  es: [
-    { id: 'sc-es-1', language: 'es', foreign: 'hola', english: 'hello', phonetic: 'OH-lah', illustrationKey: 'wave_hello' },
-    { id: 'sc-es-2', language: 'es', foreign: 'el sol', english: 'the sun', phonetic: 'el SOHL', illustrationKey: 'morning_sun' },
-    { id: 'sc-es-3', language: 'es', foreign: 'la manzana', english: 'the apple', phonetic: 'lah mahn-SAH-nah', illustrationKey: 'fresh_apple' },
-    { id: 'sc-es-4', language: 'es', foreign: 'el gato', english: 'the cat', phonetic: 'el GAH-toh', illustrationKey: 'cozy_cat' },
-  ],
-  fr: [
-    { id: 'sc-fr-1', language: 'fr', foreign: 'bonjour', english: 'hello', phonetic: 'bon-ZHOOR', illustrationKey: 'wave_hello' },
-    { id: 'sc-fr-2', language: 'fr', foreign: "l'eau", english: 'the water', phonetic: 'LOH', illustrationKey: 'water_carafe' },
-    { id: 'sc-fr-3', language: 'fr', foreign: 'le croissant', english: 'the croissant', phonetic: 'luh kwah-SAHN', illustrationKey: 'flaky_pastry' },
-    { id: 'sc-fr-4', language: 'fr', foreign: 'la pomme', english: 'the apple', phonetic: 'lah POHM', illustrationKey: 'fresh_apple' },
-  ],
-  de: [
-    { id: 'sc-de-1', language: 'de', foreign: 'hallo', english: 'hello', phonetic: 'HAH-loh', illustrationKey: 'wave_hello' },
-    { id: 'sc-de-2', language: 'de', foreign: 'das Brot', english: 'the bread', phonetic: 'dahs BROHT', illustrationKey: 'warm_bread' },
-    { id: 'sc-de-3', language: 'de', foreign: 'die Katze', english: 'the cat', phonetic: 'dee KAHT-suh', illustrationKey: 'cozy_cat' },
-    { id: 'sc-de-4', language: 'de', foreign: 'der Apfel', english: 'the apple', phonetic: 'dair AHP-fel', illustrationKey: 'fresh_apple' },
-  ],
-  it: [
-    { id: 'sc-it-1', language: 'it', foreign: 'ciao', english: 'hello', phonetic: 'CHOW', illustrationKey: 'wave_hello' },
-    { id: 'sc-it-2', language: 'it', foreign: 'il gelato', english: 'the gelato', phonetic: 'eel jeh-LAH-toh', illustrationKey: 'sweet_gelato' },
-    { id: 'sc-it-3', language: 'it', foreign: 'il gatto', english: 'the cat', phonetic: 'eel GAHT-toh', illustrationKey: 'cozy_cat' },
-    { id: 'sc-it-4', language: 'it', foreign: 'la mela', english: 'the apple', phonetic: 'lah MEH-lah', illustrationKey: 'fresh_apple' },
-  ],
-};
 
 const BUBBLE_PALETTES = [
   { bg: '#eef2ff', border: '#6366f1', text: '#312e81' },
@@ -62,17 +41,9 @@ export interface StarlightSecretGameProps {
 }
 
 export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
-  const { activeProfile, activeProgress } = useVaultStore();
-  const language = activeProfile.activeLanguage;
-
-  const lexicon = useMemo(() => {
-    const items = getArcadeLexicon(
-      language,
-      activeProgress.unlockedVocabIds,
-      activeProgress.currentUnitIndex
-    );
-    return items.length > 0 ? items : FALLBACK_CHOIR_LEXICON[language];
-  }, [language, activeProgress.unlockedVocabIds, activeProgress.currentUnitIndex]);
+  const { activeProfile } = useVaultStore();
+  const { language, lexicon, bestScoreFor } = useArcadeDeck();
+  const { containerRef, isCompact } = useArcadeContainerMetrics();
 
   const [phase, setPhase] = useState<'ready' | 'playing' | 'summary'>('ready');
   const [timeLeft, setTimeLeft] = useState(ROUND_DURATION_SECONDS);
@@ -102,6 +73,24 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
   const starTimerRef = useRef(4.5);
   const nextUidRef = useRef(1);
   const finishedRef = useRef(false);
+  const timersRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    return () => {
+      for (const id of timersRef.current) {
+        window.clearTimeout(id);
+      }
+      timersRef.current = [];
+    };
+  }, []);
+
+  const scheduleTimeout = useCallback((fn: () => void, ms: number) => {
+    const id = window.setTimeout(() => {
+      timersRef.current = timersRef.current.filter((t) => t !== id);
+      fn();
+    }, ms);
+    timersRef.current.push(id);
+  }, []);
 
   const pickNextTarget = useCallback(
     (avoidId?: string, speakNow = false) => {
@@ -126,7 +115,12 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
     const heartsWon = Math.min(5, Math.max(1, Math.ceil(totalCatches / 2)));
     const bonusGems =
       starGemsRef.current + Math.floor(finalScore / 20) + (totalCatches >= 5 ? 5 : 0);
-    vaultActions.completeSecretArcadeRun({ score: finalScore, heartsWon, bonusGems });
+    vaultActions.recordArcadeGameResult({
+      gameId: 'starlight_choir',
+      score: finalScore,
+      heartsWon,
+      bonusGems,
+    });
     playSfx('secret_fanfare');
     setSummary({ score: finalScore, heartsWon, bonusGems, catches: totalCatches });
     setPhase('summary');
@@ -158,7 +152,7 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
         kind: 'word',
         item: first,
         x: 50,
-        y: 86,
+        y: 80,
         speed: 14,
         swayOffset: 0,
         paletteIndex: 0,
@@ -167,8 +161,8 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
         uid: nextUidRef.current++,
         kind: 'word' as const,
         item: d,
-        x: idx === 0 ? 22 : 78,
-        y: 92 + idx * 4,
+        x: idx === 0 ? 24 : 76,
+        y: 86 + idx * 4,
         speed: 13 + idx,
         swayOffset: idx + 1,
         paletteIndex: (idx + 1) % BUBBLE_PALETTES.length,
@@ -178,7 +172,6 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
     setPhase('playing');
   }, [lexicon, pickNextTarget]);
 
-  // 60fps floating song-bubble loop
   useEffect(() => {
     if (phase !== 'playing') return;
 
@@ -199,7 +192,6 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
         return;
       }
 
-      // Spawn bubbles cleanly without duplicates
       spawnTimerRef.current += dt;
       starTimerRef.current -= dt;
       if (starTimerRef.current <= 0 && bubblesRef.current.length < 7) {
@@ -207,8 +199,8 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
         bubblesRef.current.push({
           uid: nextUidRef.current++,
           kind: 'star',
-          x: 16 + Math.random() * 68,
-          y: 102,
+          x: 18 + Math.random() * 64,
+          y: 100,
           speed: 17,
           swayOffset: Math.random() * Math.PI,
           paletteIndex: 0,
@@ -232,8 +224,8 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
             uid: nextUidRef.current++,
             kind: 'word',
             item: chosen,
-            x: 16 + Math.random() * 68,
-            y: 102,
+            x: 18 + Math.random() * 64,
+            y: 100,
             speed: 13 + Math.random() * 6,
             swayOffset: Math.random() * Math.PI * 2,
             paletteIndex: Math.floor(Math.random() * BUBBLE_PALETTES.length),
@@ -241,11 +233,13 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
         }
       }
 
-      // Float bubbles upward smoothly
       const nextList: SongBubbleEntity[] = [];
       for (const b of bubblesRef.current) {
         const nextY = b.y - b.speed * dt;
-        const swayX = Math.max(12, Math.min(88, b.x + Math.sin(elapsedRef.current * 2.2 + b.swayOffset) * 5 * dt));
+        const swayX = Math.max(
+          16,
+          Math.min(84, b.x + Math.sin(elapsedRef.current * 2.2 + b.swayOffset) * 5 * dt)
+        );
         if (nextY > -12) {
           nextList.push({ ...b, x: swayX, y: nextY });
         }
@@ -304,7 +298,7 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
       );
       pickNextTarget(poppedId, false);
       if (!isDisco) {
-        window.setTimeout(() => setChoirPose('idle'), 650);
+        scheduleTimeout(() => setChoirPose('idle'), 650);
       }
     } else {
       streakRef.current = 0;
@@ -313,7 +307,7 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
       setWobbleUid(bubble.uid);
       playSfx('gentle_nudge');
       setToast(`Oops! Find "${targetRef.current.english}"!`);
-      window.setTimeout(() => {
+      scheduleTimeout(() => {
         setWobbleUid((cur) => (cur === bubble.uid ? null : cur));
         setChoirPose('idle');
       }, 450);
@@ -322,64 +316,112 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
 
   const discoActive = streak >= 5;
   const discoPct = Math.min(100, Math.round((streak / 5) * 100));
+  const bestScore = bestScoreFor('starlight_choir');
 
   return (
     <section
+      ref={containerRef}
       aria-label="Starlight Critter Choir"
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-        width: '100%',
-        maxWidth: 900,
-        margin: '0 auto',
-      }}
+      style={ARCADE_SHELL_STYLE}
     >
       {/* Top Choir Header */}
       <div
-        className="tactile-card"
         style={{
-          padding: '10px 14px',
+          ...CARD_SURFACE_STYLE,
+          flexShrink: 0,
+          padding: isCompact ? '7px 10px' : '9px 14px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: 10,
+          gap: 8,
           flexWrap: 'wrap',
-          background: 'linear-gradient(135deg, #eef2ff 0%, #fffbeb 100%)',
+          borderRadius: 18,
+          borderColor: '#818cf8',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Music size={22} color="#4f46e5" />
-          <div>
-            <div style={{ fontSize: '1.08rem', fontWeight: 900, color: '#1e1b4b' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <div
+            style={{
+              width: isCompact ? 32 : 36,
+              height: isCompact ? 32 : 36,
+              borderRadius: 11,
+              background: '#eef2ff',
+              borderTopWidth: 1.5,
+              borderRightWidth: 1.5,
+              borderLeftWidth: 1.5,
+              borderBottomWidth: 3,
+              borderStyle: 'solid',
+              borderColor: '#818cf8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <Music size={isCompact ? 17 : 20} color="#4f46e5" />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: isCompact ? '0.96rem' : '1.08rem',
+                fontWeight: 900,
+                color: 'var(--text-main, #1e1b4b)',
+              }}
+            >
               Starlight Critter Choir
             </div>
-            <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#475569' }}>
-              Musical Secret Mini-Game • Best Score: {activeProfile.secretArcadeBestScore ?? 0}
-            </div>
+            {!isCompact ? (
+              <div
+                style={{
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  color: 'var(--text-muted, #475569)',
+                }}
+              >
+                Musical Secret Mini-Game • Best Score: {bestScore}
+              </div>
+            ) : null}
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <span
             className="hud-pill hud-pill-static"
-            style={{ background: '#fffbeb', borderColor: '#f59e0b', color: '#b45309' }}
+            style={{
+              background: '#fffbeb',
+              borderColor: '#f59e0b',
+              color: '#b45309',
+              padding: isCompact ? '3px 8px' : '5px 10px',
+              fontSize: isCompact ? '0.76rem' : '0.84rem',
+            }}
           >
-            <Star size={14} fill="#f59e0b" /> Score: {score}
+            <Star size={13} fill="#f59e0b" /> Score: {score}
           </span>
           <span
             className="hud-pill hud-pill-static"
-            style={{ background: '#eff6ff', borderColor: '#93c5fd', color: '#1d4ed8' }}
+            style={{
+              background: '#eff6ff',
+              borderColor: '#93c5fd',
+              color: '#1d4ed8',
+              padding: isCompact ? '3px 8px' : '5px 10px',
+              fontSize: isCompact ? '0.76rem' : '0.84rem',
+            }}
           >
             {timeLeft}s
           </span>
           <button
             type="button"
-            className="tactile-btn tactile-btn-soft"
-            style={{ padding: '5px 10px', fontSize: '0.8rem' }}
+            className="tactile-btn"
+            style={{
+              ...SOFT_BTN_STYLE,
+              padding: isCompact ? '4px 8px' : '5px 10px',
+              fontSize: '0.78rem',
+              borderRadius: 12,
+            }}
             onClick={onExit}
           >
-            <X size={15} />
+            <X size={14} />
             <span>Exit</span>
           </button>
         </div>
@@ -388,31 +430,59 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
       {/* Ready Intro */}
       {phase === 'ready' ? (
         <div
-          className="tactile-card"
           style={{
-            padding: 22,
+            ...CARD_SURFACE_STYLE,
+            flex: 1,
+            minHeight: 0,
+            padding: isCompact ? 14 : 22,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 12,
+            justifyContent: 'center',
+            gap: isCompact ? 8 : 12,
             textAlign: 'center',
+            overflowY: 'auto',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: isCompact ? 2 : 6,
+              flexWrap: 'wrap',
+            }}
+          >
             {CHOIR_COMPANIONS.map((cid) => (
               <MascotStage
                 key={cid}
                 companionId={cid}
                 pose="happy"
                 equippedCosmetics={cid === 'pip' ? activeProfile.equippedCosmetics : undefined}
-                size={68}
+                size={isCompact ? 50 : 68}
               />
             ))}
           </div>
-          <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 900 }}>
+          <h2
+            style={{
+              margin: 0,
+              fontFamily: 'var(--font-display)',
+              fontSize: isCompact ? '1.12rem' : '1.35rem',
+              fontWeight: 900,
+              color: 'var(--text-main, #1e1b4b)',
+            }}
+          >
             Pop Musical Song-Bubbles With All 5 Companions!
           </h2>
-          <p style={{ margin: 0, maxWidth: 500, fontWeight: 700, color: '#475569' }}>
+          <p
+            style={{
+              margin: 0,
+              maxWidth: 500,
+              fontSize: isCompact ? '0.82rem' : '0.92rem',
+              fontWeight: 700,
+              color: 'var(--text-muted, #475569)',
+            }}
+          >
             Tap bubbles matching the English prompt to play rising pentatonic melodies! Hit a 5x
             streak to trigger STARLIGHT DISCO FEVER (2x points), and tap Golden Star Notes for
             extra time & Gems!
@@ -431,36 +501,47 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
       {/* Active Musical Stage */}
       {phase === 'playing' ? (
         <>
-          {/* Target Prompt + Disco Fever Meter */}
           <div
-            className="tactile-card"
             style={{
-              padding: '8px 14px',
+              ...CARD_SURFACE_STYLE,
+              flexShrink: 0,
+              padding: isCompact ? '6px 10px' : '8px 14px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              gap: 10,
+              gap: 8,
               flexWrap: 'wrap',
-              background: discoActive
-                ? 'linear-gradient(90deg, #fef3c7 0%, #fce7f3 50%, #e0e7ff 100%)'
-                : '#fffbeb',
+              borderRadius: 16,
               borderColor: discoActive ? '#f43f5e' : '#fbbf24',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 900, color: '#b45309' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+              <span
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: isCompact ? '0.72rem' : '0.8rem',
+                  fontWeight: 900,
+                  color: '#f59e0b',
+                }}
+              >
                 POP SONG-BUBBLE:
               </span>
-              <strong style={{ fontSize: '1.12rem', color: '#1e1b4b' }}>
+              <strong
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: isCompact ? '0.98rem' : '1.12rem',
+                  color: 'var(--text-main, #1e1b4b)',
+                }}
+              >
                 {targetItem.english}
               </strong>
               <span
                 style={{
                   padding: '2px 8px',
                   borderRadius: 999,
-                  background: '#ffffff',
+                  background: '#eef2ff',
                   color: '#4338ca',
-                  fontSize: '0.78rem',
+                  fontSize: isCompact ? '0.72rem' : '0.78rem',
                   fontWeight: 800,
                 }}
               >
@@ -468,8 +549,13 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
               </span>
               <button
                 type="button"
-                className="tactile-btn tactile-btn-soft"
-                style={{ padding: '4px 9px', fontSize: '0.76rem' }}
+                className="tactile-btn"
+                style={{
+                  ...SOFT_BTN_STYLE,
+                  padding: '3px 8px',
+                  fontSize: '0.75rem',
+                  borderRadius: 10,
+                }}
                 onClick={() => {
                   void speakPhrase({
                     text: targetItem.foreign,
@@ -478,16 +564,29 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
                   });
                 }}
               >
-                <Volume2 size={14} /> Hear
+                <Volume2 size={13} /> Hear
               </button>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 110 }}>
-                <div style={{ fontSize: '0.7rem', fontWeight: 900, color: discoActive ? '#be123c' : '#4338ca' }}>
-                  {discoActive ? 'DISCO FEVER 2x!' : `Disco Meter ${streak}/5`}
+              <div style={{ width: isCompact ? 88 : 112 }}>
+                <div
+                  style={{
+                    fontSize: '0.68rem',
+                    fontWeight: 900,
+                    color: discoActive ? '#f43f5e' : 'var(--text-muted, #4338ca)',
+                  }}
+                >
+                  {discoActive ? 'DISCO FEVER 2x!' : `Disco ${streak}/5`}
                 </div>
-                <div style={{ height: 8, borderRadius: 999, background: '#e2e8f0', overflow: 'hidden' }}>
+                <div
+                  style={{
+                    height: 7,
+                    borderRadius: 999,
+                    background: 'rgba(148, 163, 184, 0.35)',
+                    overflow: 'hidden',
+                  }}
+                >
                   <div
                     style={{
                       width: `${discoPct}%`,
@@ -504,7 +603,11 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
               <button
                 type="button"
                 className="tactile-btn tactile-btn-success"
-                style={{ padding: '6px 12px', fontSize: '0.82rem' }}
+                style={{
+                  padding: isCompact ? '5px 10px' : '6px 12px',
+                  fontSize: isCompact ? '0.76rem' : '0.82rem',
+                  borderRadius: 12,
+                }}
                 onClick={finishRun}
               >
                 Claim Rewards
@@ -517,10 +620,10 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
             className={discoActive ? 'disco-fever-stage' : ''}
             style={{
               position: 'relative',
+              flex: 1,
+              minHeight: 0,
               width: '100%',
-              height: 'min(54dvh, 410px)',
-              minHeight: 270,
-              borderRadius: 24,
+              borderRadius: 22,
               borderTopWidth: 3,
               borderRightWidth: 3,
               borderLeftWidth: 3,
@@ -534,18 +637,17 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
               userSelect: 'none',
             }}
           >
-            {/* Status Pill */}
             <div
               style={{
                 position: 'absolute',
                 top: 8,
                 left: '50%',
                 transform: 'translateX(-50%)',
-                padding: '4px 12px',
+                padding: '3px 11px',
                 borderRadius: 999,
-                background: 'rgba(15, 23, 42, 0.72)',
+                background: 'rgba(15, 23, 42, 0.78)',
                 color: '#fef08a',
-                fontSize: '0.78rem',
+                fontSize: '0.75rem',
                 fontWeight: 800,
                 whiteSpace: 'nowrap',
                 zIndex: 5,
@@ -555,7 +657,6 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
               {toast}
             </div>
 
-            {/* Song-Bubbles & Golden Star Notes */}
             {bubbles.map((b) => {
               const isWobbling = wobbleUid === b.uid;
               if (b.kind === 'star') {
@@ -571,7 +672,7 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
                       left: `${b.x}%`,
                       top: `${b.y}%`,
                       transform: 'translate(-50%, -50%)',
-                      padding: '7px 12px',
+                      padding: '6px 11px',
                       borderRadius: 999,
                       background: 'linear-gradient(135deg, #fde047 0%, #f59e0b 100%)',
                       borderTopWidth: 2,
@@ -582,15 +683,15 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
                       borderColor: '#b45309',
                       color: '#451a03',
                       fontWeight: 900,
-                      fontSize: '0.84rem',
+                      fontSize: '0.8rem',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 5,
+                      gap: 4,
                       cursor: 'pointer',
                       zIndex: 10,
                     }}
                   >
-                    <Star size={16} fill="#ffffff" />
+                    <Star size={15} fill="#ffffff" />
                     <span>+5 Gems / +3s</span>
                   </motion.button>
                 );
@@ -612,7 +713,7 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
                     left: `${b.x}%`,
                     top: `${b.y}%`,
                     transform: 'translate(-50%, -50%)',
-                    padding: '6px 11px',
+                    padding: isCompact ? '5px 9px' : '6px 11px',
                     borderRadius: 999,
                     background: pal.bg,
                     borderTopWidth: 2,
@@ -623,10 +724,11 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
                     borderColor: pal.border,
                     color: pal.text,
                     fontWeight: 900,
-                    fontSize: '0.85rem',
+                    fontSize: isCompact ? '0.78rem' : '0.85rem',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 6,
+                    gap: 5,
+                    maxWidth: isCompact ? '46%' : 'none',
                     whiteSpace: 'nowrap',
                     cursor: 'pointer',
                     boxShadow: '0 8px 20px rgba(0, 0, 0, 0.25)',
@@ -636,9 +738,11 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
                   <VocabIllustration
                     illustrationKey={b.item.illustrationKey}
                     language={language}
-                    size={26}
+                    size={isCompact ? 22 : 26}
                   />
-                  <span>{b.item.foreign}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {b.item.foreign}
+                  </span>
                 </motion.button>
               );
             })}
@@ -666,7 +770,7 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
                   pose={choirPose}
                   equippedCosmetics={cid === 'pip' ? activeProfile.equippedCosmetics : undefined}
                   comboCount={discoActive ? 6 : streak}
-                  size={54}
+                  size={isCompact ? 42 : 54}
                 />
               ))}
             </div>
@@ -676,61 +780,42 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
 
       {/* Summary Victory */}
       {phase === 'summary' && summary ? (
-        <div
-          className="tactile-card"
-          style={{
-            padding: 22,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 12,
-            textAlign: 'center',
-          }}
-        >
-          <ConfettiBurst active intensity="grand" />
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
-            {CHOIR_COMPANIONS.map((cid) => (
-              <MascotStage
-                key={cid}
-                companionId={cid}
-                pose="victory_dance"
-                equippedCosmetics={cid === 'pip' ? activeProfile.equippedCosmetics : undefined}
-                size={64}
-              />
-            ))}
-          </div>
-          <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900, color: '#312e81' }}>
-            Encore! Starlight Critter Choir Complete!
-          </h2>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <span className="hud-pill hud-pill-static" style={{ background: '#fffbeb', borderColor: '#f59e0b', color: '#b45309' }}>
-              <Sparkles size={15} /> Score: {summary.score}
-            </span>
-            <span className="hud-pill hud-pill-static" style={{ background: '#fff1f2', borderColor: '#fda4af', color: '#be123c' }}>
-              <Heart size={15} fill="#f43f5e" /> +{summary.heartsWon} Hearts
-            </span>
-            <span className="hud-pill hud-pill-static" style={{ background: '#eff6ff', borderColor: '#93c5fd', color: '#1d4ed8' }}>
-              <Gem size={15} /> +{summary.bonusGems} Gems
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <button
-              type="button"
-              className="tactile-btn tactile-btn-hero tactile-btn-indigo"
-              onClick={startRun}
+        <ArcadeSummaryCard
+          companionId="pip"
+          badgeText="Encore Victory!"
+          title="Encore! Starlight Critter Choir Complete!"
+          score={summary.score}
+          bestScore={bestScore}
+          heartsWon={summary.heartsWon}
+          bonusGems={summary.bonusGems}
+          statLine={`Song-Bubbles popped: ${summary.catches}`}
+          isCompact={isCompact}
+          playAgainLabel="Play Encore!"
+          mascotSlot={
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: isCompact ? 2 : 6,
+                flexWrap: 'wrap',
+              }}
             >
-              <RotateCcw size={18} />
-              <span>Play Encore!</span>
-            </button>
-            <button
-              type="button"
-              className="tactile-btn tactile-btn-hero tactile-btn-soft"
-              onClick={onExit}
-            >
-              Back to Arcade Hub
-            </button>
-          </div>
-        </div>
+              {CHOIR_COMPANIONS.map((cid) => (
+                <MascotStage
+                  key={cid}
+                  companionId={cid}
+                  pose="victory_dance"
+                  equippedCosmetics={cid === 'pip' ? activeProfile.equippedCosmetics : undefined}
+                  size={isCompact ? 46 : 62}
+                />
+              ))}
+            </div>
+          }
+          onPlayAgain={startRun}
+          onExit={onExit}
+          exitLabel="Back to Arcade Hub"
+        />
       ) : null}
     </section>
   );
