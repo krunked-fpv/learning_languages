@@ -2,10 +2,10 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowDown, Sparkles } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
-import { vaultActions } from '../../store/useVaultStore';
 import {
   LANGUAGE_META,
   type ArcadeLanternItem,
+  type ArcadeProficiencyTier,
   type CharacterPose,
   type CompanionId,
 } from '../../types/contracts';
@@ -17,8 +17,10 @@ import {
   ArcadeReadyCard,
   ArcadeSummaryCard,
   TargetPromptBar,
+  computeScaledArcadeRewards,
   getArcadeForeignTextStyle,
   pickDistinctItems,
+  recordArcadeRunResult,
   useArcadeContainerMetrics,
   useArcadeDeck,
 } from './arcadeShared';
@@ -42,11 +44,16 @@ interface StackedScoop {
 }
 
 export interface TowerStackArcadeProps {
+  arcadeTier?: ArcadeProficiencyTier;
   onExit: () => void;
 }
 
-export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
-  const { language, lexicon, targetLexicon, bestScoreFor } = useArcadeDeck();
+export function TowerStackArcade({
+  arcadeTier = 'sprout',
+  onExit,
+}: TowerStackArcadeProps) {
+  const { language, lexicon, targetLexicon, bestScoreFor, paceMultiplier } =
+    useArcadeDeck(arcadeTier);
   const { containerRef, isCompact } = useArcadeContainerMetrics();
   const langDir = LANGUAGE_META[language].dir;
 
@@ -69,6 +76,7 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
     score: number;
     heartsWon: number;
     bonusGems: number;
+    xpEarned: number;
     scoops: number;
     perfects: number;
   } | null>(null);
@@ -143,23 +151,31 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
     const finalScore = scoreRef.current;
     const totalPerfects = perfectRef.current;
     const heartsWon = Math.min(5, Math.max(1, Math.ceil(totalScoops / 2)));
-    const bonusGems = Math.floor(finalScore / 30) + totalPerfects * 2;
-    vaultActions.recordArcadeGameResult({
+    const baseGems = Math.floor(finalScore / 30) + totalPerfects * 2;
+    const { bonusGems, xpEarned } = computeScaledArcadeRewards({
+      arcadeTier,
+      baseGems,
+      performanceUnits: totalScoops,
+      baseXpBonus: totalPerfects,
+    });
+    recordArcadeRunResult({
       gameId: 'tower_stack',
       score: finalScore,
       heartsWon,
       bonusGems,
+      xpEarned,
     });
     playSfx('unit_fanfare');
     setSummary({
       score: finalScore,
       heartsWon,
       bonusGems,
+      xpEarned,
       scoops: totalScoops,
       perfects: totalPerfects,
     });
     setPhase('summary');
-  }, []);
+  }, [arcadeTier]);
 
   const startRound = useCallback(() => {
     playSfx('button_click');
@@ -297,7 +313,7 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
         return;
       }
 
-      const speed = 1.65 + Math.min(0.9, stackCountRef.current * 0.08);
+      const speed = (1.65 + Math.min(0.9, stackCountRef.current * 0.08)) * paceMultiplier;
       phaseAngleRef.current += speed * dt;
 
       const updated = scoopsRef.current.map((s, idx) => ({
@@ -311,7 +327,7 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
 
     rafId = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(rafId);
-  }, [phase, finishRound]);
+  }, [phase, paceMultiplier, finishRound]);
 
   const targetOverZone = glidingScoops.some(
     (s) => s.item.id === targetItem.id && Math.abs(s.x - 50) <= 18
@@ -333,6 +349,7 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
         bestScore={bestScore}
         timeLeft={timeLeft}
         combo={combo}
+        arcadeTier={arcadeTier}
         isCompact={isCompact}
         onExit={onExit}
       />
@@ -345,6 +362,7 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
           description={`${chefName} announces each delicious word order. Tap Drop Scoop! (or Space) right when the matching treat glides into the golden drop zone above the cone!`}
           startLabel="Start Stacking!"
           bestScore={bestScore}
+          arcadeTier={arcadeTier}
           isCompact={isCompact}
           emblem={<TowerStackEmblem size={isCompact ? 54 : 68} />}
           buttonClass="tactile-btn-rose"
@@ -657,6 +675,8 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
           bestScore={bestScore}
           heartsWon={summary.heartsWon}
           bonusGems={summary.bonusGems}
+          xpEarned={summary.xpEarned}
+          arcadeTier={arcadeTier}
           statLine={`Scoops stacked: ${summary.scoops} • Golden Perfects: ${summary.perfects}`}
           isCompact={isCompact}
           onPlayAgain={startRound}

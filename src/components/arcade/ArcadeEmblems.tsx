@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 export function SkyCatcherEmblem({ size = 48 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" fill="none" aria-hidden="true">
@@ -158,6 +160,88 @@ export function StarlightChoirEmblem({ size = 48 }: { size?: number }) {
       <circle cx="40" cy="38" r="4.5" fill="#F472B6" />
       <circle cx="15" cy="16" r="2.2" fill="#FFFFFF" />
       <circle cx="51" cy="20" r="2.2" fill="#FDE047" />
+    </svg>
+  );
+}
+
+export function CafeOrderRushEmblem({ size = 48 }: { size?: number }) {
+  const uid = useId().replace(/:/g, '');
+  const bgId = `emb-cafe-bg-${uid}`;
+  const cupId = `emb-cafe-cup-${uid}`;
+
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" aria-hidden="true">
+      <defs>
+        <linearGradient id={bgId} x1="32" y1="4" x2="32" y2="60" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FFF7ED" />
+          <stop offset="100%" stopColor="#FED7AA" />
+        </linearGradient>
+        <linearGradient id={cupId} x1="28" y1="26" x2="28" y2="48" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FFFFFF" />
+          <stop offset="100%" stopColor="#FEF3C7" />
+        </linearGradient>
+      </defs>
+      <rect x="4" y="4" width="56" height="56" rx="16" fill={`url(#${bgId})`} stroke="#F97316" strokeWidth="2.5" />
+      {/* Scalloped Cafe Awning */}
+      <path d="M5 13C5 8 9 5 14 5H50C55 5 59 8 59 13V16H5V13Z" fill="#EA580C" />
+      <rect x="13" y="5" width="7" height="11" fill="#FFFFFF" opacity="0.92" />
+      <rect x="27" y="5" width="7" height="11" fill="#FFFFFF" opacity="0.92" />
+      <rect x="41" y="5" width="7" height="11" fill="#FFFFFF" opacity="0.92" />
+      {/* Cocoa Steam */}
+      <path d="M21 23C20 20 23 19 22 17" stroke="#9A3412" strokeWidth="1.8" strokeLinecap="round" opacity="0.7" />
+      <path d="M28 22C27 19 30 18 29 16" stroke="#9A3412" strokeWidth="1.8" strokeLinecap="round" opacity="0.7" />
+      {/* Warm Cocoa Mug */}
+      <path d="M14 27H34V40C34 45 29.5 48 24 48C18.5 48 14 45 14 40V27Z" fill={`url(#${cupId})`} stroke="#9A3412" strokeWidth="2.2" strokeLinejoin="round" />
+      <path d="M34 30H37.5C39.8 30 41 31.8 41 34C41 36.2 39.8 38 37.5 38H34" stroke="#9A3412" strokeWidth="2.2" strokeLinecap="round" />
+      <ellipse cx="24" cy="27" rx="9" ry="2.6" fill="#78350F" />
+      {/* Golden Croissant Platter */}
+      <ellipse cx="43" cy="50" rx="13" ry="4" fill="#FDE68A" stroke="#B45309" strokeWidth="1.8" />
+      <path d="M34 48C36 42 41 39 46 41C50 42.5 52 46 50 49C46 50.5 38 50.5 34 48Z" fill="#F59E0B" stroke="#92400E" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M40 42L41 48M46 42L45 48" stroke="#92400E" strokeWidth="1.5" strokeLinecap="round" />
+      {/* Star Tip Badge */}
+      <circle cx="49" cy="24" r="6" fill="#FBBF24" stroke="#92400E" strokeWidth="1.8" />
+      <path d="M49 20.5L50 22.8L52.4 23L50.5 24.6L51.1 27L49 25.7L46.9 27L47.5 24.6L45.6 23L48 22.8Z" fill="#FFFFFF" />
+    </svg>
+  );
+}
+
+export function StarlightBridgeEmblem({ size = 48 }: { size?: number }) {
+  const uid = useId().replace(/:/g, '');
+  const bgId = `emb-bridge-bg-${uid}`;
+  const plankId = `emb-bridge-plank-${uid}`;
+
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" aria-hidden="true">
+      <defs>
+        <linearGradient id={bgId} x1="32" y1="4" x2="32" y2="60" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#1E1B4B" />
+          <stop offset="65%" stopColor="#0F172A" />
+          <stop offset="100%" stopColor="#1E293B" />
+        </linearGradient>
+        <linearGradient id={plankId} x1="20" y1="34" x2="44" y2="34" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#38BDF8" />
+          <stop offset="50%" stopColor="#FDE047" />
+          <stop offset="100%" stopColor="#38BDF8" />
+        </linearGradient>
+      </defs>
+      <rect x="4" y="4" width="56" height="56" rx="16" fill={`url(#${bgId})`} stroke="#38BDF8" strokeWidth="2.5" />
+      {/* Crescent Moon & Stars */}
+      <path d="M47 12C43.5 12.5 41 15.5 41.5 19C42 22.5 45 24.8 48.5 24.4C45.8 26.2 41.8 25.6 39.8 23C37.8 20.4 38.2 16.5 40.8 14.3C42.5 12.8 44.8 12.1 47 12Z" fill="#FDE047" />
+      <circle cx="16" cy="16" r="2" fill="#FEF08A" />
+      <circle cx="29" cy="13" r="1.5" fill="#7DD3FC" />
+      <circle cx="51" cy="31" r="1.7" fill="#FDE047" />
+      {/* Left Sky-Island */}
+      <path d="M8 38H24L21 50L13 53L8 44Z" fill="#6366F1" stroke="#312E81" strokeWidth="1.8" strokeLinejoin="round" />
+      <rect x="7" y="34" width="18" height="6" rx="3" fill="#10B981" stroke="#065F46" strokeWidth="1.8" />
+      {/* Right Sky-Island */}
+      <path d="M40 38H56L54 47L45 52L40 44Z" fill="#6366F1" stroke="#312E81" strokeWidth="1.8" strokeLinejoin="round" />
+      <rect x="39" y="34" width="18" height="6" rx="3" fill="#10B981" stroke="#065F46" strokeWidth="1.8" />
+      {/* Glowing Starlight Bridge Planks */}
+      <path d="M23 36C28 31 36 31 41 36" stroke={`url(#${plankId})`} strokeWidth="4" strokeLinecap="round" />
+      <rect x="26.5" y="29" width="11" height="5.5" rx="2.5" fill="#FDE047" stroke="#B45309" strokeWidth="1.6" />
+      {/* Starry Leap Trail */}
+      <path d="M16 30C21 22 27 21 32 25" stroke="#7DD3FC" strokeWidth="1.8" strokeDasharray="2.5 2.5" strokeLinecap="round" />
+      <circle cx="32" cy="24" r="2.6" fill="#FFFFFF" />
     </svg>
   );
 }

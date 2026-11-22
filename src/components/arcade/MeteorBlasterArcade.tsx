@@ -2,8 +2,13 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Crosshair, Rocket, Sparkles, Zap } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
-import { useVaultStore, vaultActions } from '../../store/useVaultStore';
-import { LANGUAGE_META, type ArcadeLanternItem, type CharacterPose } from '../../types/contracts';
+import { useVaultStore } from '../../store/useVaultStore';
+import {
+  LANGUAGE_META,
+  type ArcadeLanternItem,
+  type ArcadeProficiencyTier,
+  type CharacterPose,
+} from '../../types/contracts';
 import { MascotStage } from '../characters/MascotStage';
 import { MeteorBlasterEmblem } from './ArcadeEmblems';
 import {
@@ -12,8 +17,10 @@ import {
   ArcadeReadyCard,
   ArcadeSummaryCard,
   TargetPromptBar,
+  computeScaledArcadeRewards,
   getArcadeForeignTextStyle,
   pickDistinctItems,
+  recordArcadeRunResult,
   useArcadeContainerMetrics,
   useArcadeDeck,
 } from './arcadeShared';
@@ -48,12 +55,17 @@ interface BurstEffect {
 }
 
 export interface MeteorBlasterArcadeProps {
+  arcadeTier?: ArcadeProficiencyTier;
   onExit: () => void;
 }
 
-export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
+export function MeteorBlasterArcade({
+  arcadeTier = 'sprout',
+  onExit,
+}: MeteorBlasterArcadeProps) {
   const { activeProfile } = useVaultStore();
-  const { language, lexicon, targetLexicon, bestScoreFor } = useArcadeDeck();
+  const { language, lexicon, targetLexicon, bestScoreFor, paceMultiplier } =
+    useArcadeDeck(arcadeTier);
   const { containerRef, isCompact } = useArcadeContainerMetrics();
   const langDir = LANGUAGE_META[language].dir;
 
@@ -74,6 +86,7 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
     score: number;
     heartsWon: number;
     bonusGems: number;
+    xpEarned: number;
     hits: number;
     maxWave: number;
   } | null>(null);
@@ -132,23 +145,30 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
     const totalHits = hitsRef.current;
     const finalScore = scoreRef.current;
     const heartsWon = Math.min(5, Math.max(1, Math.ceil(totalHits / 3)));
-    const bonusGems = Math.floor(finalScore / 35) + cometGemsRef.current + (totalHits >= 5 ? 4 : 0);
-    vaultActions.recordArcadeGameResult({
+    const baseGems = Math.floor(finalScore / 35) + cometGemsRef.current + (totalHits >= 5 ? 4 : 0);
+    const { bonusGems, xpEarned } = computeScaledArcadeRewards({
+      arcadeTier,
+      baseGems,
+      performanceUnits: totalHits,
+    });
+    recordArcadeRunResult({
       gameId: 'meteor_blaster',
       score: finalScore,
       heartsWon,
       bonusGems,
+      xpEarned,
     });
     playSfx('unit_fanfare');
     setSummary({
       score: finalScore,
       heartsWon,
       bonusGems,
+      xpEarned,
       hits: totalHits,
       maxWave: waveRef.current,
     });
     setPhase('summary');
-  }, []);
+  }, [arcadeTier]);
 
   const startRound = useCallback(() => {
     playSfx('whoosh_transition');
@@ -188,7 +208,7 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
         item: first,
         x: LANE_X[targetLane],
         y: 16,
-        speed: 14,
+        speed: 14 * paceMultiplier,
       },
       ...distractors.map((d, idx) => ({
         uid: nextUidRef.current++,
@@ -197,13 +217,13 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
         item: d,
         x: LANE_X[otherLanes[idx]],
         y: 8 + idx * 9,
-        speed: 13 + idx,
+        speed: (13 + idx) * paceMultiplier,
       })),
     ];
     asteroidsRef.current = initial;
     setAsteroids(initial);
     setPhase('playing');
-  }, [lexicon, pickNextTarget]);
+  }, [lexicon, pickNextTarget, paceMultiplier]);
 
   const fireAtAsteroid = useCallback(
     (targetAst: AsteroidEntity) => {
@@ -370,7 +390,7 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
       cometTimerRef.current -= dt;
 
       if (cometTimerRef.current <= 0 && asteroidsRef.current.length < 6) {
-        cometTimerRef.current = 8.5;
+        cometTimerRef.current = 8.5 / paceMultiplier;
         const lane = Math.floor(Math.random() * 3) as 0 | 1 | 2;
         asteroidsRef.current.push({
           uid: nextUidRef.current++,
@@ -378,9 +398,9 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
           lane,
           x: LANE_X[lane],
           y: -8,
-          speed: 20 + waveRef.current * 2,
+          speed: (20 + waveRef.current * 2) * paceMultiplier,
         });
-      } else if (spawnTimerRef.current >= 1.05 && asteroidsRef.current.length < 5) {
+      } else if (spawnTimerRef.current >= 1.05 / paceMultiplier && asteroidsRef.current.length < 5) {
         spawnTimerRef.current = 0;
         const activeIds = new Set(
           asteroidsRef.current.filter((a) => a.kind === 'word' && a.item).map((a) => a.item!.id)
@@ -409,7 +429,7 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
             item: chosen,
             x: LANE_X[lane],
             y: -8,
-            speed: 13 + waveRef.current * 2.5 + Math.random() * 3,
+            speed: (13 + waveRef.current * 2.5 + Math.random() * 3) * paceMultiplier,
           });
         }
       }
@@ -441,7 +461,7 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
 
     rafId = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(rafId);
-  }, [phase, lexicon, finishRound, pickNextTarget]);
+  }, [phase, lexicon, paceMultiplier, finishRound, pickNextTarget]);
 
   const bestScore = bestScoreFor('meteor_blaster');
 
@@ -459,6 +479,7 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
         bestScore={bestScore}
         timeLeft={timeLeft}
         combo={combo}
+        arcadeTier={arcadeTier}
         isCompact={isCompact}
         onExit={onExit}
       />
@@ -471,6 +492,7 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
           description="Read or hear the target word, then tap glowing asteroids (or fire Lanes 1 / 2 / 3) to shatter meteors with twin neon lasers and build Wave multipliers!"
           startLabel="Launch Starfighter!"
           bestScore={bestScore}
+          arcadeTier={arcadeTier}
           isCompact={isCompact}
           emblem={<MeteorBlasterEmblem size={isCompact ? 54 : 68} />}
           buttonClass="tactile-btn-indigo"
@@ -789,6 +811,8 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
           bestScore={bestScore}
           heartsWon={summary.heartsWon}
           bonusGems={summary.bonusGems}
+          xpEarned={summary.xpEarned}
+          arcadeTier={arcadeTier}
           statLine={`Asteroids shattered: ${summary.hits} • Max Wave: ${summary.maxWave}x`}
           isCompact={isCompact}
           onPlayAgain={startRound}

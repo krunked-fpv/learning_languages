@@ -3,16 +3,25 @@ import { motion } from 'framer-motion';
 import { Music, Play, Star, X } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
-import { useVaultStore, vaultActions } from '../../store/useVaultStore';
-import { LANGUAGE_META, type ArcadeLanternItem, type CharacterPose, type CompanionId } from '../../types/contracts';
+import { useVaultStore } from '../../store/useVaultStore';
+import {
+  LANGUAGE_META,
+  type ArcadeLanternItem,
+  type ArcadeProficiencyTier,
+  type CharacterPose,
+  type CompanionId,
+} from '../../types/contracts';
 import { MascotStage } from '../characters/MascotStage';
 import {
   ARCADE_SHELL_STYLE,
+  ARCADE_TIER_META,
   ArcadeSummaryCard,
   CARD_SURFACE_STYLE,
   SOFT_BTN_STYLE,
   TargetPromptBar,
+  computeScaledArcadeRewards,
   getArcadeForeignTextStyle,
+  recordArcadeRunResult,
   useArcadeContainerMetrics,
   useArcadeDeck,
 } from './arcadeShared';
@@ -39,12 +48,18 @@ interface SongBubbleEntity {
 }
 
 export interface StarlightSecretGameProps {
+  arcadeTier?: ArcadeProficiencyTier;
   onExit: () => void;
 }
 
-export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
+export function StarlightSecretGame({
+  arcadeTier = 'sprout',
+  onExit,
+}: StarlightSecretGameProps) {
   const { activeProfile } = useVaultStore();
-  const { language, lexicon, bestScoreFor } = useArcadeDeck();
+  const { language, lexicon, targetLexicon, bestScoreFor, paceMultiplier } =
+    useArcadeDeck(arcadeTier);
+  const tierMeta = ARCADE_TIER_META[arcadeTier];
   const { containerRef, isCompact } = useArcadeContainerMetrics();
   const langDir = LANGUAGE_META[language].dir;
 
@@ -53,7 +68,7 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
   const [choirPose, setChoirPose] = useState<CharacterPose>('idle');
-  const [targetItem, setTargetItem] = useState<ArcadeLanternItem>(() => lexicon[0]);
+  const [targetItem, setTargetItem] = useState<ArcadeLanternItem>(() => targetLexicon[0] ?? lexicon[0]);
   const [bubbles, setBubbles] = useState<SongBubbleEntity[]>([]);
   const [wobbleUid, setWobbleUid] = useState<number | null>(null);
   const [toast, setToast] = useState<ReactNode>('Pop the floating Song-Bubble matching the clue!');
@@ -61,11 +76,12 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
     score: number;
     heartsWon: number;
     bonusGems: number;
+    xpEarned: number;
     catches: number;
   } | null>(null);
 
   const bubblesRef = useRef<SongBubbleEntity[]>([]);
-  const targetRef = useRef<ArcadeLanternItem>(lexicon[0]);
+  const targetRef = useRef<ArcadeLanternItem>(targetLexicon[0] ?? lexicon[0]);
   const catchesRef = useRef(0);
   const streakRef = useRef(0);
   const scoreRef = useRef(0);
@@ -79,11 +95,12 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
   const timersRef = useRef<number[]>([]);
 
   useEffect(() => {
-    if (phase === 'ready' && lexicon.length > 0) {
-      targetRef.current = lexicon[0];
-      setTargetItem(lexicon[0]);
+    const activePool = targetLexicon.length > 0 ? targetLexicon : lexicon;
+    if (phase === 'ready' && activePool.length > 0) {
+      targetRef.current = activePool[0];
+      setTargetItem(activePool[0]);
     }
-  }, [phase, lexicon]);
+  }, [phase, targetLexicon, lexicon]);
 
   useEffect(() => {
     return () => {
@@ -104,8 +121,9 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
 
   const pickNextTarget = useCallback(
     (avoidId?: string, speakNow = false) => {
-      const pool = lexicon.filter((item) => item.id !== avoidId);
-      const list = pool.length > 0 ? pool : lexicon;
+      const source = targetLexicon.length > 0 ? targetLexicon : lexicon;
+      const pool = source.filter((item) => item.id !== avoidId);
+      const list = pool.length > 0 ? pool : source;
       const chosen = list[Math.floor(Math.random() * list.length)];
       targetRef.current = chosen;
       setTargetItem(chosen);
@@ -114,7 +132,7 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
       }
       return chosen;
     },
-    [lexicon, language]
+    [targetLexicon, lexicon, language]
   );
 
   const finishRun = useCallback(() => {
@@ -123,18 +141,25 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
     const totalCatches = catchesRef.current;
     const finalScore = scoreRef.current;
     const heartsWon = Math.min(5, Math.max(1, Math.ceil(totalCatches / 2)));
-    const bonusGems =
+    const baseGems =
       starGemsRef.current + Math.floor(finalScore / 20) + (totalCatches >= 5 ? 5 : 0);
-    vaultActions.recordArcadeGameResult({
+    const { bonusGems, xpEarned } = computeScaledArcadeRewards({
+      arcadeTier,
+      baseGems,
+      performanceUnits: totalCatches,
+      baseXpBonus: 4,
+    });
+    recordArcadeRunResult({
       gameId: 'starlight_choir',
       score: finalScore,
       heartsWon,
       bonusGems,
+      xpEarned,
     });
     playSfx('secret_fanfare');
-    setSummary({ score: finalScore, heartsWon, bonusGems, catches: totalCatches });
+    setSummary({ score: finalScore, heartsWon, bonusGems, xpEarned, catches: totalCatches });
     setPhase('summary');
-  }, []);
+  }, [arcadeTier]);
 
   const startRun = useCallback(() => {
     playSfx('secret_fanfare');
@@ -163,7 +188,7 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
         item: first,
         x: 50,
         y: 80,
-        speed: 14,
+        speed: 14 * paceMultiplier,
         swayOffset: 0,
         paletteIndex: 0,
       },
@@ -173,14 +198,14 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
         item: d,
         x: idx === 0 ? 24 : 76,
         y: 86 + idx * 4,
-        speed: 13 + idx,
+        speed: (13 + idx) * paceMultiplier,
         swayOffset: idx + 1,
         paletteIndex: (idx + 1) % BUBBLE_PALETTES.length,
       })),
     ];
     setBubbles([...bubblesRef.current]);
     setPhase('playing');
-  }, [lexicon, pickNextTarget]);
+  }, [lexicon, pickNextTarget, paceMultiplier]);
 
   useEffect(() => {
     if (phase !== 'playing') return;
@@ -205,17 +230,17 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
       spawnTimerRef.current += dt;
       starTimerRef.current -= dt;
       if (starTimerRef.current <= 0 && bubblesRef.current.length < 7) {
-        starTimerRef.current = 6.5;
+        starTimerRef.current = 6.5 / paceMultiplier;
         bubblesRef.current.push({
           uid: nextUidRef.current++,
           kind: 'star',
           x: 18 + Math.random() * 64,
           y: 100,
-          speed: 17,
+          speed: 17 * paceMultiplier,
           swayOffset: Math.random() * Math.PI,
           paletteIndex: 0,
         });
-      } else if (spawnTimerRef.current >= 0.95 && bubblesRef.current.length < 6) {
+      } else if (spawnTimerRef.current >= 0.95 / paceMultiplier && bubblesRef.current.length < 6) {
         spawnTimerRef.current = 0;
         const activeIds = new Set(
           bubblesRef.current.filter((b) => b.kind === 'word' && b.item).map((b) => b.item!.id)
@@ -236,7 +261,7 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
             item: chosen,
             x: 21 + Math.random() * 58,
             y: 100,
-            speed: 13 + Math.random() * 6,
+            speed: (13 + Math.random() * 6) * paceMultiplier,
             swayOffset: Math.random() * Math.PI * 2,
             paletteIndex: Math.floor(Math.random() * BUBBLE_PALETTES.length),
           });
@@ -262,7 +287,7 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
 
     rafId = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(rafId);
-  }, [phase, lexicon, finishRun]);
+  }, [phase, lexicon, paceMultiplier, finishRun]);
 
   const handlePopBubble = (bubble: SongBubbleEntity) => {
     if (phase !== 'playing') return;
@@ -401,6 +426,28 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          {!isCompact ? (
+            <span
+              style={{
+                padding: '4px 9px',
+                borderRadius: 999,
+                background: tierMeta.bgColor,
+                borderTopWidth: 2,
+                borderRightWidth: 2,
+                borderLeftWidth: 2,
+                borderBottomWidth: 3,
+                borderStyle: 'solid',
+                borderColor: tierMeta.borderColor,
+                color: tierMeta.textColor,
+                fontWeight: 900,
+                fontSize: '0.74rem',
+                fontFamily: 'var(--font-display)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {tierMeta.label} {tierMeta.paceLabel}
+            </span>
+          ) : null}
           <span
             className="hud-pill hud-pill-static"
             style={{
@@ -498,10 +545,29 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
               color: 'var(--text-muted, #475569)',
             }}
           >
-            Tap bubbles matching the English prompt to play rising pentatonic melodies! Hit a 5x
+            Pop musical Song-Bubbles to play rising pentatonic melodies! Hit a 5x
             streak to trigger STARLIGHT DISCO FEVER (2x points), and tap Golden Star Notes for
             extra time & Gems!
           </p>
+          <span
+            style={{
+              padding: '4px 10px',
+              borderRadius: 999,
+              background: tierMeta.bgColor,
+              borderTopWidth: 2,
+              borderRightWidth: 2,
+              borderLeftWidth: 2,
+              borderBottomWidth: 3,
+              borderStyle: 'solid',
+              borderColor: tierMeta.borderColor,
+              color: tierMeta.textColor,
+              fontSize: '0.78rem',
+              fontWeight: 900,
+              fontFamily: 'var(--font-display)',
+            }}
+          >
+            {tierMeta.label} ({tierMeta.cefrLabel}) · {tierMeta.paceLabel} Pace · {tierMeta.rewardLabel} Rewards
+          </span>
           <button
             type="button"
             className="tactile-btn tactile-btn-hero tactile-btn-indigo"
@@ -757,6 +823,8 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
           bestScore={bestScore}
           heartsWon={summary.heartsWon}
           bonusGems={summary.bonusGems}
+          xpEarned={summary.xpEarned}
+          arcadeTier={arcadeTier}
           statLine={`Song-Bubbles popped: ${summary.catches}`}
           isCompact={isCompact}
           playAgainLabel="Play Encore!"

@@ -13,26 +13,32 @@ import {
 import { FlagIcon } from '../../art/FlagIcon';
 import { playSfx } from '../../audio';
 import { useVaultStore } from '../../store/useVaultStore';
-import { LANGUAGE_META } from '../../types/contracts';
+import { LANGUAGE_META, type ArcadeProficiencyTier } from '../../types/contracts';
 import {
+  CafeOrderRushEmblem,
   ConstellationMemoryEmblem,
   MeteorBlasterEmblem,
   RhythmChefEmblem,
   SkyCatcherEmblem,
+  StarlightBridgeEmblem,
   StarlightChoirEmblem,
   TowerStackEmblem,
   TrainSwitcherEmblem,
 } from './ArcadeEmblems';
 import {
+  ARCADE_TIER_LIST,
+  ARCADE_TIER_META,
   CARD_SURFACE_STYLE,
   SOFT_BTN_STYLE,
   useArcadeContainerMetrics,
   useArcadeDeck,
 } from './arcadeShared';
+import { CafeOrderRushArcade } from './CafeOrderRushArcade';
 import { ConstellationMemoryArcade } from './ConstellationMemoryArcade';
 import { MeteorBlasterArcade } from './MeteorBlasterArcade';
 import { RhythmChefArcade } from './RhythmChefArcade';
 import { SkyCatcherArcade } from './SkyCatcherArcade';
+import { StarlightBridgeArcade } from './StarlightBridgeArcade';
 import { StarlightSecretGame } from './StarlightSecretGame';
 import { TowerStackArcade } from './TowerStackArcade';
 import { TrainSwitcherArcade } from './TrainSwitcherArcade';
@@ -45,6 +51,8 @@ export type ArcadeGameMode =
   | 'constellation_memory'
   | 'train_switcher'
   | 'rhythm_chef'
+  | 'cafe_order_rush'
+  | 'starlight_bridge'
   | 'starlight_choir';
 
 export interface ArcadeHubProps {
@@ -124,52 +132,84 @@ const STANDARD_CABINETS: readonly CabinetSpec[] = [
     accentBorder: '#f59e0b',
     emblem: (s) => <RhythmChefEmblem size={s} />,
   },
+  {
+    id: 'cafe_order_rush',
+    title: 'Polyglot Café Order Rush',
+    tag: 'Café Rush',
+    description: 'Serve companions warm cocoa & treats before their patience rings empty for Speed Tips!',
+    cta: 'Serve Café Rush',
+    btnClass: 'tactile-btn-amber',
+    accentBorder: '#f97316',
+    emblem: (s) => <CafeOrderRushEmblem size={s} />,
+  },
+  {
+    id: 'starlight_bridge',
+    title: 'Starlight Bridge Cloze Builder',
+    tag: 'Sky Cloze',
+    description: 'Snap glowing phrase planks into starry sky-island bridges while Pip sprints across!',
+    cta: 'Build Star Bridge',
+    btnClass: 'tactile-btn-indigo',
+    accentBorder: '#38bdf8',
+    emblem: (s) => <StarlightBridgeEmblem size={s} />,
+  },
 ];
 
 export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) {
   const { activeProfile } = useVaultStore();
-  const { language, bestScoreFor } = useArcadeDeck();
-  const { containerRef, width, isNarrow, isCompact } = useArcadeContainerMetrics();
+  const [arcadeTier, setArcadeTier] = useState<ArcadeProficiencyTier>('sprout');
+  const { language, bestScoreFor, tierMeta } = useArcadeDeck(arcadeTier);
+  const { containerRef, width, height, isNarrow, isCompact } = useArcadeContainerMetrics();
   const langMeta = LANGUAGE_META[language];
   const [mode, setMode] = useState<ArcadeGameMode>(initialMode);
-  const [page, setPage] = useState<0 | 1>(0);
+  const [page, setPage] = useState<0 | 1 | 2>(0);
 
   useEffect(() => {
     setMode(initialMode);
   }, [initialMode]);
 
   if (mode === 'sky_catcher') {
-    return <SkyCatcherArcade onExit={() => setMode('hub')} />;
+    return <SkyCatcherArcade arcadeTier={arcadeTier} onExit={() => setMode('hub')} />;
   }
   if (mode === 'meteor_blaster') {
-    return <MeteorBlasterArcade onExit={() => setMode('hub')} />;
+    return <MeteorBlasterArcade arcadeTier={arcadeTier} onExit={() => setMode('hub')} />;
   }
   if (mode === 'tower_stack') {
-    return <TowerStackArcade onExit={() => setMode('hub')} />;
+    return <TowerStackArcade arcadeTier={arcadeTier} onExit={() => setMode('hub')} />;
   }
   if (mode === 'constellation_memory') {
-    return <ConstellationMemoryArcade onExit={() => setMode('hub')} />;
+    return <ConstellationMemoryArcade arcadeTier={arcadeTier} onExit={() => setMode('hub')} />;
   }
   if (mode === 'train_switcher') {
-    return <TrainSwitcherArcade onExit={() => setMode('hub')} />;
+    return <TrainSwitcherArcade arcadeTier={arcadeTier} onExit={() => setMode('hub')} />;
   }
   if (mode === 'rhythm_chef') {
-    return <RhythmChefArcade onExit={() => setMode('hub')} />;
+    return <RhythmChefArcade arcadeTier={arcadeTier} onExit={() => setMode('hub')} />;
+  }
+  if (mode === 'cafe_order_rush') {
+    return <CafeOrderRushArcade arcadeTier={arcadeTier} onExit={() => setMode('hub')} />;
+  }
+  if (mode === 'starlight_bridge') {
+    return <StarlightBridgeArcade arcadeTier={arcadeTier} onExit={() => setMode('hub')} />;
   }
   if (mode === 'starlight_choir' && activeProfile.secretArcadeUnlocked) {
-    return <StarlightSecretGame onExit={() => setMode('hub')} />;
+    return <StarlightSecretGame arcadeTier={arcadeTier} onExit={() => setMode('hub')} />;
   }
 
   const secretUnlocked = Boolean(activeProfile.secretArcadeUnlocked);
   const isWideDesktop = width >= 960;
+  const isTightHeight = height < 680;
+
   const visibleStandard = isNarrow
     ? page === 0
       ? STANDARD_CABINETS.slice(0, 4)
-      : STANDARD_CABINETS.slice(4, 6)
+      : page === 1
+        ? STANDARD_CABINETS.slice(4, 8)
+        : []
     : STANDARD_CABINETS;
-  const showSecretCabinet = !isNarrow || page === 1;
 
-  const emblemSize = isNarrow ? 38 : isWideDesktop ? 46 : 42;
+  const showSecretCabinet = !isNarrow || page === 2;
+  const isSecretCardLayout = isNarrow || !isWideDesktop;
+  const emblemSize = isNarrow ? 34 : isWideDesktop ? (isTightHeight ? 38 : 42) : 40;
 
   return (
     <section
@@ -180,158 +220,268 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
         maxHeight: '100%',
         minHeight: 0,
         width: '100%',
-        maxWidth: 1140,
+        maxWidth: 1160,
         margin: '0 auto',
         display: 'flex',
         flexDirection: 'column',
-        gap: isCompact ? 8 : 10,
+        gap: isCompact ? 6 : 8,
         overflow: 'hidden',
       }}
     >
-      {/* Compact Arcade Plaza Header */}
+      {/* Compact Arcade Plaza Header + Selectable Proficiency Tiers */}
       <div
         style={{
           ...CARD_SURFACE_STYLE,
           flexShrink: 0,
-          padding: isCompact ? '8px 12px' : '10px 16px',
+          padding: isCompact ? '7px 10px' : '8px 14px',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 10,
-          flexWrap: 'wrap',
+          flexDirection: 'column',
+          gap: isCompact ? 6 : 7,
           borderRadius: 18,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, maxWidth: '100%', flex: '1 1 180px' }}>
-          <div
-            style={{
-              width: isCompact ? 34 : 42,
-              height: isCompact ? 34 : 42,
-              borderRadius: 14,
-              background: 'var(--card-soft-bg, #eff6ff)',
-              borderTopWidth: 2,
-              borderRightWidth: 2,
-              borderLeftWidth: 2,
-              borderBottomWidth: 3,
-              borderStyle: 'solid',
-              borderColor: 'var(--lang-primary, #2563eb)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--lang-primary, #2563eb)',
-              flexShrink: 0,
-            }}
-          >
-            <Gamepad2 size={isCompact ? 18 : 22} />
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: '1 1 180px' }}>
+            <div
+              style={{
+                width: isCompact ? 32 : 38,
+                height: isCompact ? 32 : 38,
+                borderRadius: 12,
+                background: 'var(--card-soft-bg, #eff6ff)',
+                borderTopWidth: 2,
+                borderRightWidth: 2,
+                borderLeftWidth: 2,
+                borderBottomWidth: 3,
+                borderStyle: 'solid',
+                borderColor: 'var(--lang-primary, #2563eb)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--lang-primary, #2563eb)',
+                flexShrink: 0,
+              }}
+            >
+              <Gamepad2 size={isCompact ? 17 : 20} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <h1
+                  style={{
+                    margin: 0,
+                    fontFamily: 'var(--font-display)',
+                    fontSize: isCompact ? '0.98rem' : '1.16rem',
+                    fontWeight: 900,
+                    color: 'var(--text-main, #1e1b4b)',
+                    lineHeight: 1.15,
+                  }}
+                >
+                  Expedition Arcade
+                </h1>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: isCompact ? '1px 6px' : '2px 8px',
+                    borderRadius: 999,
+                    background: 'var(--card-soft-bg, #f8fafc)',
+                    border: '1px solid var(--card-border, #cbd5e1)',
+                    color: 'var(--text-main, #1e1b4b)',
+                    fontSize: isCompact ? '0.66rem' : '0.72rem',
+                    fontWeight: 800,
+                    lineHeight: 1.35,
+                    maxWidth: '100%',
+                  }}
+                >
+                  <FlagIcon language={language} size={isCompact ? 14 : 17} />
+                  <span dir={langMeta.dir} style={{ lineHeight: 1.35 }}>
+                    {langMeta.nativeName}
+                  </span>
+                </span>
+              </div>
+              {!isCompact ? (
+                <div
+                  style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    color: 'var(--text-muted, #475569)',
+                  }}
+                >
+                  9 tactile mini-games • {tierMeta.label} ({tierMeta.cefrLabel}): {tierMeta.paceLabel} pace & {tierMeta.rewardLabel} XP/Gems!
+                </div>
+              ) : null}
+            </div>
           </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <h1
-                style={{
-                  margin: 0,
-                  fontFamily: 'var(--font-display)',
-                  fontSize: isCompact ? '1.02rem' : '1.24rem',
-                  fontWeight: 900,
-                  color: 'var(--text-main, #1e1b4b)',
-                  lineHeight: 1.15,
-                }}
-              >
-                Expedition Arcade
-              </h1>
-              <span
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            {!isNarrow ? (
+              <div
+                role="group"
+                aria-label="Arcade proficiency tier"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 5,
-                  padding: isCompact ? '1px 7px' : '2px 8px',
-                  borderRadius: 999,
-                  background: 'var(--card-soft-bg, #f8fafc)',
-                  border: '1px solid var(--card-border, #cbd5e1)',
-                  color: 'var(--text-main, #1e1b4b)',
-                  fontSize: isCompact ? '0.68rem' : '0.74rem',
-                  fontWeight: 800,
-                  lineHeight: 1.35,
-                  maxWidth: '100%',
+                  gap: 4,
+                  padding: 3,
+                  borderRadius: 14,
+                  background: 'var(--card-soft-bg, #f1f5f9)',
+                  border: '1.5px solid var(--card-border, #cbd5e1)',
                 }}
               >
-                <FlagIcon language={language} size={isCompact ? 15 : 18} />
-                <span dir={langMeta.dir} style={{ lineHeight: 1.35 }}>
-                  {langMeta.nativeName}
-                </span>
-              </span>
-            </div>
-            {!isCompact ? (
-              <div
-                style={{
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  color: 'var(--text-muted, #475569)',
-                }}
-              >
-                7 tactile mini-games • Recharge Hearts, earn Gems & beat High Scores!
+                {ARCADE_TIER_LIST.map((tierId) => {
+                  const meta = ARCADE_TIER_META[tierId];
+                  const active = arcadeTier === tierId;
+                  return (
+                    <button
+                      key={tierId}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => {
+                        playSfx('tile_tap', ARCADE_TIER_LIST.indexOf(tierId));
+                        setArcadeTier(tierId);
+                      }}
+                      style={{
+                        padding: '4px 9px',
+                        borderRadius: 10,
+                        border: active
+                          ? `1.5px solid ${meta.borderColor}`
+                          : '1.5px solid transparent',
+                        background: active ? meta.bgColor : 'transparent',
+                        color: active ? meta.textColor : 'var(--text-muted, #475569)',
+                        fontFamily: 'var(--font-display)',
+                        fontSize: '0.72rem',
+                        fontWeight: 900,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {meta.label} {meta.cefrLabel}
+                    </button>
+                  );
+                })}
               </div>
             ) : null}
+
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: isCompact ? '3px 7px' : '4px 9px',
+                borderRadius: 999,
+                background: '#fffbeb',
+                borderTopWidth: 2,
+                borderRightWidth: 2,
+                borderLeftWidth: 2,
+                borderBottomWidth: 3,
+                borderStyle: 'solid',
+                borderColor: '#f59e0b',
+                color: '#b45309',
+                fontFamily: 'var(--font-display)',
+                fontSize: isCompact ? '0.7rem' : '0.76rem',
+                fontWeight: 900,
+              }}
+            >
+              <Trophy size={12} />
+              <span>Wins: {activeProfile.stats.arcadeGamesWon}</span>
+            </span>
+
+            <button
+              type="button"
+              className="tactile-btn"
+              style={{
+                ...SOFT_BTN_STYLE,
+                padding: isCompact ? '4px 8px' : '6px 12px',
+                fontSize: isCompact ? '0.72rem' : '0.82rem',
+                borderRadius: 12,
+              }}
+              onClick={onExitToMap}
+            >
+              Back to Atlas Map
+            </button>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span
+        {/* Narrow Mobile Tier Selector Strip */}
+        {isNarrow ? (
+          <div
+            role="group"
+            aria-label="Arcade proficiency tier"
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              padding: isCompact ? '4px 8px' : '5px 10px',
-              borderRadius: 999,
-              background: '#fffbeb',
-              borderTopWidth: 2,
-              borderRightWidth: 2,
-              borderLeftWidth: 2,
-              borderBottomWidth: 3,
-              borderStyle: 'solid',
-              borderColor: '#f59e0b',
-              color: '#b45309',
-              fontFamily: 'var(--font-display)',
-              fontSize: isCompact ? '0.74rem' : '0.8rem',
-              fontWeight: 900,
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+              gap: 5,
             }}
           >
-            <Trophy size={13} />
-            <span>Wins: {activeProfile.stats.arcadeGamesWon}</span>
-          </span>
-
-          <button
-            type="button"
-            className="tactile-btn"
-            style={{
-              ...SOFT_BTN_STYLE,
-              padding: isCompact ? '5px 10px' : '7px 14px',
-              fontSize: isCompact ? '0.78rem' : '0.86rem',
-              borderRadius: 14,
-            }}
-            onClick={onExitToMap}
-          >
-            Back to Atlas Map
-          </button>
-        </div>
+            {ARCADE_TIER_LIST.map((tierId) => {
+              const meta = ARCADE_TIER_META[tierId];
+              const active = arcadeTier === tierId;
+              return (
+                <button
+                  key={tierId}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => {
+                    playSfx('tile_tap', ARCADE_TIER_LIST.indexOf(tierId));
+                    setArcadeTier(tierId);
+                  }}
+                  style={{
+                    padding: '4px 4px',
+                    borderRadius: 10,
+                    borderTopWidth: 1.5,
+                    borderRightWidth: 1.5,
+                    borderLeftWidth: 1.5,
+                    borderBottomWidth: 2.5,
+                    borderStyle: 'solid',
+                    borderColor: active ? meta.borderColor : 'var(--card-border, #cbd5e1)',
+                    background: active ? meta.bgColor : 'var(--card-soft-bg, #f8fafc)',
+                    color: active ? meta.textColor : 'var(--text-muted, #475569)',
+                    fontFamily: 'var(--font-display)',
+                    fontSize: '0.66rem',
+                    fontWeight: 900,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {meta.label} {meta.cefrLabel}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
 
-      {/* 7-Cabinet Console Grid */}
+      {/* 9-Cabinet Console Grid */}
       <div
         style={{
           flex: 1,
           minHeight: 0,
           display: 'grid',
           gridTemplateColumns: isNarrow
-            ? 'repeat(2, minmax(0, 1fr))'
+            ? page === 2
+              ? 'minmax(0, 1fr)'
+              : 'repeat(2, minmax(0, 1fr))'
             : isWideDesktop
               ? 'repeat(4, minmax(0, 1fr))'
               : 'repeat(3, minmax(0, 1fr))',
           gridTemplateRows: isNarrow
-            ? 'repeat(2, minmax(0, 1fr))'
+            ? page === 2
+              ? 'minmax(0, 1fr)'
+              : 'repeat(2, minmax(0, 1fr))'
             : isWideDesktop
-              ? 'repeat(2, minmax(0, 1fr))'
+              ? 'minmax(0, 1fr) minmax(0, 1fr) auto'
               : 'repeat(3, minmax(0, 1fr))',
-          gap: isCompact ? 8 : 10,
+          gap: isCompact ? 7 : 9,
           overflow: 'hidden',
         }}
       >
@@ -343,11 +493,11 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
               style={{
                 ...CARD_SURFACE_STYLE,
                 borderColor: cab.accentBorder,
-                padding: isNarrow ? 10 : 13,
+                padding: isNarrow ? 9 : isTightHeight ? 10 : 12,
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
-                gap: isNarrow ? 5 : 8,
+                gap: isNarrow ? 4 : 6,
                 minHeight: 0,
                 overflow: 'hidden',
               }}
@@ -367,17 +517,17 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'flex-end',
-                    gap: 4,
+                    gap: 3,
                     minWidth: 0,
                   }}
                 >
                   <span
                     style={{
-                      padding: '2px 7px',
+                      padding: '1px 6px',
                       borderRadius: 999,
                       background: 'var(--card-soft-bg, #f1f5f9)',
                       color: 'var(--text-muted, #475569)',
-                      fontSize: '0.66rem',
+                      fontSize: '0.62rem',
                       fontWeight: 900,
                       textTransform: 'uppercase',
                       letterSpacing: '0.03em',
@@ -387,7 +537,7 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                   </span>
                   <span
                     style={{
-                      padding: '2px 8px',
+                      padding: '1px 7px',
                       borderRadius: 999,
                       background: '#fffbeb',
                       borderTopWidth: 1,
@@ -398,7 +548,7 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                       borderColor: '#f59e0b',
                       color: '#b45309',
                       fontFamily: 'var(--font-display)',
-                      fontSize: '0.7rem',
+                      fontSize: '0.66rem',
                       fontWeight: 900,
                       whiteSpace: 'nowrap',
                     }}
@@ -409,15 +559,19 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
               </div>
 
               {/* Title & Description */}
-              <div style={{ minHeight: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <div style={{ minHeight: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <h2
                   style={{
                     margin: 0,
                     fontFamily: 'var(--font-display)',
-                    fontSize: isNarrow ? '0.9rem' : '1.02rem',
+                    fontSize: isNarrow ? '0.84rem' : isTightHeight ? '0.92rem' : '0.98rem',
                     fontWeight: 900,
                     color: 'var(--text-main, #1e1b4b)',
                     lineHeight: 1.15,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
                   }}
                 >
                   {cab.title}
@@ -426,12 +580,12 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                   <p
                     style={{
                       margin: 0,
-                      fontSize: '0.76rem',
+                      fontSize: '0.72rem',
                       fontWeight: 700,
                       color: 'var(--text-muted, #475569)',
-                      lineHeight: 1.26,
+                      lineHeight: 1.24,
                       display: '-webkit-box',
-                      WebkitLineClamp: 3,
+                      WebkitLineClamp: isTightHeight ? 2 : 3,
                       WebkitBoxOrient: 'vertical',
                       overflow: 'hidden',
                     }}
@@ -447,10 +601,10 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                 className={`tactile-btn ${cab.btnClass}`}
                 style={{
                   width: '100%',
-                  marginTop: isNarrow ? 4 : 0,
-                  padding: isNarrow ? '6px 8px' : '8px 12px',
-                  fontSize: isNarrow ? '0.76rem' : '0.86rem',
-                  borderRadius: 13,
+                  marginTop: isNarrow ? 2 : 0,
+                  padding: isNarrow ? '5px 7px' : isTightHeight ? '6px 10px' : '7px 12px',
+                  fontSize: isNarrow ? '0.72rem' : '0.82rem',
+                  borderRadius: 12,
                   flexShrink: 0,
                 }}
                 onClick={() => {
@@ -458,25 +612,25 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                   setMode(cab.id);
                 }}
               >
-                <Play size={14} />
+                <Play size={13} />
                 <span>{cab.cta}</span>
               </button>
             </div>
           );
         })}
 
-        {/* Cabinet #7: Secret Unlockable — Starlight Critter Choir */}
+        {/* Cabinet #9: Secret Unlockable — Starlight Critter Choir */}
         {showSecretCabinet ? (
           <div
             style={{
               ...CARD_SURFACE_STYLE,
-              gridColumn: isNarrow || isWideDesktop ? 'span 2' : '1 / -1',
-              padding: isNarrow ? 10 : 14,
+              gridColumn: isWideDesktop ? '1 / -1' : 'span 1',
+              padding: isNarrow ? 12 : isWideDesktop ? '9px 14px' : 12,
               display: 'flex',
-              flexDirection: isNarrow ? 'column' : 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: isNarrow ? 6 : 14,
+              flexDirection: isSecretCardLayout ? 'column' : 'row',
+              alignItems: isSecretCardLayout ? 'stretch' : 'center',
+              justifyContent: isNarrow ? 'center' : 'space-between',
+              gap: isNarrow ? 14 : isSecretCardLayout ? 8 : 14,
               minHeight: 0,
               overflow: 'hidden',
               background: secretUnlocked
@@ -491,40 +645,39 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                 <div
                   style={{
                     display: 'flex',
-                    alignItems: 'center',
-                    gap: isNarrow ? 10 : 14,
+                    alignItems: isSecretCardLayout ? 'flex-start' : 'center',
+                    gap: isNarrow ? 10 : 12,
                     minWidth: 0,
-                    width: isNarrow ? '100%' : 'auto',
                   }}
                 >
                   <div style={{ flexShrink: 0 }}>
-                    <StarlightChoirEmblem size={isNarrow ? 44 : 58} />
+                    <StarlightChoirEmblem size={isNarrow ? 44 : isWideDesktop ? 48 : 42} />
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 3 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', marginBottom: 2 }}>
                       <span
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: 4,
-                          padding: '2px 8px',
+                          gap: 3,
+                          padding: '1px 7px',
                           borderRadius: 999,
                           background: '#fef3c7',
                           color: '#b45309',
-                          fontSize: '0.68rem',
+                          fontSize: '0.64rem',
                           fontWeight: 900,
                         }}
                       >
-                        <Sparkles size={11} /> SECRET UNLOCKED!
+                        <Sparkles size={10} /> SECRET UNLOCKED!
                       </span>
                       <span
                         style={{
-                          padding: '2px 8px',
+                          padding: '1px 7px',
                           borderRadius: 999,
                           background: '#eef2ff',
                           color: '#3730a3',
                           fontFamily: 'var(--font-display)',
-                          fontSize: '0.7rem',
+                          fontSize: '0.66rem',
                           fontWeight: 900,
                         }}
                       >
@@ -535,9 +688,10 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                       style={{
                         margin: '0 0 2px',
                         fontFamily: 'var(--font-display)',
-                        fontSize: isNarrow ? '0.95rem' : '1.1rem',
+                        fontSize: isNarrow ? '0.95rem' : '1.02rem',
                         fontWeight: 900,
                         color: 'var(--text-main, #1e1b4b)',
+                        lineHeight: 1.15,
                       }}
                     >
                       Starlight Critter Choir
@@ -545,18 +699,14 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                     <p
                       style={{
                         margin: 0,
-                        fontSize: isNarrow ? '0.72rem' : '0.8rem',
+                        fontSize: isNarrow ? '0.76rem' : '0.74rem',
                         fontWeight: 700,
                         color: 'var(--text-muted, #475569)',
-                        lineHeight: 1.25,
-                        ...(isNarrow
-                          ? {
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical' as const,
-                              overflow: 'hidden',
-                            }
-                          : {}),
+                        lineHeight: 1.24,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
                       }}
                     >
                       Pop musical Song-Bubbles with all 5 companions, trigger 5x Disco Fever, and
@@ -570,16 +720,17 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                   className="tactile-btn tactile-btn-indigo"
                   style={{
                     flexShrink: 0,
-                    width: isNarrow ? '100%' : 'auto',
-                    padding: isNarrow ? '8px 12px' : '11px 18px',
-                    fontSize: isNarrow ? '0.82rem' : '0.9rem',
+                    width: isSecretCardLayout ? '100%' : 'auto',
+                    padding: isNarrow ? '8px 12px' : isWideDesktop ? '9px 16px' : '7px 10px',
+                    fontSize: isNarrow ? '0.82rem' : '0.84rem',
+                    borderRadius: 12,
                   }}
                   onClick={() => {
                     playSfx('secret_fanfare');
                     setMode('starlight_choir');
                   }}
                 >
-                  <Music size={16} />
+                  <Music size={15} />
                   <span>Play Starlight Critter Choir!</span>
                 </button>
               </>
@@ -588,22 +739,21 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                 <div
                   style={{
                     display: 'flex',
-                    alignItems: 'center',
-                    gap: isNarrow ? 10 : 14,
+                    alignItems: isSecretCardLayout ? 'flex-start' : 'center',
+                    gap: isNarrow ? 10 : 12,
                     minWidth: 0,
-                    width: isNarrow ? '100%' : 'auto',
                   }}
                 >
                   <div
                     style={{
-                      width: isNarrow ? 44 : 58,
-                      height: isNarrow ? 44 : 58,
+                      width: isNarrow ? 44 : isWideDesktop ? 48 : 42,
+                      height: isNarrow ? 44 : isWideDesktop ? 48 : 42,
                       borderRadius: 999,
                       background: 'rgba(255, 255, 255, 0.1)',
-                      borderTopWidth: 2.5,
-                      borderRightWidth: 2.5,
-                      borderLeftWidth: 2.5,
-                      borderBottomWidth: 2.5,
+                      borderTopWidth: 2,
+                      borderRightWidth: 2,
+                      borderLeftWidth: 2,
+                      borderBottomWidth: 2,
                       borderStyle: 'dashed',
                       borderColor: '#fbbf24',
                       display: 'flex',
@@ -613,32 +763,33 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                       flexShrink: 0,
                     }}
                   >
-                    <Lock size={isNarrow ? 20 : 26} />
+                    <Lock size={isNarrow ? 20 : 22} />
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <div
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: 4,
-                        padding: '2px 8px',
+                        gap: 3,
+                        padding: '1px 7px',
                         borderRadius: 999,
                         background: 'rgba(251, 191, 36, 0.22)',
                         color: '#fde047',
-                        fontSize: '0.68rem',
+                        fontSize: '0.64rem',
                         fontWeight: 900,
-                        marginBottom: 3,
+                        marginBottom: 2,
                       }}
                     >
-                      <Star size={11} /> MYSTERY VAULT
+                      <Star size={10} /> MYSTERY VAULT
                     </div>
                     <h2
                       style={{
                         margin: '0 0 2px',
                         fontFamily: 'var(--font-display)',
-                        fontSize: isNarrow ? '0.95rem' : '1.1rem',
+                        fontSize: isNarrow ? '0.95rem' : '1.02rem',
                         fontWeight: 900,
                         color: '#f8fafc',
+                        lineHeight: 1.15,
                       }}
                     >
                       ??? Starlight Critter Choir
@@ -646,18 +797,14 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                     <p
                       style={{
                         margin: 0,
-                        fontSize: isNarrow ? '0.7rem' : '0.78rem',
+                        fontSize: isNarrow ? '0.74rem' : '0.73rem',
                         fontWeight: 700,
                         color: '#e0e7ff',
-                        lineHeight: 1.25,
-                        ...(isNarrow
-                          ? {
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical' as const,
-                              overflow: 'hidden',
-                            }
-                          : {}),
+                        lineHeight: 1.24,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
                       }}
                     >
                       Clear any Unit Boss, finish 3 lessons, OR tap the Golden Compass 5 times in
@@ -672,7 +819,7 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                   className="tactile-btn"
                   style={{
                     flexShrink: 0,
-                    width: isNarrow ? '100%' : 'auto',
+                    width: isSecretCardLayout ? '100%' : 'auto',
                     background: 'rgba(255, 255, 255, 0.14)',
                     borderTopWidth: 2,
                     borderRightWidth: 2,
@@ -681,8 +828,9 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                     borderStyle: 'solid',
                     borderColor: '#818cf8',
                     color: '#e0e7ff',
-                    padding: isNarrow ? '7px 12px' : '10px 16px',
-                    fontSize: isNarrow ? '0.8rem' : '0.86rem',
+                    padding: isNarrow ? '7px 12px' : isWideDesktop ? '8px 14px' : '7px 10px',
+                    fontSize: isNarrow ? '0.8rem' : '0.82rem',
+                    borderRadius: 12,
                   }}
                 >
                   <Lock size={14} />
@@ -694,7 +842,7 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
         ) : null}
       </div>
 
-      {/* Narrow Screen Page 1 / 2 Cabinet Pager */}
+      {/* Narrow Screen Page 1 / 3 Cabinet Pager */}
       {isNarrow ? (
         <div
           style={{
@@ -721,16 +869,16 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
             disabled={page === 0}
             onClick={() => {
               playSfx('tile_tap', 0);
-              setPage(0);
+              setPage((p) => (p > 0 ? ((p - 1) as 0 | 1 | 2) : p));
             }}
             style={{
               ...SOFT_BTN_STYLE,
-              padding: '5px 12px',
-              fontSize: '0.78rem',
+              padding: '4px 10px',
+              fontSize: '0.75rem',
               borderRadius: 12,
             }}
           >
-            <ChevronLeft size={15} />
+            <ChevronLeft size={14} />
             <span>Prev</span>
           </button>
 
@@ -738,31 +886,31 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
             style={{
               fontFamily: 'var(--font-display)',
               fontWeight: 900,
-              fontSize: '0.82rem',
+              fontSize: '0.78rem',
               color: 'var(--text-main, #1e1b4b)',
             }}
           >
-            Page {page + 1} / 2
+            Page {page + 1} / 3
           </span>
 
           <button
             type="button"
             className="tactile-btn"
             aria-label="Next arcade page"
-            disabled={page === 1}
+            disabled={page === 2}
             onClick={() => {
               playSfx('tile_tap', 1);
-              setPage(1);
+              setPage((p) => (p < 2 ? ((p + 1) as 0 | 1 | 2) : p));
             }}
             style={{
               ...SOFT_BTN_STYLE,
-              padding: '5px 12px',
-              fontSize: '0.78rem',
+              padding: '4px 10px',
+              fontSize: '0.75rem',
               borderRadius: 12,
             }}
           >
             <span>Next</span>
-            <ChevronRight size={15} />
+            <ChevronRight size={14} />
           </button>
         </div>
       ) : null}
