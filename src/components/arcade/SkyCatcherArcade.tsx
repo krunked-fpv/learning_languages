@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Sparkles, Volume2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
-import { playSfx, speakPhrase } from '../../audio';
+import { playSfx } from '../../audio';
 import { useVaultStore, vaultActions } from '../../store/useVaultStore';
-import type { ArcadeLanternItem, CharacterPose } from '../../types/contracts';
+import { LANGUAGE_META, type ArcadeLanternItem, type CharacterPose } from '../../types/contracts';
 import { MascotStage } from '../characters/MascotStage';
 import { SkyCatcherEmblem } from './ArcadeEmblems';
 import {
@@ -11,8 +11,9 @@ import {
   ArcadeHeaderBar,
   ArcadeReadyCard,
   ArcadeSummaryCard,
-  CARD_SURFACE_STYLE,
   SOFT_BTN_STYLE,
+  TargetPromptBar,
+  getArcadeForeignTextStyle,
   useArcadeContainerMetrics,
   useArcadeDeck,
 } from './arcadeShared';
@@ -43,6 +44,7 @@ export function SkyCatcherArcade({
   const { activeProfile } = useVaultStore();
   const { language, lexicon, targetLexicon, bestScoreFor } = useArcadeDeck();
   const { containerRef, isCompact } = useArcadeContainerMetrics();
+  const langDir = LANGUAGE_META[language].dir;
 
   const [phase, setPhase] = useState<'ready' | 'playing' | 'summary'>(
     isHeartRecovery ? 'playing' : 'ready'
@@ -55,7 +57,7 @@ export function SkyCatcherArcade({
   const [pipPose, setPipPose] = useState<CharacterPose>('idle');
   const [targetItem, setTargetItem] = useState<ArcadeLanternItem>(() => targetLexicon[0]);
   const [entities, setEntities] = useState<FallingEntity[]>([]);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<ReactNode | null>(null);
   const [summaryResult, setSummaryResult] = useState<{
     score: number;
     heartsWon: number;
@@ -76,6 +78,13 @@ export function SkyCatcherArcade({
   const elapsedRef = useRef(0);
   const finishedRef = useRef(false);
   const poseTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (phase === 'ready' && targetLexicon.length > 0) {
+      targetRef.current = targetLexicon[0];
+      setTargetItem(targetLexicon[0]);
+    }
+  }, [phase, targetLexicon]);
 
   useEffect(() => {
     return () => {
@@ -257,7 +266,7 @@ export function SkyCatcherArcade({
               uid: nextUidRef.current++,
               kind: 'lantern',
               item,
-              x: 17 + Math.random() * 66,
+              x: 21 + Math.random() * 58,
               y: -10,
               speed: 19 + Math.random() * 8,
               swayOffset: Math.random() * Math.PI * 2,
@@ -274,14 +283,15 @@ export function SkyCatcherArcade({
         }
         const nextY = ent.y + ent.speed * dt;
         const swayX = Math.max(
-          14,
-          Math.min(86, ent.x + Math.sin(elapsedRef.current * 2 + ent.swayOffset) * 4 * dt)
+          18,
+          Math.min(82, ent.x + Math.sin(elapsedRef.current * 2 + ent.swayOffset) * 4 * dt)
         );
         const hitPip = nextY >= 72 && nextY <= 92 && Math.abs(swayX - pipXRef.current) <= 14;
 
         if (hitPip) {
           if (ent.kind === 'lantern' && ent.item?.id === targetRef.current.id) {
             const caughtId = ent.item.id;
+            const caughtForeign = ent.item.foreign;
             clearedItemIds.add(caughtId);
             survivors = survivors.filter(
               (s) => !(s.kind === 'lantern' && s.item?.id === caughtId)
@@ -295,7 +305,11 @@ export function SkyCatcherArcade({
             setCombo(comboRef.current);
             setScore(scoreRef.current);
             setPipPose('happy');
-            setToast(`Caught "${ent.item.foreign}"! +${gained} pts`);
+            setToast(
+              <>
+                Caught “<bdi dir={langDir}>{caughtForeign}</bdi>”! +{gained} pts
+              </>
+            );
             playSfx(comboRef.current >= 3 ? 'combo_3x' : 'heart_win', comboRef.current);
             pickNextTarget(caughtId);
             schedulePoseReset(550);
@@ -326,7 +340,7 @@ export function SkyCatcherArcade({
 
     rafId = window.requestAnimationFrame(step);
     return () => window.cancelAnimationFrame(rafId);
-  }, [phase, lexicon, finishRound, pickNextTarget, schedulePoseReset]);
+  }, [phase, lexicon, langDir, finishRound, pickNextTarget, schedulePoseReset]);
 
   const movePipToClientX = (clientX: number) => {
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -385,87 +399,27 @@ export function SkyCatcherArcade({
 
       {phase === 'playing' ? (
         <>
-          <div
-            style={{
-              ...CARD_SURFACE_STYLE,
-              flexShrink: 0,
-              padding: isCompact ? '6px 10px' : '8px 14px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 8,
-              flexWrap: 'wrap',
-              borderRadius: 16,
-              borderColor: '#f59e0b',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: isCompact ? '0.74rem' : '0.82rem',
-                  fontWeight: 900,
-                  color: '#f59e0b',
-                }}
-              >
-                CATCH:
-              </span>
-              <strong
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: isCompact ? '0.98rem' : '1.14rem',
-                  color: 'var(--text-main, #1e1b4b)',
-                }}
-              >
-                {targetItem.english}
-              </strong>
-              <span
-                style={{
-                  padding: '2px 8px',
-                  borderRadius: 999,
-                  background: '#fef3c7',
-                  color: '#92400e',
-                  fontSize: isCompact ? '0.72rem' : '0.78rem',
-                  fontWeight: 800,
-                }}
-              >
-                {targetItem.phonetic}
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button
-                type="button"
-                className="tactile-btn"
-                style={{
-                  ...SOFT_BTN_STYLE,
-                  padding: '4px 8px',
-                  fontSize: '0.76rem',
-                  borderRadius: 10,
-                }}
-                onClick={() => {
-                  void speakPhrase({
-                    text: targetItem.foreign,
-                    language,
-                    phonetic: targetItem.phonetic,
-                  });
-                }}
-              >
-                <Volume2 size={13} />
-                <span>Hint</span>
-              </button>
+          <TargetPromptBar
+            label="CATCH:"
+            targetItem={targetItem}
+            language={language}
+            isCompact={isCompact}
+            hearLabel="Hint"
+            borderColor="#f59e0b"
+            rightContent={
               <span
                 style={{
                   fontFamily: 'var(--font-display)',
                   fontWeight: 900,
                   fontSize: isCompact ? '0.78rem' : '0.86rem',
                   color: 'var(--text-main, #065f46)',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 Catches: {catches}
               </span>
-            </div>
-          </div>
+            }
+          />
 
           <div
             ref={canvasRef}
@@ -516,11 +470,13 @@ export function SkyCatcherArcade({
               ent.kind === 'lantern' && ent.item ? (
                 <div
                   key={ent.uid}
+                  dir={langDir}
                   style={{
                     position: 'absolute',
                     left: `${ent.x}%`,
                     top: `${ent.y}%`,
                     transform: 'translate(-50%, -50%)',
+                    willChange: 'left, top',
                     padding: isCompact ? '4px 8px' : '5px 10px',
                     borderRadius: 14,
                     background: '#ffffff',
@@ -534,24 +490,24 @@ export function SkyCatcherArcade({
                     display: 'flex',
                     alignItems: 'center',
                     gap: 5,
-                    maxWidth: isCompact ? '44%' : 'none',
-                    whiteSpace: 'nowrap',
+                    maxWidth: isCompact ? '44%' : '34%',
                     pointerEvents: 'none',
                   }}
                 >
-                  <VocabIllustration
-                    illustrationKey={ent.item.illustrationKey}
-                    language={language}
-                    size={isCompact ? 24 : 28}
-                  />
+                  <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                    <VocabIllustration
+                      illustrationKey={ent.item.illustrationKey}
+                      language={language}
+                      size={isCompact ? 22 : 28}
+                    />
+                  </span>
                   <span
-                    style={{
-                      fontWeight: 900,
-                      fontSize: isCompact ? '0.76rem' : '0.86rem',
+                    dir={langDir}
+                    style={getArcadeForeignTextStyle(language, ent.item.foreign, {
+                      isCompact,
+                      density: 'normal',
                       color: '#1e1b4b',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
+                    })}
                   >
                     {ent.item.foreign}
                   </span>
@@ -564,6 +520,7 @@ export function SkyCatcherArcade({
                     left: `${ent.x}%`,
                     top: `${ent.y}%`,
                     transform: 'translate(-50%, -50%)',
+                    willChange: 'left, top',
                     pointerEvents: 'none',
                   }}
                 >
@@ -587,6 +544,7 @@ export function SkyCatcherArcade({
                 left: `${pipX}%`,
                 bottom: 4,
                 transform: 'translateX(-50%)',
+                willChange: 'left',
                 pointerEvents: 'none',
                 transition: 'left 40ms linear',
               }}
@@ -606,6 +564,7 @@ export function SkyCatcherArcade({
                   top: 8,
                   left: '50%',
                   transform: 'translateX(-50%)',
+                  maxWidth: 'calc(100% - 16px)',
                   padding: '3px 11px',
                   borderRadius: 999,
                   background: 'rgba(15, 23, 42, 0.78)',
@@ -613,6 +572,8 @@ export function SkyCatcherArcade({
                   fontSize: '0.76rem',
                   fontWeight: 800,
                   whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                   pointerEvents: 'none',
                 }}
               >

@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Crosshair, Rocket, Sparkles, Zap } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
 import { useVaultStore, vaultActions } from '../../store/useVaultStore';
-import type { ArcadeLanternItem, CharacterPose } from '../../types/contracts';
+import { LANGUAGE_META, type ArcadeLanternItem, type CharacterPose } from '../../types/contracts';
 import { MascotStage } from '../characters/MascotStage';
 import { MeteorBlasterEmblem } from './ArcadeEmblems';
 import {
@@ -12,6 +12,7 @@ import {
   ArcadeReadyCard,
   ArcadeSummaryCard,
   TargetPromptBar,
+  getArcadeForeignTextStyle,
   pickDistinctItems,
   useArcadeContainerMetrics,
   useArcadeDeck,
@@ -54,6 +55,7 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
   const { activeProfile } = useVaultStore();
   const { language, lexicon, targetLexicon, bestScoreFor } = useArcadeDeck();
   const { containerRef, isCompact } = useArcadeContainerMetrics();
+  const langDir = LANGUAGE_META[language].dir;
 
   const [phase, setPhase] = useState<'ready' | 'playing' | 'summary'>('ready');
   const [timeLeft, setTimeLeft] = useState(ROUND_DURATION_SECONDS);
@@ -67,7 +69,7 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
   const [asteroids, setAsteroids] = useState<AsteroidEntity[]>([]);
   const [lasers, setLasers] = useState<LaserEffect[]>([]);
   const [bursts, setBursts] = useState<BurstEffect[]>([]);
-  const [toast, setToast] = useState<string>('Tap matching asteroids or press 1, 2, 3!');
+  const [toast, setToast] = useState<ReactNode>('Tap matching asteroids or press 1, 2, 3!');
   const [summary, setSummary] = useState<{
     score: number;
     heartsWon: number;
@@ -89,6 +91,13 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
   const nextUidRef = useRef(1);
   const finishedRef = useRef(false);
   const timersRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    if (phase === 'ready' && targetLexicon.length > 0) {
+      targetRef.current = targetLexicon[0];
+      setTargetItem(targetLexicon[0]);
+    }
+  }, [phase, targetLexicon]);
 
   useEffect(() => {
     return () => {
@@ -249,7 +258,12 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
         setWave(nextWave);
         setScore(scoreRef.current);
         setPipPose(comboRef.current >= 3 ? 'streak_fire' : 'happy');
-        setToast(`Direct hit "${targetAst.item.foreign}"! +${pts} pts`);
+        const hitForeign = targetAst.item.foreign;
+        setToast(
+          <>
+            Direct hit “<bdi dir={langDir}>{hitForeign}</bdi>”! +{pts} pts
+          </>
+        );
 
         playSfx('boss_hit');
         playSfx('star_pop', Math.min(3, comboRef.current - 1));
@@ -294,7 +308,7 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
         }, 480);
       }
     },
-    [phase, language, pickNextTarget, scheduleTimeout]
+    [phase, language, langDir, pickNextTarget, scheduleTimeout]
   );
 
   const fireLaneBlaster = useCallback(
@@ -482,6 +496,7 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
                     fontSize: isCompact ? '0.72rem' : '0.8rem',
                     fontWeight: 900,
                     fontFamily: 'var(--font-display)',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   Wave {wave}x • Hits: {hits}
@@ -577,6 +592,7 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
                 top: 8,
                 left: '50%',
                 transform: 'translateX(-50%)',
+                maxWidth: 'calc(100% - 16px)',
                 padding: '3px 11px',
                 borderRadius: 999,
                 background: 'rgba(15, 23, 42, 0.84)',
@@ -584,6 +600,8 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
                 fontSize: '0.75rem',
                 fontWeight: 800,
                 whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
                 zIndex: 6,
                 pointerEvents: 'none',
               }}
@@ -604,6 +622,7 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
                     left: `${ast.x}%`,
                     top: `${ast.y}%`,
                     transform: 'translate(-50%, -50%)',
+                    willChange: 'top',
                     padding: '5px 10px',
                     borderRadius: 999,
                     background: 'linear-gradient(135deg, #fde047 0%, #f59e0b 100%)',
@@ -631,13 +650,15 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
                 <button
                   key={ast.uid}
                   type="button"
+                  dir={langDir}
                   onClick={() => fireAtAsteroid(ast)}
                   style={{
                     position: 'absolute',
                     left: `${ast.x}%`,
                     top: `${ast.y}%`,
                     transform: 'translate(-50%, -50%)',
-                    padding: isCompact ? '4px 8px' : '6px 11px',
+                    willChange: 'top',
+                    padding: isCompact ? '4px 6px' : '6px 10px',
                     borderRadius: 18,
                     background: 'linear-gradient(180deg, #312e81 0%, #1e1b4b 100%)',
                     borderTopWidth: 2,
@@ -647,23 +668,31 @@ export function MeteorBlasterArcade({ onExit }: MeteorBlasterArcadeProps) {
                     borderStyle: 'solid',
                     borderColor: '#c084fc',
                     color: '#f8fafc',
-                    fontWeight: 900,
-                    fontSize: isCompact ? '0.76rem' : '0.86rem',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 5,
-                    maxWidth: isCompact ? '31%' : '34%',
+                    justifyContent: 'center',
+                    gap: isCompact ? 4 : 5,
+                    maxWidth: isCompact ? '31%' : '32%',
                     cursor: 'pointer',
                     zIndex: 7,
                     boxShadow: '0 0 16px rgba(168, 85, 247, 0.4)',
                   }}
                 >
-                  <VocabIllustration
-                    illustrationKey={ast.item.illustrationKey}
-                    language={language}
-                    size={isCompact ? 22 : 28}
-                  />
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                    <VocabIllustration
+                      illustrationKey={ast.item.illustrationKey}
+                      language={language}
+                      size={isCompact ? 20 : 26}
+                    />
+                  </span>
+                  <span
+                    dir={langDir}
+                    style={getArcadeForeignTextStyle(language, ast.item.foreign, {
+                      isCompact,
+                      density: 'tight',
+                      color: '#f8fafc',
+                    })}
+                  >
                     {ast.item.foreign}
                   </span>
                 </button>

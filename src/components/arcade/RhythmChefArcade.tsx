@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Music2 } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
 import { vaultActions } from '../../store/useVaultStore';
-import type { ArcadeLanternItem, CharacterPose } from '../../types/contracts';
+import { LANGUAGE_META, type ArcadeLanternItem, type CharacterPose } from '../../types/contracts';
 import { MascotStage } from '../characters/MascotStage';
 import { RhythmChefEmblem } from './ArcadeEmblems';
 import {
@@ -12,6 +12,7 @@ import {
   ArcadeReadyCard,
   ArcadeSummaryCard,
   TargetPromptBar,
+  getArcadeForeignTextStyle,
   pickDistinctItems,
   useArcadeContainerMetrics,
   useArcadeDeck,
@@ -39,6 +40,7 @@ export interface RhythmChefArcadeProps {
 export function RhythmChefArcade({ onExit }: RhythmChefArcadeProps) {
   const { language, lexicon, targetLexicon, bestScoreFor } = useArcadeDeck();
   const { containerRef, isCompact } = useArcadeContainerMetrics();
+  const langDir = LANGUAGE_META[language].dir;
 
   const [phase, setPhase] = useState<'ready' | 'playing' | 'summary'>('ready');
   const [timeLeft, setTimeLeft] = useState(ROUND_DURATION_SECONDS);
@@ -58,7 +60,7 @@ export function RhythmChefArcade({ onExit }: RhythmChefArcadeProps) {
       lexicon[3] ?? targetLexicon[0],
     ],
   }));
-  const [toast, setToast] = useState<string>('Tap the matching drum pad when the glowing ring hits the rim!');
+  const [toast, setToast] = useState<ReactNode>('Tap the matching drum pad when the glowing ring hits the rim!');
   const [summary, setSummary] = useState<{
     score: number;
     heartsWon: number;
@@ -76,6 +78,22 @@ export function RhythmChefArcade({ onExit }: RhythmChefArcadeProps) {
   const elapsedRef = useRef(0);
   const finishedRef = useRef(false);
   const timersRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    if (phase === 'ready' && targetLexicon.length > 0) {
+      const next: RhythmRound = {
+        target: targetLexicon[0],
+        pads: [
+          targetLexicon[0],
+          lexicon[1] ?? targetLexicon[0],
+          lexicon[2] ?? targetLexicon[0],
+          lexicon[3] ?? targetLexicon[0],
+        ],
+      };
+      roundRef.current = next;
+      setRound(next);
+    }
+  }, [phase, targetLexicon, lexicon]);
 
   useEffect(() => {
     return () => {
@@ -189,11 +207,20 @@ export function RhythmChefArcade({ onExit }: RhythmChefArcadeProps) {
         setChefPose(inPerfectWindow ? 'victory_dance' : 'happy');
 
         playSfx('bubble_pop', comboRef.current - 1);
+        const tappedForeign = tapped.foreign;
         if (inPerfectWindow) {
           playSfx('star_pop', Math.min(3, comboRef.current - 1));
-          setToast(`PERFECT BEAT! "${tapped.foreign}" +${pts} pts!`);
+          setToast(
+            <>
+              PERFECT BEAT! “<bdi dir={langDir}>{tappedForeign}</bdi>” +{pts} pts!
+            </>
+          );
         } else {
-          setToast(`Tasty rhythm! "${tapped.foreign}" +${pts} pts!`);
+          setToast(
+            <>
+              Tasty rhythm! “<bdi dir={langDir}>{tappedForeign}</bdi>” +{pts} pts!
+            </>
+          );
         }
 
         void speakPhrase({
@@ -212,7 +239,7 @@ export function RhythmChefArcade({ onExit }: RhythmChefArcadeProps) {
         scheduleTimeout(() => setChefPose('idle'), 500);
       }
     },
-    [phase, language, dealNextBeat, scheduleTimeout]
+    [phase, language, langDir, dealNextBeat, scheduleTimeout]
   );
 
   useEffect(() => {
@@ -312,6 +339,7 @@ export function RhythmChefArcade({ onExit }: RhythmChefArcadeProps) {
                     fontSize: isCompact ? '0.72rem' : '0.8rem',
                     fontWeight: 900,
                     fontFamily: 'var(--font-display)',
+                    whiteSpace: 'nowrap',
                     transition: 'background-color 100ms ease',
                   }}
                 >
@@ -366,10 +394,13 @@ export function RhythmChefArcade({ onExit }: RhythmChefArcadeProps) {
                 gap: 8,
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                <MascotStage companionId="mateo" pose={chefPose} size={isCompact ? 42 : 54} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
+                <span style={{ flexShrink: 0 }}>
+                  <MascotStage companionId="mateo" pose={chefPose} size={isCompact ? 42 : 54} />
+                </span>
                 <div
                   style={{
+                    minWidth: 0,
                     padding: '4px 10px',
                     borderRadius: 999,
                     background: 'rgba(124, 45, 18, 0.86)',
@@ -418,13 +449,14 @@ export function RhythmChefArcade({ onExit }: RhythmChefArcadeProps) {
                   <button
                     key={`${item.id}-${padIdx}`}
                     type="button"
+                    dir="ltr"
                     onClick={() => handleTapPad(padIdx)}
                     style={{
                       position: 'relative',
                       width: '100%',
                       height: '100%',
                       minHeight: 0,
-                      padding: isCompact ? 8 : 12,
+                      padding: isCompact ? '22px 6px 8px' : 12,
                       borderRadius: 22,
                       background: pal.bg,
                       borderTopWidth: 3,
@@ -438,7 +470,7 @@ export function RhythmChefArcade({ onExit }: RhythmChefArcadeProps) {
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: isCompact ? 4 : 6,
+                      gap: isCompact ? 3 : 6,
                       cursor: 'pointer',
                       transform: isFlashed ? 'scale(0.95)' : 'scale(1)',
                       transition: 'transform 90ms ease',
@@ -460,6 +492,7 @@ export function RhythmChefArcade({ onExit }: RhythmChefArcadeProps) {
                         borderColor: inBeatZone ? '#f59e0b' : pal.border,
                         opacity: inBeatZone ? 0.85 : 0.35,
                         transform: `scale(${ringScale.toFixed(3)})`,
+                        willChange: 'transform',
                         pointerEvents: 'none',
                       }}
                     />
@@ -480,19 +513,22 @@ export function RhythmChefArcade({ onExit }: RhythmChefArcadeProps) {
                       Pad {padIdx + 1}
                     </span>
 
-                    <VocabIllustration
-                      illustrationKey={item.illustrationKey}
-                      language={language}
-                      size={isCompact ? 34 : 46}
-                    />
+                    <span style={{ flexShrink: 0, display: 'inline-flex', zIndex: 2 }}>
+                      <VocabIllustration
+                        illustrationKey={item.illustrationKey}
+                        language={language}
+                        size={isCompact ? 30 : 44}
+                      />
+                    </span>
                     <span
+                      dir={langDir}
                       style={{
-                        fontFamily: 'var(--font-display)',
-                        fontWeight: 900,
-                        fontSize: isCompact ? '0.88rem' : '1.05rem',
-                        lineHeight: 1.15,
-                        color: pal.text,
-                        textAlign: 'center',
+                        ...getArcadeForeignTextStyle(language, item.foreign, {
+                          isCompact,
+                          density: 'large',
+                          color: pal.text,
+                        }),
+                        paddingInline: 4,
                         zIndex: 2,
                       }}
                     >

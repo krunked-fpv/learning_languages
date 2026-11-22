@@ -10,8 +10,10 @@ import {
   Star,
   Trophy,
 } from 'lucide-react';
+import { FlagIcon } from '../../art/FlagIcon';
 import { playSfx } from '../../audio';
 import { useVaultStore } from '../../store/useVaultStore';
+import { LANGUAGE_META } from '../../types/contracts';
 import {
   ConstellationMemoryEmblem,
   MeteorBlasterEmblem,
@@ -126,8 +128,9 @@ const STANDARD_CABINETS: readonly CabinetSpec[] = [
 
 export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) {
   const { activeProfile } = useVaultStore();
-  const { bestScoreFor } = useArcadeDeck();
+  const { language, bestScoreFor } = useArcadeDeck();
   const { containerRef, width, isNarrow, isCompact } = useArcadeContainerMetrics();
+  const langMeta = LANGUAGE_META[language];
   const [mode, setMode] = useState<ArcadeGameMode>(initialMode);
   const [page, setPage] = useState<0 | 1>(0);
 
@@ -199,7 +202,7 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
           borderRadius: 18,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, maxWidth: '100%', flex: '1 1 180px' }}>
           <div
             style={{
               width: isCompact ? 34 : 42,
@@ -222,18 +225,41 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
             <Gamepad2 size={isCompact ? 18 : 22} />
           </div>
           <div style={{ minWidth: 0 }}>
-            <h1
-              style={{
-                margin: 0,
-                fontFamily: 'var(--font-display)',
-                fontSize: isCompact ? '1.05rem' : '1.26rem',
-                fontWeight: 900,
-                color: 'var(--text-main, #1e1b4b)',
-                lineHeight: 1.15,
-              }}
-            >
-              Expedition Arcade
-            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <h1
+                style={{
+                  margin: 0,
+                  fontFamily: 'var(--font-display)',
+                  fontSize: isCompact ? '1.02rem' : '1.24rem',
+                  fontWeight: 900,
+                  color: 'var(--text-main, #1e1b4b)',
+                  lineHeight: 1.15,
+                }}
+              >
+                Expedition Arcade
+              </h1>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: isCompact ? '1px 7px' : '2px 8px',
+                  borderRadius: 999,
+                  background: 'var(--card-soft-bg, #f8fafc)',
+                  border: '1px solid var(--card-border, #cbd5e1)',
+                  color: 'var(--text-main, #1e1b4b)',
+                  fontSize: isCompact ? '0.68rem' : '0.74rem',
+                  fontWeight: 800,
+                  lineHeight: 1.35,
+                  maxWidth: '100%',
+                }}
+              >
+                <FlagIcon language={language} size={isCompact ? 15 : 18} />
+                <span dir={langMeta.dir} style={{ lineHeight: 1.35 }}>
+                  {langMeta.nativeName}
+                </span>
+              </span>
+            </div>
             {!isCompact ? (
               <div
                 style={{
@@ -248,7 +274,7 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span
             style={{
               display: 'inline-flex',
@@ -522,6 +548,15 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                         fontSize: isNarrow ? '0.72rem' : '0.8rem',
                         fontWeight: 700,
                         color: 'var(--text-muted, #475569)',
+                        lineHeight: 1.25,
+                        ...(isNarrow
+                          ? {
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical' as const,
+                              overflow: 'hidden',
+                            }
+                          : {}),
                       }}
                     >
                       Pop musical Song-Bubbles with all 5 companions, trigger 5x Disco Fever, and
@@ -614,6 +649,15 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                         fontSize: isNarrow ? '0.7rem' : '0.78rem',
                         fontWeight: 700,
                         color: '#e0e7ff',
+                        lineHeight: 1.25,
+                        ...(isNarrow
+                          ? {
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical' as const,
+                              overflow: 'hidden',
+                            }
+                          : {}),
                       }}
                     >
                       Clear any Unit Boss, finish 3 lessons, OR tap the Golden Compass 5 times in

@@ -1,9 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowDown, Sparkles } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
 import { vaultActions } from '../../store/useVaultStore';
-import type { ArcadeLanternItem, CharacterPose, CompanionId } from '../../types/contracts';
+import {
+  LANGUAGE_META,
+  type ArcadeLanternItem,
+  type CharacterPose,
+  type CompanionId,
+} from '../../types/contracts';
 import { MascotStage } from '../characters/MascotStage';
 import { TowerStackEmblem } from './ArcadeEmblems';
 import {
@@ -12,6 +17,7 @@ import {
   ArcadeReadyCard,
   ArcadeSummaryCard,
   TargetPromptBar,
+  getArcadeForeignTextStyle,
   pickDistinctItems,
   useArcadeContainerMetrics,
   useArcadeDeck,
@@ -42,6 +48,7 @@ export interface TowerStackArcadeProps {
 export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
   const { language, lexicon, targetLexicon, bestScoreFor } = useArcadeDeck();
   const { containerRef, isCompact } = useArcadeContainerMetrics();
+  const langDir = LANGUAGE_META[language].dir;
 
   const chefCompanion: CompanionId =
     language === 'fr' || language === 'it' ? 'colette' : 'mateo';
@@ -56,7 +63,7 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
   const [targetItem, setTargetItem] = useState<ArcadeLanternItem>(() => targetLexicon[0]);
   const [glidingScoops, setGlidingScoops] = useState<GlidingScoop[]>([]);
   const [stackedScoops, setStackedScoops] = useState<StackedScoop[]>([]);
-  const [toast, setToast] = useState<string>('Drop the matching scoop when it passes over the cone!');
+  const [toast, setToast] = useState<ReactNode>('Drop the matching scoop when it passes over the cone!');
   const [perfectFlash, setPerfectFlash] = useState(false);
   const [summary, setSummary] = useState<{
     score: number;
@@ -77,6 +84,13 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
   const nextUidRef = useRef(1);
   const finishedRef = useRef(false);
   const timersRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    if (phase === 'ready' && targetLexicon.length > 0) {
+      targetRef.current = targetLexicon[0];
+      setTargetItem(targetLexicon[0]);
+    }
+  }, [phase, targetLexicon]);
 
   useEffect(() => {
     return () => {
@@ -109,8 +123,8 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
       // Position matching scoop near 38-62% or start cleanly oscillating
       const flipOrder = Math.random() < 0.5;
       phaseAngleRef.current = flipOrder ? Math.PI * 0.15 : Math.PI * 0.85;
-      const xA = 50 + Math.sin(phaseAngleRef.current) * 34;
-      const xB = 50 + Math.sin(phaseAngleRef.current + Math.PI) * 34;
+      const xA = 50 + Math.sin(phaseAngleRef.current) * 31;
+      const xB = 50 + Math.sin(phaseAngleRef.current + Math.PI) * 31;
 
       const pair: GlidingScoop[] = [
         { uid: nextUidRef.current++, item: chosen, x: xA, color: colorA },
@@ -190,15 +204,24 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
       setScore(scoreRef.current);
       setChefPose(isPerfect ? 'victory_dance' : 'happy');
 
+      const hitForeign = closest.item.foreign;
       if (isPerfect) {
         setPerfectFlash(true);
         scheduleTimeout(() => setPerfectFlash(false), 600);
         playSfx('star_pop', Math.min(3, comboRef.current));
         playSfx('correct_chime', comboRef.current);
-        setToast(`PERFECT DRIZZLE! "${closest.item.foreign}" +${pts} pts!`);
+        setToast(
+          <>
+            PERFECT DRIZZLE! “<bdi dir={langDir}>{hitForeign}</bdi>” +{pts} pts!
+          </>
+        );
       } else {
         playSfx('bubble_pop', comboRef.current);
-        setToast(`Nice stack! "${closest.item.foreign}" +${pts} pts`);
+        setToast(
+          <>
+            Nice stack! “<bdi dir={langDir}>{hitForeign}</bdi>” +{pts} pts
+          </>
+        );
       }
 
       void speakPhrase({
@@ -226,14 +249,21 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
       setCombo(0);
       setChefPose('sympathetic');
       playSfx('gentle_nudge');
+      const expectedForeign = targetRef.current.foreign;
       setToast(
-        closest.item.id !== targetRef.current.id
-          ? `Oops! Wait for "${targetRef.current.foreign}" over the cone!`
-          : `Almost! Drop when "${targetRef.current.foreign}" enters the glow zone!`
+        closest.item.id !== targetRef.current.id ? (
+          <>
+            Oops! Wait for “<bdi dir={langDir}>{expectedForeign}</bdi>” over the cone!
+          </>
+        ) : (
+          <>
+            Almost! Drop when “<bdi dir={langDir}>{expectedForeign}</bdi>” enters the glow zone!
+          </>
+        )
       );
       scheduleTimeout(() => setChefPose('idle'), 550);
     }
-  }, [phase, language, spawnRoundScoops, scheduleTimeout]);
+  }, [phase, language, langDir, spawnRoundScoops, scheduleTimeout]);
 
   useEffect(() => {
     if (phase !== 'playing') return;
@@ -272,7 +302,7 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
 
       const updated = scoopsRef.current.map((s, idx) => ({
         ...s,
-        x: 50 + Math.sin(phaseAngleRef.current + idx * Math.PI) * 35,
+        x: 50 + Math.sin(phaseAngleRef.current + idx * Math.PI) * 31,
       }));
       scoopsRef.current = updated;
       setGlidingScoops(updated);
@@ -340,6 +370,7 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
                     fontSize: isCompact ? '0.72rem' : '0.8rem',
                     fontWeight: 900,
                     fontFamily: 'var(--font-display)',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   Scoops: {stackedScoops.length} • Perfects: {perfectCount}
@@ -403,6 +434,7 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
                 top: 18,
                 left: '50%',
                 transform: 'translateX(-50%)',
+                maxWidth: 'calc(100% - 16px)',
                 padding: '3px 12px',
                 borderRadius: 999,
                 background: perfectFlash ? '#b45309' : 'rgba(30, 27, 75, 0.82)',
@@ -410,6 +442,8 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
                 fontSize: '0.75rem',
                 fontWeight: 800,
                 whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
                 zIndex: 8,
                 pointerEvents: 'none',
               }}
@@ -457,13 +491,15 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
               return (
                 <div
                   key={s.uid}
+                  dir={langDir}
                   style={{
                     position: 'absolute',
                     left: `${s.x}%`,
                     top: '28%',
                     transform: 'translate(-50%, -50%)',
-                    padding: isCompact ? '5px 9px' : '7px 12px',
-                    borderRadius: 999,
+                    willChange: 'left',
+                    padding: isCompact ? '5px 8px' : '7px 12px',
+                    borderRadius: 24,
                     background: '#ffffff',
                     borderTopWidth: 2.5,
                     borderRightWidth: 2.5,
@@ -477,22 +513,25 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
                     display: 'flex',
                     alignItems: 'center',
                     gap: 5,
-                    whiteSpace: 'nowrap',
+                    maxWidth: isCompact ? '40%' : '240px',
                     pointerEvents: 'none',
                     zIndex: 6,
                   }}
                 >
-                  <VocabIllustration
-                    illustrationKey={s.item.illustrationKey}
-                    language={language}
-                    size={isCompact ? 22 : 28}
-                  />
+                  <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                    <VocabIllustration
+                      illustrationKey={s.item.illustrationKey}
+                      language={language}
+                      size={isCompact ? 20 : 28}
+                    />
+                  </span>
                   <span
-                    style={{
-                      fontWeight: 900,
-                      fontSize: isCompact ? '0.78rem' : '0.88rem',
+                    dir={langDir}
+                    style={getArcadeForeignTextStyle(language, s.item.foreign, {
+                      isCompact,
+                      density: 'normal',
                       color: '#1e1b4b',
-                    }}
+                    })}
                   >
                     {s.item.foreign}
                   </span>
@@ -507,6 +546,7 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
                 left: '50%',
                 bottom: 8,
                 transform: 'translateX(-50%)',
+                width: '100%',
                 display: 'flex',
                 flexDirection: 'column-reverse',
                 alignItems: 'center',
@@ -530,11 +570,12 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
               {visibleStack.map((scoop) => (
                 <div
                   key={scoop.uid}
+                  dir={langDir}
                   style={{
                     transform: `translateX(${scoop.offsetX}px)`,
                     marginBottom: -4,
                     padding: isCompact ? '3px 10px' : '4px 12px',
-                    borderRadius: 999,
+                    borderRadius: 24,
                     background: scoop.color,
                     borderTopWidth: 2,
                     borderRightWidth: 2,
@@ -543,21 +584,31 @@ export function TowerStackArcade({ onExit }: TowerStackArcadeProps) {
                     borderStyle: 'solid',
                     borderColor: scoop.perfect ? '#fde047' : '#ffffff',
                     color: '#ffffff',
-                    fontWeight: 900,
-                    fontSize: isCompact ? '0.72rem' : '0.8rem',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 4,
+                    maxWidth: isCompact ? '68%' : '260px',
                     boxShadow: scoop.perfect ? '0 0 12px rgba(251, 191, 36, 0.7)' : '0 3px 8px rgba(0,0,0,0.14)',
-                    whiteSpace: 'nowrap',
                   }}
                 >
-                  <VocabIllustration
-                    illustrationKey={scoop.item.illustrationKey}
-                    language={language}
-                    size={isCompact ? 18 : 22}
-                  />
-                  <span style={{ textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}>
+                  <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                    <VocabIllustration
+                      illustrationKey={scoop.item.illustrationKey}
+                      language={language}
+                      size={isCompact ? 18 : 22}
+                    />
+                  </span>
+                  <span
+                    dir={langDir}
+                    style={{
+                      ...getArcadeForeignTextStyle(language, scoop.item.foreign, {
+                        isCompact,
+                        density: 'tight',
+                        color: '#ffffff',
+                      }),
+                      textShadow: '0 1px 2px rgba(0,0,0,0.35)',
+                    }}
+                  >
                     {scoop.item.foreign}
                   </span>
                 </div>

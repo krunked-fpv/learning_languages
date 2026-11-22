@@ -1,9 +1,14 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Gem, Heart, Play, RotateCcw, Star, Volume2, X } from 'lucide-react';
 import { playSfx, speakPhrase } from '../../audio';
 import { getArcadeLexicon } from '../../curriculum';
 import { useVaultStore } from '../../store/useVaultStore';
-import type { ArcadeLanternItem, CompanionId, LanguageCode } from '../../types/contracts';
+import {
+  LANGUAGE_META,
+  type ArcadeLanternItem,
+  type CompanionId,
+  type LanguageCode,
+} from '../../types/contracts';
 import { MascotStage } from '../characters/MascotStage';
 import { ConfettiBurst } from '../fx/JuiceEngine';
 
@@ -48,7 +53,200 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
     { id: 'fb-it-7', language: 'it', foreign: 'il sole', english: 'the sun', phonetic: 'eel SOH-leh', illustrationKey: 'morning_sun' },
     { id: 'fb-it-8', language: 'it', foreign: 'la luna', english: 'the moon', phonetic: 'lah LOO-nah', illustrationKey: 'crescent_moon' },
   ],
+  pt: [
+    { id: 'fb-pt-1', language: 'pt', foreign: 'olá', english: 'hello', phonetic: 'oh-LAH', illustrationKey: 'wave_hello' },
+    { id: 'fb-pt-2', language: 'pt', foreign: 'a água', english: 'the water', phonetic: 'ah AH-gwah', illustrationKey: 'water_carafe' },
+    { id: 'fb-pt-3', language: 'pt', foreign: 'o pão', english: 'the bread', phonetic: 'oo POWN', illustrationKey: 'warm_bread' },
+    { id: 'fb-pt-4', language: 'pt', foreign: 'o gato', english: 'the cat', phonetic: 'oo GAH-too', illustrationKey: 'cozy_cat' },
+    { id: 'fb-pt-5', language: 'pt', foreign: 'a maçã', english: 'the apple', phonetic: 'ah mah-SAHN', illustrationKey: 'fresh_apple' },
+    { id: 'fb-pt-6', language: 'pt', foreign: 'o sol', english: 'the sun', phonetic: 'oo SOHL', illustrationKey: 'morning_sun' },
+    { id: 'fb-pt-7', language: 'pt', foreign: 'a lua', english: 'the moon', phonetic: 'ah LOO-ah', illustrationKey: 'crescent_moon' },
+    { id: 'fb-pt-8', language: 'pt', foreign: 'o trem', english: 'the train', phonetic: 'oo TRENG', illustrationKey: 'express_train' },
+  ],
+  en: [
+    { id: 'fb-en-1', language: 'en', foreign: 'Hello!', english: 'Friendly greeting wave', phonetic: 'heh-LOH', illustrationKey: 'wave_hello' },
+    { id: 'fb-en-2', language: 'en', foreign: 'fresh water', english: 'Cool clear drink in a pitcher', phonetic: 'fresh WAW-ter', illustrationKey: 'water_carafe' },
+    { id: 'fb-en-3', language: 'en', foreign: 'warm bread', english: 'Toasty loaf from the bakery', phonetic: 'worm bred', illustrationKey: 'warm_bread' },
+    { id: 'fb-en-4', language: 'en', foreign: 'the cozy cat', english: 'Purring whiskered nap buddy', phonetic: 'thuh KOH-zee kat', illustrationKey: 'cozy_cat' },
+    { id: 'fb-en-5', language: 'en', foreign: 'crisp apple', english: 'Crunchy red orchard fruit', phonetic: 'krisp AP-uhl', illustrationKey: 'fresh_apple' },
+    { id: 'fb-en-6', language: 'en', foreign: 'bright sun', english: 'Golden daytime star in the sky', phonetic: 'bryt sun', illustrationKey: 'morning_sun' },
+    { id: 'fb-en-7', language: 'en', foreign: 'crescent moon', english: 'Silver night-sky lantern curve', phonetic: 'KRES-uhnt moon', illustrationKey: 'crescent_moon' },
+    { id: 'fb-en-8', language: 'en', foreign: 'express train', english: 'Fast railway ride on steel tracks', phonetic: 'ik-SPRES trayn', illustrationKey: 'express_train' },
+  ],
+  zh: [
+    { id: 'fb-zh-1', language: 'zh', foreign: '你好', english: 'hello', phonetic: 'NEE how', romanized: 'nǐ hǎo', illustrationKey: 'wave_hello' },
+    { id: 'fb-zh-2', language: 'zh', foreign: '水', english: 'water', phonetic: 'shway', romanized: 'shuǐ', illustrationKey: 'water_carafe' },
+    { id: 'fb-zh-3', language: 'zh', foreign: '面包', english: 'bread', phonetic: 'myen-BOW', romanized: 'miànbāo', illustrationKey: 'warm_bread' },
+    { id: 'fb-zh-4', language: 'zh', foreign: '小猫', english: 'little cat', phonetic: 'shyow mow', romanized: 'xiǎo māo', illustrationKey: 'cozy_cat' },
+    { id: 'fb-zh-5', language: 'zh', foreign: '苹果', english: 'apple', phonetic: 'ping-GWOH', romanized: 'píngguǒ', illustrationKey: 'fresh_apple' },
+    { id: 'fb-zh-6', language: 'zh', foreign: '太阳', english: 'the sun', phonetic: 'tye-yahng', romanized: 'tàiyáng', illustrationKey: 'morning_sun' },
+    { id: 'fb-zh-7', language: 'zh', foreign: '月亮', english: 'the moon', phonetic: 'yweh-lyahng', romanized: 'yuèliang', illustrationKey: 'crescent_moon' },
+    { id: 'fb-zh-8', language: 'zh', foreign: '火车', english: 'train', phonetic: 'hwoh-chuh', romanized: 'huǒchē', illustrationKey: 'express_train' },
+  ],
+  ja: [
+    { id: 'fb-ja-1', language: 'ja', foreign: 'こんにちは', english: 'hello', phonetic: 'kohn-nee-chee-wah', romanized: 'konnichiwa', illustrationKey: 'wave_hello' },
+    { id: 'fb-ja-2', language: 'ja', foreign: 'みず', english: 'water', phonetic: 'mee-zoo', romanized: 'mizu', illustrationKey: 'water_carafe' },
+    { id: 'fb-ja-3', language: 'ja', foreign: 'パン', english: 'bread', phonetic: 'pahn', romanized: 'pan', illustrationKey: 'warm_bread' },
+    { id: 'fb-ja-4', language: 'ja', foreign: 'ねこ', english: 'cat', phonetic: 'neh-koh', romanized: 'neko', illustrationKey: 'cozy_cat' },
+    { id: 'fb-ja-5', language: 'ja', foreign: 'りんご', english: 'apple', phonetic: 'reen-goh', romanized: 'ringo', illustrationKey: 'fresh_apple' },
+    { id: 'fb-ja-6', language: 'ja', foreign: 'たいよう', english: 'the sun', phonetic: 'tye-yoh', romanized: 'taiyō', illustrationKey: 'morning_sun' },
+    { id: 'fb-ja-7', language: 'ja', foreign: 'つき', english: 'the moon', phonetic: 'tsoo-kee', romanized: 'tsuki', illustrationKey: 'crescent_moon' },
+    { id: 'fb-ja-8', language: 'ja', foreign: 'でんしゃ', english: 'train', phonetic: 'dehn-shah', romanized: 'densha', illustrationKey: 'express_train' },
+  ],
+  hi: [
+    { id: 'fb-hi-1', language: 'hi', foreign: 'नमस्ते', english: 'hello', phonetic: 'nah-mahs-TEH', romanized: 'namaste', illustrationKey: 'wave_hello' },
+    { id: 'fb-hi-2', language: 'hi', foreign: 'पानी', english: 'water', phonetic: 'PAH-nee', romanized: 'paani', illustrationKey: 'water_carafe' },
+    { id: 'fb-hi-3', language: 'hi', foreign: 'रोटी', english: 'bread', phonetic: 'ROH-tee', romanized: 'roti', illustrationKey: 'warm_bread' },
+    { id: 'fb-hi-4', language: 'hi', foreign: 'बिल्ली', english: 'cat', phonetic: 'BIL-lee', romanized: 'billi', illustrationKey: 'cozy_cat' },
+    { id: 'fb-hi-5', language: 'hi', foreign: 'सेब', english: 'apple', phonetic: 'SEHB', romanized: 'seb', illustrationKey: 'fresh_apple' },
+    { id: 'fb-hi-6', language: 'hi', foreign: 'सूरज', english: 'the sun', phonetic: 'SOO-raj', romanized: 'sooraj', illustrationKey: 'morning_sun' },
+    { id: 'fb-hi-7', language: 'hi', foreign: 'चाँद', english: 'the moon', phonetic: 'CHAHND', romanized: 'chaand', illustrationKey: 'crescent_moon' },
+    { id: 'fb-hi-8', language: 'hi', foreign: 'रेलगाड़ी', english: 'train', phonetic: 'rehl-GAH-ree', romanized: 'relgaadi', illustrationKey: 'express_train' },
+  ],
+  bn: [
+    { id: 'fb-bn-1', language: 'bn', foreign: 'নমস্কার', english: 'hello', phonetic: 'noh-mohsh-KAR', romanized: 'nomoshkar', illustrationKey: 'wave_hello' },
+    { id: 'fb-bn-2', language: 'bn', foreign: 'জল', english: 'water', phonetic: 'JOHL', romanized: 'jol', illustrationKey: 'water_carafe' },
+    { id: 'fb-bn-3', language: 'bn', foreign: 'রুটি', english: 'bread', phonetic: 'ROO-tee', romanized: 'ruti', illustrationKey: 'warm_bread' },
+    { id: 'fb-bn-4', language: 'bn', foreign: 'বিড়াল', english: 'cat', phonetic: 'bee-RAHL', romanized: 'biral', illustrationKey: 'cozy_cat' },
+    { id: 'fb-bn-5', language: 'bn', foreign: 'আপেল', english: 'apple', phonetic: 'ah-PEL', romanized: 'apel', illustrationKey: 'fresh_apple' },
+    { id: 'fb-bn-6', language: 'bn', foreign: 'সূর্য', english: 'the sun', phonetic: 'SHOOR-joh', romanized: 'shurjo', illustrationKey: 'morning_sun' },
+    { id: 'fb-bn-7', language: 'bn', foreign: 'চাঁদ', english: 'the moon', phonetic: 'CHAHND', romanized: 'chaand', illustrationKey: 'crescent_moon' },
+    { id: 'fb-bn-8', language: 'bn', foreign: 'ট্রেন', english: 'train', phonetic: 'TREN', romanized: 'tren', illustrationKey: 'express_train' },
+  ],
+  ar: [
+    { id: 'fb-ar-1', language: 'ar', foreign: 'مرحباً', english: 'hello', phonetic: 'mar-HA-ban', romanized: 'marḥaban', illustrationKey: 'wave_hello' },
+    { id: 'fb-ar-2', language: 'ar', foreign: 'الماء', english: 'the water', phonetic: 'al-MAA', romanized: "al-mā'", illustrationKey: 'water_carafe' },
+    { id: 'fb-ar-3', language: 'ar', foreign: 'الخبز', english: 'the bread', phonetic: 'al-KHUBZ', romanized: 'al-khubz', illustrationKey: 'warm_bread' },
+    { id: 'fb-ar-4', language: 'ar', foreign: 'القط', english: 'the cat', phonetic: 'al-QITT', romanized: 'al-qiṭṭ', illustrationKey: 'cozy_cat' },
+    { id: 'fb-ar-5', language: 'ar', foreign: 'التفاحة', english: 'the apple', phonetic: 'at-tuf-FAA-ha', romanized: 'at-tuffāḥah', illustrationKey: 'fresh_apple' },
+    { id: 'fb-ar-6', language: 'ar', foreign: 'الشمس', english: 'the sun', phonetic: 'ash-SHAMS', romanized: 'ash-shams', illustrationKey: 'morning_sun' },
+    { id: 'fb-ar-7', language: 'ar', foreign: 'القمر', english: 'the moon', phonetic: 'al-QA-mar', romanized: 'al-qamar', illustrationKey: 'crescent_moon' },
+    { id: 'fb-ar-8', language: 'ar', foreign: 'القطار', english: 'the train', phonetic: 'al-qi-TAAR', romanized: 'al-qiṭār', illustrationKey: 'express_train' },
+  ],
+  arz: [
+    { id: 'fb-arz-1', language: 'arz', foreign: 'إزيك', english: 'how are you?', phonetic: 'ez-ZAY-yak', romanized: 'izzayyak', illustrationKey: 'wave_hello' },
+    { id: 'fb-arz-2', language: 'arz', foreign: 'صباح الفل', english: 'bright morning', phonetic: 'sa-BAH el-FULL', romanized: 'sabah el-full', illustrationKey: 'morning_sun' },
+    { id: 'fb-arz-3', language: 'arz', foreign: 'مية', english: 'water', phonetic: 'MAY-ya', romanized: 'mayya', illustrationKey: 'water_carafe' },
+    { id: 'fb-arz-4', language: 'arz', foreign: 'عيش', english: 'bread', phonetic: 'AYSH', romanized: 'eish', illustrationKey: 'warm_bread' },
+    { id: 'fb-arz-5', language: 'arz', foreign: 'جبنة', english: 'cheese', phonetic: 'GEB-na', romanized: 'gebna', illustrationKey: 'golden_cheese' },
+    { id: 'fb-arz-6', language: 'arz', foreign: 'قطة', english: 'cat', phonetic: 'OT-ta', romanized: 'otta', illustrationKey: 'cozy_cat' },
+    { id: 'fb-arz-7', language: 'arz', foreign: 'قطر', english: 'train', phonetic: 'ATR', romanized: 'atr', illustrationKey: 'express_train' },
+    { id: 'fb-arz-8', language: 'arz', foreign: 'شاطر', english: 'great job', phonetic: 'SHA-ter', romanized: 'shater', illustrationKey: 'starlight_trophy' },
+  ],
+  ru: [
+    { id: 'fb-ru-1', language: 'ru', foreign: 'привет', english: 'hello', phonetic: 'pree-VYET', romanized: 'privet', illustrationKey: 'wave_hello' },
+    { id: 'fb-ru-2', language: 'ru', foreign: 'вода', english: 'water', phonetic: 'vah-DAH', romanized: 'voda', illustrationKey: 'water_carafe' },
+    { id: 'fb-ru-3', language: 'ru', foreign: 'хлеб', english: 'bread', phonetic: 'KHLEP', romanized: 'khleb', illustrationKey: 'warm_bread' },
+    { id: 'fb-ru-4', language: 'ru', foreign: 'кошка', english: 'cat', phonetic: 'KOHSH-kah', romanized: 'koshka', illustrationKey: 'cozy_cat' },
+    { id: 'fb-ru-5', language: 'ru', foreign: 'яблоко', english: 'apple', phonetic: 'YAH-blah-kah', romanized: 'yabloko', illustrationKey: 'fresh_apple' },
+    { id: 'fb-ru-6', language: 'ru', foreign: 'солнце', english: 'the sun', phonetic: 'SOHN-tseh', romanized: 'solntse', illustrationKey: 'morning_sun' },
+    { id: 'fb-ru-7', language: 'ru', foreign: 'луна', english: 'the moon', phonetic: 'loo-NAH', romanized: 'luna', illustrationKey: 'crescent_moon' },
+    { id: 'fb-ru-8', language: 'ru', foreign: 'поезд', english: 'train', phonetic: 'POH-yest', romanized: 'poyezd', illustrationKey: 'express_train' },
+  ],
+  id: [
+    { id: 'fb-id-1', language: 'id', foreign: 'halo', english: 'hello', phonetic: 'HAH-loh', illustrationKey: 'wave_hello' },
+    { id: 'fb-id-2', language: 'id', foreign: 'air', english: 'water', phonetic: 'AH-eer', illustrationKey: 'water_carafe' },
+    { id: 'fb-id-3', language: 'id', foreign: 'roti', english: 'bread', phonetic: 'ROH-tee', illustrationKey: 'warm_bread' },
+    { id: 'fb-id-4', language: 'id', foreign: 'kucing', english: 'cat', phonetic: 'KOO-ching', illustrationKey: 'cozy_cat' },
+    { id: 'fb-id-5', language: 'id', foreign: 'apel', english: 'apple', phonetic: 'AH-pel', illustrationKey: 'fresh_apple' },
+    { id: 'fb-id-6', language: 'id', foreign: 'matahari', english: 'the sun', phonetic: 'mah-tah-HAH-ree', illustrationKey: 'morning_sun' },
+    { id: 'fb-id-7', language: 'id', foreign: 'bulan', english: 'the moon', phonetic: 'BOO-lahn', illustrationKey: 'crescent_moon' },
+    { id: 'fb-id-8', language: 'id', foreign: 'kereta api', english: 'train', phonetic: 'keh-REH-tah AH-pee', illustrationKey: 'express_train' },
+  ],
+  vi: [
+    { id: 'fb-vi-1', language: 'vi', foreign: 'xin chào', english: 'hello', phonetic: 'seen chow', illustrationKey: 'wave_hello' },
+    { id: 'fb-vi-2', language: 'vi', foreign: 'nước', english: 'water', phonetic: 'nuh-uhk', illustrationKey: 'water_carafe' },
+    { id: 'fb-vi-3', language: 'vi', foreign: 'bánh mì', english: 'bread', phonetic: 'bahn mee', illustrationKey: 'warm_bread' },
+    { id: 'fb-vi-4', language: 'vi', foreign: 'con mèo', english: 'cat', phonetic: 'kohn meh-oh', illustrationKey: 'cozy_cat' },
+    { id: 'fb-vi-5', language: 'vi', foreign: 'quả táo', english: 'apple', phonetic: 'kwah tow', illustrationKey: 'fresh_apple' },
+    { id: 'fb-vi-6', language: 'vi', foreign: 'mặt trời', english: 'the sun', phonetic: 'maht choy', illustrationKey: 'morning_sun' },
+    { id: 'fb-vi-7', language: 'vi', foreign: 'mặt trăng', english: 'the moon', phonetic: 'maht chahng', illustrationKey: 'crescent_moon' },
+    { id: 'fb-vi-8', language: 'vi', foreign: 'tàu hỏa', english: 'train', phonetic: 'tow hwah', illustrationKey: 'express_train' },
+  ],
+  sw: [
+    { id: 'fb-sw-1', language: 'sw', foreign: 'jambo', english: 'hello', phonetic: 'JAHM-boh', illustrationKey: 'wave_hello' },
+    { id: 'fb-sw-2', language: 'sw', foreign: 'maji', english: 'water', phonetic: 'MAH-jee', illustrationKey: 'water_carafe' },
+    { id: 'fb-sw-3', language: 'sw', foreign: 'mkate', english: 'bread', phonetic: 'mm-KAH-teh', illustrationKey: 'warm_bread' },
+    { id: 'fb-sw-4', language: 'sw', foreign: 'paka', english: 'cat', phonetic: 'PAH-kah', illustrationKey: 'cozy_cat' },
+    { id: 'fb-sw-5', language: 'sw', foreign: 'tofaa', english: 'apple', phonetic: 'toh-FAH-ah', illustrationKey: 'fresh_apple' },
+    { id: 'fb-sw-6', language: 'sw', foreign: 'jua', english: 'the sun', phonetic: 'JOO-ah', illustrationKey: 'morning_sun' },
+    { id: 'fb-sw-7', language: 'sw', foreign: 'mwezi', english: 'the moon', phonetic: 'MWEH-zee', illustrationKey: 'crescent_moon' },
+    { id: 'fb-sw-8', language: 'sw', foreign: 'treni', english: 'train', phonetic: 'TREH-nee', illustrationKey: 'express_train' },
+  ],
 };
+
+export function getArcadeForeignTextStyle(
+  language: LanguageCode,
+  text: string,
+  options: {
+    isCompact?: boolean;
+    density?: 'tight' | 'normal' | 'large';
+    color?: string;
+    textAlign?: 'center' | 'start';
+  } = {}
+): CSSProperties {
+  const { isCompact = false, density = 'normal', color, textAlign = 'center' } = options;
+  const meta = LANGUAGE_META[language];
+  const isCjk = meta.scriptType === 'hanzi' || meta.scriptType === 'japanese';
+  const isTallScript =
+    isCjk ||
+    meta.scriptType === 'arabic' ||
+    meta.scriptType === 'devanagari' ||
+    meta.scriptType === 'bengali';
+
+  const widthFactor = isCjk ? 1.65 : meta.scriptType === 'cyrillic' ? 1.15 : isTallScript ? 1.1 : 1;
+  const effectiveLen = text.length * widthFactor;
+
+  let fontSize: string;
+  if (density === 'tight') {
+    if (isCompact) {
+      if (effectiveLen <= 8) fontSize = isTallScript ? '0.78rem' : '0.74rem';
+      else if (effectiveLen <= 14) fontSize = '0.68rem';
+      else if (effectiveLen <= 22) fontSize = '0.62rem';
+      else fontSize = '0.58rem';
+    } else {
+      if (effectiveLen <= 10) fontSize = isTallScript ? '0.96rem' : '0.9rem';
+      else if (effectiveLen <= 16) fontSize = '0.82rem';
+      else if (effectiveLen <= 24) fontSize = '0.74rem';
+      else fontSize = '0.68rem';
+    }
+  } else if (density === 'large') {
+    if (isCompact) {
+      if (effectiveLen <= 10) fontSize = isTallScript ? '1rem' : '0.92rem';
+      else if (effectiveLen <= 18) fontSize = '0.82rem';
+      else fontSize = '0.74rem';
+    } else {
+      if (effectiveLen <= 12) fontSize = isTallScript ? '1.18rem' : '1.08rem';
+      else if (effectiveLen <= 20) fontSize = '0.96rem';
+      else fontSize = '0.86rem';
+    }
+  } else {
+    if (isCompact) {
+      if (effectiveLen <= 10) fontSize = isTallScript ? '0.84rem' : '0.78rem';
+      else if (effectiveLen <= 18) fontSize = '0.72rem';
+      else fontSize = '0.66rem';
+    } else {
+      if (effectiveLen <= 12) fontSize = isTallScript ? '0.94rem' : '0.88rem';
+      else if (effectiveLen <= 20) fontSize = '0.8rem';
+      else fontSize = '0.74rem';
+    }
+  }
+
+  return {
+    fontFamily: 'var(--font-display)',
+    fontWeight: 900,
+    fontSize,
+    lineHeight: 1.35,
+    color,
+    textAlign,
+    maxWidth: '100%',
+    minWidth: 0,
+    whiteSpace: 'normal',
+    overflowWrap: isCjk ? 'anywhere' : 'break-word',
+    wordBreak: 'normal',
+    paddingBlock: 2,
+  };
+}
 
 export function useArcadeDeck(): {
   language: LanguageCode;
@@ -60,20 +258,26 @@ export function useArcadeDeck(): {
   const language = activeProfile.activeLanguage;
 
   const lexicon = useMemo(() => {
-    const items = getArcadeLexicon(
-      language,
-      activeProgress.unlockedVocabIds,
-      activeProgress.currentUnitIndex
-    );
-    return items.length >= 8 ? items : FALLBACK_ARCADE_LEXICON[language];
-  }, [language, activeProgress.unlockedVocabIds, activeProgress.currentUnitIndex]);
+    try {
+      const items = getArcadeLexicon(
+        language,
+        activeProgress?.unlockedVocabIds ?? [],
+        activeProgress?.currentUnitIndex ?? 0
+      );
+      return items.length >= 8 ? items : FALLBACK_ARCADE_LEXICON[language];
+    } catch {
+      return FALLBACK_ARCADE_LEXICON[language];
+    }
+  }, [language, activeProgress?.unlockedVocabIds, activeProgress?.currentUnitIndex]);
 
   const targetLexicon = useMemo(() => {
-    if (activeProgress.currentUnitIndex === 0 && activeProgress.unlockedVocabIds.length < 13) {
+    const unitIdx = activeProgress?.currentUnitIndex ?? 0;
+    const unlockedCount = activeProgress?.unlockedVocabIds?.length ?? 0;
+    if (unitIdx === 0 && unlockedCount < 13) {
       return lexicon.slice(0, Math.min(13, lexicon.length));
     }
     return lexicon;
-  }, [lexicon, activeProgress.currentUnitIndex, activeProgress.unlockedVocabIds.length]);
+  }, [lexicon, activeProgress?.currentUnitIndex, activeProgress?.unlockedVocabIds?.length]);
 
   const bestScoreFor = (gameId: string): number => {
     const mapScore = activeProfile.arcadeHighScores?.[gameId] ?? 0;
@@ -213,7 +417,7 @@ export function ArcadeHeaderBar({
         borderRadius: 18,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, maxWidth: '100%', flex: '1 1 160px' }}>
         <div
           style={{
             width: isCompact ? 32 : 38,
@@ -364,52 +568,104 @@ export function TargetPromptBar({
   language,
   isCompact,
   rightContent,
+  hearLabel = 'Hear',
+  borderColor,
 }: {
   label: string;
   targetItem: ArcadeLanternItem;
   language: LanguageCode;
   isCompact: boolean;
   rightContent?: ReactNode;
+  hearLabel?: string;
+  borderColor?: string;
 }) {
+  const langMeta = LANGUAGE_META[language];
+
   return (
     <div
+      data-language={language}
+      data-dir={langMeta.dir}
+      dir="ltr"
       style={{
         ...CARD_SURFACE_STYLE,
         flexShrink: 0,
+        width: '100%',
+        maxWidth: '100%',
+        minWidth: 0,
         padding: isCompact ? '6px 10px' : '8px 14px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: 8,
+        gap: isCompact ? 6 : 8,
         flexWrap: 'wrap',
         borderRadius: 16,
-        borderColor: 'var(--lang-primary, #f59e0b)',
+        borderColor: borderColor ?? 'var(--lang-primary, #f59e0b)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', minWidth: 0 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: isCompact ? 5 : 7,
+          flexWrap: 'wrap',
+          minWidth: 0,
+          maxWidth: '100%',
+          flex: '1 1 200px',
+        }}
+      >
         <span
+          dir="ltr"
           style={{
             fontFamily: 'var(--font-display)',
-            fontSize: isCompact ? '0.72rem' : '0.8rem',
+            fontSize: isCompact ? '0.7rem' : '0.8rem',
             fontWeight: 900,
-            color: 'var(--lang-primary, #b45309)',
+            color: 'var(--tint-amber-ink, #b45309)',
             letterSpacing: '0.03em',
+            flexShrink: 0,
           }}
         >
           {label}
         </span>
         <strong
+          dir="ltr"
           style={{
             fontFamily: 'var(--font-display)',
-            fontSize: isCompact ? '0.98rem' : '1.12rem',
+            fontSize: isCompact
+              ? targetItem.english.length > 22
+                ? '0.86rem'
+                : '0.96rem'
+              : '1.1rem',
+            lineHeight: 1.25,
             color: 'var(--text-main, #1e1b4b)',
+            maxWidth: '100%',
+            overflowWrap: 'break-word',
           }}
         >
           {targetItem.english}
         </strong>
+        {targetItem.romanized ? (
+          <span
+            dir="ltr"
+            style={{
+              padding: isCompact ? '1px 7px' : '2px 8px',
+              borderRadius: 999,
+              background: 'var(--tint-indigo-bg, #eef2ff)',
+              border: '1px solid var(--tint-indigo-border, #c7d2fe)',
+              color: 'var(--tint-indigo-ink, #3730a3)',
+              fontSize: isCompact ? '0.68rem' : '0.76rem',
+              fontWeight: 800,
+              lineHeight: 1.35,
+              maxWidth: '100%',
+              overflowWrap: 'break-word',
+            }}
+          >
+            {targetItem.romanized}
+          </span>
+        ) : null}
         <span
+          dir="ltr"
           style={{
-            padding: '2px 8px',
+            padding: isCompact ? '1px 7px' : '2px 8px',
             borderRadius: 999,
             background: 'var(--card-soft-bg, #fef3c7)',
             borderTopWidth: 1,
@@ -419,11 +675,30 @@ export function TargetPromptBar({
             borderStyle: 'solid',
             borderColor: 'var(--card-border, #cbd5e1)',
             color: 'var(--text-muted, #475569)',
-            fontSize: isCompact ? '0.72rem' : '0.78rem',
+            fontSize: isCompact ? '0.68rem' : '0.76rem',
             fontWeight: 800,
+            lineHeight: 1.35,
+            maxWidth: '100%',
+            overflowWrap: 'break-word',
           }}
         >
           {targetItem.phonetic}
+        </span>
+        <span
+          dir={langMeta.dir}
+          style={{
+            padding: isCompact ? '1px 6px' : '2px 7px',
+            borderRadius: 999,
+            background: 'var(--card-soft-bg, #eff6ff)',
+            border: '1px solid var(--card-border, #cbd5e1)',
+            color: 'var(--text-muted, #475569)',
+            fontSize: isCompact ? '0.64rem' : '0.7rem',
+            fontWeight: 800,
+            lineHeight: 1.35,
+            flexShrink: 0,
+          }}
+        >
+          {langMeta.nativeName}
         </span>
         <button
           type="button"
@@ -432,8 +707,9 @@ export function TargetPromptBar({
           style={{
             ...SOFT_BTN_STYLE,
             padding: isCompact ? '3px 7px' : '4px 9px',
-            fontSize: '0.74rem',
+            fontSize: isCompact ? '0.7rem' : '0.74rem',
             borderRadius: 10,
+            flexShrink: 0,
           }}
           onClick={() => {
             void speakPhrase({
@@ -444,12 +720,22 @@ export function TargetPromptBar({
           }}
         >
           <Volume2 size={13} />
-          <span>Hear</span>
+          <span>{hearLabel}</span>
         </button>
       </div>
 
       {rightContent ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{rightContent}</div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            flexWrap: 'wrap',
+            maxWidth: '100%',
+          }}
+        >
+          {rightContent}
+        </div>
       ) : null}
     </div>
   );

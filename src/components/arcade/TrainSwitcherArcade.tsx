@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { TrainFront } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
 import { vaultActions } from '../../store/useVaultStore';
-import type { ArcadeLanternItem, CharacterPose } from '../../types/contracts';
+import { LANGUAGE_META, type ArcadeLanternItem, type CharacterPose } from '../../types/contracts';
 import { MascotStage } from '../characters/MascotStage';
 import { TrainSwitcherEmblem } from './ArcadeEmblems';
 import {
@@ -12,6 +12,7 @@ import {
   ArcadeReadyCard,
   ArcadeSummaryCard,
   TargetPromptBar,
+  getArcadeForeignTextStyle,
   pickDistinctItems,
   useArcadeContainerMetrics,
   useArcadeDeck,
@@ -47,6 +48,7 @@ export interface TrainSwitcherArcadeProps {
 export function TrainSwitcherArcade({ onExit }: TrainSwitcherArcadeProps) {
   const { language, lexicon, targetLexicon, bestScoreFor } = useArcadeDeck();
   const { containerRef, isCompact } = useArcadeContainerMetrics();
+  const langDir = LANGUAGE_META[language].dir;
 
   const [phase, setPhase] = useState<'ready' | 'playing' | 'summary'>('ready');
   const [timeLeft, setTimeLeft] = useState(ROUND_DURATION_SECONDS);
@@ -60,7 +62,7 @@ export function TrainSwitcherArcade({ onExit }: TrainSwitcherArcadeProps) {
     target: targetLexicon[0],
     tracks: [targetLexicon[0], lexicon[1] ?? targetLexicon[0], lexicon[2] ?? targetLexicon[0]],
   }));
-  const [toast, setToast] = useState<string>('Switch Track 1, 2, or 3 to route the Alpine Express!');
+  const [toast, setToast] = useState<ReactNode>('Switch Track 1, 2, or 3 to route the Alpine Express!');
   const [summary, setSummary] = useState<{
     score: number;
     heartsWon: number;
@@ -78,6 +80,17 @@ export function TrainSwitcherArcade({ onExit }: TrainSwitcherArcadeProps) {
   const elapsedRef = useRef(0);
   const finishedRef = useRef(false);
   const timersRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    if (phase === 'ready' && targetLexicon.length > 0) {
+      const next: TrackRoundState = {
+        target: targetLexicon[0],
+        tracks: [targetLexicon[0], lexicon[1] ?? targetLexicon[0], lexicon[2] ?? targetLexicon[0]],
+      };
+      roundRef.current = next;
+      setRoundState(next);
+    }
+  }, [phase, targetLexicon, lexicon]);
 
   useEffect(() => {
     return () => {
@@ -179,7 +192,11 @@ export function TrainSwitcherArcade({ onExit }: TrainSwitcherArcadeProps) {
           language,
           phonetic: chosenItem.phonetic,
         });
-        setToast(`All aboard Track ${lane + 1}! Coupled "${chosenItem.foreign}" +${pts}!`);
+        setToast(
+          <>
+            All aboard Track {lane + 1}! Coupled “<bdi dir={langDir}>{chosenItem.foreign}</bdi>” +{pts}!
+          </>
+        );
         scheduleTimeout(() => setBenniPose('idle'), 650);
         dispatchNextTrain(chosenItem.id);
       } else {
@@ -192,7 +209,7 @@ export function TrainSwitcherArcade({ onExit }: TrainSwitcherArcadeProps) {
         dispatchNextTrain(roundRef.current.target.id);
       }
     },
-    [language, dispatchNextTrain, scheduleTimeout]
+    [language, langDir, dispatchNextTrain, scheduleTimeout]
   );
 
   const selectTrack = useCallback(
@@ -315,6 +332,7 @@ export function TrainSwitcherArcade({ onExit }: TrainSwitcherArcadeProps) {
                     fontSize: isCompact ? '0.72rem' : '0.8rem',
                     fontWeight: 900,
                     fontFamily: 'var(--font-display)',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   Cars: {coupledCount}
@@ -467,6 +485,7 @@ export function TrainSwitcherArcade({ onExit }: TrainSwitcherArcadeProps) {
                 left: `${trainPos.x}%`,
                 top: `${trainPos.y}%`,
                 transform: 'translate(-50%, -50%)',
+                willChange: 'left, top',
                 pointerEvents: 'none',
                 zIndex: 7,
               }}
@@ -500,9 +519,10 @@ export function TrainSwitcherArcade({ onExit }: TrainSwitcherArcadeProps) {
                   <button
                     key={`${item.id}-${lane}`}
                     type="button"
+                    dir="ltr"
                     onClick={() => selectTrack(lane)}
                     style={{
-                      padding: isCompact ? '6px 4px' : '8px 10px',
+                      padding: isCompact ? '5px 4px' : '8px 10px',
                       borderRadius: 16,
                       background: isSelected ? '#fef3c7' : '#ffffff',
                       borderTopWidth: 2.5,
@@ -515,7 +535,9 @@ export function TrainSwitcherArcade({ onExit }: TrainSwitcherArcadeProps) {
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
-                      gap: 3,
+                      justifyContent: 'center',
+                      gap: isCompact ? 2 : 3,
+                      minWidth: 0,
                       cursor: 'pointer',
                       boxShadow: isSelected
                         ? '0 0 18px rgba(245, 158, 11, 0.55)'
@@ -534,25 +556,20 @@ export function TrainSwitcherArcade({ onExit }: TrainSwitcherArcadeProps) {
                     >
                       Track {lane + 1}
                     </span>
-                    <VocabIllustration
-                      illustrationKey={item.illustrationKey}
-                      language={language}
-                      size={isCompact ? 28 : 36}
-                    />
+                    <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                      <VocabIllustration
+                        illustrationKey={item.illustrationKey}
+                        language={language}
+                        size={isCompact ? 24 : 36}
+                      />
+                    </span>
                     <span
-                      style={{
-                        fontFamily: 'var(--font-display)',
-                        fontWeight: 900,
-                        fontSize: isCompact ? '0.72rem' : '0.9rem',
-                        lineHeight: 1.15,
+                      dir={langDir}
+                      style={getArcadeForeignTextStyle(language, item.foreign, {
+                        isCompact,
+                        density: 'tight',
                         color: '#1e1b4b',
-                        textAlign: 'center',
-                        maxWidth: '100%',
-                        overflow: 'hidden',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                      }}
+                      })}
                     >
                       {item.foreign}
                     </span>
