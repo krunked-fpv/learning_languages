@@ -1,8 +1,121 @@
-import type { CosmeticId, CosmeticItem } from '../types/contracts';
+import {
+  FREE_RECALL_BONUS_GEMS,
+  FREE_RECALL_BONUS_XP,
+  HEART_CRYSTAL_COST_GEMS,
+  HEART_ELIXIR_COST_GEMS,
+  MAX_HEART_CONTAINERS,
+  STARTER_AVATAR_IDS,
+  STREAK_SHIELD_COST_GEMS,
+  UNLOCKABLE_AVATAR_COSTS,
+  XP_BOOSTER_CHARGES_PER_BUY,
+  XP_BOOSTER_COST_GEMS,
+  type AvatarId,
+  type CosmeticId,
+  type CosmeticItem,
+} from '../types/contracts';
 
-export const STREAK_SHIELD_COST_GEMS = 45;
+export {
+  FREE_RECALL_BONUS_GEMS,
+  FREE_RECALL_BONUS_XP,
+  HEART_CRYSTAL_COST_GEMS,
+  HEART_ELIXIR_COST_GEMS,
+  MAX_HEART_CONTAINERS,
+  STARTER_AVATAR_IDS,
+  STREAK_SHIELD_COST_GEMS,
+  UNLOCKABLE_AVATAR_COSTS,
+  XP_BOOSTER_CHARGES_PER_BUY,
+  XP_BOOSTER_COST_GEMS,
+};
+
+export interface AvatarShopItem {
+  id: AvatarId;
+  name: string;
+  description: string;
+  costGems: number;
+  accentColor: string;
+}
+
+export const AVATAR_SHOP_CATALOG: readonly AvatarShopItem[] = [
+  {
+    id: 'pip_explorer',
+    name: 'Pip the Explorer',
+    description: 'Your cheerful sky-blue songbird guide ready for any expedition trail.',
+    costGems: UNLOCKABLE_AVATAR_COSTS.pip_explorer,
+    accentColor: '#2563EB',
+  },
+  {
+    id: 'mateo_chef',
+    name: 'Mateo the Chef',
+    description: 'Warmhearted axolotl guitarist who spices up every plaza fiesta.',
+    costGems: UNLOCKABLE_AVATAR_COSTS.mateo_chef,
+    accentColor: '#EA580C',
+  },
+  {
+    id: 'colette_baker',
+    name: 'Colette the Baker',
+    description: 'Clever storybook fox carrying fresh croissants and lantern rhymes.',
+    costGems: UNLOCKABLE_AVATAR_COSTS.colette_baker,
+    accentColor: '#E11D48',
+  },
+  {
+    id: 'benni_tinker',
+    name: 'Benni the Tinkerer',
+    description: 'Brass-goggled badger inventor who charts stars and clockwork maps.',
+    costGems: UNLOCKABLE_AVATAR_COSTS.benni_tinker,
+    accentColor: '#059669',
+  },
+  {
+    id: 'luca_captain',
+    name: 'Luca the Captain',
+    description: 'Friendly sea-otter navigator steering schooners across cozy harbors.',
+    costGems: UNLOCKABLE_AVATAR_COSTS.luca_captain,
+    accentColor: '#0284C7',
+  },
+  {
+    id: 'star_compass',
+    name: 'Starlight Compass',
+    description: 'Shining celestial emblem pointing polyglots toward new horizons.',
+    costGems: UNLOCKABLE_AVATAR_COSTS.star_compass,
+    accentColor: '#4F46E5',
+  },
+  {
+    id: 'origami_crane_crest',
+    name: 'Origami Crane Crest',
+    description: 'Delicate folded-paper crane medallion celebrating graceful fluency.',
+    costGems: UNLOCKABLE_AVATAR_COSTS.origami_crane_crest,
+    accentColor: '#EC4899',
+  },
+  {
+    id: 'clockwork_owl_crest',
+    name: 'Clockwork Owl Crest',
+    description: 'Gilded nocturnal scholar crest crafted for keen language detectives.',
+    costGems: UNLOCKABLE_AVATAR_COSTS.clockwork_owl_crest,
+    accentColor: '#D97706',
+  },
+  {
+    id: 'fennec_voyager',
+    name: 'Desert Fennec Voyager',
+    description: 'Bright-eared desert trailblazer crest glowing under starlight dunes.',
+    costGems: UNLOCKABLE_AVATAR_COSTS.fennec_voyager,
+    accentColor: '#F59E0B',
+  },
+  {
+    id: 'grand_laureate_crest',
+    name: 'Grand Laureate Crest',
+    description: 'Prestigious C1+ symposium seal crowned with golden laurel leaves.',
+    costGems: UNLOCKABLE_AVATAR_COSTS.grand_laureate_crest,
+    accentColor: '#8B5CF6',
+  },
+] as const;
+
+export function getAvatarById(id: AvatarId): AvatarShopItem | undefined {
+  return AVATAR_SHOP_CATALOG.find((item) => item.id === id);
+}
 
 export const COSMETIC_CATALOG: readonly CosmeticItem[] = [
+  // ==========================================
+  // Hats (9)
+  // ==========================================
   {
     id: 'hat_explorer_beret',
     slot: 'hat',
@@ -10,6 +123,7 @@ export const COSMETIC_CATALOG: readonly CosmeticItem[] = [
     description: 'A velvety cobalt beret with a golden compass pin for storybook strolls.',
     costGems: 35,
     accentColor: '#2563EB',
+    tierHint: 'A1',
   },
   {
     id: 'hat_fiesta_sombrero',
@@ -18,6 +132,7 @@ export const COSMETIC_CATALOG: readonly CosmeticItem[] = [
     description: 'Hand-woven fiesta brim trimmed with bright marigold and terracotta ribbons.',
     costGems: 45,
     accentColor: '#EA580C',
+    tierHint: 'A1',
   },
   {
     id: 'hat_alpine_tyrolean',
@@ -26,6 +141,7 @@ export const COSMETIC_CATALOG: readonly CosmeticItem[] = [
     description: 'Cozy emerald felt trail hat sporting a crisp alpine feather.',
     costGems: 45,
     accentColor: '#15803D',
+    tierHint: 'A1',
   },
   {
     id: 'hat_gondolier_boater',
@@ -34,6 +150,7 @@ export const COSMETIC_CATALOG: readonly CosmeticItem[] = [
     description: 'Classic straw canal hat wrapped with a bold crimson silk ribbon.',
     costGems: 50,
     accentColor: '#DC2626',
+    tierHint: 'A1',
   },
   {
     id: 'hat_starlight_wizard',
@@ -42,7 +159,48 @@ export const COSMETIC_CATALOG: readonly CosmeticItem[] = [
     description: 'Twinkling midnight-indigo pointed hat dusted with golden constellation stars.',
     costGems: 75,
     accentColor: '#6D28D9',
+    tierHint: 'A2',
   },
+  {
+    id: 'hat_sakura_crown',
+    slot: 'hat',
+    name: 'Sakura Blossom Crown',
+    description: 'Woven spring-blossom circlet accented with soft petal ribbons.',
+    costGems: 90,
+    accentColor: '#EC4899',
+    tierHint: 'B1',
+  },
+  {
+    id: 'hat_desert_turban_star',
+    slot: 'hat',
+    name: 'Oasis Starlight Wrap',
+    description: 'Breezy teal traveler wrap pinned with a gleaming golden compass star.',
+    costGems: 120,
+    accentColor: '#0D9488',
+    tierHint: 'B2',
+  },
+  {
+    id: 'hat_astronomer_mitre',
+    slot: 'hat',
+    name: 'Celestial Astronomer Cap',
+    description: 'Ornate star-charted scholar hat worn at evening symposiums.',
+    costGems: 195,
+    accentColor: '#4338CA',
+    tierHint: 'C1_C2',
+  },
+  {
+    id: 'hat_laureate_wreath',
+    slot: 'hat',
+    name: 'Grand Laureate Wreath',
+    description: 'Gleaming golden olive-leaf crown reserved for fluent master polyglots.',
+    costGems: 280,
+    accentColor: '#CA8A04',
+    tierHint: 'C1_C2',
+  },
+
+  // ==========================================
+  // Glasses (5)
+  // ==========================================
   {
     id: 'glasses_brass_aviator',
     slot: 'glasses',
@@ -50,7 +208,48 @@ export const COSMETIC_CATALOG: readonly CosmeticItem[] = [
     description: 'Polished clockwork sky-explorer goggles built for windy mountain flights.',
     costGems: 40,
     accentColor: '#D97706',
+    tierHint: 'A1',
   },
+  {
+    id: 'glasses_starlight_frames',
+    slot: 'glasses',
+    name: 'Starlight Round Frames',
+    description: 'Playful cobalt spectacles with tiny twinkling star hinges.',
+    costGems: 70,
+    accentColor: '#3B82F6',
+    tierHint: 'A2',
+  },
+  {
+    id: 'glasses_scholar_monocle',
+    slot: 'glasses',
+    name: 'Polyglot Scholar Monocle',
+    description: 'Gilded brass reading lens with a braided sapphire chain for storytellers.',
+    costGems: 115,
+    accentColor: '#B45309',
+    tierHint: 'B1',
+  },
+  {
+    id: 'glasses_pixel_visor',
+    slot: 'glasses',
+    name: 'Neon Arcade Visor',
+    description: 'Sleek iridescent cyber-cyan shades built for high-speed fluency streaks.',
+    costGems: 145,
+    accentColor: '#06B6D4',
+    tierHint: 'B2',
+  },
+  {
+    id: 'glasses_constellation_shades',
+    slot: 'glasses',
+    name: 'Constellation Prism Shades',
+    description: 'Amethyst observatory lenses etched with shimmering golden star-maps.',
+    costGems: 210,
+    accentColor: '#9333EA',
+    tierHint: 'C1_C2',
+  },
+
+  // ==========================================
+  // Capes (4)
+  // ==========================================
   {
     id: 'cape_rainbow_wings',
     slot: 'cape',
@@ -58,7 +257,39 @@ export const COSMETIC_CATALOG: readonly CosmeticItem[] = [
     description: 'Breezy prism-feathered explorer cape that shimmers on every combo streak.',
     costGems: 65,
     accentColor: '#F43F5E',
+    tierHint: 'A2',
   },
+  {
+    id: 'cape_traveler_cloak',
+    slot: 'cape',
+    name: 'Wayfinder Traveler Cloak',
+    description: 'Cozy moss-emerald expedition cloak fastened with a brass clasp.',
+    costGems: 95,
+    accentColor: '#059669',
+    tierHint: 'B1',
+  },
+  {
+    id: 'cape_aurora_mantle',
+    slot: 'cape',
+    name: 'Polar Aurora Mantle',
+    description: 'Translucent northern-lights shawl rippling in turquoise and violet.',
+    costGems: 150,
+    accentColor: '#14B8A6',
+    tierHint: 'B2',
+  },
+  {
+    id: 'cape_velvet_laureate',
+    slot: 'cape',
+    name: 'Imperial Laureate Cloak',
+    description: 'Plush royal crimson-and-gold velvet mantle for C1+ Symposium champions.',
+    costGems: 260,
+    accentColor: '#9F1239',
+    tierHint: 'C1_C2',
+  },
+
+  // ==========================================
+  // Auras (5)
+  // ==========================================
   {
     id: 'aura_golden_compass',
     slot: 'aura',
@@ -66,6 +297,7 @@ export const COSMETIC_CATALOG: readonly CosmeticItem[] = [
     description: 'Orbiting starlight compass rings that softly chime around your companion.',
     costGems: 60,
     accentColor: '#FBBF24',
+    tierHint: 'A2',
   },
   {
     id: 'aura_fireflies',
@@ -74,7 +306,164 @@ export const COSMETIC_CATALOG: readonly CosmeticItem[] = [
     description: 'Gentle glowing meadow fireflies dancing beside your expedition mascot.',
     costGems: 55,
     accentColor: '#10B981',
+    tierHint: 'A2',
   },
+  {
+    id: 'aura_sakura_breeze',
+    slot: 'aura',
+    name: 'Sakura Petal Breeze',
+    description: 'Swirling spring cherry blossoms drifting softly in a warm breeze.',
+    costGems: 105,
+    accentColor: '#F472B6',
+    tierHint: 'B1',
+  },
+  {
+    id: 'aura_polyglot_glyphs',
+    slot: 'aura',
+    name: 'Orbiting Polyglot Glyphs',
+    description: 'Luminous calligraphic sparkles from sixteen world scripts circling gracefully.',
+    costGems: 160,
+    accentColor: '#0EA5E9',
+    tierHint: 'B2',
+  },
+  {
+    id: 'aura_laureate_supernova',
+    slot: 'aura',
+    name: 'Laureate Supernova Crown',
+    description: 'Radiant golden-violet nebula rays celebrating grand polyglot mastery.',
+    costGems: 320,
+    accentColor: '#A855F7',
+    tierHint: 'C1_C2',
+  },
+
+  // ==========================================
+  // Handheld Props (7)
+  // ==========================================
+  {
+    id: 'prop_explorer_ukulele',
+    slot: 'prop',
+    name: 'Campfire Explorer Ukulele',
+    description: 'Warm cedar travel ukulele tuned for sing-along plaza melodies.',
+    costGems: 70,
+    accentColor: '#D97706',
+    tierHint: 'A2',
+  },
+  {
+    id: 'prop_boulangerie_whisk',
+    slot: 'prop',
+    name: 'Boulangerie Copper Whisk',
+    description: 'Gleaming pastry whisk straight from Colette’s storybook kitchen.',
+    costGems: 80,
+    accentColor: '#E11D48',
+    tierHint: 'A2',
+  },
+  {
+    id: 'prop_starlight_telescope',
+    slot: 'prop',
+    name: 'Starlight Brass Telescope',
+    description: 'Collapsible pocket spyglass for spotting distant B1 story horizons.',
+    costGems: 95,
+    accentColor: '#2563EB',
+    tierHint: 'B1',
+  },
+  {
+    id: 'prop_festival_lantern',
+    slot: 'prop',
+    name: 'Crimson Festival Lantern',
+    description: 'Glowing silk-and-bamboo lantern lighting up folklore night markets.',
+    costGems: 110,
+    accentColor: '#DC2626',
+    tierHint: 'B1',
+  },
+  {
+    id: 'prop_golden_quill',
+    slot: 'prop',
+    name: 'Calligrapher’s Golden Quill',
+    description: 'Luminous feather pen for jotting down proverbs and persuasive essays.',
+    costGems: 130,
+    accentColor: '#F59E0B',
+    tierHint: 'B2',
+  },
+  {
+    id: 'prop_compass_astrolabe',
+    slot: 'prop',
+    name: 'Celestial Brass Astrolabe',
+    description: 'Intricate spinning star-calculator forged by Benni for desert navigation.',
+    costGems: 155,
+    accentColor: '#0D9488',
+    tierHint: 'B2',
+  },
+  {
+    id: 'prop_laureate_scroll',
+    slot: 'prop',
+    name: 'Grand Symposium Scroll',
+    description: 'Ribbon-tied golden parchment proclaiming C1+ polyglot eloquence.',
+    costGems: 250,
+    accentColor: '#8B5CF6',
+    tierHint: 'C1_C2',
+  },
+
+  // ==========================================
+  // Mini Sidekick Pets (6)
+  // ==========================================
+  {
+    id: 'pet_origami_crane',
+    slot: 'pet',
+    name: 'Origami Sky Crane',
+    description: 'A fluttering pastel paper crane that folds itself mid-flight.',
+    costGems: 90,
+    accentColor: '#F472B6',
+    tierHint: 'B1',
+  },
+  {
+    id: 'pet_axolotl_sprite',
+    slot: 'pet',
+    name: 'Bubble Axolotl Sprite',
+    description: 'Tiny rosy water-sprite friend blowing cheerful iridescent bubbles.',
+    costGems: 105,
+    accentColor: '#FB7185',
+    tierHint: 'B1',
+  },
+  {
+    id: 'pet_clockwork_owl',
+    slot: 'pet',
+    name: 'Clockwork Brass Owl',
+    description: 'Mini wind-up owl whose brass wings tick gently with every combo.',
+    costGems: 135,
+    accentColor: '#D97706',
+    tierHint: 'B2',
+  },
+  {
+    id: 'pet_desert_fennec',
+    slot: 'pet',
+    name: 'Starlight Fennec Pup',
+    description: 'Big-eared golden desert fox cub wearing a miniature cobalt scarf.',
+    costGems: 145,
+    accentColor: '#F59E0B',
+    tierHint: 'B2',
+  },
+  {
+    id: 'pet_starlight_seahorse',
+    slot: 'pet',
+    name: 'Lagoon Seahorse Spark',
+    description: 'Glowing turquoise sea-sprite drifting cheerfully beside your companion.',
+    costGems: 160,
+    accentColor: '#06B6D4',
+    tierHint: 'B2',
+  },
+  {
+    id: 'pet_phoenix_chick',
+    slot: 'pet',
+    name: 'Solaris Phoenix Chick',
+    description: 'Mythic golden-plumage songbird fledgling born from C1+ symposium embers.',
+    costGems: 350,
+    accentColor: '#EA580C',
+    tierHint: 'C1_C2',
+  },
+
+  // ==========================================
+  // UI Themes (14)
+  // ==========================================
   {
     id: 'theme_sunset_plaza',
     slot: 'theme',
@@ -82,6 +471,7 @@ export const COSMETIC_CATALOG: readonly CosmeticItem[] = [
     description: 'Warm terracotta, golden amber, and cheerful fiesta lantern accents across the UI.',
     costGems: 50,
     accentColor: '#EA580C',
+    tierHint: 'A1',
   },
   {
     id: 'theme_starlight_indigo',
@@ -90,6 +480,7 @@ export const COSMETIC_CATALOG: readonly CosmeticItem[] = [
     description: 'Dreamy twilight indigo skies and luminous gold accents for evening explorers.',
     costGems: 60,
     accentColor: '#4F46E5',
+    tierHint: 'A2',
   },
   {
     id: 'theme_alpine_meadow',
@@ -98,6 +489,7 @@ export const COSMETIC_CATALOG: readonly CosmeticItem[] = [
     description: 'Crisp pine greens, wildflower sky blues, and sunny meadow card borders.',
     costGems: 50,
     accentColor: '#059669',
+    tierHint: 'A1',
   },
   {
     id: 'theme_cosmic_galaxy',
@@ -106,6 +498,7 @@ export const COSMETIC_CATALOG: readonly CosmeticItem[] = [
     description: 'Deep-space violet nebula, twinkling starfield, and cyber-cyan glass!',
     costGems: 40,
     accentColor: '#c084fc',
+    tierHint: 'A1',
   },
   {
     id: 'theme_aurora_borealis',
@@ -114,6 +507,7 @@ export const COSMETIC_CATALOG: readonly CosmeticItem[] = [
     description: 'Polar night sky with glowing emerald and violet aurora ribbons!',
     costGems: 55,
     accentColor: '#34d399',
+    tierHint: 'A2',
   },
   {
     id: 'theme_candy_sakura',
@@ -122,6 +516,7 @@ export const COSMETIC_CATALOG: readonly CosmeticItem[] = [
     description: 'Dreamy cherry-blossom petals, warm cream, and raspberry bevels!',
     costGems: 45,
     accentColor: '#f472b6',
+    tierHint: 'A1',
   },
   {
     id: 'theme_ocean_lagoon',
@@ -130,6 +525,7 @@ export const COSMETIC_CATALOG: readonly CosmeticItem[] = [
     description: 'Crystal Mediterranean sea-glass, sunlit aqua, and coral accents!',
     costGems: 50,
     accentColor: '#06b6d4',
+    tierHint: 'A1',
   },
   {
     id: 'theme_royal_velvet',
@@ -138,6 +534,61 @@ export const COSMETIC_CATALOG: readonly CosmeticItem[] = [
     description: 'Plush royal amethyst velvet crowned with gleaming sun-gold trim!',
     costGems: 70,
     accentColor: '#fbbf24',
+    tierHint: 'B1',
+  },
+  {
+    id: 'theme_kyoto_matcha',
+    slot: 'theme',
+    name: 'Kyoto Matcha Courtyard',
+    description: 'Serene bamboo tea-house greens, warm washi cream, and cedar trim.',
+    costGems: 85,
+    accentColor: '#16A34A',
+    tierHint: 'B1',
+  },
+  {
+    id: 'theme_sahara_mirage',
+    slot: 'theme',
+    name: 'Sahara Starlight Mirage',
+    description: 'Sun-baked sandstone gold, lapis oasis tiles, and twilight amber.',
+    costGems: 115,
+    accentColor: '#D97706',
+    tierHint: 'B2',
+  },
+  {
+    id: 'theme_emerald_rainforest',
+    slot: 'theme',
+    name: 'Emerald Canopy Mist',
+    description: 'Lush rainforest jade, sunbeam lime highlights, and river-stone glass.',
+    costGems: 125,
+    accentColor: '#047857',
+    tierHint: 'B2',
+  },
+  {
+    id: 'theme_neon_night_market',
+    slot: 'theme',
+    name: 'Lantern Night Market',
+    description: 'Electric magenta-cyan street lanterns glowing across midnight slate.',
+    costGems: 155,
+    accentColor: '#EC4899',
+    tierHint: 'B2',
+  },
+  {
+    id: 'theme_nordic_fjord',
+    slot: 'theme',
+    name: 'Nordic Fjord Frost',
+    description: 'Crisp glacier sky-blues, slate granite bevels, and silver pine glow.',
+    costGems: 190,
+    accentColor: '#0284C7',
+    tierHint: 'C1_C2',
+  },
+  {
+    id: 'theme_laureate_imperial',
+    slot: 'theme',
+    name: 'Grand Laureate Imperial',
+    description: 'Prestige obsidian-and-gold symposium palette for C1+ masters.',
+    costGems: 290,
+    accentColor: '#F59E0B',
+    tierHint: 'C1_C2',
   },
 ] as const;
 

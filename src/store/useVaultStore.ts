@@ -2,7 +2,15 @@ import { useSyncExternalStore } from 'react';
 import {
   BADGE_CATALOG,
   COSMETIC_CATALOG,
+  HEART_CRYSTAL_COST_GEMS,
+  HEART_ELIXIR_COST_GEMS,
+  MAX_HEART_CONTAINERS,
+  STARTER_AVATAR_IDS,
   STREAK_SHIELD_COST_GEMS,
+  TIER_ORDER,
+  UNLOCKABLE_AVATAR_COSTS,
+  XP_BOOSTER_CHARGES_PER_BUY,
+  XP_BOOSTER_COST_GEMS,
   applyDailyPracticeStreak,
   evaluateUnlockedBadges,
   getCosmeticById,
@@ -10,6 +18,7 @@ import {
 } from '../core';
 import {
   LANGUAGE_LIST,
+  PROFICIENCY_TIERS,
   type AvatarId,
   type BadgeId,
   type CosmeticId,
@@ -20,6 +29,7 @@ import {
   type LanguageCode,
   type LanguageProgressState,
   type LeagueTier,
+  type ProficiencyTier,
   type SaveVault,
 } from '../types/contracts';
 
@@ -32,19 +42,28 @@ const VALID_AVATARS = new Set<AvatarId>([
   'benni_tinker',
   'luca_captain',
   'star_compass',
+  'origami_crane_crest',
+  'clockwork_owl_crest',
+  'fennec_voyager',
+  'grand_laureate_crest',
 ]);
 
 const VALID_LANGUAGES = new Set<LanguageCode>(LANGUAGE_LIST);
 
-const VALID_LEAGUE_TIERS = new Set<LeagueTier>([
-  'bronze_acorn',
-  'silver_compass',
-  'gold_feather',
-  'sapphire_sky',
-  'starlight_legend',
-]);
+const VALID_LEAGUE_TIERS = new Set<LeagueTier>(TIER_ORDER);
 
-const VALID_COSMETIC_SLOTS = new Set<CosmeticSlot>(['hat', 'glasses', 'cape', 'aura', 'theme']);
+const VALID_PROFICIENCY_TIERS = new Set<ProficiencyTier>(PROFICIENCY_TIERS);
+const VALID_UNLOCKABLE_TIERS = new Set<Exclude<ProficiencyTier, 'A1'>>(['A2', 'B1', 'B2', 'C1_C2']);
+
+const VALID_COSMETIC_SLOTS = new Set<CosmeticSlot>([
+  'hat',
+  'glasses',
+  'cape',
+  'aura',
+  'prop',
+  'pet',
+  'theme',
+]);
 
 const VALID_COSMETIC_IDS = new Set<CosmeticId>(COSMETIC_CATALOG.map((c) => c.id));
 const VALID_BADGE_IDS = new Set<BadgeId>(BADGE_CATALOG.map((b) => b.id));
@@ -55,9 +74,12 @@ const TIER_RANK: Record<LeagueTier, number> = {
   gold_feather: 2,
   sapphire_sky: 3,
   starlight_legend: 4,
+  emerald_diplomat: 5,
+  amethyst_symposium: 6,
+  grand_polyglot_laureate: 7,
 };
 
-const MAX_SEEN_EXERCISES = 600;
+const MAX_SEEN_EXERCISES = 1500;
 
 function emptyLangProgress(): LanguageProgressState {
   return {
@@ -68,6 +90,7 @@ function emptyLangProgress(): LanguageProgressState {
     currentUnitIndex: 0,
     xpEarned: 0,
     seenExerciseIds: [],
+    unlockedTiers: [],
   };
 }
 
@@ -99,6 +122,9 @@ function makeFreshProfile(params: {
     streakDays: 1,
     lastPracticeISO: null,
     streakShields: 1,
+    heartElixirs: 0,
+    xpBoosterCharges: 0,
+    unlockedAvatars: Array.from(new Set([...STARTER_AVATAR_IDS, params.avatarId])),
     equippedCosmetics: {},
     unlockedCosmetics: [],
     badges: [],
@@ -116,6 +142,10 @@ function makeFreshProfile(params: {
       turtlePlaysCount: 0,
       bestComboStreak: 0,
       accentSpotlightsSeen: 0,
+      freeRecallSolved: 0,
+      fluentPlaysCount: 0,
+      checkpointsPassed: 0,
+      clozeSolved: 0,
     },
     languageProgress: createAllLangProgress(),
   };
@@ -169,6 +199,7 @@ function cloneLangProgress(lp: LanguageProgressState): LanguageProgressState {
     currentUnitIndex: lp.currentUnitIndex,
     xpEarned: lp.xpEarned,
     seenExerciseIds: lp.seenExerciseIds ? [...lp.seenExerciseIds] : [],
+    unlockedTiers: lp.unlockedTiers ? [...lp.unlockedTiers] : [],
   };
 }
 
@@ -181,13 +212,24 @@ function cloneProfile(profile: KidProfile): KidProfile {
 
   return {
     ...profile,
+    heartElixirs: profile.heartElixirs ?? 0,
+    xpBoosterCharges: profile.xpBoosterCharges ?? 0,
+    unlockedAvatars: Array.from(
+      new Set([...STARTER_AVATAR_IDS, ...(profile.unlockedAvatars ?? []), profile.avatarId])
+    ),
     secretArcadeUnlocked: Boolean(profile.secretArcadeUnlocked),
     secretArcadeBestScore: profile.secretArcadeBestScore ?? 0,
     arcadeHighScores: profile.arcadeHighScores ? { ...profile.arcadeHighScores } : {},
     equippedCosmetics: { ...profile.equippedCosmetics },
     unlockedCosmetics: [...profile.unlockedCosmetics],
     badges: [...profile.badges],
-    stats: { ...profile.stats },
+    stats: {
+      ...profile.stats,
+      freeRecallSolved: profile.stats.freeRecallSolved ?? 0,
+      fluentPlaysCount: profile.stats.fluentPlaysCount ?? 0,
+      checkpointsPassed: profile.stats.checkpointsPassed ?? 0,
+      clozeSolved: profile.stats.clozeSolved ?? 0,
+    },
     languageProgress,
   };
 }
@@ -231,6 +273,18 @@ function validateLangProgress(
     }
     seenExerciseIds = Array.from(new Set(raw.seenExerciseIds)).slice(-MAX_SEEN_EXERCISES);
   }
+  let unlockedTiers: ProficiencyTier[] = [];
+  if (raw.unlockedTiers !== undefined) {
+    if (
+      !Array.isArray(raw.unlockedTiers) ||
+      !raw.unlockedTiers.every(
+        (t) => typeof t === 'string' && VALID_PROFICIENCY_TIERS.has(t as ProficiencyTier)
+      )
+    ) {
+      return { ok: false, error: `${label}.unlockedTiers contains invalid proficiency tiers.` };
+    }
+    unlockedTiers = Array.from(new Set(raw.unlockedTiers as ProficiencyTier[]));
+  }
 
   return {
     ok: true,
@@ -242,6 +296,7 @@ function validateLangProgress(
       currentUnitIndex: Math.floor(raw.currentUnitIndex),
       xpEarned: Math.round(raw.xpEarned),
       seenExerciseIds,
+      unlockedTiers,
     },
   };
 }
@@ -292,6 +347,21 @@ function validateKidProfile(
   }
   if (!isNonNegNumber(raw.streakShields)) {
     return { ok: false, error: `${prefix}.streakShields must be a non-negative number.` };
+  }
+  if (raw.heartElixirs !== undefined && !isNonNegNumber(raw.heartElixirs)) {
+    return { ok: false, error: `${prefix}.heartElixirs must be a non-negative number.` };
+  }
+  if (raw.xpBoosterCharges !== undefined && !isNonNegNumber(raw.xpBoosterCharges)) {
+    return { ok: false, error: `${prefix}.xpBoosterCharges must be a non-negative number.` };
+  }
+  if (
+    raw.unlockedAvatars !== undefined &&
+    (!Array.isArray(raw.unlockedAvatars) ||
+      !raw.unlockedAvatars.every(
+        (id) => typeof id === 'string' && VALID_AVATARS.has(id as AvatarId)
+      ))
+  ) {
+    return { ok: false, error: `${prefix}.unlockedAvatars contains invalid avatar IDs.` };
   }
   if (!isNonNegNumber(raw.weeklyXp) || !isNonNegNumber(raw.totalXp)) {
     return { ok: false, error: `${prefix}.weeklyXp and totalXp must be non-negative numbers.` };
@@ -365,6 +435,17 @@ function validateKidProfile(
       return { ok: false, error: `${prefix}.stats.${key} must be a non-negative number.` };
     }
   }
+  const optionalStatKeys = [
+    'freeRecallSolved',
+    'fluentPlaysCount',
+    'checkpointsPassed',
+    'clozeSolved',
+  ] as const;
+  for (const key of optionalStatKeys) {
+    if (raw.stats[key] !== undefined && !isNonNegNumber(raw.stats[key])) {
+      return { ok: false, error: `${prefix}.stats.${key} must be a non-negative number.` };
+    }
+  }
 
   if (!isPlainObject(raw.languageProgress)) {
     return { ok: false, error: `${prefix}.languageProgress must be an object.` };
@@ -423,6 +504,14 @@ function validateKidProfile(
   }
 
   const maxHearts = Math.floor(raw.maxHearts);
+  const hydratedUnlockedAvatars = Array.from(
+    new Set([
+      ...STARTER_AVATAR_IDS,
+      ...((raw.unlockedAvatars as AvatarId[] | undefined) ?? []),
+      raw.avatarId as AvatarId,
+    ])
+  );
+
   return {
     ok: true,
     value: {
@@ -437,6 +526,10 @@ function validateKidProfile(
       streakDays: Math.floor(raw.streakDays),
       lastPracticeISO: raw.lastPracticeISO,
       streakShields: Math.floor(raw.streakShields),
+      heartElixirs: raw.heartElixirs !== undefined ? Math.floor(raw.heartElixirs) : 0,
+      xpBoosterCharges:
+        raw.xpBoosterCharges !== undefined ? Math.floor(raw.xpBoosterCharges) : 0,
+      unlockedAvatars: hydratedUnlockedAvatars,
       equippedCosmetics,
       unlockedCosmetics: Array.from(new Set(raw.unlockedCosmetics as CosmeticId[])),
       badges: Array.from(new Set(raw.badges as BadgeId[])),
@@ -455,6 +548,20 @@ function validateKidProfile(
         turtlePlaysCount: Math.floor(raw.stats.turtlePlaysCount as number),
         bestComboStreak: Math.floor(raw.stats.bestComboStreak as number),
         accentSpotlightsSeen: Math.floor(raw.stats.accentSpotlightsSeen as number),
+        freeRecallSolved:
+          raw.stats.freeRecallSolved !== undefined
+            ? Math.floor(raw.stats.freeRecallSolved as number)
+            : 0,
+        fluentPlaysCount:
+          raw.stats.fluentPlaysCount !== undefined
+            ? Math.floor(raw.stats.fluentPlaysCount as number)
+            : 0,
+        checkpointsPassed:
+          raw.stats.checkpointsPassed !== undefined
+            ? Math.floor(raw.stats.checkpointsPassed as number)
+            : 0,
+        clozeSolved:
+          raw.stats.clozeSolved !== undefined ? Math.floor(raw.stats.clozeSolved as number) : 0,
       },
       languageProgress: validatedLangProgress,
     },
@@ -624,6 +731,9 @@ function mergeTwoProfiles(existing: KidProfile, incoming: KidProfile): KidProfil
       seenExerciseIds: Array.from(
         new Set([...(a.seenExerciseIds ?? []), ...(b.seenExerciseIds ?? [])])
       ).slice(-MAX_SEEN_EXERCISES),
+      unlockedTiers: Array.from(
+        new Set([...(a.unlockedTiers ?? []), ...(b.unlockedTiers ?? [])])
+      ),
     };
   }
 
@@ -649,6 +759,16 @@ function mergeTwoProfiles(existing: KidProfile, incoming: KidProfile): KidProfil
     streakDays: Math.max(existing.streakDays, incoming.streakDays),
     lastPracticeISO,
     streakShields: Math.max(existing.streakShields, incoming.streakShields),
+    heartElixirs: Math.max(existing.heartElixirs ?? 0, incoming.heartElixirs ?? 0),
+    xpBoosterCharges: Math.max(existing.xpBoosterCharges ?? 0, incoming.xpBoosterCharges ?? 0),
+    unlockedAvatars: Array.from(
+      new Set([
+        ...STARTER_AVATAR_IDS,
+        ...(existing.unlockedAvatars ?? []),
+        ...(incoming.unlockedAvatars ?? []),
+        existing.avatarId,
+      ])
+    ),
     equippedCosmetics: { ...incoming.equippedCosmetics, ...existing.equippedCosmetics },
     unlockedCosmetics: Array.from(
       new Set([...existing.unlockedCosmetics, ...incoming.unlockedCosmetics])
@@ -685,6 +805,19 @@ function mergeTwoProfiles(existing: KidProfile, incoming: KidProfile): KidProfil
         existing.stats.accentSpotlightsSeen,
         incoming.stats.accentSpotlightsSeen
       ),
+      freeRecallSolved: Math.max(
+        existing.stats.freeRecallSolved ?? 0,
+        incoming.stats.freeRecallSolved ?? 0
+      ),
+      fluentPlaysCount: Math.max(
+        existing.stats.fluentPlaysCount ?? 0,
+        incoming.stats.fluentPlaysCount ?? 0
+      ),
+      checkpointsPassed: Math.max(
+        existing.stats.checkpointsPassed ?? 0,
+        incoming.stats.checkpointsPassed ?? 0
+      ),
+      clozeSolved: Math.max(existing.stats.clozeSolved ?? 0, incoming.stats.clozeSolved ?? 0),
     },
     languageProgress: mergedLanguageProgress,
   };
@@ -786,6 +919,139 @@ function generateUniqueProfileId(name: string, existingProfiles: readonly KidPro
   } while (existingIds.has(candidate));
 
   return candidate;
+}
+
+function getActiveProfileSnapshot(): KidProfile | undefined {
+  return (
+    memoryVault.profiles.find((p) => p.id === memoryVault.activeProfileId) ??
+    memoryVault.profiles[0]
+  );
+}
+
+function resolveBoostedXp(
+  profile: KidProfile,
+  rawXp: number
+): { earnedXp: number; nextBoosterCharges: number } {
+  const safeXp = Number.isFinite(rawXp) ? Math.max(0, Math.round(rawXp)) : 0;
+  const charges = profile.xpBoosterCharges ?? 0;
+  if (safeXp > 0 && charges > 0) {
+    return {
+      earnedXp: safeXp * 2,
+      nextBoosterCharges: charges - 1,
+    };
+  }
+  return {
+    earnedXp: safeXp,
+    nextBoosterCharges: charges,
+  };
+}
+
+function applyTierUnlockToLangProgress(
+  langProg: LanguageProgressState,
+  params: {
+    targetTier: Exclude<ProficiencyTier, 'A1'>;
+    prerequisiteNodeIds?: readonly string[];
+    targetUnitIndex?: number;
+  }
+): LanguageProgressState {
+  const validPrereqs = (params.prerequisiteNodeIds ?? []).filter(
+    (id): id is string => typeof id === 'string' && id.trim().length > 0
+  );
+  const nextStars: Record<string, 1 | 2 | 3> = { ...langProg.nodeStars };
+  for (const prereqId of validPrereqs) {
+    if (nextStars[prereqId] === undefined) {
+      nextStars[prereqId] = 2;
+    }
+  }
+  const nextUnitIndex =
+    params.targetUnitIndex !== undefined && Number.isFinite(params.targetUnitIndex)
+      ? Math.max(0, Math.floor(params.targetUnitIndex))
+      : langProg.currentUnitIndex;
+
+  return {
+    ...langProg,
+    completedNodeIds: Array.from(new Set([...langProg.completedNodeIds, ...validPrereqs])),
+    nodeStars: nextStars,
+    unlockedTiers: Array.from(new Set([...(langProg.unlockedTiers ?? []), params.targetTier])),
+    currentUnitIndex: nextUnitIndex,
+  };
+}
+
+function bumpProfileStat(
+  key: 'turtlePlaysCount' | 'fluentPlaysCount' | 'freeRecallSolved' | 'clozeSolved'
+): void {
+  updateActiveProfile((profile) => {
+    const updated: KidProfile = {
+      ...profile,
+      stats: {
+        ...profile.stats,
+        [key]: (profile.stats[key] ?? 0) + 1,
+      },
+    };
+    return {
+      ...updated,
+      badges: evaluateUnlockedBadges(updated),
+    };
+  });
+}
+
+function awardArcadeResultToProfile(params: {
+  gameId: string;
+  score: number;
+  heartsWon: number;
+  bonusGems: number;
+  xpEarned?: number;
+}): void {
+  updateActiveProfile((profile) => {
+    const safeScore = Number.isFinite(params.score) ? Math.max(0, Math.floor(params.score)) : 0;
+    const heartsWon = Number.isFinite(params.heartsWon)
+      ? Math.max(0, Math.floor(params.heartsWon))
+      : 0;
+    const bonusGems = Number.isFinite(params.bonusGems)
+      ? Math.max(0, Math.floor(params.bonusGems))
+      : 0;
+    const { earnedXp, nextBoosterCharges } = resolveBoostedXp(profile, params.xpEarned ?? 15);
+    const prevScores = profile.arcadeHighScores ?? {};
+    const nextBest = Math.max(prevScores[params.gameId] ?? 0, safeScore);
+    const activeLang = profile.activeLanguage;
+    const langProg = profile.languageProgress[activeLang] ?? emptyLangProgress();
+    const nextWeeklyXp = profile.weeklyXp + earnedXp;
+
+    const updated: KidProfile = {
+      ...profile,
+      hearts: Math.min(profile.maxHearts, profile.hearts + heartsWon),
+      gems: profile.gems + bonusGems,
+      xpBoosterCharges: nextBoosterCharges,
+      weeklyXp: nextWeeklyXp,
+      totalXp: profile.totalXp + earnedXp,
+      leagueTier: resolveLeagueTierForXp(nextWeeklyXp, profile.leagueTier),
+      arcadeHighScores: {
+        ...prevScores,
+        [params.gameId]: nextBest,
+      },
+      secretArcadeBestScore:
+        params.gameId === 'starlight_choir'
+          ? Math.max(profile.secretArcadeBestScore ?? 0, safeScore)
+          : profile.secretArcadeBestScore,
+      stats: {
+        ...profile.stats,
+        arcadeGamesWon: profile.stats.arcadeGamesWon + 1,
+      },
+      languageProgress: {
+        ...createAllLangProgress(),
+        ...profile.languageProgress,
+        [activeLang]: {
+          ...langProg,
+          xpEarned: langProg.xpEarned + earnedXp,
+        },
+      },
+    };
+
+    return {
+      ...updated,
+      badges: evaluateUnlockedBadges(updated),
+    };
+  });
 }
 
 export const vaultActions = {
@@ -912,17 +1178,50 @@ export const vaultActions = {
   },
 
   recordTurtlePlay(): void {
+    bumpProfileStat('turtlePlaysCount');
+  },
+
+  recordFluentPlay(): void {
+    bumpProfileStat('fluentPlaysCount');
+  },
+
+  recordFreeRecallSolve(): void {
+    bumpProfileStat('freeRecallSolved');
+  },
+
+  recordClozeSolve(): void {
+    bumpProfileStat('clozeSolved');
+  },
+
+  unlockProficiencyTier(params: {
+    language: LanguageCode;
+    targetTier: Exclude<ProficiencyTier, 'A1'>;
+    prerequisiteNodeIds: readonly string[];
+    targetUnitIndex: number;
+  }): void {
+    if (!VALID_LANGUAGES.has(params.language)) return;
+    if (!VALID_UNLOCKABLE_TIERS.has(params.targetTier)) return;
+
     updateActiveProfile((profile) => {
+      const langProg = profile.languageProgress[params.language] ?? emptyLangProgress();
+      const nextLangProg = applyTierUnlockToLangProgress(langProg, params);
       const updated: KidProfile = {
         ...profile,
         stats: {
           ...profile.stats,
-          turtlePlaysCount: profile.stats.turtlePlaysCount + 1,
+          checkpointsPassed: (profile.stats.checkpointsPassed ?? 0) + 1,
+        },
+        languageProgress: {
+          ...createAllLangProgress(),
+          ...profile.languageProgress,
+          [params.language]: nextLangProg,
         },
       };
+
+      const withStreak = applyDailyPracticeStreak(updated);
       return {
-        ...updated,
-        badges: evaluateUnlockedBadges(updated),
+        ...withStreak,
+        badges: evaluateUnlockedBadges(withStreak),
       };
     });
   },
@@ -938,11 +1237,16 @@ export const vaultActions = {
     isStory?: boolean;
     isBoss?: boolean;
     isChest?: boolean;
+    checkpointUnlock?: {
+      targetTier: Exclude<ProficiencyTier, 'A1'>;
+      prerequisiteNodeIds?: readonly string[];
+      targetUnitIndex?: number;
+    };
   }): void {
     if (!VALID_LANGUAGES.has(params.language)) return;
     updateActiveProfile((profile) => {
       const langProg = profile.languageProgress[params.language] ?? emptyLangProgress();
-      const safeXp = Number.isFinite(params.xpEarned) ? Math.max(0, Math.round(params.xpEarned)) : 0;
+      const { earnedXp, nextBoosterCharges } = resolveBoostedXp(profile, params.xpEarned);
       const isAlreadyClaimedChest = Boolean(
         params.isChest && langProg.claimedChestIds.includes(params.nodeId)
       );
@@ -955,7 +1259,7 @@ export const vaultActions = {
       const prevStars = langProg.nodeStars[params.nodeId] ?? 0;
       const nextStars = Math.max(prevStars, params.stars) as 1 | 2 | 3;
 
-      const nextLangProg: LanguageProgressState = {
+      let nextLangProg: LanguageProgressState = {
         ...langProg,
         completedNodeIds: Array.from(new Set([...langProg.completedNodeIds, params.nodeId])),
         nodeStars: {
@@ -968,12 +1272,22 @@ export const vaultActions = {
         claimedChestIds: params.isChest
           ? Array.from(new Set([...langProg.claimedChestIds, params.nodeId]))
           : langProg.claimedChestIds,
-        xpEarned: langProg.xpEarned + safeXp,
+        xpEarned: langProg.xpEarned + earnedXp,
       };
 
-      const nextWeeklyXp = profile.weeklyXp + safeXp;
-      const nextTotalXp = profile.totalXp + safeXp;
-      const isLesson = !params.isStory && !params.isBoss && !params.isChest;
+      const checkpointUnlock =
+        params.checkpointUnlock && VALID_UNLOCKABLE_TIERS.has(params.checkpointUnlock.targetTier)
+          ? params.checkpointUnlock
+          : undefined;
+
+      if (checkpointUnlock) {
+        nextLangProg = applyTierUnlockToLangProgress(nextLangProg, checkpointUnlock);
+      }
+
+      const nextWeeklyXp = profile.weeklyXp + earnedXp;
+      const nextTotalXp = profile.totalXp + earnedXp;
+      const isCheckpoint = Boolean(checkpointUnlock);
+      const isLesson = !params.isStory && !params.isBoss && !params.isChest && !isCheckpoint;
       const nextLessonsCompleted = profile.stats.lessonsCompleted + (isLesson ? 1 : 0);
 
       const nextLanguageProgress: Record<LanguageCode, LanguageProgressState> = {
@@ -994,6 +1308,7 @@ export const vaultActions = {
       const updated: KidProfile = {
         ...profile,
         gems: profile.gems + safeGems,
+        xpBoosterCharges: nextBoosterCharges,
         weeklyXp: nextWeeklyXp,
         totalXp: nextTotalXp,
         leagueTier: resolveLeagueTierForXp(nextWeeklyXp, profile.leagueTier),
@@ -1003,6 +1318,7 @@ export const vaultActions = {
           lessonsCompleted: nextLessonsCompleted,
           storiesCompleted: profile.stats.storiesCompleted + (params.isStory ? 1 : 0),
           bossesCleared: profile.stats.bossesCleared + (params.isBoss ? 1 : 0),
+          checkpointsPassed: (profile.stats.checkpointsPassed ?? 0) + (isCheckpoint ? 1 : 0),
           bestComboStreak: Math.max(
             profile.stats.bestComboStreak,
             Math.max(0, Math.floor(params.maxCombo))
@@ -1052,9 +1368,7 @@ export const vaultActions = {
   },
 
   unlockSecretArcade(): boolean {
-    const activeProfile =
-      memoryVault.profiles.find((p) => p.id === memoryVault.activeProfileId) ??
-      memoryVault.profiles[0];
+    const activeProfile = getActiveProfileSnapshot();
     if (!activeProfile || activeProfile.secretArcadeUnlocked) return false;
 
     updateActiveProfile((profile) => {
@@ -1072,38 +1386,14 @@ export const vaultActions = {
     score: number;
     heartsWon: number;
     bonusGems: number;
+    xpEarned?: number;
   }): void {
-    updateActiveProfile((profile) => {
-      const safeScore = Number.isFinite(params.score)
-        ? Math.max(0, Math.floor(params.score))
-        : 0;
-      const heartsWon = Number.isFinite(params.heartsWon)
-        ? Math.max(0, Math.floor(params.heartsWon))
-        : 0;
-      const bonusGems = Number.isFinite(params.bonusGems)
-        ? Math.max(0, Math.floor(params.bonusGems))
-        : 0;
-      const prevScores = profile.arcadeHighScores ?? {};
-
-      const updated: KidProfile = {
-        ...profile,
-        hearts: Math.min(profile.maxHearts, profile.hearts + heartsWon),
-        gems: profile.gems + bonusGems,
-        secretArcadeBestScore: Math.max(profile.secretArcadeBestScore ?? 0, safeScore),
-        arcadeHighScores: {
-          ...prevScores,
-          starlight_choir: Math.max(prevScores.starlight_choir ?? 0, safeScore),
-        },
-        stats: {
-          ...profile.stats,
-          arcadeGamesWon: profile.stats.arcadeGamesWon + 1,
-        },
-      };
-
-      return {
-        ...updated,
-        badges: evaluateUnlockedBadges(updated),
-      };
+    awardArcadeResultToProfile({
+      gameId: 'starlight_choir',
+      score: params.score,
+      heartsWon: params.heartsWon,
+      bonusGems: params.bonusGems,
+      xpEarned: params.xpEarned,
     });
   },
 
@@ -1112,45 +1402,17 @@ export const vaultActions = {
     score: number;
     heartsWon: number;
     bonusGems: number;
+    xpEarned?: number;
   }): void {
     const cleanGameId = typeof params.gameId === 'string' ? params.gameId.trim() : '';
     if (!cleanGameId) return;
 
-    updateActiveProfile((profile) => {
-      const safeScore = Number.isFinite(params.score)
-        ? Math.max(0, Math.floor(params.score))
-        : 0;
-      const heartsWon = Number.isFinite(params.heartsWon)
-        ? Math.max(0, Math.floor(params.heartsWon))
-        : 0;
-      const bonusGems = Number.isFinite(params.bonusGems)
-        ? Math.max(0, Math.floor(params.bonusGems))
-        : 0;
-      const prevScores = profile.arcadeHighScores ?? {};
-      const nextBest = Math.max(prevScores[cleanGameId] ?? 0, safeScore);
-
-      const updated: KidProfile = {
-        ...profile,
-        hearts: Math.min(profile.maxHearts, profile.hearts + heartsWon),
-        gems: profile.gems + bonusGems,
-        arcadeHighScores: {
-          ...prevScores,
-          [cleanGameId]: nextBest,
-        },
-        secretArcadeBestScore:
-          cleanGameId === 'starlight_choir'
-            ? Math.max(profile.secretArcadeBestScore ?? 0, safeScore)
-            : profile.secretArcadeBestScore,
-        stats: {
-          ...profile.stats,
-          arcadeGamesWon: profile.stats.arcadeGamesWon + 1,
-        },
-      };
-
-      return {
-        ...updated,
-        badges: evaluateUnlockedBadges(updated),
-      };
+    awardArcadeResultToProfile({
+      gameId: cleanGameId,
+      score: params.score,
+      heartsWon: params.heartsWon,
+      bonusGems: params.bonusGems,
+      xpEarned: params.xpEarned,
     });
   },
 
@@ -1184,9 +1446,7 @@ export const vaultActions = {
     const item = getCosmeticById(cosmeticId);
     if (!item) return false;
 
-    const activeProfile =
-      memoryVault.profiles.find((p) => p.id === memoryVault.activeProfileId) ??
-      memoryVault.profiles[0];
+    const activeProfile = getActiveProfileSnapshot();
     if (!activeProfile) return false;
 
     const alreadyOwned = activeProfile.unlockedCosmetics.includes(cosmeticId);
@@ -1194,17 +1454,27 @@ export const vaultActions = {
       return false;
     }
 
-    updateActiveProfile((profile) => ({
-      ...profile,
-      gems: alreadyOwned ? profile.gems : profile.gems - item.costGems,
-      unlockedCosmetics: alreadyOwned
-        ? profile.unlockedCosmetics
-        : [...profile.unlockedCosmetics, cosmeticId],
-      equippedCosmetics: {
-        ...profile.equippedCosmetics,
-        [item.slot]: cosmeticId,
-      },
-    }));
+    updateActiveProfile((profile) => {
+      const ownedNow = profile.unlockedCosmetics.includes(cosmeticId);
+      if (!ownedNow && profile.gems < item.costGems) return profile;
+
+      const updated: KidProfile = {
+        ...profile,
+        gems: ownedNow ? profile.gems : profile.gems - item.costGems,
+        unlockedCosmetics: ownedNow
+          ? profile.unlockedCosmetics
+          : [...profile.unlockedCosmetics, cosmeticId],
+        equippedCosmetics: {
+          ...profile.equippedCosmetics,
+          [item.slot]: cosmeticId,
+        },
+      };
+
+      return {
+        ...updated,
+        badges: evaluateUnlockedBadges(updated),
+      };
+    });
 
     return true;
   },
@@ -1238,18 +1508,148 @@ export const vaultActions = {
   },
 
   buyStreakShield(): boolean {
-    const activeProfile =
-      memoryVault.profiles.find((p) => p.id === memoryVault.activeProfileId) ??
-      memoryVault.profiles[0];
+    const activeProfile = getActiveProfileSnapshot();
     if (!activeProfile || activeProfile.gems < STREAK_SHIELD_COST_GEMS) {
       return false;
     }
 
-    updateActiveProfile((profile) => ({
-      ...profile,
-      gems: profile.gems - STREAK_SHIELD_COST_GEMS,
-      streakShields: profile.streakShields + 1,
-    }));
+    updateActiveProfile((profile) => {
+      if (profile.gems < STREAK_SHIELD_COST_GEMS) return profile;
+      return {
+        ...profile,
+        gems: profile.gems - STREAK_SHIELD_COST_GEMS,
+        streakShields: profile.streakShields + 1,
+      };
+    });
+
+    return true;
+  },
+
+  buyHeartElixir(): boolean {
+    const activeProfile = getActiveProfileSnapshot();
+    if (!activeProfile || activeProfile.gems < HEART_ELIXIR_COST_GEMS) {
+      return false;
+    }
+
+    updateActiveProfile((profile) => {
+      if (profile.gems < HEART_ELIXIR_COST_GEMS) return profile;
+      const needsImmediateRefill = profile.hearts < profile.maxHearts;
+      return {
+        ...profile,
+        gems: profile.gems - HEART_ELIXIR_COST_GEMS,
+        hearts: needsImmediateRefill ? profile.maxHearts : profile.hearts,
+        heartElixirs: needsImmediateRefill
+          ? (profile.heartElixirs ?? 0)
+          : (profile.heartElixirs ?? 0) + 1,
+      };
+    });
+
+    return true;
+  },
+
+  useHeartElixir(): boolean {
+    const activeProfile = getActiveProfileSnapshot();
+    if (
+      !activeProfile ||
+      (activeProfile.heartElixirs ?? 0) <= 0 ||
+      activeProfile.hearts >= activeProfile.maxHearts
+    ) {
+      return false;
+    }
+
+    updateActiveProfile((profile) => {
+      const currentElixirs = profile.heartElixirs ?? 0;
+      if (currentElixirs <= 0 || profile.hearts >= profile.maxHearts) {
+        return profile;
+      }
+      return {
+        ...profile,
+        heartElixirs: currentElixirs - 1,
+        hearts: profile.maxHearts,
+      };
+    });
+
+    return true;
+  },
+
+  buyHeartCrystal(): boolean {
+    const activeProfile = getActiveProfileSnapshot();
+    if (
+      !activeProfile ||
+      activeProfile.maxHearts >= MAX_HEART_CONTAINERS ||
+      activeProfile.gems < HEART_CRYSTAL_COST_GEMS
+    ) {
+      return false;
+    }
+
+    updateActiveProfile((profile) => {
+      if (
+        profile.maxHearts >= MAX_HEART_CONTAINERS ||
+        profile.gems < HEART_CRYSTAL_COST_GEMS
+      ) {
+        return profile;
+      }
+      const nextMax = Math.min(MAX_HEART_CONTAINERS, profile.maxHearts + 1);
+      const nextHearts = Math.min(nextMax, profile.hearts + 1);
+      const updated: KidProfile = {
+        ...profile,
+        gems: profile.gems - HEART_CRYSTAL_COST_GEMS,
+        maxHearts: nextMax,
+        hearts: nextHearts,
+      };
+      return {
+        ...updated,
+        badges: evaluateUnlockedBadges(updated),
+      };
+    });
+
+    return true;
+  },
+
+  buyXpBooster(): boolean {
+    const activeProfile = getActiveProfileSnapshot();
+    if (!activeProfile || activeProfile.gems < XP_BOOSTER_COST_GEMS) {
+      return false;
+    }
+
+    updateActiveProfile((profile) => {
+      if (profile.gems < XP_BOOSTER_COST_GEMS) return profile;
+      return {
+        ...profile,
+        gems: profile.gems - XP_BOOSTER_COST_GEMS,
+        xpBoosterCharges: (profile.xpBoosterCharges ?? 0) + XP_BOOSTER_CHARGES_PER_BUY,
+      };
+    });
+
+    return true;
+  },
+
+  buyAndSelectAvatar(avatarId: AvatarId): boolean {
+    if (!VALID_AVATARS.has(avatarId)) return false;
+    const activeProfile = getActiveProfileSnapshot();
+    if (!activeProfile) return false;
+
+    const currentUnlocked = activeProfile.unlockedAvatars ?? [...STARTER_AVATAR_IDS];
+    const isStarter = STARTER_AVATAR_IDS.includes(avatarId);
+    const alreadyUnlocked = isStarter || currentUnlocked.includes(avatarId);
+    const cost = alreadyUnlocked ? 0 : (UNLOCKABLE_AVATAR_COSTS[avatarId] ?? 0);
+    if (!alreadyUnlocked && activeProfile.gems < cost) {
+      return false;
+    }
+
+    updateActiveProfile((profile) => {
+      const unlocked = profile.unlockedAvatars ?? [...STARTER_AVATAR_IDS];
+      const ownedNow = STARTER_AVATAR_IDS.includes(avatarId) || unlocked.includes(avatarId);
+      const requiredCost = ownedNow ? 0 : (UNLOCKABLE_AVATAR_COSTS[avatarId] ?? 0);
+      if (!ownedNow && profile.gems < requiredCost) return profile;
+
+      return {
+        ...profile,
+        gems: profile.gems - requiredCost,
+        unlockedAvatars: Array.from(new Set([...STARTER_AVATAR_IDS, ...unlocked, avatarId])),
+        avatarId,
+      };
+    });
 
     return true;
   },

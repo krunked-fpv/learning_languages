@@ -14,11 +14,12 @@ export interface NormalizeOptions {
 }
 
 const ELISION_SPACING_REGEX =
-  /(?<=^|[\s'])(c|d|j|l|m|n|s|t|v|qu|jusqu|lorsqu|puisqu|quelqu|presqu|aujourd|un|dell|all|dall|nell|sull|coll|pell|quest|quell|anch|ch|gl|bell|buon|sant|grand|pover|mezz|qualcos|nient)\s*'\s+(?=[a-z\u00C0-\u024F])/gi;
+  /(?<=^|[\s'"«„(—–,;:\-])(c|d|j|l|m|n|s|t|v|qu|jusqu|lorsqu|puisqu|quelqu|presqu|aujourd|un|dell|all|dall|nell|sull|coll|pell|quest|quell|anch|ch|gl|bell|buon|sant|grand|pover|mezz|qualcos|nient|com|dov|cos|quant|tant|tutt|altr|molt|poc|senz|sott)(?:\s+'\s*|\s*'\s+)(?=[a-z\u00C0-\u024F])/gi;
 
 const EDGE_PUNCTUATION_REGEX =
-  /^[¡!¿?.,;:"“”。？！，、・「」『』（）،؟؛।॥\s]+|[¡!¿?.,;:"“”。？！，、・「」『』（）،؟؛।॥\s]+$/g;
-const SENTENCE_PUNCTUATION_REGEX = /[¡!¿?.,;:"“”。？！，、・「」『』（）،؟؛।॥]/g;
+  /^[¡!¿?.,;:"“”„«»‹›()。？！，、；：・「」『』（）【】《》〈〉—–―…،؟؛।॥()[\]\s]+|[¡!¿?.,;:"“”„«»‹›()。？！，、；：・「」『』（）【】《》〈〉—–―…،؟؛।॥()[\]\s]+$/g;
+const SENTENCE_PUNCTUATION_REGEX =
+  /[¡!¿?.,;:"“”„«»‹›()。？！，、；：・「」『』（）【】《》〈〉—–―…،؟؛।॥()[\]]/g;
 const CJK_INTER_SPACE_REGEX =
   /(?<=[\u3005\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF])\s+(?=[\u3005\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF])/g;
 const ARABIC_HARAKAT_REGEX = /[\u064B-\u065F\u0670]/g;
@@ -85,7 +86,12 @@ export function normalizeAnswer(input: string, options: NormalizeOptions = {}): 
 
 function stripSentencePunctuation(normalized: string): string {
   return collapseCjkSpaces(
-    normalized.replace(SENTENCE_PUNCTUATION_REGEX, ' ').replace(/\s+/g, ' ').trim()
+    normalized
+      .replace(/--+/g, ' ')
+      .replace(/(?<=^|\s)-(?=\s|$)/g, ' ')
+      .replace(SENTENCE_PUNCTUATION_REGEX, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
   );
 }
 
@@ -126,8 +132,28 @@ function matchesAccentForgiving(
     );
     if (subExpanded === candExpanded) return true;
 
-    if (normalizeGermanMixed(submittedRaw) === normalizeGermanMixed(candidateRaw)) {
+    const subMixed = normalizeGermanMixed(submittedRaw);
+    const candMixed = normalizeGermanMixed(candidateRaw);
+    if (subMixed === candMixed) {
       return true;
+    }
+
+    const subExpWords = subExpanded.split(' ');
+    const candExpWords = candExpanded.split(' ');
+    const subMixWords = subMixed.split(' ');
+    const candMixWords = candMixed.split(' ');
+    if (
+      subExpWords.length === candExpWords.length &&
+      subMixWords.length === candMixWords.length
+    ) {
+      let allMatch = true;
+      for (let i = 0; i < subExpWords.length; i++) {
+        if (subExpWords[i] !== candExpWords[i] && subMixWords[i] !== candMixWords[i]) {
+          allMatch = false;
+          break;
+        }
+      }
+      if (allMatch) return true;
     }
   }
 
