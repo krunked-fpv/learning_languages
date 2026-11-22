@@ -4,6 +4,7 @@ import type {
   BossTurn,
   CourseUnit,
   LanguageCode,
+  LanguageCourse,
   LessonExercise,
   ListenDecodeExercise,
   MapNode,
@@ -13,7 +14,11 @@ import type {
   VocabCard,
   WordBankExercise,
 } from '../types/contracts';
+import { arabicCourse, arabicGlossary } from './ar';
+import { egyptianArabicCourse, egyptianArabicGlossary } from './arz';
+import { bengaliCourse, bengaliGlossary } from './bn';
 import { germanCourse, germanGlossary } from './de';
+import { englishCourse, englishGlossary } from './en';
 import { spanishCourse, spanishGlossary } from './es';
 import { frenchCourse, frenchGlossary } from './fr';
 import {
@@ -24,20 +29,52 @@ import {
   stripEdgePunctuation,
 } from './helpers';
 import type { GlossaryMap } from './helpers';
+import { hindiCourse, hindiGlossary } from './hi';
+import { indonesianCourse, indonesianGlossary } from './id';
 import { italianCourse, italianGlossary } from './it';
+import { japaneseCourse, japaneseGlossary } from './ja';
+import { portugueseCourse, portugueseGlossary } from './pt';
+import { russianCourse, russianGlossary } from './ru';
+import { swahiliCourse, swahiliGlossary } from './sw';
+import { vietnameseCourse, vietnameseGlossary } from './vi';
+import { mandarinCourse, mandarinGlossary } from './zh';
 
 const GLOSSARIES: Record<LanguageCode, GlossaryMap> = {
   es: spanishGlossary,
   fr: frenchGlossary,
   de: germanGlossary,
   it: italianGlossary,
+  pt: portugueseGlossary,
+  en: englishGlossary,
+  zh: mandarinGlossary,
+  ja: japaneseGlossary,
+  hi: hindiGlossary,
+  bn: bengaliGlossary,
+  ar: arabicGlossary,
+  arz: egyptianArabicGlossary,
+  ru: russianGlossary,
+  id: indonesianGlossary,
+  vi: vietnameseGlossary,
+  sw: swahiliGlossary,
 };
 
-const COURSES_MAP = {
+const COURSES_MAP: Record<LanguageCode, LanguageCourse> = {
   es: spanishCourse,
   fr: frenchCourse,
   de: germanCourse,
   it: italianCourse,
+  pt: portugueseCourse,
+  en: englishCourse,
+  zh: mandarinCourse,
+  ja: japaneseCourse,
+  hi: hindiCourse,
+  bn: bengaliCourse,
+  ar: arabicCourse,
+  arz: egyptianArabicCourse,
+  ru: russianCourse,
+  id: indonesianCourse,
+  vi: vietnameseCourse,
+  sw: swahiliCourse,
 };
 
 interface LessonPoolEntry {
