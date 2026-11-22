@@ -16,7 +16,18 @@ export const SPEECH_LOCALE_MAP: Record<LanguageCode | 'en', readonly string[]> =
   fr: ['fr-FR', 'fr-CA', 'fr'],
   de: ['de-DE', 'de-AT', 'de'],
   it: ['it-IT', 'it'],
+  pt: ['pt-BR', 'pt-PT', 'pt'],
   en: ['en-US', 'en-GB', 'en'],
+  zh: ['zh-CN', 'cmn-Hans-CN', 'zh-SG', 'zh-TW', 'zh'],
+  ja: ['ja-JP', 'ja'],
+  hi: ['hi-IN', 'hi'],
+  bn: ['bn-BD', 'bn-IN', 'bn'],
+  ar: ['ar-SA', 'ar-001', 'ar-AE', 'ar'],
+  arz: ['ar-EG', 'ar'],
+  ru: ['ru-RU', 'ru'],
+  id: ['id-ID', 'in-ID', 'id'],
+  vi: ['vi-VN', 'vi'],
+  sw: ['sw-KE', 'sw-TZ', 'sw'],
 };
 
 const WATCHDOG_TIMEOUT_MS = 4500;
@@ -169,27 +180,54 @@ function normalizeLocaleTag(locale: string): string {
   return locale.trim().toLowerCase().replace(/_/g, '-');
 }
 
-function rankVoiceForLanguage(
+export function rankVoiceForLanguage(
   voice: SpeechSynthesisVoice,
   lang: LanguageCode | 'en'
 ): number {
-  const rawLang = typeof voice.lang === 'string' ? voice.lang : '';
+  const rawLang = typeof voice?.lang === 'string' ? voice.lang : '';
   const norm = normalizeLocaleTag(rawLang);
   if (!norm) return -1;
 
-  const base = lang.toLowerCase();
-  if (norm !== base && !norm.startsWith(`${base}-`)) {
+  const base = normalizeLocaleTag(lang);
+  const preferredLocales = SPEECH_LOCALE_MAP[lang] ?? [lang];
+  const preferredTags = preferredLocales.map(normalizeLocaleTag).filter(Boolean);
+
+  const primarySubtags: string[] = [];
+  for (const tag of preferredTags) {
+    const primary = tag.split('-')[0];
+    if (primary && !primarySubtags.includes(primary)) {
+      primarySubtags.push(primary);
+    }
+  }
+
+  let localeTierScore = -1;
+
+  const exactTier = preferredTags.findIndex((tag) => tag === norm);
+  if (exactTier !== -1) {
+    localeTierScore = Math.max(600, 2000 - exactTier * 150);
+  } else {
+    const regionPrefixTier = preferredTags.findIndex(
+      (tag) => tag.includes('-') && norm.startsWith(`${tag}-`)
+    );
+    if (regionPrefixTier !== -1) {
+      localeTierScore = Math.max(360, 500 - regionPrefixTier * 20);
+    } else if (norm === base || norm.startsWith(`${base}-`)) {
+      localeTierScore = 340;
+    } else {
+      const subtagIdx = primarySubtags.findIndex(
+        (sub) => norm === sub || norm.startsWith(`${sub}-`)
+      );
+      if (subtagIdx !== -1) {
+        localeTierScore = Math.max(180, 300 - subtagIdx * 20);
+      }
+    }
+  }
+
+  if (localeTierScore < 0) {
     return -1;
   }
 
-  const preferredLocales = SPEECH_LOCALE_MAP[lang];
-  let score = 100;
-
-  const exactTier = preferredLocales.findIndex((loc) => loc.toLowerCase() === norm);
-  if (exactTier === 0) score += 300;
-  else if (exactTier === 1) score += 220;
-  else if (exactTier === 2) score += 180;
-  else if (norm.startsWith(`${base}-`)) score += 120;
+  let score = 100 + localeTierScore;
 
   if (voice.localService) {
     score += 60;
@@ -337,7 +375,8 @@ async function runFallbackCadence(
   );
 
   try {
-    await playPhoneticCadence(req.phonetic || req.text, Boolean(req.slow));
+    const cadenceSource = req.phonetic?.trim() ? req.phonetic : req.text;
+    await playPhoneticCadence(cadenceSource, Boolean(req.slow));
   } catch {
     // Never propagate audio cadence failures.
   }
@@ -492,8 +531,8 @@ export async function speakPhrase(req: SpeakRequest): Promise<SpeakOutcome> {
 
       activeWatchdogTimer = setTimeout(() => {
         if (token !== activeToken) return;
-        safeCancelSynth(synth);
         settle({ usedNativeVoice: true, fallbackActive: false, localeUsed }, true);
+        safeCancelSynth(synth);
       }, WATCHDOG_TIMEOUT_MS);
 
       synth.speak(utterance);
