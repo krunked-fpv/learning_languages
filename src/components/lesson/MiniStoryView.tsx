@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Volume2, Turtle, Eye, EyeOff, ArrowRight, Sparkles } from 'lucide-react';
+import { Volume2, Turtle, Eye, EyeOff, ArrowRight, Sparkles, Zap } from 'lucide-react';
 import { playSfx, speakPhrase } from '../../audio';
 import { LANGUAGE_META, type LanguageCode, type MiniStoryExercise } from '../../types/contracts';
 import { TapHintText } from './TapHintText';
@@ -9,7 +9,9 @@ export interface MiniStoryViewProps {
   exercise: MiniStoryExercise;
   language: LanguageCode;
   compact: boolean;
+  scaffoldingMode?: 'guided' | 'bridge' | 'fluent';
   onTurtlePlay: () => void;
+  onFluentPlay?: () => void;
   onComplete: () => void;
 }
 
@@ -17,7 +19,9 @@ export function MiniStoryView({
   exercise,
   language,
   compact,
+  scaffoldingMode = 'guided',
   onTurtlePlay,
+  onFluentPlay,
   onComplete,
 }: MiniStoryViewProps) {
   const [visibleCount, setVisibleCount] = useState(1);
@@ -28,6 +32,7 @@ export function MiniStoryView({
     foreign?: string;
   } | null>(null);
   const [englishRevealedIds, setEnglishRevealedIds] = useState<string[]>([]);
+  const [peekPhonetics, setPeekPhonetics] = useState(false);
   const scrollEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -35,6 +40,7 @@ export function MiniStoryView({
     setResolvedDecisionIdx([]);
     setDecisionNote(null);
     setEnglishRevealedIds([]);
+    setPeekPhonetics(false);
   }, [exercise.id]);
 
   useEffect(() => {
@@ -52,6 +58,8 @@ export function MiniStoryView({
   const allBubblesRevealed = visibleCount >= exercise.bubbles.length;
   const isFinished = allBubblesRevealed && !activeDecision;
   const langDir = LANGUAGE_META[language].dir;
+  const isGuided = scaffoldingMode === 'guided';
+  const showPhoneticSupport = isGuided || peekPhonetics;
 
   const toggleEnglish = (bubbleId: string) => {
     playSfx('tile_tap');
@@ -113,18 +121,34 @@ export function MiniStoryView({
             {exercise.settingSubtitle}
           </div>
         </div>
-        <span
-          style={{
-            padding: '4px 10px',
-            borderRadius: 999,
-            background: 'var(--tint-indigo-bg)',
-            color: 'var(--tint-indigo-ink)',
-            fontSize: '0.76rem',
-            fontWeight: 900,
-          }}
-        >
-          {Math.min(visibleCount, exercise.bubbles.length)} / {exercise.bubbles.length}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          {!isGuided ? (
+            <button
+              type="button"
+              className={`tactile-btn ${peekPhonetics ? 'tactile-btn-amber' : 'tactile-btn-soft'}`}
+              style={{ padding: '4px 9px', fontSize: '0.74rem', borderRadius: 12 }}
+              onClick={() => {
+                playSfx('tile_tap');
+                setPeekPhonetics((v) => !v);
+              }}
+            >
+              {peekPhonetics ? <EyeOff size={13} /> : <Eye size={13} />}
+              <span>{peekPhonetics ? 'Hide Phonetic / Romanized' : 'Peek Phonetic / Romanized'}</span>
+            </button>
+          ) : null}
+          <span
+            style={{
+              padding: '4px 10px',
+              borderRadius: 999,
+              background: 'var(--tint-indigo-bg)',
+              color: 'var(--tint-indigo-ink)',
+              fontSize: '0.76rem',
+              fontWeight: 900,
+            }}
+          >
+            {Math.min(visibleCount, exercise.bubbles.length)} / {exercise.bubbles.length}
+          </span>
+        </div>
       </div>
 
       {/* Scrollable Dialogue Bubbles */}
@@ -203,6 +227,24 @@ export function MiniStoryView({
                     type="button"
                     className="tactile-btn tactile-btn-soft"
                     style={{ padding: '3px 7px', borderRadius: 10, fontSize: '0.74rem' }}
+                    aria-label={`Hear ${bubble.speakerName} fluently`}
+                    onClick={() => {
+                      onFluentPlay?.();
+                      void speakPhrase({
+                        text: bubble.foreignText,
+                        language,
+                        phonetic: bubble.phonetic,
+                        speed: 'fluent',
+                      });
+                    }}
+                  >
+                    <Zap size={12} />
+                    <span>1.12x</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="tactile-btn tactile-btn-soft"
+                    style={{ padding: '3px 7px', borderRadius: 10, fontSize: '0.74rem' }}
                     aria-label={showEnglish ? 'Hide English' : 'Peek English'}
                     onClick={() => toggleEnglish(bubble.id)}
                   >
@@ -227,15 +269,17 @@ export function MiniStoryView({
                 />
               </div>
 
-              {bubble.romanized ? (
+              {showPhoneticSupport && bubble.romanized ? (
                 <div style={{ fontSize: '0.78rem', color: 'var(--lang-primary)', fontWeight: 800, marginTop: 2 }}>
                   {bubble.romanized}
                 </div>
               ) : null}
 
-              <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', fontWeight: 700, marginTop: 2 }}>
-                {bubble.phonetic}
-              </div>
+              {showPhoneticSupport ? (
+                <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', fontWeight: 700, marginTop: 2 }}>
+                  {bubble.phonetic}
+                </div>
+              ) : null}
 
               {showEnglish ? (
                 <div

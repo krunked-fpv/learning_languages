@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Volume2, Turtle, Sparkles, Check } from 'lucide-react';
+import { Volume2, Turtle, Sparkles, Check, Eye, EyeOff, Zap } from 'lucide-react';
 import { hasNativeVoice, playSfx, speakPhrase, useSpeechRuntimeState } from '../../audio';
-import { LANGUAGE_META, type LanguageCode, type ListenDecodeExercise } from '../../types/contracts';
+import {
+  LANGUAGE_META,
+  type LanguageCode,
+  type ListenDecodeExercise,
+  type SpeechSpeed,
+} from '../../types/contracts';
 import { TapHintText } from './TapHintText';
 import { splitPhoneticSyllables } from './lessonHelpers';
 import { WordBankTray, buildWordBankPool, getAssembledText } from './WordBankTray';
@@ -13,7 +18,9 @@ export interface ListenDecodeViewProps {
   compact: boolean;
   locked: boolean;
   revealed: boolean;
+  scaffoldingMode?: 'guided' | 'bridge' | 'fluent';
   onTurtlePlay: () => void;
+  onFluentPlay?: () => void;
   onDraftChange: (draft: ExerciseDraftPayload | null) => void;
 }
 
@@ -23,7 +30,9 @@ export function ListenDecodeView({
   compact,
   locked,
   revealed,
+  scaffoldingMode = 'guided',
   onTurtlePlay,
+  onFluentPlay,
   onDraftChange,
 }: ListenDecodeViewProps) {
   const speechState = useSpeechRuntimeState();
@@ -71,18 +80,22 @@ export function ListenDecodeView({
   }, [submittedValue, exercise, onDraftChange]);
 
   const langDir = LANGUAGE_META[language].dir;
-  const showPhoneticBanner =
-    !hasNativeVoice(language) || speechState.fallbackActive || manualPhoneticOpen;
+  const isGuided = scaffoldingMode === 'guided';
+  const showPhoneticBanner = isGuided
+    ? !hasNativeVoice(language) || speechState.fallbackActive || manualPhoneticOpen
+    : manualPhoneticOpen;
   const syllables = useMemo(() => splitPhoneticSyllables(exercise.phonetic), [exercise.phonetic]);
 
-  const triggerSpeak = (slow: boolean) => {
+  const triggerSpeak = (speed: SpeechSpeed) => {
     playSfx('button_click');
-    if (slow) onTurtlePlay();
+    if (speed === 'slow') onTurtlePlay();
+    if (speed === 'fluent') onFluentPlay?.();
     void speakPhrase({
       text: exercise.audioText,
       language,
       phonetic: exercise.phonetic,
-      slow,
+      slow: speed === 'slow',
+      speed,
     });
   };
 
@@ -90,10 +103,10 @@ export function ListenDecodeView({
     <div
       className="tactile-card"
       style={{
-        padding: compact ? '12px 14px' : '20px 22px',
+        padding: compact ? '11px 12px' : '20px 22px',
         display: 'flex',
         flexDirection: 'column',
-        gap: compact ? 10 : 14,
+        gap: compact ? 9 : 14,
         width: '100%',
       }}
     >
@@ -115,7 +128,22 @@ export function ListenDecodeView({
             : 'Listen & Build What You Heard'}
         </span>
 
-        {hasNativeVoice(language) && !speechState.fallbackActive ? (
+        {!isGuided ? (
+          <button
+            type="button"
+            className={`tactile-btn ${manualPhoneticOpen ? 'tactile-btn-amber' : 'tactile-btn-soft'}`}
+            style={{ padding: '4px 10px', fontSize: '0.76rem', borderRadius: 12 }}
+            onClick={() => {
+              playSfx('tile_tap');
+              setManualPhoneticOpen((v) => !v);
+            }}
+          >
+            {manualPhoneticOpen ? <EyeOff size={13} /> : <Eye size={13} />}
+            <span>
+              {manualPhoneticOpen ? 'Hide Phonetic / Romanized' : 'Peek Phonetic / Romanized'}
+            </span>
+          </button>
+        ) : hasNativeVoice(language) && !speechState.fallbackActive ? (
           <button
             type="button"
             className="tactile-btn tactile-btn-soft"
@@ -127,38 +155,61 @@ export function ListenDecodeView({
         ) : null}
       </div>
 
-      {/* Oversized 1.0x Normal + 0.65x Slow Speaker Buttons */}
+      {/* 1.0x Normal + 0.65x Slow + 1.12x Fluent Speaker Buttons */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-          gap: compact ? 8 : 12,
+          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+          gap: compact ? 6 : 10,
         }}
       >
         <button
           type="button"
           className="tactile-btn tactile-btn-hero tactile-btn-primary"
-          style={{ minHeight: compact ? 52 : 64 }}
-          onClick={() => triggerSpeak(false)}
+          style={{
+            minHeight: compact ? 48 : 60,
+            padding: compact ? '6px 6px' : '10px 12px',
+            fontSize: compact ? '0.78rem' : '0.92rem',
+          }}
+          onClick={() => triggerSpeak('normal')}
           aria-label="1.0x Normal speed audio"
         >
-          <Volume2 size={compact ? 22 : 26} />
+          <Volume2 size={compact ? 18 : 22} />
           <span>1.0x Normal</span>
         </button>
 
         <button
           type="button"
           className="tactile-btn tactile-btn-hero tactile-btn-amber"
-          style={{ minHeight: compact ? 52 : 64 }}
-          onClick={() => triggerSpeak(true)}
+          style={{
+            minHeight: compact ? 48 : 60,
+            padding: compact ? '6px 6px' : '10px 12px',
+            fontSize: compact ? '0.78rem' : '0.92rem',
+          }}
+          onClick={() => triggerSpeak('slow')}
           aria-label="0.65x Slow Turtle audio"
         >
-          <Turtle size={compact ? 22 : 26} />
+          <Turtle size={compact ? 18 : 22} />
           <span>0.65x Slow</span>
+        </button>
+
+        <button
+          type="button"
+          className="tactile-btn tactile-btn-hero tactile-btn-indigo"
+          style={{
+            minHeight: compact ? 48 : 60,
+            padding: compact ? '6px 6px' : '10px 12px',
+            fontSize: compact ? '0.78rem' : '0.92rem',
+          }}
+          onClick={() => triggerSpeak('fluent')}
+          aria-label="1.12x Fluent speed audio"
+        >
+          <Zap size={compact ? 17 : 21} />
+          <span>1.12x Fluent</span>
         </button>
       </div>
 
-      {/* Automatic Phonetic Clue Banner whenever native voice is unavailable or fallback is active */}
+      {/* Phonetic Clue Banner */}
       {showPhoneticBanner ? (
         <div
           role="note"
@@ -266,7 +317,7 @@ export function ListenDecodeView({
           distractorTokens={exercise.distractorTokens ?? []}
           selectedTileUids={selectedTileUids}
           disabled={locked}
-          compact={compact}
+          compact={compact || (exercise.targetTokens?.length ?? 0) >= 9}
           dir={langDir}
           onChangeSelected={setSelectedTileUids}
         />
@@ -293,7 +344,7 @@ export function ListenDecodeView({
               language={language}
             />
           </span>
-          {exercise.romanized ? (
+          {(isGuided || manualPhoneticOpen) && exercise.romanized ? (
             <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', marginTop: 2 }}>
               {exercise.romanized}
             </div>

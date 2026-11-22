@@ -1,20 +1,47 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Volume2, Turtle, Sparkles, Check, ShieldCheck } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Check,
+  Eye,
+  EyeOff,
+  Grid,
+  Keyboard,
+  ShieldCheck,
+  Sparkles,
+  Turtle,
+  Volume2,
+  Zap,
+} from 'lucide-react';
 import { gradeAnswer } from '../../core';
 import { playSfx, speakPhrase } from '../../audio';
 import { MascotStage } from '../characters/MascotStage';
-import { LANGUAGE_META, type BossGauntletExercise, type CharacterPose, type LanguageCode } from '../../types/contracts';
+import {
+  FREE_RECALL_BONUS_GEMS,
+  FREE_RECALL_BONUS_XP,
+  LANGUAGE_META,
+  type BossGauntletExercise,
+  type CharacterPose,
+  type LanguageCode,
+  type ProficiencyTier,
+} from '../../types/contracts';
 import { TapHintText } from './TapHintText';
 import { WordBankTray, buildWordBankPool, getAssembledText } from './WordBankTray';
+import { REGISTER_TAG_META } from './lessonHelpers';
 
 export interface BossGauntletViewProps {
   exercise: BossGauntletExercise;
   language: LanguageCode;
   compact: boolean;
+  proficiencyTier?: ProficiencyTier;
+  scaffoldingMode?: 'guided' | 'bridge' | 'fluent';
   initialTurnIndex?: number;
   onTurnIndexChange?: (turnIndex: number) => void;
   onTurtlePlay: () => void;
-  onTurnResult: (params: { isCorrect: boolean; usedAccentCoaching?: boolean }) => void;
+  onFluentPlay?: () => void;
+  onTurnResult: (params: {
+    isCorrect: boolean;
+    usedAccentCoaching?: boolean;
+    usedFreeRecall?: boolean;
+  }) => void;
   onComplete: (bonusGems: number) => void;
 }
 
@@ -22,32 +49,47 @@ export function BossGauntletView({
   exercise,
   language,
   compact,
+  proficiencyTier = 'A1',
+  scaffoldingMode = 'guided',
   initialTurnIndex = 0,
   onTurnIndexChange,
   onTurtlePlay,
+  onFluentPlay,
   onTurnResult,
   onComplete,
 }: BossGauntletViewProps) {
   const [turnIndex, setTurnIndex] = useState(initialTurnIndex);
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [selectedTileUids, setSelectedTileUids] = useState<string[]>([]);
+  const [inputMode, setInputMode] = useState<'tiles' | 'type'>('tiles');
+  const [typedText, setTypedText] = useState('');
+  const [peekPhonetics, setPeekPhonetics] = useState(false);
   const [turnOutcome, setTurnOutcome] = useState<{
     kind: 'ok' | 'nudge';
     message: string;
     subtext?: string;
+    nuanceNote?: string;
   } | null>(null);
   const [bossCleared, setBossCleared] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setTurnIndex(initialTurnIndex);
     setSelectedChoice(null);
     setSelectedTileUids([]);
+    setInputMode('tiles');
+    setTypedText('');
+    setPeekPhonetics(false);
     setTurnOutcome(null);
     setBossCleared(false);
   }, [exercise.id, initialTurnIndex]);
 
-  const langDir = LANGUAGE_META[language].dir;
+  const langMeta = LANGUAGE_META[language];
+  const langDir = langMeta.dir;
   const currentTurn = exercise.turns[turnIndex];
+  const isGuided = scaffoldingMode === 'guided';
+  const showPhonetics = isGuided || peekPhonetics;
+  const hasManyAccents = langMeta.helperAccents.length > 14;
 
   const pool = useMemo(
     () =>
@@ -64,8 +106,9 @@ export function BossGauntletView({
   const submittedValue = useMemo(() => {
     if (!currentTurn) return '';
     if (currentTurn.mode === 'choice') return selectedChoice ?? '';
+    if (inputMode === 'type') return typedText.trim();
     return getAssembledText(pool, selectedTileUids);
-  }, [currentTurn, selectedChoice, pool, selectedTileUids]);
+  }, [currentTurn, selectedChoice, inputMode, typedText, pool, selectedTileUids]);
 
   if (bossCleared || !currentTurn) {
     return (
@@ -119,6 +162,10 @@ export function BossGauntletView({
   const totalTurns = Math.max(1, exercise.turns.length);
   const completedTurns = turnIndex + (turnOutcome?.kind === 'ok' ? 1 : 0);
   const chargePct = Math.round((completedTurns / totalTurns) * 100);
+  const highlightFreeRecall =
+    currentTurn.mode === 'word_bank' &&
+    (Boolean(currentTurn.allowFreeRecall) || proficiencyTier === 'B2' || proficiencyTier === 'C1_C2');
+  const registerMeta = currentTurn.registerTag ? REGISTER_TAG_META[currentTurn.registerTag] : null;
 
   const companionPose: CharacterPose =
     turnOutcome?.kind === 'ok'
@@ -129,6 +176,25 @@ export function BossGauntletView({
           ? 'boss_intro'
           : 'listening';
 
+  const insertAccentChar = (ch: string) => {
+    if (turnOutcome?.kind === 'ok') return;
+    playSfx('tile_tap');
+    const el = inputRef.current;
+    if (!el) {
+      setTypedText((prev) => prev + ch);
+      return;
+    }
+    const start = el.selectionStart ?? typedText.length;
+    const end = el.selectionEnd ?? typedText.length;
+    const next = typedText.slice(0, start) + ch + typedText.slice(end);
+    setTypedText(next);
+    setTurnOutcome(null);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start + ch.length, start + ch.length);
+    });
+  };
+
   const handleCheckTurn = () => {
     if (!submittedValue) return;
     const res = gradeAnswer({
@@ -138,8 +204,14 @@ export function BossGauntletView({
       language,
     });
 
+    const isFreeRecall = currentTurn.mode === 'word_bank' && inputMode === 'type';
+
     if (res.isCorrect) {
-      playSfx('boss_hit');
+      if (isFreeRecall) {
+        playSfx('free_recall_ace');
+      } else {
+        playSfx('boss_hit');
+      }
       void speakPhrase({
         text: currentTurn.victoryReplyForeign,
         language,
@@ -148,6 +220,7 @@ export function BossGauntletView({
       onTurnResult({
         isCorrect: true,
         usedAccentCoaching: Boolean(res.accentCoaching),
+        usedFreeRecall: isFreeRecall,
       });
       setTurnOutcome({
         kind: 'ok',
@@ -155,6 +228,7 @@ export function BossGauntletView({
         subtext: res.accentCoaching
           ? `${currentTurn.victoryReplyEnglish} • Accent tip: ${res.accentCoaching.friendlyTip}`
           : currentTurn.victoryReplyEnglish,
+        nuanceNote: currentTurn.nuanceNote,
       });
     } else {
       playSfx('gentle_nudge');
@@ -173,6 +247,8 @@ export function BossGauntletView({
     playSfx('button_click');
     setSelectedChoice(null);
     setSelectedTileUids([]);
+    setInputMode('tiles');
+    setTypedText('');
     setTurnOutcome(null);
     if (turnIndex + 1 >= exercise.turns.length) {
       playSfx('chest_open');
@@ -191,7 +267,7 @@ export function BossGauntletView({
         padding: compact ? '10px 12px' : '16px 20px',
         display: 'flex',
         flexDirection: 'column',
-        gap: compact ? 8 : 12,
+        gap: compact ? 7 : 11,
         width: '100%',
       }}
     >
@@ -200,12 +276,12 @@ export function BossGauntletView({
         <MascotStage
           companionId={exercise.companionId}
           pose={companionPose}
-          size={compact ? 76 : 104}
+          size={compact ? 70 : 102}
         />
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: compact ? '0.96rem' : '1.1rem', fontWeight: 900, color: 'var(--text-main)' }}>
+            <span style={{ fontSize: compact ? '0.94rem' : '1.1rem', fontWeight: 900, color: 'var(--text-main)' }}>
               {exercise.title}
             </span>
             <span
@@ -213,7 +289,7 @@ export function BossGauntletView({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4,
-                fontSize: '0.76rem',
+                fontSize: '0.74rem',
                 fontWeight: 900,
                 color: 'var(--tint-emerald-ink)',
                 background: 'var(--tint-emerald-bg)',
@@ -225,13 +301,13 @@ export function BossGauntletView({
             </span>
           </div>
 
-          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', marginTop: 2 }}>
+          <div style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-muted)', marginTop: 2 }}>
             Friendship Charge: {chargePct}%
           </div>
           <div
             style={{
               marginTop: 4,
-              height: 11,
+              height: 10,
               borderRadius: 999,
               background: 'rgba(148, 163, 184, 0.28)',
               overflow: 'hidden',
@@ -261,20 +337,54 @@ export function BossGauntletView({
           gap: 4,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: 900, fontSize: '0.8rem', color: 'var(--lang-primary)' }}>
-            {exercise.companionName} says:
-          </span>
-          <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 900, fontSize: '0.8rem', color: 'var(--lang-primary)' }}>
+              {exercise.companionName} says:
+            </span>
+            {registerMeta ? (
+              <span
+                style={{
+                  padding: '2px 7px',
+                  borderRadius: 999,
+                  background: registerMeta.bg,
+                  border: `1px solid ${registerMeta.border}`,
+                  color: registerMeta.ink,
+                  fontSize: '0.68rem',
+                  fontWeight: 900,
+                }}
+              >
+                {registerMeta.label}
+              </span>
+            ) : null}
+          </div>
+
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+            {!isGuided ? (
+              <button
+                type="button"
+                className={`tactile-btn ${peekPhonetics ? 'tactile-btn-amber' : 'tactile-btn-soft'}`}
+                style={{ padding: '4px 8px', fontSize: '0.72rem', borderRadius: 10 }}
+                onClick={() => {
+                  playSfx('tile_tap');
+                  setPeekPhonetics((v) => !v);
+                }}
+              >
+                {peekPhonetics ? <EyeOff size={12} /> : <Eye size={12} />}
+                <span>{peekPhonetics ? 'Hide Phonetic / Romanized' : 'Peek Phonetic / Romanized'}</span>
+              </button>
+            ) : null}
             <button
               type="button"
               className="tactile-btn tactile-btn-soft"
-              style={{ padding: '4px 8px', fontSize: '0.76rem', borderRadius: 10 }}
+              style={{ padding: '4px 8px', fontSize: '0.74rem', borderRadius: 10 }}
+              aria-label={`Hear ${exercise.companionName} at normal speed`}
               onClick={() => {
                 void speakPhrase({
                   text: currentTurn.companionSayForeign,
                   language,
                   phonetic: currentTurn.companionPhonetic,
+                  speed: 'normal',
                 });
               }}
             >
@@ -284,7 +394,8 @@ export function BossGauntletView({
             <button
               type="button"
               className="tactile-btn tactile-btn-soft"
-              style={{ padding: '4px 8px', fontSize: '0.76rem', borderRadius: 10 }}
+              style={{ padding: '4px 8px', fontSize: '0.74rem', borderRadius: 10 }}
+              aria-label={`Hear ${exercise.companionName} slowly`}
               onClick={() => {
                 onTurtlePlay();
                 void speakPhrase({
@@ -292,11 +403,30 @@ export function BossGauntletView({
                   language,
                   phonetic: currentTurn.companionPhonetic,
                   slow: true,
+                  speed: 'slow',
                 });
               }}
             >
               <Turtle size={14} />
               <span>0.65x</span>
+            </button>
+            <button
+              type="button"
+              className="tactile-btn tactile-btn-soft"
+              style={{ padding: '4px 8px', fontSize: '0.74rem', borderRadius: 10 }}
+              aria-label={`Hear ${exercise.companionName} fluently`}
+              onClick={() => {
+                onFluentPlay?.();
+                void speakPhrase({
+                  text: currentTurn.companionSayForeign,
+                  language,
+                  phonetic: currentTurn.companionPhonetic,
+                  speed: 'fluent',
+                });
+              }}
+            >
+              <Zap size={13} />
+              <span>1.12x</span>
             </button>
           </div>
         </div>
@@ -304,7 +434,7 @@ export function BossGauntletView({
         <div
           dir={langDir}
           style={{
-            fontSize: compact ? '0.98rem' : '1.1rem',
+            fontSize: compact ? '0.96rem' : '1.1rem',
             fontWeight: 900,
             color: 'var(--text-main)',
             lineHeight: langDir === 'rtl' ? 1.5 : 1.35,
@@ -316,22 +446,57 @@ export function BossGauntletView({
             language={language}
           />
         </div>
-        {currentTurn.companionRomanized ? (
+        {showPhonetics && currentTurn.companionRomanized ? (
           <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--lang-primary)' }}>
             {currentTurn.companionRomanized}
           </div>
         ) : null}
         <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-          {currentTurn.companionSayEnglish} • ({currentTurn.companionPhonetic})
+          {currentTurn.companionSayEnglish}
+          {showPhonetics && currentTurn.companionPhonetic
+            ? ` • (${currentTurn.companionPhonetic})`
+            : ''}
         </div>
       </div>
 
-      {/* Player Prompt */}
-      <div style={{ fontSize: compact ? '0.88rem' : '0.96rem', fontWeight: 900, color: 'var(--text-main)' }}>
-        Your reply: {currentTurn.promptEnglish}
+      {/* Player Prompt + Optional Free-Recall Toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: compact ? '0.86rem' : '0.95rem', fontWeight: 900, color: 'var(--text-main)' }}>
+          Your reply: {currentTurn.promptEnglish}
+        </div>
+
+        {currentTurn.mode === 'word_bank' ? (
+          <button
+            type="button"
+            disabled={turnOutcome?.kind === 'ok'}
+            className={`tactile-btn ${
+              inputMode === 'tiles' && highlightFreeRecall ? 'tactile-btn-amber' : 'tactile-btn-soft'
+            }`}
+            style={{ padding: '4px 9px', fontSize: '0.74rem', borderRadius: 11 }}
+            onClick={() => {
+              playSfx('button_click');
+              setInputMode((m) => (m === 'tiles' ? 'type' : 'tiles'));
+              setTurnOutcome(null);
+            }}
+          >
+            {inputMode === 'tiles' ? (
+              <>
+                {highlightFreeRecall ? <Sparkles size={13} /> : <Keyboard size={13} />}
+                <span>
+                  Keyboard Free-Recall (+{FREE_RECALL_BONUS_XP} XP / +{FREE_RECALL_BONUS_GEMS} Gems)
+                </span>
+              </>
+            ) : (
+              <>
+                <Grid size={13} />
+                <span>Use Word Tiles</span>
+              </>
+            )}
+          </button>
+        ) : null}
       </div>
 
-      {/* Turn Choice or Word Bank */}
+      {/* Turn Choice, Word Bank, or Keyboard Free-Recall */}
       {currentTurn.mode === 'choice' ? (
         <div
           style={{
@@ -370,20 +535,86 @@ export function BossGauntletView({
             );
           })}
         </div>
-      ) : (
+      ) : inputMode === 'tiles' ? (
         <WordBankTray
           seed={`${exercise.id}:${currentTurn.id}`}
           targetTokens={currentTurn.targetTokens ?? []}
           distractorTokens={currentTurn.distractorTokens ?? []}
           selectedTileUids={selectedTileUids}
           disabled={turnOutcome?.kind === 'ok'}
-          compact={compact}
+          compact={compact || (currentTurn.targetTokens?.length ?? 0) >= 9}
           dir={langDir}
           onChangeSelected={(next) => {
             setSelectedTileUids(next);
             setTurnOutcome(null);
           }}
         />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <input
+            ref={inputRef}
+            type="text"
+            dir={langDir}
+            value={typedText}
+            disabled={turnOutcome?.kind === 'ok'}
+            onChange={(e) => {
+              setTypedText(e.target.value);
+              setTurnOutcome(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && submittedValue && turnOutcome?.kind !== 'ok') {
+                e.preventDefault();
+                handleCheckTurn();
+              }
+            }}
+            placeholder={`Type your reply in ${langMeta.name} (+${FREE_RECALL_BONUS_XP} XP bonus)...`}
+            aria-label="Type your boss reply"
+            style={{
+              width: '100%',
+              padding: compact ? '9px 11px' : '12px 14px',
+              borderRadius: 14,
+              border: '2px solid var(--lang-primary)',
+              borderBottomWidth: 4,
+              fontSize: '0.96rem',
+              fontWeight: 800,
+              lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
+              color: 'var(--text-main)',
+              background: 'var(--input-bg)',
+              outline: 'none',
+            }}
+          />
+          <div
+            aria-label="Accent character bar"
+            dir={langDir}
+            className="console-scroll-pane"
+            style={{
+              maxHeight: compact ? 74 : 96,
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: hasManyAccents ? 4 : 6,
+              justifyContent: 'center',
+              padding: '2px',
+            }}
+          >
+            {langMeta.helperAccents.map((ch) => (
+              <button
+                key={ch}
+                type="button"
+                className="tactile-tile"
+                style={{
+                  padding: hasManyAccents ? '3px 7px' : '4px 10px',
+                  fontSize: hasManyAccents ? '0.84rem' : '0.9rem',
+                  minWidth: hasManyAccents ? 28 : 34,
+                  lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
+                }}
+                disabled={turnOutcome?.kind === 'ok'}
+                onClick={() => insertAccentChar(ch)}
+              >
+                {ch}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Turn Feedback & Action */}
@@ -418,6 +649,11 @@ export function BossGauntletView({
             </div>
             {turnOutcome.subtext ? (
               <div style={{ fontSize: '0.76rem', opacity: 0.9 }}>{turnOutcome.subtext}</div>
+            ) : null}
+            {turnOutcome.nuanceNote ? (
+              <div style={{ fontSize: '0.74rem', marginTop: 2, color: 'var(--tint-amber-ink)' }}>
+                Nuance: {turnOutcome.nuanceNote}
+              </div>
             ) : null}
           </div>
         ) : (

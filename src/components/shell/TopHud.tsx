@@ -15,6 +15,7 @@ import {
   Sparkles,
   Volume2,
   VolumeX,
+  Zap,
 } from 'lucide-react';
 import { AvatarBadge } from '../../art/AvatarBadge';
 import { FlagIcon } from '../../art/FlagIcon';
@@ -24,11 +25,13 @@ import { useVaultStore, vaultActions } from '../../store/useVaultStore';
 import {
   LANGUAGE_LIST,
   LANGUAGE_META,
+  MAX_HEART_CONTAINERS,
   type CosmeticId,
   type LanguageCode,
 } from '../../types/contracts';
 import { clampPopoverPosition } from '../lesson/lessonHelpers';
 import { PaletteOrbSwatches, THEME_SWATCH_TRIPLES } from '../meta/paletteSwatches';
+import { safeVaultActions } from './vaultSafeActions';
 
 type OpenPopover = 'lang' | 'palette' | 'hearts' | 'audio' | null;
 
@@ -349,15 +352,34 @@ export function TopHud({
       ) : null}
 
       {openPopover === 'hearts' ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9, textAlign: 'center' }}>
           <div style={{ fontWeight: 900, fontSize: '0.96rem', color: 'var(--tint-rose-ink)' }}>
             Hearts: {activeProfile.hearts} / {activeProfile.maxHearts}
+          </div>
+          <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-muted)' }}>
+            Heart Elixirs in Pack: {activeProfile.heartElixirs ?? 0}
           </div>
           <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)' }}>
             {activeProfile.hearts >= activeProfile.maxHearts
               ? 'Pip has full hearts! Play Arcade anytime for bonus Gems!'
-              : 'Recharge +1 to +5 Hearts anytime in Sky-Catcher Fiesta!'}
+              : 'Use an Elixir or recharge Hearts in Sky-Catcher Fiesta!'}
           </div>
+          {activeProfile.hearts < activeProfile.maxHearts && (activeProfile.heartElixirs ?? 0) > 0 ? (
+            <button
+              type="button"
+              className="tactile-btn tactile-btn-success"
+              style={{ width: '100%' }}
+              onClick={() => {
+                if (safeVaultActions.useHeartElixir()) {
+                  playSfx('heart_win');
+                  setOpenPopover(null);
+                }
+              }}
+            >
+              <Sparkles size={15} />
+              <span>Use Heart Elixir ({activeProfile.heartElixirs})</span>
+            </button>
+          ) : null}
           <button
             type="button"
             className="tactile-btn tactile-btn-amber"
@@ -517,6 +539,17 @@ export function TopHud({
             <span>{activeProfile.gems}</span>
           </span>
 
+          {(activeProfile.xpBoosterCharges ?? 0) > 0 ? (
+            <span
+              className="hud-pill hud-pill-static hud-xp-booster"
+              aria-label={`2x XP Booster: ${activeProfile.xpBoosterCharges} charges remaining`}
+              title={`2x XP Starlight Booster active (${activeProfile.xpBoosterCharges} charges left)`}
+            >
+              <Zap size={13} fill="#f59e0b" color="#f59e0b" />
+              <span>2x XP ({activeProfile.xpBoosterCharges})</span>
+            </span>
+          ) : null}
+
           <button
             ref={heartsBtnRef}
             type="button"
@@ -530,8 +563,24 @@ export function TopHud({
             }}
             onClick={() => togglePopover('hearts')}
           >
-            <Heart size={14} fill="#f43f5e" color="#f43f5e" />
-            <span>
+            <span className="hud-hearts-strip" aria-hidden="true">
+              {Array.from(
+                { length: Math.min(MAX_HEART_CONTAINERS, Math.max(1, activeProfile.maxHearts)) },
+                (_, idx) => {
+                  const filled = idx < activeProfile.hearts;
+                  return (
+                    <Heart
+                      key={idx}
+                      size={10}
+                      fill={filled ? '#f43f5e' : 'transparent'}
+                      color="#f43f5e"
+                      style={{ opacity: filled ? 1 : 0.45, flexShrink: 0 }}
+                    />
+                  );
+                }
+              )}
+            </span>
+            <span style={{ fontSize: '0.72rem', fontWeight: 900 }}>
               {activeProfile.hearts}/{activeProfile.maxHearts}
             </span>
           </button>

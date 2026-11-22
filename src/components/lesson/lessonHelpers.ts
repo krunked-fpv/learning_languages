@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react';
-import type { TapHintToken, VocabCard } from '../../types/contracts';
+import {
+  resolveUnitProficiencyTier,
+  type CourseUnit,
+  type MapNode,
+  type ProficiencyTier,
+  type RegisterNuanceTag,
+  type TapHintToken,
+  type VocabCard,
+} from '../../types/contracts';
 
 export const NO_SPACE_AFTER_RE = /['’¡¿(«「『（」』），、。？！・-]$/;
 export const NO_SPACE_BEFORE_RE = /^[.,!?;:)»。？！，、・「」『』（）؟،؛।॥]/;
@@ -157,4 +165,126 @@ export function clampPopoverPosition(
   const top = Math.max(margin, Math.min(vh - popoverHeight - margin, rawTop));
 
   return { top, left, width };
+}
+
+export const REGISTER_TAG_META: Record<
+  RegisterNuanceTag,
+  { label: string; bg: string; border: string; ink: string }
+> = {
+  polite: {
+    label: 'Polite / Formal Register',
+    bg: 'var(--tint-indigo-bg)',
+    border: 'var(--tint-indigo-border)',
+    ink: 'var(--tint-indigo-ink)',
+  },
+  casual: {
+    label: 'Casual / Everyday Register',
+    bg: 'var(--tint-emerald-bg)',
+    border: 'var(--tint-emerald-border)',
+    ink: 'var(--tint-emerald-ink)',
+  },
+  idiom: {
+    label: 'Native Idiom & Proverb',
+    bg: 'var(--tint-amber-bg)',
+    border: 'var(--tint-amber-border)',
+    ink: 'var(--tint-amber-ink)',
+  },
+  connector: {
+    label: 'Discourse Connector',
+    bg: 'var(--tint-indigo-bg)',
+    border: 'var(--tint-indigo-border)',
+    ink: 'var(--tint-indigo-ink)',
+  },
+  grammar: {
+    label: 'Grammar Nuance',
+    bg: 'var(--tint-rose-bg)',
+    border: 'var(--tint-rose-border)',
+    ink: 'var(--tint-rose-ink)',
+  },
+};
+
+export function resolveUnitOrderFromId(unitId: string): number {
+  const match = /-u(\d+)(?:-|$)/i.exec(unitId);
+  return match ? Number(match[1]) : 1;
+}
+
+export function resolveNodeProficiencyTier(
+  node: Pick<MapNode, 'proficiencyTier' | 'unitId' | 'checkpointTargetTier'>,
+  unit?: Pick<CourseUnit, 'proficiencyTier' | 'order'>
+): ProficiencyTier {
+  if (node.proficiencyTier) return node.proficiencyTier;
+  if (unit?.proficiencyTier) return unit.proficiencyTier;
+  if (unit?.order) return resolveUnitProficiencyTier(unit.order);
+  if (node.checkpointTargetTier) return node.checkpointTargetTier;
+  return resolveUnitProficiencyTier(resolveUnitOrderFromId(node.unitId));
+}
+
+function normalizeHintMatch(text: string): string {
+  return text.trim().toLowerCase().replace(EDGE_PUNCT_STRIP_RE, '');
+}
+
+/**
+ * Partitions ContextCloze tapHints into tokens matching sentenceBeforeBlank vs sentenceAfterBlank,
+ * skipping the blank target token so learners can tap words surrounding the blank.
+ */
+export function splitTapHintsAroundBlank(
+  sentenceBeforeBlank: string,
+  sentenceAfterBlank: string,
+  expectedBlank: string,
+  tapHints: readonly TapHintToken[]
+): {
+  beforeTokens: TapHintToken[];
+  afterTokens: TapHintToken[];
+  unmatchedTokens: TapHintToken[];
+} {
+  if (tapHints.length === 0) {
+    return { beforeTokens: [], afterTokens: [], unmatchedTokens: [] };
+  }
+
+  const normBefore = normalizeHintMatch(sentenceBeforeBlank);
+  const normAfter = normalizeHintMatch(sentenceAfterBlank);
+  const normExpected = normalizeHintMatch(expectedBlank);
+
+  const beforeTokens: TapHintToken[] = [];
+  const afterTokens: TapHintToken[] = [];
+  const unmatchedTokens: TapHintToken[] = [];
+
+  let beforeCursor = 0;
+  let afterCursor = 0;
+  let skippedBlank = false;
+
+  for (const hint of tapHints) {
+    const normSurf = normalizeHintMatch(hint.surface);
+    if (!normSurf) continue;
+
+    if (!skippedBlank && normBefore) {
+      const idx = normBefore.indexOf(normSurf, beforeCursor);
+      if (idx !== -1) {
+        beforeTokens.push(hint);
+        beforeCursor = idx + normSurf.length;
+        continue;
+      }
+    }
+
+    if (!skippedBlank && normExpected && (normSurf === normExpected || normExpected.includes(normSurf))) {
+      skippedBlank = true;
+      continue;
+    }
+
+    if (normAfter) {
+      const idx = normAfter.indexOf(normSurf, afterCursor);
+      if (idx !== -1) {
+        skippedBlank = true;
+        afterTokens.push(hint);
+        afterCursor = idx + normSurf.length;
+        continue;
+      }
+    }
+
+    if (!skippedBlank && normSurf !== normExpected) {
+      unmatchedTokens.push(hint);
+    }
+  }
+
+  return { beforeTokens, afterTokens, unmatchedTokens };
 }

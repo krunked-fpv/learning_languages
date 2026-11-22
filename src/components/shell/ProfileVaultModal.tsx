@@ -5,10 +5,14 @@ import {
   Download,
   Flame,
   Gem,
+  Heart,
+  Shield,
+  Sparkles,
   Trash2,
   Upload,
   UserPlus,
   X,
+  Zap,
 } from 'lucide-react';
 import { AvatarBadge } from '../../art/AvatarBadge';
 import { FlagIcon } from '../../art/FlagIcon';
@@ -22,18 +26,29 @@ import {
 import {
   LANGUAGE_LIST,
   LANGUAGE_META,
+  MAX_HEART_CONTAINERS,
+  STARTER_AVATAR_IDS,
   type AvatarId,
   type LanguageCode,
 } from '../../types/contracts';
+import { safeVaultActions } from './vaultSafeActions';
 
-const AVATAR_OPTIONS: readonly { id: AvatarId; label: string }[] = [
+const ALL_AVATAR_OPTIONS: readonly { id: AvatarId; label: string }[] = [
   { id: 'pip_explorer', label: 'Pip' },
   { id: 'mateo_chef', label: 'Mateo' },
   { id: 'colette_baker', label: 'Colette' },
   { id: 'benni_tinker', label: 'Benni' },
   { id: 'luca_captain', label: 'Luca' },
   { id: 'star_compass', label: 'Compass' },
+  { id: 'origami_crane_crest', label: 'Origami Crane' },
+  { id: 'clockwork_owl_crest', label: 'Clockwork Owl' },
+  { id: 'fennec_voyager', label: 'Fennec' },
+  { id: 'grand_laureate_crest', label: 'Laureate' },
 ];
+
+const STARTER_AVATAR_OPTIONS = ALL_AVATAR_OPTIONS.filter((a) =>
+  STARTER_AVATAR_IDS.includes(a.id)
+);
 
 const BANNER_PALETTE = [
   '#2563EB',
@@ -302,6 +317,91 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
           })}
         </div>
 
+        {/* Active Explorer Pack & Unlocked Avatars Summary */}
+        <div
+          style={{
+            padding: 12,
+            borderRadius: 18,
+            background: 'var(--card-soft-bg)',
+            border: '2px solid var(--card-border)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+            <span style={{ fontWeight: 900, fontSize: '0.88rem', color: 'var(--text-main)' }}>
+              {activeProfile.name}’s Pack & Boosters
+            </span>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <span
+                className="hud-pill hud-pill-static"
+                style={{ padding: '3px 8px', fontSize: '0.72rem' }}
+              >
+                <Heart size={12} color="#f43f5e" fill="#f43f5e" />
+                <span>
+                  {activeProfile.hearts}/{activeProfile.maxHearts} (Max {MAX_HEART_CONTAINERS})
+                </span>
+              </span>
+              <span
+                className="hud-pill hud-pill-static"
+                style={{ padding: '3px 8px', fontSize: '0.72rem' }}
+              >
+                <Sparkles size={12} color="#10b981" />
+                <span>Elixirs: {activeProfile.heartElixirs ?? 0}</span>
+              </span>
+              <span
+                className="hud-pill hud-pill-static"
+                style={{ padding: '3px 8px', fontSize: '0.72rem' }}
+              >
+                <Zap size={12} color="#f59e0b" />
+                <span>2x XP: {activeProfile.xpBoosterCharges ?? 0}</span>
+              </span>
+              <span
+                className="hud-pill hud-pill-static"
+                style={{ padding: '3px 8px', fontSize: '0.72rem' }}
+              >
+                <Shield size={12} color="#38bdf8" />
+                <span>Shields: {activeProfile.streakShields}</span>
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: '0.74rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: 5 }}>
+              Unlocked Avatars (Tap to Equip):
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {ALL_AVATAR_OPTIONS.filter((av) => {
+                const unlockedList = activeProfile.unlockedAvatars ?? STARTER_AVATAR_IDS;
+                return unlockedList.includes(av.id) || activeProfile.avatarId === av.id;
+              }).map((av) => {
+                const isSelected = activeProfile.avatarId === av.id;
+                return (
+                  <button
+                    key={av.id}
+                    type="button"
+                    className="tactile-btn"
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: 12,
+                      background: isSelected ? 'var(--tint-indigo-bg)' : 'var(--tile-bg)',
+                      borderColor: isSelected ? 'var(--lang-primary)' : 'var(--card-border)',
+                    }}
+                    onClick={() => {
+                      playSfx('tile_tap');
+                      safeVaultActions.buyAndSelectAvatar(av.id);
+                    }}
+                  >
+                    <AvatarBadge avatarId={av.id} size={24} />
+                    <span style={{ fontSize: '0.74rem' }}>{av.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
         {/* + New Kid Explorer Creator */}
         {!showCreator ? (
           <button
@@ -348,7 +448,7 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
                 Pick Avatar:
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {AVATAR_OPTIONS.map((av) => {
+                {STARTER_AVATAR_OPTIONS.map((av) => {
                   const selected = newAvatar === av.id;
                   return (
                     <button

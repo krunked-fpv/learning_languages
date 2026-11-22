@@ -1,7 +1,14 @@
-import { Volume2, Turtle, Sparkles } from 'lucide-react';
+import { Volume2, Turtle, Sparkles, Zap } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase, useSpeechRuntimeState } from '../../audio';
-import { GENDER_BADGE_META, LANGUAGE_META, type DiscoveryCardExercise, type LanguageCode, type VocabCard } from '../../types/contracts';
+import {
+  GENDER_BADGE_META,
+  LANGUAGE_META,
+  type DiscoveryCardExercise,
+  type LanguageCode,
+  type SpeechSpeed,
+  type VocabCard,
+} from '../../types/contracts';
 import { TapHintText } from './TapHintText';
 import { buildTapHintsFromExample } from './lessonHelpers';
 
@@ -11,6 +18,7 @@ export interface DiscoveryCardViewProps {
   vocabCard?: VocabCard;
   compact: boolean;
   onTurtlePlay: () => void;
+  onFluentPlay?: () => void;
 }
 
 export function DiscoveryCardView({
@@ -19,6 +27,7 @@ export function DiscoveryCardView({
   vocabCard,
   compact,
   onTurtlePlay,
+  onFluentPlay,
 }: DiscoveryCardViewProps) {
   const speechState = useSpeechRuntimeState();
 
@@ -41,14 +50,16 @@ export function DiscoveryCardView({
     vocabCard
   );
 
-  const handleSpeak = (slow: boolean) => {
+  const handleSpeak = (speed: SpeechSpeed) => {
     playSfx('button_click');
-    if (slow) onTurtlePlay();
+    if (speed === 'slow') onTurtlePlay();
+    if (speed === 'fluent') onFluentPlay?.();
     void speakPhrase({
       text: vocabCard.bareForeign,
       language,
       phonetic: vocabCard.phonetic,
-      slow,
+      slow: speed === 'slow',
+      speed,
     });
   };
 
@@ -151,32 +162,43 @@ export function DiscoveryCardView({
         </div>
       </div>
 
-      {/* 1.0x + 0.65x Turtle Audio Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+      {/* 1.0x + 0.65x Turtle + 1.12x Fluent Audio Controls */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
         <button
           type="button"
           className="tactile-btn tactile-btn-primary"
-          style={{ padding: compact ? '7px 14px' : '9px 18px', fontSize: compact ? '0.86rem' : '0.95rem' }}
-          onClick={() => handleSpeak(false)}
+          style={{ padding: compact ? '6px 12px' : '9px 16px', fontSize: compact ? '0.82rem' : '0.94rem' }}
+          onClick={() => handleSpeak('normal')}
           aria-label={`Speak ${vocabCard.bareForeign} at normal speed`}
         >
-          <Volume2 size={18} />
+          <Volume2 size={17} />
           <span>{speechState.isSpeaking && speechState.activeSpeed === 'normal' ? 'Speaking...' : '1.0x Normal'}</span>
         </button>
 
         <button
           type="button"
           className="tactile-btn tactile-btn-amber"
-          style={{ padding: compact ? '7px 14px' : '9px 18px', fontSize: compact ? '0.86rem' : '0.95rem' }}
-          onClick={() => handleSpeak(true)}
+          style={{ padding: compact ? '6px 12px' : '9px 16px', fontSize: compact ? '0.82rem' : '0.94rem' }}
+          onClick={() => handleSpeak('slow')}
           aria-label={`Speak ${vocabCard.bareForeign} slowly`}
         >
-          <Turtle size={18} />
+          <Turtle size={17} />
           <span>{speechState.isSpeaking && speechState.activeSpeed === 'slow' ? 'Slow...' : '0.65x Turtle'}</span>
+        </button>
+
+        <button
+          type="button"
+          className="tactile-btn tactile-btn-indigo"
+          style={{ padding: compact ? '6px 12px' : '9px 16px', fontSize: compact ? '0.82rem' : '0.94rem' }}
+          onClick={() => handleSpeak('fluent')}
+          aria-label={`Speak ${vocabCard.bareForeign} at fluent speed`}
+        >
+          <Zap size={16} />
+          <span>{speechState.isSpeaking && speechState.activeSpeed === 'fluent' ? 'Fluent...' : '1.12x Fluent'}</span>
         </button>
       </div>
 
-      {/* Optional Accent Callout */}
+      {/* Optional Accent / Register / Grammar Callouts */}
       {vocabCard.accentCallout ? (
         <div
           style={{
@@ -190,6 +212,22 @@ export function DiscoveryCardView({
           }}
         >
           Accent Spotlight ({vocabCard.accentCallout.char}): {vocabCard.accentCallout.tip}
+        </div>
+      ) : null}
+
+      {vocabCard.registerNote || vocabCard.grammarNote ? (
+        <div
+          style={{
+            padding: '5px 12px',
+            borderRadius: 12,
+            background: 'var(--tint-emerald-bg)',
+            border: '2px solid var(--tint-emerald-border)',
+            color: 'var(--tint-emerald-ink)',
+            fontSize: '0.78rem',
+            fontWeight: 800,
+          }}
+        >
+          {[vocabCard.registerNote, vocabCard.grammarNote].filter(Boolean).join(' • ')}
         </div>
       ) : null}
 

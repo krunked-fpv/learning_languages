@@ -8,6 +8,9 @@ const DARK_THEMES = new Set<ThemeKey>([
   'theme_aurora_borealis',
   'theme_starlight_indigo',
   'theme_royal_velvet',
+  'theme_emerald_rainforest',
+  'theme_neon_night_market',
+  'theme_laureate_imperial',
 ]);
 
 interface StarSpec {
@@ -30,7 +33,19 @@ function buildStars(theme: ThemeKey): StarSpec[] {
           ? ['#fefce8', '#fbbf24', '#e879f9', '#fde68a']
           : theme === 'theme_starlight_indigo'
             ? ['#f8fafc', '#a5b4fc', '#fde047', '#93c5fd']
-            : ['#ffffff', '#fde68a', '#bae6fd', '#fbcfe8'];
+            : theme === 'theme_emerald_rainforest'
+              ? ['#ecfdf5', '#34d399', '#fbbf24', '#6ee7b7']
+              : theme === 'theme_neon_night_market'
+                ? ['#f8fafc', '#ec4899', '#22d3ee', '#facc15']
+                : theme === 'theme_laureate_imperial'
+                  ? ['#fefce8', '#fbbf24', '#f43f5e', '#93c5fd']
+                  : theme === 'theme_kyoto_matcha'
+                    ? ['#ffffff', '#bef264', '#fde68a', '#86efac']
+                    : theme === 'theme_sahara_mirage'
+                      ? ['#ffffff', '#fde68a', '#fdba74', '#99f6e4']
+                      : theme === 'theme_nordic_fjord'
+                        ? ['#ffffff', '#bae6fd', '#e0f2fe', '#cbd5e1']
+                        : ['#ffffff', '#fde68a', '#bae6fd', '#fbcfe8'];
 
   const count = DARK_THEMES.has(theme) ? 32 : 16;
   const out: StarSpec[] = [];
@@ -61,13 +76,25 @@ export function AmbientBackdrop({ theme = 'default' }: { theme?: ThemeKey }) {
           ? 'rgba(251, 191, 36, 0.16)'
           : theme === 'theme_starlight_indigo'
             ? 'rgba(129, 140, 248, 0.22)'
-            : theme === 'theme_candy_sakura'
-              ? 'rgba(244, 114, 182, 0.18)'
-              : theme === 'theme_ocean_lagoon'
-                ? 'rgba(6, 182, 212, 0.18)'
-                : theme === 'theme_alpine_meadow'
-                  ? 'rgba(52, 211, 153, 0.16)'
-                  : 'rgba(251, 191, 36, 0.14)';
+            : theme === 'theme_emerald_rainforest'
+              ? 'rgba(52, 211, 153, 0.22)'
+              : theme === 'theme_neon_night_market'
+                ? 'rgba(236, 72, 153, 0.22)'
+                : theme === 'theme_laureate_imperial'
+                  ? 'rgba(245, 158, 11, 0.2)'
+                  : theme === 'theme_candy_sakura'
+                    ? 'rgba(244, 114, 182, 0.18)'
+                    : theme === 'theme_ocean_lagoon'
+                      ? 'rgba(6, 182, 212, 0.18)'
+                      : theme === 'theme_alpine_meadow'
+                        ? 'rgba(52, 211, 153, 0.16)'
+                        : theme === 'theme_kyoto_matcha'
+                          ? 'rgba(101, 163, 13, 0.16)'
+                          : theme === 'theme_sahara_mirage'
+                            ? 'rgba(245, 158, 11, 0.18)'
+                            : theme === 'theme_nordic_fjord'
+                              ? 'rgba(14, 165, 233, 0.16)'
+                              : 'rgba(251, 191, 36, 0.14)';
 
   const nebulaGlowB =
     theme === 'theme_cosmic_galaxy'
@@ -78,7 +105,17 @@ export function AmbientBackdrop({ theme = 'default' }: { theme?: ThemeKey }) {
           ? 'rgba(217, 70, 239, 0.2)'
           : theme === 'theme_starlight_indigo'
             ? 'rgba(250, 204, 21, 0.14)'
-            : 'rgba(96, 165, 250, 0.14)';
+            : theme === 'theme_emerald_rainforest'
+              ? 'rgba(251, 191, 36, 0.16)'
+              : theme === 'theme_neon_night_market'
+                ? 'rgba(34, 211, 238, 0.22)'
+                : theme === 'theme_laureate_imperial'
+                  ? 'rgba(244, 63, 94, 0.18)'
+                  : theme === 'theme_kyoto_matcha'
+                    ? 'rgba(217, 119, 6, 0.12)'
+                    : theme === 'theme_sahara_mirage'
+                      ? 'rgba(13, 148, 136, 0.14)'
+                      : 'rgba(96, 165, 250, 0.14)';
 
   return (
     <div

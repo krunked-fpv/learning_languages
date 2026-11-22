@@ -1,5 +1,5 @@
 /* ==========================================================================
-   WANDERLING 2.0 — GAME CONSOLE DESIGN SYSTEM & 9 COLOR PALETTES
+   WANDERLING 2.0 — GAME CONSOLE DESIGN SYSTEM & 15 COLOR PALETTES
    100% Self-Contained Offline CSS + Bundled Fredoka/Nunito Variable Fonts
    ========================================================================== */
 
@@ -326,6 +326,210 @@
   --nav-active-border: #10b981;
   --arena-bg: linear-gradient(180deg, #ecfdf5 0%, #e0f2fe 100%);
   --footer-bg: rgba(255, 255, 255, 0.96);
+}
+
+/* 10. Kyoto Matcha Sanctuary */
+.app-root[data-theme='theme_kyoto_matcha'] {
+  --app-bg: linear-gradient(180deg, #f7fee7 0%, #ecfccb 54%, #dcfce7 100%);
+  --shell-bg: rgba(252, 255, 245, 0.92);
+  --shell-border: #65a30d;
+  --card-bg: rgba(255, 255, 255, 0.96);
+  --card-soft-bg: #f7fee7;
+  --card-border: #84cc16;
+  --tile-bg: #ffffff;
+  --tile-border: #a3e635;
+  --tile-selected-bg: #ecfccb;
+  --tile-selected-ink: #14532d;
+  --input-bg: #ffffff;
+  --modal-bg: #fcfff7;
+  --text-main: #14532d;
+  --text-muted: #3f6212;
+  --nav-bg: rgba(250, 255, 242, 0.94);
+  --nav-ink: #3f6212;
+  --nav-active-bg: #ecfccb;
+  --nav-active-ink: #15803d;
+  --nav-active-border: #65a30d;
+  --arena-bg: linear-gradient(180deg, #f7fee7 0%, #fefce8 100%);
+  --footer-bg: rgba(252, 255, 245, 0.96);
+}
+
+/* 11. Sahara Mirage Oasis */
+.app-root[data-theme='theme_sahara_mirage'] {
+  --app-bg: linear-gradient(180deg, #fffbeb 0%, #fef3c7 52%, #fde68a 100%);
+  --shell-bg: rgba(255, 252, 242, 0.92);
+  --shell-border: #d97706;
+  --card-bg: rgba(255, 255, 255, 0.96);
+  --card-soft-bg: #fffbeb;
+  --card-border: #f59e0b;
+  --tile-bg: #ffffff;
+  --tile-border: #fcd34d;
+  --tile-selected-bg: #fef3c7;
+  --tile-selected-ink: #78350f;
+  --input-bg: #ffffff;
+  --modal-bg: #fffdf5;
+  --text-main: #451a03;
+  --text-muted: #78350f;
+  --nav-bg: rgba(255, 250, 235, 0.94);
+  --nav-ink: #78350f;
+  --nav-active-bg: #fef3c7;
+  --nav-active-ink: #b45309;
+  --nav-active-border: #d97706;
+  --arena-bg: linear-gradient(180deg, #fffbeb 0%, #ecfeff 100%);
+  --footer-bg: rgba(255, 252, 242, 0.96);
+}
+
+/* 12. Emerald Rainforest Canopy (Dark Frosted Glass) */
+.app-root[data-theme='theme_emerald_rainforest'] {
+  --app-bg: radial-gradient(circle at 22% 16%, #065f46 0%, #052e16 54%, #021c12 100%);
+  --shell-bg: rgba(4, 39, 24, 0.88);
+  --shell-border: #34d399;
+  --card-bg: rgba(6, 46, 28, 0.9);
+  --card-soft-bg: rgba(11, 68, 43, 0.92);
+  --card-border: #34d399;
+  --tile-bg: #083d25;
+  --tile-border: #10b981;
+  --tile-selected-bg: #047857;
+  --tile-selected-ink: #fef08a;
+  --input-bg: #052e16;
+  --modal-bg: #052e16;
+  --text-main: #ecfdf5;
+  --text-muted: #a7f3d0;
+  --nav-bg: rgba(4, 36, 22, 0.94);
+  --nav-ink: #a7f3d0;
+  --nav-active-bg: rgba(52, 211, 153, 0.22);
+  --nav-active-ink: #6ee7b7;
+  --nav-active-border: #34d399;
+  --arena-bg: radial-gradient(circle at 80% 15%, #065f46 0%, #042919 60%, #021c12 100%);
+  --footer-bg: rgba(4, 39, 24, 0.95);
+  --footer-correct-bg: rgba(6, 95, 70, 0.94);
+  --footer-accent-bg: rgba(120, 53, 15, 0.92);
+  --footer-nudge-bg: rgba(136, 19, 55, 0.92);
+  --card-glow: 0 12px 30px rgba(16, 185, 129, 0.2);
+
+  --tint-amber-bg: rgba(120, 53, 15, 0.58);
+  --tint-amber-border: #fbbf24;
+  --tint-amber-ink: #fde68a;
+  --tint-emerald-bg: rgba(6, 95, 70, 0.62);
+  --tint-emerald-border: #34d399;
+  --tint-emerald-ink: #a7f3d0;
+  --tint-indigo-bg: rgba(15, 81, 86, 0.65);
+  --tint-indigo-border: #2dd4bf;
+  --tint-indigo-ink: #ccfbf1;
+  --tint-rose-bg: rgba(136, 19, 55, 0.58);
+  --tint-rose-border: #fb7185;
+  --tint-rose-ink: #fecdd3;
+  --lang-tint: rgba(6, 95, 70, 0.6);
+}
+
+/* 13. Neon Night Market (Cyber Lantern Dark Glass) */
+.app-root[data-theme='theme_neon_night_market'] {
+  --app-bg: radial-gradient(circle at 20% 12%, #3b0764 0%, #1e1b4b 48%, #090d1f 100%);
+  --shell-bg: rgba(15, 23, 42, 0.88);
+  --shell-border: #ec4899;
+  --card-bg: rgba(18, 22, 48, 0.9);
+  --card-soft-bg: rgba(33, 30, 74, 0.92);
+  --card-border: #22d3ee;
+  --tile-bg: #1e1b4b;
+  --tile-border: #ec4899;
+  --tile-selected-bg: #701a75;
+  --tile-selected-ink: #67e8f9;
+  --input-bg: #131636;
+  --modal-bg: #111633;
+  --text-main: #f8fafc;
+  --text-muted: #e2e8f0;
+  --nav-bg: rgba(15, 23, 42, 0.94);
+  --nav-ink: #cbd5e1;
+  --nav-active-bg: rgba(236, 72, 153, 0.22);
+  --nav-active-ink: #f472b6;
+  --nav-active-border: #ec4899;
+  --arena-bg: radial-gradient(circle at 80% 18%, #4a044e 0%, #17153b 58%, #090d1f 100%);
+  --footer-bg: rgba(15, 23, 42, 0.95);
+  --footer-correct-bg: rgba(6, 78, 59, 0.92);
+  --footer-accent-bg: rgba(120, 53, 15, 0.92);
+  --footer-nudge-bg: rgba(136, 19, 55, 0.92);
+  --card-glow: 0 12px 32px rgba(236, 72, 153, 0.2);
+
+  --tint-amber-bg: rgba(120, 53, 15, 0.58);
+  --tint-amber-border: #facc15;
+  --tint-amber-ink: #fef08a;
+  --tint-emerald-bg: rgba(6, 78, 59, 0.6);
+  --tint-emerald-border: #2dd4bf;
+  --tint-emerald-ink: #99f6e4;
+  --tint-indigo-bg: rgba(49, 46, 129, 0.68);
+  --tint-indigo-border: #22d3ee;
+  --tint-indigo-ink: #cffafe;
+  --tint-rose-bg: rgba(131, 24, 67, 0.62);
+  --tint-rose-border: #f472b6;
+  --tint-rose-ink: #fce7f3;
+  --lang-tint: rgba(112, 26, 117, 0.55);
+}
+
+/* 14. Nordic Fjord Frost */
+.app-root[data-theme='theme_nordic_fjord'] {
+  --app-bg: linear-gradient(180deg, #f8fafc 0%, #e0f2fe 54%, #bae6fd 100%);
+  --shell-bg: rgba(248, 252, 255, 0.92);
+  --shell-border: #0284c7;
+  --card-bg: rgba(255, 255, 255, 0.97);
+  --card-soft-bg: #f0f9ff;
+  --card-border: #38bdf8;
+  --tile-bg: #ffffff;
+  --tile-border: #7dd3fc;
+  --tile-selected-bg: #e0f2fe;
+  --tile-selected-ink: #0c4a6e;
+  --input-bg: #ffffff;
+  --modal-bg: #f8fcff;
+  --text-main: #0f172a;
+  --text-muted: #334155;
+  --nav-bg: rgba(245, 250, 255, 0.95);
+  --nav-ink: #334155;
+  --nav-active-bg: #e0f2fe;
+  --nav-active-ink: #0369a1;
+  --nav-active-border: #0284c7;
+  --arena-bg: linear-gradient(180deg, #f0f9ff 0%, #f1f5f9 100%);
+  --footer-bg: rgba(248, 252, 255, 0.96);
+}
+
+/* 15. Laureate Imperial Gold (Grand C1+ Prestige Glass) */
+.app-root[data-theme='theme_laureate_imperial'] {
+  --app-bg: radial-gradient(circle at 25% 12%, #312e81 0%, #14183d 52%, #070a1c 100%);
+  --shell-bg: rgba(13, 18, 46, 0.9);
+  --shell-border: #f59e0b;
+  --card-bg: rgba(17, 23, 56, 0.92);
+  --card-soft-bg: rgba(30, 39, 86, 0.92);
+  --card-border: #fbbf24;
+  --tile-bg: #1a214d;
+  --tile-border: #f59e0b;
+  --tile-selected-bg: #78350f;
+  --tile-selected-ink: #fef08a;
+  --input-bg: #111638;
+  --modal-bg: #101536;
+  --text-main: #fefce8;
+  --text-muted: #fde68a;
+  --nav-bg: rgba(12, 16, 42, 0.94);
+  --nav-ink: #e2e8f0;
+  --nav-active-bg: rgba(245, 158, 11, 0.22);
+  --nav-active-ink: #fde047;
+  --nav-active-border: #fbbf24;
+  --arena-bg: radial-gradient(circle at 75% 15%, #312e81 0%, #121738 62%, #070a1c 100%);
+  --footer-bg: rgba(13, 18, 46, 0.95);
+  --footer-correct-bg: rgba(6, 78, 59, 0.92);
+  --footer-accent-bg: rgba(120, 53, 15, 0.92);
+  --footer-nudge-bg: rgba(136, 19, 55, 0.92);
+  --card-glow: 0 12px 34px rgba(245, 158, 11, 0.2);
+
+  --tint-amber-bg: rgba(120, 53, 15, 0.62);
+  --tint-amber-border: #fbbf24;
+  --tint-amber-ink: #fef08a;
+  --tint-emerald-bg: rgba(6, 78, 59, 0.58);
+  --tint-emerald-border: #34d399;
+  --tint-emerald-ink: #a7f3d0;
+  --tint-indigo-bg: rgba(49, 46, 129, 0.68);
+  --tint-indigo-border: #93c5fd;
+  --tint-indigo-ink: #e0f2fe;
+  --tint-rose-bg: rgba(136, 19, 55, 0.58);
+  --tint-rose-border: #fb7185;
+  --tint-rose-ink: #fecdd3;
+  --lang-tint: rgba(49, 46, 129, 0.58);
 }
 
 *,
@@ -660,24 +864,39 @@ select {
 
 @media (max-width: 640px) {
   .top-hud {
-    padding: 6px 10px 2px;
+    padding: 5px 8px 2px;
   }
 
   .top-hud-inner {
-    padding: 5px 8px;
+    padding: 4px 7px;
     border-radius: 16px;
-    gap: 5px;
+    gap: 4px;
   }
 
   .hud-pill {
-    padding: 4px 7px;
-    font-size: 0.75rem;
-    gap: 4px;
+    padding: 3px 6px;
+    font-size: 0.72rem;
+    gap: 3px;
   }
 
   .hud-hide-xs {
     display: none;
   }
+}
+
+.hud-hearts-strip {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 1.5px;
+  white-space: nowrap;
+}
+
+.hud-xp-booster {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.25), rgba(99, 102, 241, 0.22));
+  border-color: #f59e0b;
+  color: var(--tint-amber-ink);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
 }
 
 .hud-popover {
@@ -817,6 +1036,22 @@ select {
   color: transparent;
   cursor: default;
   pointer-events: none;
+}
+
+.word-bank-chip.is-dense {
+  padding: 5px 9px;
+  border-radius: 11px;
+  border-bottom-width: 3px;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 640px), (max-height: 700px) {
+  .word-bank-chip.is-dense {
+    padding: 4px 7px;
+    border-radius: 10px;
+    border-bottom-width: 3px;
+    font-size: 0.8rem;
+  }
 }
 
 /* ==========================================================================

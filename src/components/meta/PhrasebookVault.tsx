@@ -10,6 +10,7 @@ import {
   Turtle,
   Volume2,
   X,
+  Zap,
 } from 'lucide-react';
 import { FlagIcon } from '../../art/FlagIcon';
 import { VocabIllustration } from '../../art/VocabIllustration';
@@ -17,11 +18,16 @@ import { getCourse } from '../../curriculum';
 import { playSfx, speakPhrase } from '../../audio';
 import { useVaultStore, vaultActions } from '../../store/useVaultStore';
 import { useCompactViewport } from '../lesson/lessonHelpers';
+import { safeVaultActions } from '../shell/vaultSafeActions';
 import {
   GENDER_BADGE_META,
   LANGUAGE_LIST,
   LANGUAGE_META,
+  PROFICIENCY_TIERS,
+  PROFICIENCY_TIER_META,
+  resolveUnitProficiencyTier,
   type LanguageCode,
+  type ProficiencyTier,
   type VocabCard,
 } from '../../types/contracts';
 
@@ -29,6 +35,7 @@ export function PhrasebookVault() {
   const { activeProfile } = useVaultStore();
   const compact = useCompactViewport();
   const [viewLang, setViewLang] = useState<LanguageCode>(activeProfile.activeLanguage);
+  const [tierFilter, setTierFilter] = useState<'all' | ProficiencyTier>('all');
   const [unitFilter, setUnitFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showOffOpen, setShowOffOpen] = useState(false);
@@ -38,6 +45,7 @@ export function PhrasebookVault() {
 
   useEffect(() => {
     setViewLang(activeProfile.activeLanguage);
+    setTierFilter('all');
     setUnitFilter('all');
   }, [activeProfile.activeLanguage]);
 
@@ -55,10 +63,24 @@ export function PhrasebookVault() {
     [course]
   );
 
+  const visibleUnitTabs = useMemo(
+    () =>
+      course.units.filter((u) => {
+        if (tierFilter === 'all') return true;
+        const unitTier = u.proficiencyTier ?? resolveUnitProficiencyTier(u.order);
+        return unitTier === tierFilter;
+      }),
+    [course.units, tierFilter]
+  );
+
   const filteredUnits = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return course.units
-      .filter((u) => unitFilter === 'all' || u.id === unitFilter)
+      .filter((u) => {
+        const unitTier = u.proficiencyTier ?? resolveUnitProficiencyTier(u.order);
+        if (tierFilter !== 'all' && unitTier !== tierFilter) return false;
+        return unitFilter === 'all' || u.id === unitFilter;
+      })
       .map((u) => ({
         ...u,
         cards: u.vocabCards.filter((card) => {
@@ -72,7 +94,7 @@ export function PhrasebookVault() {
         }),
       }))
       .filter((u) => u.cards.length > 0);
-  }, [course.units, unitFilter, searchQuery]);
+  }, [course.units, tierFilter, unitFilter, searchQuery]);
 
   const unlockedCards = useMemo(
     () => allCards.filter((c) => unlockedSet.has(c.id)),
@@ -117,7 +139,7 @@ export function PhrasebookVault() {
         minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
-        gap: 10,
+        gap: compact ? 7 : 10,
         overflow: 'hidden',
       }}
     >
@@ -125,11 +147,11 @@ export function PhrasebookVault() {
       <div
         className="tactile-card"
         style={{
-          padding: compact ? '9px 12px' : '12px 16px',
+          padding: compact ? '8px 10px' : '12px 16px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: 10,
+          gap: 8,
           flexWrap: 'wrap',
           flexShrink: 0,
         }}
@@ -137,8 +159,8 @@ export function PhrasebookVault() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div
             style={{
-              width: compact ? 34 : 40,
-              height: compact ? 34 : 40,
+              width: compact ? 32 : 40,
+              height: compact ? 32 : 40,
               borderRadius: 12,
               background: 'var(--lang-tint)',
               border: '2px solid var(--lang-primary)',
@@ -149,13 +171,13 @@ export function PhrasebookVault() {
               flexShrink: 0,
             }}
           >
-            <BookOpen size={compact ? 18 : 20} />
+            <BookOpen size={compact ? 17 : 20} />
           </div>
           <div>
-            <h1 style={{ margin: 0, fontSize: compact ? '1.04rem' : '1.2rem', fontWeight: 900, color: 'var(--text-main)' }}>
+            <h1 style={{ margin: 0, fontSize: compact ? '0.98rem' : '1.2rem', fontWeight: 900, color: 'var(--text-main)' }}>
               Living Phrasebook Sticker-Book
             </h1>
-            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
               {viewLangMeta.name}: {unlockedCards.length} / {allCards.length} Stickers Collected
             </div>
           </div>
@@ -164,22 +186,22 @@ export function PhrasebookVault() {
         <button
           type="button"
           className="tactile-btn tactile-btn-amber"
-          style={{ padding: compact ? '7px 12px' : '9px 16px', fontSize: compact ? '0.82rem' : '0.92rem' }}
+          style={{ padding: compact ? '6px 10px' : '9px 16px', fontSize: compact ? '0.78rem' : '0.92rem' }}
           onClick={openShowOff}
         >
-          <Sparkles size={16} />
+          <Sparkles size={15} />
           <span>Family Show-Off Mode</span>
         </button>
       </div>
 
-      {/* Filters: 16-Language Horizontal Scroll Strip + Search + U1..U8 Tabs */}
+      {/* Filters: 16-Language Strip + CEFR Tier Filter Pills + Search + U1..U16 Tabs */}
       <div
         className="tactile-card"
         style={{
-          padding: compact ? '8px 10px' : '10px 12px',
+          padding: compact ? '7px 9px' : '10px 12px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 7,
+          gap: compact ? 5 : 7,
           flexShrink: 0,
         }}
       >
@@ -217,6 +239,7 @@ export function PhrasebookVault() {
                 onClick={() => {
                   playSfx('button_click');
                   setViewLang(lang);
+                  setTierFilter('all');
                   setUnitFilter('all');
                 }}
               >
@@ -224,6 +247,62 @@ export function PhrasebookVault() {
                   <FlagIcon language={lang} size={18} />
                 </span>
                 <span>{meta.name}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* CEFR Proficiency Tier Filter Pills */}
+        <div
+          role="group"
+          aria-label="Filter phrasebook by CEFR tier"
+          className="console-scroll-pane-x"
+          style={{
+            display: 'flex',
+            gap: 5,
+            flexWrap: 'nowrap',
+            alignItems: 'center',
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            paddingBottom: 1,
+          }}
+        >
+          <button
+            type="button"
+            aria-pressed={tierFilter === 'all'}
+            className={`tactile-tile ${tierFilter === 'all' ? 'is-selected' : ''}`}
+            style={{ padding: '3px 10px', fontSize: '0.74rem', whiteSpace: 'nowrap', flexShrink: 0 }}
+            onClick={() => {
+              playSfx('tile_tap');
+              setTierFilter('all');
+              setUnitFilter('all');
+            }}
+          >
+            All Tiers
+          </button>
+          {PROFICIENCY_TIERS.map((tier) => {
+            const meta = PROFICIENCY_TIER_META[tier];
+            const isSelected = tierFilter === tier;
+            return (
+              <button
+                key={tier}
+                type="button"
+                aria-pressed={isSelected}
+                className={`tactile-tile ${isSelected ? 'is-selected' : ''}`}
+                style={{
+                  padding: '3px 10px',
+                  fontSize: '0.74rem',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                  borderColor: isSelected ? meta.badgeColor : undefined,
+                }}
+                onClick={() => {
+                  playSfx('tile_tap');
+                  setTierFilter(tier);
+                  setUnitFilter('all');
+                }}
+              >
+                {meta.cefrLabel} · {meta.title}
               </button>
             );
           })}
@@ -238,11 +317,11 @@ export function PhrasebookVault() {
             placeholder="Search words or meanings..."
             aria-label="Search phrasebook"
             style={{
-              flex: '1 1 160px',
+              flex: '1 1 150px',
               minWidth: 0,
               maxWidth: compact ? '100%' : 240,
-              padding: '6px 10px',
-              fontSize: '0.82rem',
+              padding: '5px 10px',
+              fontSize: '0.8rem',
             }}
           />
 
@@ -262,19 +341,19 @@ export function PhrasebookVault() {
             <button
               type="button"
               className={`tactile-tile ${unitFilter === 'all' ? 'is-selected' : ''}`}
-              style={{ padding: '4px 10px', fontSize: '0.75rem', whiteSpace: 'nowrap', flexShrink: 0 }}
+              style={{ padding: '4px 10px', fontSize: '0.74rem', whiteSpace: 'nowrap', flexShrink: 0 }}
               onClick={() => setUnitFilter('all')}
             >
               All Units
             </button>
-            {course.units.map((u) => (
+            {visibleUnitTabs.map((u) => (
               <button
                 key={u.id}
                 type="button"
                 title={`Unit ${u.order}: ${u.title}`}
                 aria-label={`Unit ${u.order}: ${u.title}`}
                 className={`tactile-tile ${unitFilter === u.id ? 'is-selected' : ''}`}
-                style={{ padding: '4px 9px', fontSize: '0.75rem', whiteSpace: 'nowrap', flexShrink: 0 }}
+                style={{ padding: '4px 9px', fontSize: '0.74rem', whiteSpace: 'nowrap', flexShrink: 0 }}
                 onClick={() => setUnitFilter(u.id)}
               >
                 U{u.order}
@@ -294,197 +373,233 @@ export function PhrasebookVault() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 8 }}>
-            {filteredUnits.map((unit) => (
-              <div key={unit.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 4 }}>
-                  <span
+            {filteredUnits.map((unit) => {
+              const unitTier = unit.proficiencyTier ?? resolveUnitProficiencyTier(unit.order);
+              const unitTierMeta = PROFICIENCY_TIER_META[unitTier];
+              return (
+                <div key={unit.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, paddingLeft: 4, flexWrap: 'wrap' }}>
+                    <span
+                      style={{
+                        padding: '3px 10px',
+                        borderRadius: 999,
+                        background: unit.themeColor,
+                        color: '#ffffff',
+                        fontSize: '0.76rem',
+                        fontWeight: 900,
+                      }}
+                    >
+                      Unit {unit.order}
+                    </span>
+                    <span
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: 999,
+                        background: unitTierMeta.surfaceTint,
+                        border: `1.5px solid ${unitTierMeta.badgeColor}`,
+                        color: '#0f172a',
+                        fontSize: '0.7rem',
+                        fontWeight: 900,
+                      }}
+                    >
+                      {unitTierMeta.cefrLabel}
+                    </span>
+                    <h2 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                      {unit.title} — {unit.culturalLandmark}
+                    </h2>
+                  </div>
+
+                  <div
                     style={{
-                      padding: '3px 10px',
-                      borderRadius: 999,
-                      background: unit.themeColor,
-                      color: '#ffffff',
-                      fontSize: '0.76rem',
-                      fontWeight: 900,
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(225px, 1fr))',
+                      gap: 10,
                     }}
                   >
-                    Unit {unit.order}
-                  </span>
-                  <h2 style={{ margin: 0, fontSize: '1.04rem', fontWeight: 900, color: 'var(--text-main)' }}>
-                    {unit.title} — {unit.culturalLandmark}
-                  </h2>
-                </div>
+                    {unit.cards.map((card) => {
+                      const isUnlocked = unlockedSet.has(card.id);
+                      const genderMeta = GENDER_BADGE_META[card.gender];
 
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(225px, 1fr))',
-                    gap: 10,
-                  }}
-                >
-                  {unit.cards.map((card) => {
-                    const isUnlocked = unlockedSet.has(card.id);
-                    const genderMeta = GENDER_BADGE_META[card.gender];
+                      if (!isUnlocked) {
+                        return (
+                          <div
+                            key={card.id}
+                            className="tactile-card"
+                            style={{
+                              padding: 12,
+                              background: 'var(--card-soft-bg)',
+                              borderStyle: 'dashed',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 6,
+                              textAlign: 'center',
+                              minHeight: 165,
+                            }}
+                          >
+                            <div style={{ filter: 'grayscale(1)', opacity: 0.25 }}>
+                              <VocabIllustration
+                                illustrationKey={card.illustrationKey}
+                                language={viewLang}
+                                size={60}
+                              />
+                            </div>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 900, color: 'var(--text-muted)', fontSize: '0.84rem' }}>
+                              <Lock size={13} /> Mystery Sticker
+                            </div>
+                            <div style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                              Complete Unit {unit.order} lessons to collect!
+                            </div>
+                          </div>
+                        );
+                      }
 
-                    if (!isUnlocked) {
                       return (
                         <div
                           key={card.id}
                           className="tactile-card"
                           style={{
                             padding: 12,
-                            background: 'var(--card-soft-bg)',
-                            borderStyle: 'dashed',
                             display: 'flex',
                             flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 6,
-                            textAlign: 'center',
-                            minHeight: 170,
+                            gap: 8,
+                            background: 'var(--card-bg)',
                           }}
                         >
-                          <div style={{ filter: 'grayscale(1)', opacity: 0.25 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+                            <span
+                              className="gender-pill"
+                              style={{
+                                backgroundColor: genderMeta.bgColor,
+                                color: genderMeta.textColor,
+                                borderColor: genderMeta.borderColor,
+                              }}
+                            >
+                              {genderMeta.shortLabel}
+                            </span>
+                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                              <button
+                                type="button"
+                                className="tactile-btn tactile-btn-soft"
+                                style={{ padding: '4px 7px', fontSize: '0.72rem', borderRadius: 10 }}
+                                aria-label={`Speak ${card.bareForeign}`}
+                                onClick={() => {
+                                  void speakPhrase({
+                                    text: card.bareForeign,
+                                    language: viewLang,
+                                    phonetic: card.phonetic,
+                                    speed: 'normal',
+                                  });
+                                }}
+                              >
+                                <Volume2 size={12} /> 1.0x
+                              </button>
+                              <button
+                                type="button"
+                                className="tactile-btn tactile-btn-soft"
+                                style={{ padding: '4px 7px', fontSize: '0.72rem', borderRadius: 10 }}
+                                aria-label={`Speak ${card.bareForeign} slowly`}
+                                onClick={() => {
+                                  vaultActions.recordTurtlePlay();
+                                  void speakPhrase({
+                                    text: card.bareForeign,
+                                    language: viewLang,
+                                    phonetic: card.phonetic,
+                                    slow: true,
+                                    speed: 'slow',
+                                  });
+                                }}
+                              >
+                                <Turtle size={12} /> 0.65x
+                              </button>
+                              <button
+                                type="button"
+                                className="tactile-btn tactile-btn-soft"
+                                style={{ padding: '4px 7px', fontSize: '0.72rem', borderRadius: 10 }}
+                                aria-label={`Speak ${card.bareForeign} fluently`}
+                                onClick={() => {
+                                  safeVaultActions.recordFluentPlay();
+                                  void speakPhrase({
+                                    text: card.bareForeign,
+                                    language: viewLang,
+                                    phonetic: card.phonetic,
+                                    speed: 'fluent',
+                                  });
+                                }}
+                              >
+                                <Zap size={11} /> 1.12x
+                              </button>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <VocabIllustration
                               illustrationKey={card.illustrationKey}
                               language={viewLang}
                               size={64}
                             />
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <div
+                                dir={langDir}
+                                style={{
+                                  fontSize: '1.02rem',
+                                  fontWeight: 900,
+                                  color: 'var(--text-main)',
+                                  lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
+                                }}
+                              >
+                                {card.foreignWithArticle}
+                              </div>
+                              <div style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                                {card.english}
+                              </div>
+                              {card.romanized ? (
+                                <div style={{ fontSize: '0.77rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                                  {card.romanized}
+                                </div>
+                              ) : null}
+                              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--lang-primary)' }}>
+                                {card.phonetic}
+                              </div>
+                            </div>
                           </div>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 900, color: 'var(--text-muted)', fontSize: '0.84rem' }}>
-                            <Lock size={13} /> Mystery Sticker
-                          </div>
-                          <div style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-                            Complete Unit {unit.order} lessons to collect!
-                          </div>
-                        </div>
-                      );
-                    }
 
-                    return (
-                      <div
-                        key={card.id}
-                        className="tactile-card"
-                        style={{
-                          padding: 12,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 8,
-                          background: 'var(--card-bg)',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                          <span
-                            className="gender-pill"
+                          <div
                             style={{
-                              backgroundColor: genderMeta.bgColor,
-                              color: genderMeta.textColor,
-                              borderColor: genderMeta.borderColor,
+                              padding: '6px 9px',
+                              borderRadius: 12,
+                              background: 'var(--card-soft-bg)',
+                              border: '1px solid var(--card-border)',
+                              fontSize: '0.76rem',
                             }}
                           >
-                            {genderMeta.shortLabel}
-                          </span>
-                          <div style={{ display: 'flex', gap: 4 }}>
-                            <button
-                              type="button"
-                              className="tactile-btn tactile-btn-soft"
-                              style={{ padding: '4px 8px', fontSize: '0.74rem', borderRadius: 10 }}
-                              aria-label={`Speak ${card.bareForeign}`}
-                              onClick={() => {
-                                void speakPhrase({
-                                  text: card.bareForeign,
-                                  language: viewLang,
-                                  phonetic: card.phonetic,
-                                });
-                              }}
-                            >
-                              <Volume2 size={13} /> 1.0x
-                            </button>
-                            <button
-                              type="button"
-                              className="tactile-btn tactile-btn-soft"
-                              style={{ padding: '4px 8px', fontSize: '0.74rem', borderRadius: 10 }}
-                              aria-label={`Speak ${card.bareForeign} slowly`}
-                              onClick={() => {
-                                vaultActions.recordTurtlePlay();
-                                void speakPhrase({
-                                  text: card.bareForeign,
-                                  language: viewLang,
-                                  phonetic: card.phonetic,
-                                  slow: true,
-                                });
-                              }}
-                            >
-                              <Turtle size={13} /> 0.65x
-                            </button>
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <VocabIllustration
-                            illustrationKey={card.illustrationKey}
-                            language={viewLang}
-                            size={64}
-                          />
-                          <div style={{ minWidth: 0, flex: 1 }}>
                             <div
                               dir={langDir}
                               style={{
-                                fontSize: '1.02rem',
-                                fontWeight: 900,
+                                fontWeight: 800,
                                 color: 'var(--text-main)',
-                                lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
+                                lineHeight: langDir === 'rtl' ? 1.5 : 1.35,
                               }}
                             >
-                              {card.foreignWithArticle}
+                              {card.exampleForeign}
                             </div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                              {card.english}
-                            </div>
-                            {card.romanized ? (
-                              <div style={{ fontSize: '0.77rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-                                {card.romanized}
+                            {card.exampleRomanized ? (
+                              <div style={{ fontWeight: 700, color: 'var(--lang-primary)' }}>
+                                {card.exampleRomanized}
                               </div>
                             ) : null}
-                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--lang-primary)' }}>
-                              {card.phonetic}
+                            <div style={{ fontWeight: 600, color: 'var(--text-muted)' }}>
+                              {card.exampleEnglish}
                             </div>
                           </div>
                         </div>
-
-                        <div
-                          style={{
-                            padding: '6px 9px',
-                            borderRadius: 12,
-                            background: 'var(--card-soft-bg)',
-                            border: '1px solid var(--card-border)',
-                            fontSize: '0.76rem',
-                          }}
-                        >
-                          <div
-                            dir={langDir}
-                            style={{
-                              fontWeight: 800,
-                              color: 'var(--text-main)',
-                              lineHeight: langDir === 'rtl' ? 1.5 : 1.35,
-                            }}
-                          >
-                            {card.exampleForeign}
-                          </div>
-                          {card.exampleRomanized ? (
-                            <div style={{ fontWeight: 700, color: 'var(--lang-primary)' }}>
-                              {card.exampleRomanized}
-                            </div>
-                          ) : null}
-                          <div style={{ fontWeight: 600, color: 'var(--text-muted)' }}>
-                            {card.exampleEnglish}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -646,7 +761,7 @@ export function PhrasebookVault() {
                 </div>
 
                 {/* Audio + Navigation Controls */}
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 7, flexWrap: 'wrap' }}>
                   <button
                     type="button"
                     className="tactile-btn tactile-btn-primary"
@@ -655,6 +770,7 @@ export function PhrasebookVault() {
                         text: activeFlashcard.bareForeign,
                         language: viewLang,
                         phonetic: activeFlashcard.phonetic,
+                        speed: 'normal',
                       });
                     }}
                   >
@@ -670,10 +786,26 @@ export function PhrasebookVault() {
                         language: viewLang,
                         phonetic: activeFlashcard.phonetic,
                         slow: true,
+                        speed: 'slow',
                       });
                     }}
                   >
                     <Turtle size={16} /> 0.65x Slow
+                  </button>
+                  <button
+                    type="button"
+                    className="tactile-btn tactile-btn-indigo"
+                    onClick={() => {
+                      safeVaultActions.recordFluentPlay();
+                      void speakPhrase({
+                        text: activeFlashcard.bareForeign,
+                        language: viewLang,
+                        phonetic: activeFlashcard.phonetic,
+                        speed: 'fluent',
+                      });
+                    }}
+                  >
+                    <Zap size={15} /> 1.12x Fluent
                   </button>
                   <button
                     type="button"
