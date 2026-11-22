@@ -32,6 +32,18 @@ const STICKER_BACKGROUNDS: Record<
   fr: { top: '#EFF6FF', bottom: '#E0E7FF', ring: '#93C5FD' },
   de: { top: '#FFFBEB', bottom: '#FEF3C7', ring: '#FCD34D' },
   it: { top: '#ECFDF5', bottom: '#D1FAE5', ring: '#6EE7B7' },
+  pt: { top: '#F0FDFA', bottom: '#CCFBF1', ring: '#5EEAD4' },
+  en: { top: '#EFF6FF', bottom: '#DBEAFE', ring: '#60A5FA' },
+  zh: { top: '#FEF2F2', bottom: '#FFEDD5', ring: '#FCA5A5' },
+  ja: { top: '#FDF2F8', bottom: '#FCE7F3', ring: '#F9A8D4' },
+  hi: { top: '#FFF7ED', bottom: '#FEF3C7', ring: '#FDBA74' },
+  bn: { top: '#ECFDF5', bottom: '#D1FAE5', ring: '#34D399' },
+  ar: { top: '#ECFDF5', bottom: '#FEF9C3', ring: '#6EE7B7' },
+  arz: { top: '#F0F9FF', bottom: '#FEF3C7', ring: '#7DD3FC' },
+  ru: { top: '#EEF2FF', bottom: '#E0E7FF', ring: '#A5B4FC' },
+  id: { top: '#ECFEFF', bottom: '#CFFAFE', ring: '#67E8F9' },
+  vi: { top: '#FFF1F2', bottom: '#FFE4E6', ring: '#FDA4AF' },
+  sw: { top: '#FFFBEB', bottom: '#E0F2FE', ring: '#FBBF24' },
   default: { top: '#F0F9FF', bottom: '#E0F2FE', ring: '#BAE6FD' },
 };
 

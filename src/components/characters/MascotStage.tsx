@@ -40,59 +40,67 @@ function getBodyPoseMotion(pose: CharacterPose) {
     case 'happy':
       return {
         y: [0, -10, 0, -6, 0],
-        rotate: [0, -3, 3, -2, 0],
-        scale: [1, 1.04, 1, 1.02, 1],
-        transition: { duration: 0.9, repeat: Infinity, ease: 'easeInOut' as const },
+        rotate: [0, -3.2, 3.2, -1.8, 0],
+        scaleX: [1.02, 0.975, 1.015, 0.99, 1.02],
+        scaleY: [0.975, 1.045, 0.985, 1.025, 0.975],
+        transition: { duration: 0.92, repeat: Infinity, ease: 'easeInOut' as const },
       };
     case 'streak_fire':
       return {
         y: [0, -12, -2, -10, 0],
-        rotate: [-2, 3, -3, 2, -2],
-        scale: [1.02, 1.07, 1.02],
-        transition: { duration: 0.65, repeat: Infinity, ease: 'easeInOut' as const },
+        rotate: [-2.4, 3.2, -3.2, 2.4, -2.4],
+        scaleX: [1.025, 0.97, 1.02, 0.975, 1.025],
+        scaleY: [0.99, 1.06, 0.995, 1.05, 0.99],
+        transition: { duration: 0.68, repeat: Infinity, ease: 'easeInOut' as const },
       };
     case 'victory_dance':
       return {
         y: [0, -11, 0, -11, 0],
         rotate: [-6, 6, -6, 6, -6],
-        scale: [1, 1.05, 1, 1.05, 1],
-        transition: { duration: 0.85, repeat: Infinity, ease: 'easeInOut' as const },
+        scaleX: [1.025, 0.97, 1.025, 0.97, 1.025],
+        scaleY: [0.97, 1.055, 0.97, 1.055, 0.97],
+        transition: { duration: 0.88, repeat: Infinity, ease: 'easeInOut' as const },
       };
     case 'boss_intro':
       return {
         y: [0, -5, 0],
-        scale: [0.96, 1.04, 1.01],
+        scaleX: [0.97, 1.03, 1.0],
+        scaleY: [0.97, 1.045, 1.01],
         rotate: [0, -2, 1, 0],
         transition: { duration: 1.4, repeat: Infinity, ease: 'easeInOut' as const },
       };
     case 'sympathetic':
       return {
-        y: [0, 3, 0],
-        rotate: [-2, 0, -2],
-        scale: [0.99, 1, 0.99],
+        y: [0, 2.8, 0],
+        rotate: [-2.2, 0.4, -2.2],
+        scaleX: [1.005, 0.995, 1.005],
+        scaleY: [0.99, 1.005, 0.99],
         transition: { duration: 2.6, repeat: Infinity, ease: 'easeInOut' as const },
       };
     case 'listening':
       return {
-        y: [0, -2, 0],
-        rotate: [3, 5, 3],
-        scale: [1, 1.015, 1],
+        y: [0, -2.4, 0],
+        rotate: [2.6, 5, 2.6],
+        scaleX: [1, 0.994, 1],
+        scaleY: [1, 1.018, 1],
         transition: { duration: 2.2, repeat: Infinity, ease: 'easeInOut' as const },
       };
     case 'thinking':
       return {
-        y: [0, -2.5, 0],
-        rotate: [-3, -1, -3],
-        scale: [1, 1.01, 1],
+        y: [0, -2.8, 0],
+        rotate: [-3.2, -1.1, -3.2],
+        scaleX: [1, 0.994, 1],
+        scaleY: [1, 1.016, 1],
         transition: { duration: 2.8, repeat: Infinity, ease: 'easeInOut' as const },
       };
     case 'idle':
     default:
       return {
-        y: [0, -3.5, 0],
-        rotate: [0, 0.8, 0, -0.8, 0],
-        scale: [1, 1.015, 1],
-        transition: { duration: 3.2, repeat: Infinity, ease: 'easeInOut' as const },
+        y: [0, -3.4, 0],
+        rotate: [-0.8, 0.8, -0.8],
+        scaleX: [1, 0.992, 1],
+        scaleY: [1, 1.022, 1],
+        transition: { duration: 3.1, repeat: Infinity, ease: 'easeInOut' as const },
       };
   }
 }
@@ -112,16 +120,40 @@ export function MascotStage({
   const [isBlinking, setIsBlinking] = useState(false);
   const [localPointer, setLocalPointer] = useState<{ x: number; y: number } | null>(null);
 
-  // Natural organic blinking timer
+  // Natural organic blinking timer with occasional playful double-blink
   useEffect(() => {
-    let blinkTimeout: ReturnType<typeof setTimeout> | undefined;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let cycle = 0;
+
+    const clearPendingBlinks = () => {
+      while (timers.length > 0) {
+        const t = timers.pop();
+        if (t !== undefined) clearTimeout(t);
+      }
+    };
+
     const interval = setInterval(() => {
+      cycle += 1;
+      clearPendingBlinks();
       setIsBlinking(true);
-      blinkTimeout = setTimeout(() => setIsBlinking(false), 145);
-    }, 3600);
+      timers.push(
+        setTimeout(() => {
+          setIsBlinking(false);
+          if (cycle % 3 === 0) {
+            timers.push(
+              setTimeout(() => {
+                setIsBlinking(true);
+                timers.push(setTimeout(() => setIsBlinking(false), 115));
+              }, 160)
+            );
+          }
+        }, 135)
+      );
+    }, 3400);
+
     return () => {
       clearInterval(interval);
-      if (blinkTimeout) clearTimeout(blinkTimeout);
+      clearPendingBlinks();
     };
   }, []);
 
@@ -263,13 +295,15 @@ export function MascotStage({
           </motion.g>
         )}
 
-        {/* Ground contact shadow */}
+        {/* Ground contact shadow synchronized with jump & idle breath */}
         <motion.g
           style={{ originX: '110px', originY: '196px' }}
           animate={
-            pose === 'happy' || pose === 'streak_fire' || pose === 'victory_dance'
-              ? { scaleX: [1, 0.79, 1], opacity: [0.16, 0.08, 0.16] }
-              : { scaleX: [1, 0.94, 1], opacity: [0.14, 0.11, 0.14] }
+            pose === 'happy'
+              ? { scaleX: [1, 0.78, 0.98, 0.84, 1], opacity: [0.16, 0.08, 0.15, 0.1, 0.16] }
+              : pose === 'streak_fire' || pose === 'victory_dance'
+                ? { scaleX: [1, 0.76, 1, 0.76, 1], opacity: [0.17, 0.07, 0.17, 0.07, 0.17] }
+                : { scaleX: [1, 0.94, 1], opacity: [0.14, 0.11, 0.14] }
           }
           transition={{ duration: bodyMotion.transition.duration, repeat: Infinity, ease: 'easeInOut' }}
         >
@@ -299,12 +333,13 @@ export function MascotStage({
         {/* Layer 1: Equipped Aura */}
         <AuraLayer aura={equippedCosmetics?.aura} uid={uid} />
 
-        {/* Animated Full Character Rig */}
+        {/* Animated Full Character Rig with Squash & Stretch */}
         <motion.g
           animate={{
             y: bodyMotion.y,
             rotate: bodyMotion.rotate,
-            scale: bodyMotion.scale,
+            scaleX: bodyMotion.scaleX,
+            scaleY: bodyMotion.scaleY,
           }}
           transition={bodyMotion.transition}
           style={{ originX: '110px', originY: '185px' }}
@@ -316,14 +351,21 @@ export function MascotStage({
           {/* Layer 3: Torso + Expressive Arms/Wings */}
           <BodyAndArmsLayer companionId={companionId} pose={pose} uid={uid} />
 
-          {/* Layer 4 & 5: Head Group (tilts gently toward pointerTarget + pose) + Face Cosmetics */}
+          {/* Layer 4 & 5: Head Group (micro-springs toward pointerTarget + joyful pose nod) + Face Cosmetics */}
           <motion.g
             animate={{
               rotate: headTiltDeg,
-              x: normalizedLook.x * 2.5,
-              y: normalizedLook.y * 1.8,
+              x: normalizedLook.x * 2.6,
+              y:
+                normalizedLook.y * 1.9 +
+                (pose === 'happy' || pose === 'victory_dance'
+                  ? -1.5
+                  : pose === 'sympathetic'
+                    ? 1.5
+                    : 0),
+              scale: pose === 'happy' || pose === 'victory_dance' ? 1.025 : 1,
             }}
-            transition={{ type: 'spring', stiffness: 190, damping: 18 }}
+            transition={{ type: 'spring', stiffness: 235, damping: 15, mass: 0.85 }}
             style={{ originX: '110px', originY: '124px' }}
           >
             <HeadAndExpressionLayer
@@ -407,8 +449,12 @@ export function MascotStage({
               <motion.g
                 data-celebration-rays="true"
                 style={{ originX: '110px', originY: '112px' }}
-                animate={{ rotate: [0, 18, 0], scale: [0.95, 1.07, 0.95], opacity: [0.5, 0.9, 0.5] }}
-                transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+                animate={{
+                  rotate: [0, 14, 0, -14, 0],
+                  scale: [0.95, 1.07, 0.98, 1.05, 0.95],
+                  opacity: [0.48, 0.92, 0.65, 0.9, 0.48],
+                }}
+                transition={{ duration: 2.1, repeat: Infinity, ease: 'easeInOut' }}
               >
                 {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => {
                   const rad = (deg * Math.PI) / 180;
@@ -437,7 +483,7 @@ export function MascotStage({
               { x: 42, y: 146, r: 6.5, color: '#38BDF8', delay: 0.35 },
               { x: 182, y: 138, r: 7.5, color: '#FB7185', delay: 0.12 },
               { x: 110, y: 20, r: 8.5, color: '#FACC15', delay: 0.25 },
-              ...((pose === 'streak_fire' || pose === 'victory_dance')
+              ...((pose === 'streak_fire' || pose === 'victory_dance' || comboCount >= 5)
                 ? [
                     { x: 24, y: 98, r: 7.5, color: '#FDE047', delay: 0.08 },
                     { x: 196, y: 94, r: 8, color: '#FACC15', delay: 0.28 },
@@ -455,12 +501,12 @@ export function MascotStage({
                 stroke={MASCOT_INK}
                 strokeWidth="1.3"
                 animate={{
-                  scale: [0.7, 1.25, 0.7],
-                  rotate: [0, 20, 0],
-                  opacity: [0.65, 1, 0.65],
+                  scale: [0.68, 1.24, 0.88, 1.18, 0.68],
+                  rotate: [0, 22, 8, -16, 0],
+                  opacity: [0.55, 1, 0.75, 0.95, 0.55],
                 }}
                 transition={{
-                  duration: 1.2,
+                  duration: 1.3 + (idx % 3) * 0.22,
                   repeat: Infinity,
                   ease: 'easeInOut',
                   delay: s.delay,

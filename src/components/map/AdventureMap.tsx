@@ -187,6 +187,7 @@ export function AdventureMap({
   const [slideDir, setSlideDir] = useState<number>(1);
   const prevLangRef = useRef(course.language);
   const prevPropUnitIdxRef = useRef(progress.currentUnitIndex);
+  const tabListRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-focus the unit containing the current activeNodeId on language switch;
   // also follow explicit external currentUnitIndex updates on the same language.
@@ -202,8 +203,10 @@ export function AdventureMap({
     if (prevPropUnitIdxRef.current !== progress.currentUnitIndex) {
       prevPropUnitIdxRef.current = progress.currentUnitIndex;
       const clamped = Math.max(0, Math.min(progress.currentUnitIndex, Math.max(0, sortedUnits.length - 1)));
-      setSlideDir(clamped >= focusedUnitIdx ? 1 : -1);
-      setFocusedUnitIdx(clamped);
+      if (clamped !== focusedUnitIdx) {
+        setSlideDir(clamped >= focusedUnitIdx ? 1 : -1);
+        setFocusedUnitIdx(clamped);
+      }
     }
   }, [course.language, progress.currentUnitIndex, activeUnitIdx, sortedUnits.length, focusedUnitIdx]);
 
@@ -211,6 +214,24 @@ export function AdventureMap({
   const currentUnit = sortedUnits[safeUnitIdx];
   const palette = course.meta.accentPalette;
   const companionAvatar = COMPANION_AVATAR_MAP[course.meta.companionId];
+
+  // Keep the active chapter tab centered in horizontal scroll strip on small viewports
+  useEffect(() => {
+    const listEl = tabListRef.current;
+    if (!listEl || !currentUnit) return;
+    const activeTab = listEl.querySelector(`[data-unit-tab="${currentUnit.id}"]`);
+    if (activeTab && typeof (activeTab as HTMLElement).scrollIntoView === 'function') {
+      try {
+        (activeTab as HTMLElement).scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'center',
+        });
+      } catch {
+        // Ignore in minimal DOM environments
+      }
+    }
+  }, [currentUnit]);
 
   const handleSelectChapter = (nextIdx: number) => {
     const clamped = Math.max(0, Math.min(nextIdx, Math.max(0, sortedUnits.length - 1)));
@@ -288,33 +309,60 @@ export function AdventureMap({
         <div
           style={{
             display: 'flex',
-            flexWrap: 'wrap',
+            flexWrap: 'nowrap',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 8,
+            gap: isCompactWidth ? 6 : 10,
+            minWidth: 0,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
-            <AvatarBadge avatarId={companionAvatar} size={isCompactWidth ? 36 : 42} />
-            <div style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <FlagIcon language={course.language} size={22} />
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: isCompactWidth ? 7 : 9,
+              flex: '1 1 0%',
+              minWidth: 0,
+            }}
+          >
+            <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+              <AvatarBadge avatarId={companionAvatar} size={isCompactWidth ? 34 : 42} />
+            </span>
+            <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: isCompactWidth ? 5 : 6,
+                  flexWrap: 'nowrap',
+                  minWidth: 0,
+                }}
+              >
+                <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                  <FlagIcon language={course.language} size={isCompactWidth ? 20 : 22} />
+                </span>
                 <h2
+                  title={course.meta.landTitle}
                   style={{
                     margin: 0,
-                    fontSize: isCompactWidth ? '0.96rem' : '1.15rem',
+                    fontSize: isCompactWidth ? '0.94rem' : '1.15rem',
                     fontWeight: 900,
                     color: 'var(--text-main, #0f172a)',
                     lineHeight: 1.15,
+                    minWidth: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {course.meta.landTitle}
                 </h2>
               </div>
               <p
+                title={`Guide: ${course.meta.companionName} • ${course.meta.companionRole}`}
                 style={{
                   margin: '1px 0 0',
-                  fontSize: 11.5,
+                  fontSize: isCompactWidth ? 11 : 11.5,
                   fontWeight: 700,
                   color: 'var(--text-muted, #475569)',
                   whiteSpace: 'nowrap',
@@ -327,13 +375,13 @@ export function AdventureMap({
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isCompactWidth ? 4 : 6, flexShrink: 0 }}>
             <span
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4,
-                padding: '4px 10px',
+                padding: isCompactWidth ? '3px 7px' : '4px 10px',
                 borderRadius: 999,
                 backgroundColor: '#FEF3C7',
                 borderStyle: 'solid',
@@ -341,17 +389,18 @@ export function AdventureMap({
                 borderColor: '#F59E0B',
                 color: '#92400E',
                 fontWeight: 800,
-                fontSize: 12,
+                fontSize: isCompactWidth ? 11 : 12,
+                whiteSpace: 'nowrap',
               }}
             >
-              <GoldStar filled size={13} />
+              <GoldStar filled size={isCompactWidth ? 12 : 13} />
               {totalStars}/{maxStars}
             </span>
             <span
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                padding: '4px 10px',
+                padding: isCompactWidth ? '3px 7px' : '4px 10px',
                 borderRadius: 999,
                 backgroundColor: '#EFF6FF',
                 borderStyle: 'solid',
@@ -359,7 +408,8 @@ export function AdventureMap({
                 borderColor: '#60A5FA',
                 color: '#1D4ED8',
                 fontWeight: 800,
-                fontSize: 12,
+                fontSize: isCompactWidth ? 11 : 12,
+                whiteSpace: 'nowrap',
               }}
             >
               {progress.xpEarned} XP
@@ -376,10 +426,13 @@ export function AdventureMap({
             marginTop: 8,
           }}
         >
-          <button
+          <motion.button
             type="button"
             aria-label="Previous chapter"
             disabled={safeUnitIdx <= 0}
+            whileHover={safeUnitIdx > 0 ? { scale: 1.06 } : undefined}
+            whileTap={safeUnitIdx > 0 ? { scale: 0.92, y: 1 } : undefined}
+            transition={{ type: 'spring', stiffness: 450, damping: 24 }}
             onClick={() => handleSelectChapter(safeUnitIdx - 1)}
             style={{
               flexShrink: 0,
@@ -404,9 +457,10 @@ export function AdventureMap({
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path d="M10.5 3.5L5.5 8L10.5 12.5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-          </button>
+          </motion.button>
 
           <div
+            ref={tabListRef}
             role="tablist"
             aria-label="Unit quick-jump tabs"
             style={{
@@ -426,13 +480,15 @@ export function AdventureMap({
               const unitComplete = unit.nodes.length > 0 && unitDoneCount === unit.nodes.length;
 
               return (
-                <button
+                <motion.button
                   key={unit.id}
                   type="button"
                   role="tab"
                   aria-selected={isSelected}
                   aria-label={`Chapter ${unit.order}: ${unit.title}`}
                   data-unit-tab={unit.id}
+                  whileTap={{ scale: 0.95, y: 1 }}
+                  transition={{ type: 'spring', stiffness: 460, damping: 26 }}
                   onClick={() => handleSelectChapter(idx)}
                   style={{
                     flexShrink: 0,
@@ -474,15 +530,18 @@ export function AdventureMap({
                   >
                     {unitDoneCount}/{unit.nodes.length}
                   </span>
-                </button>
+                </motion.button>
               );
             })}
           </div>
 
-          <button
+          <motion.button
             type="button"
             aria-label="Next chapter"
             disabled={safeUnitIdx >= sortedUnits.length - 1}
+            whileHover={safeUnitIdx < sortedUnits.length - 1 ? { scale: 1.06 } : undefined}
+            whileTap={safeUnitIdx < sortedUnits.length - 1 ? { scale: 0.92, y: 1 } : undefined}
+            transition={{ type: 'spring', stiffness: 450, damping: 24 }}
             onClick={() => handleSelectChapter(safeUnitIdx + 1)}
             style={{
               flexShrink: 0,
@@ -507,7 +566,7 @@ export function AdventureMap({
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path d="M5.5 3.5L10.5 8L5.5 12.5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-          </button>
+          </motion.button>
         </div>
       </section>
 
@@ -521,14 +580,14 @@ export function AdventureMap({
           overflow: 'hidden',
         }}
       >
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" initial={false}>
           <motion.section
             key={currentUnit.id}
             data-unit-id={currentUnit.id}
-            initial={{ opacity: 0, x: slideDir * 32, scale: 0.985 }}
+            initial={{ opacity: 0, x: slideDir * 36, scale: 0.985 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: -slideDir * 32, scale: 0.985 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
+            exit={{ opacity: 0, x: -slideDir * 36, scale: 0.985 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
             style={{
               flex: 1,
               minHeight: 0,
@@ -550,11 +609,11 @@ export function AdventureMap({
                 position: 'relative',
                 zIndex: 2,
                 display: 'flex',
-                flexWrap: 'wrap',
+                flexWrap: 'nowrap',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                gap: 8,
-                padding: isCompactWidth ? '8px 12px' : '10px 16px',
+                gap: isCompactWidth ? 6 : 10,
+                padding: isCompactWidth ? '7px 10px' : '10px 16px',
                 backgroundColor: currentUnit.themeColor || palette.primary,
                 color: '#FFFFFF',
                 borderBottomStyle: 'solid',
@@ -562,34 +621,55 @@ export function AdventureMap({
                 borderBottomColor: 'rgba(15, 23, 42, 0.22)',
               }}
             >
-              <div style={{ minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                   <span
+                    title={`Unit ${currentUnit.order} • ${currentUnit.culturalLandmark}`}
                     style={{
+                      display: 'inline-block',
+                      maxWidth: '100%',
                       padding: '1px 8px',
                       borderRadius: 999,
                       backgroundColor: 'rgba(15, 23, 42, 0.26)',
-                      fontSize: 10.5,
+                      fontSize: isCompactWidth ? 10 : 10.5,
                       fontWeight: 900,
                       letterSpacing: '0.04em',
                       textTransform: 'uppercase',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     Unit {currentUnit.order} • {currentUnit.culturalLandmark}
                   </span>
                 </div>
                 <h3
+                  title={currentUnit.title}
                   style={{
                     margin: '2px 0 0',
-                    fontSize: isCompactWidth ? 15 : 17,
+                    fontSize: isCompactWidth ? 14.5 : 17,
                     fontWeight: 900,
                     lineHeight: 1.2,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {currentUnit.title}
                 </h3>
                 {!isCompactWidth && (
-                  <p style={{ margin: '1px 0 0', fontSize: 12, fontWeight: 600, opacity: 0.92 }}>
+                  <p
+                    title={currentUnit.subtitle}
+                    style={{
+                      margin: '1px 0 0',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      opacity: 0.92,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
                     {currentUnit.subtitle}
                   </p>
                 )}
@@ -597,14 +677,15 @@ export function AdventureMap({
 
               <div
                 style={{
-                  padding: '4px 10px',
+                  flexShrink: 0,
+                  padding: isCompactWidth ? '3px 8px' : '4px 10px',
                   borderRadius: 12,
                   backgroundColor: 'rgba(255, 255, 255, 0.22)',
                   borderStyle: 'solid',
                   borderWidth: 1.5,
                   borderColor: 'rgba(255, 255, 255, 0.45)',
                   fontWeight: 800,
-                  fontSize: 12,
+                  fontSize: isCompactWidth ? 11 : 12,
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -963,6 +1044,9 @@ export function AdventureMap({
                     left: '50%',
                     bottom: 8,
                     transform: 'translateX(-50%)',
+                    maxWidth: 'calc(100% - 20px)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
                     zIndex: 6,
                     padding: '4px 12px',
                     borderRadius: 999,
@@ -971,7 +1055,7 @@ export function AdventureMap({
                     borderWidth: '2px 2px 3px 2px',
                     borderColor: '#F59E0B',
                     color: '#78350F',
-                    fontSize: 11,
+                    fontSize: isCompactWidth ? 10.5 : 11,
                     fontWeight: 900,
                     whiteSpace: 'nowrap',
                     boxShadow: '0 4px 12px rgba(15, 23, 42, 0.14)',
