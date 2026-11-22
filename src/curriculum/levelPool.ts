@@ -1,7 +1,12 @@
-import { LANGUAGE_META } from '../types/contracts';
+import {
+  LANGUAGE_META,
+  PROFICIENCY_TIER_META,
+  resolveUnitProficiencyTier,
+} from '../types/contracts';
 import type {
   BossGauntletExercise,
   BossTurn,
+  ContextClozeExercise,
   CourseUnit,
   LanguageCode,
   LanguageCourse,
@@ -10,6 +15,7 @@ import type {
   MapNode,
   MiniStoryExercise,
   PairMatchRushExercise,
+  ProficiencyTier,
   StoryDecision,
   VocabCard,
   WordBankExercise,
@@ -293,9 +299,12 @@ function makeDynamicWordBankToEn(
   glossary: GlossaryMap,
   seedOffset: number
 ): WordBankExercise {
+  const unitTier = unit.proficiencyTier ?? resolveUnitProficiencyTier(unit.order);
+  const enableFreeRecall = unitTier === 'B2' || unitTier === 'C1_C2';
   const targetTokens = tokenizeCleanWords(card.exampleEnglish);
   const joined = targetTokens.join(' ');
   const distractorTokens = pickEnglishDistractors(unit, targetTokens, seedOffset);
+  const nuance = card.registerNote ?? card.grammarNote;
   return {
     type: 'word_bank',
     id,
@@ -316,6 +325,8 @@ function makeDynamicWordBankToEn(
     distractorTokens,
     phoneticHint: card.examplePhonetic,
     ...(card.article ? { articleHint: `Spot "${card.article}" (${card.gender}) with "${card.bareForeign}".` } : {}),
+    ...(nuance ? { nuanceNote: nuance } : {}),
+    ...(enableFreeRecall ? { allowFreeRecall: true } : {}),
     vocabIds: [card.id],
   };
 }
@@ -327,9 +338,16 @@ function makeDynamicWordBankToForeign(
   glossary: GlossaryMap,
   seedOffset: number
 ): WordBankExercise {
-  const targetTokens = tokenizeCleanWords(card.exampleForeign, glossary);
+  const unitTier = unit.proficiencyTier ?? resolveUnitProficiencyTier(unit.order);
+  const enableFreeRecall = unitTier === 'B2' || unitTier === 'C1_C2';
+  let targetTokens = tokenizeCleanWords(card.exampleForeign, glossary);
+  if (!LANGUAGE_META[unit.language].usesSpaces && targetTokens.length < 2) {
+    const chars = Array.from(stripEdgePunctuation(card.exampleForeign)).filter((ch) => ch.trim() !== '');
+    if (chars.length >= 2) targetTokens = chars;
+  }
   const joined = targetTokens.join(' ');
   const distractorTokens = pickForeignDistractors(unit, targetTokens, seedOffset, glossary);
+  const nuance = card.registerNote ?? card.grammarNote;
   return {
     type: 'word_bank',
     id,
@@ -349,6 +367,8 @@ function makeDynamicWordBankToForeign(
     distractorTokens,
     phoneticHint: card.examplePhonetic,
     ...(card.article ? { articleHint: `Remember "${card.article}" (${card.gender}) for "${card.bareForeign}".` } : {}),
+    ...(nuance ? { nuanceNote: nuance } : {}),
+    ...(enableFreeRecall ? { allowFreeRecall: true } : {}),
     vocabIds: [card.id],
   };
 }
@@ -401,7 +421,11 @@ function makeDynamicListenAssemble(
   glossary: GlossaryMap,
   seedOffset: number
 ): ListenDecodeExercise {
-  const targetTokens = tokenizeCleanWords(card.exampleForeign, glossary);
+  let targetTokens = tokenizeCleanWords(card.exampleForeign, glossary);
+  if (!LANGUAGE_META[unit.language].usesSpaces && targetTokens.length < 2) {
+    const chars = Array.from(stripEdgePunctuation(card.exampleForeign)).filter((ch) => ch.trim() !== '');
+    if (chars.length >= 2) targetTokens = chars;
+  }
   const joined = targetTokens.join(' ');
   const distractorTokens = pickForeignDistractors(unit, targetTokens, seedOffset, glossary);
   return {
@@ -428,6 +452,60 @@ function makeDynamicListenAssemble(
   };
 }
 
+function makeDynamicContextClozeFromCard(
+  id: string,
+  card: VocabCard,
+  unit: CourseUnit,
+  glossary: GlossaryMap
+): ContextClozeExercise | undefined {
+  const bare = stripEdgePunctuation(card.bareForeign).trim();
+  if (!bare || /\s/.test(bare)) return undefined;
+  const tokens = tokenizeCleanWords(card.exampleForeign, glossary);
+  if (tokens.length < 2) return undefined;
+  const bareNorm = normalizeLookupKey(bare);
+  const hasExactToken = tokens.some((t) => normalizeLookupKey(t) === bareNorm);
+  if (!hasExactToken) return undefined;
+
+  const idx = card.exampleForeign.indexOf(bare);
+  if (idx < 0) return undefined;
+  const before = card.exampleForeign.slice(0, idx);
+  const after = card.exampleForeign.slice(idx + bare.length);
+  if (!before.trim() && !after.trim()) return undefined;
+
+  const choiceList = [bare];
+  const seenNorm = new Set<string>([bareNorm]);
+  for (const other of deterministicShuffle(unit.vocabCards, `${id}-cc-choices`)) {
+    const otherBare = stripEdgePunctuation(other.bareForeign).trim();
+    const otherNorm = normalizeLookupKey(otherBare);
+    if (!otherBare || /\s/.test(otherBare) || !otherNorm || seenNorm.has(otherNorm)) continue;
+    seenNorm.add(otherNorm);
+    choiceList.push(otherBare);
+    if (choiceList.length >= 4) break;
+  }
+  if (choiceList.length < 3) return undefined;
+
+  return {
+    type: 'context_cloze',
+    id,
+    sentenceBeforeBlank: before,
+    sentenceAfterBlank: after,
+    fullForeignSentence: card.exampleForeign,
+    englishTranslation: card.exampleEnglish,
+    phonetic: card.examplePhonetic,
+    ...(card.exampleRomanized ? { romanized: card.exampleRomanized } : {}),
+    choices: deterministicShuffle(choiceList, id),
+    expectedBlank: bare,
+    acceptedBlanks: [bare],
+    nuanceNote:
+      card.registerNote ??
+      card.grammarNote ??
+      `"${card.foreignWithArticle}" (${card.english}) fits this context naturally.`,
+    registerTag: card.registerNote ? 'polite' : 'grammar',
+    tapHints: buildTapHints(card.exampleForeign, glossary),
+    vocabIds: [card.id],
+  };
+}
+
 function findUnitAndNode(lang: LanguageCode, nodeId: string): { unit: CourseUnit; node: MapNode } | undefined {
   const course = COURSES_MAP[lang];
   for (const unit of course.units) {
@@ -439,6 +517,7 @@ function findUnitAndNode(lang: LanguageCode, nodeId: string): { unit: CourseUnit
 
 function buildLessonPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): LessonPoolEntry {
   const glossary = GLOSSARIES[lang];
+  const unitTier = unit.proficiencyTier ?? resolveUnitProficiencyTier(unit.order);
   const discoveries: LessonExercise[] = [];
   const challenges: LessonExercise[] = [];
 
@@ -446,6 +525,7 @@ function buildLessonPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): L
   const usedEnglishSentences = new Set<string>();
   const usedListenAudio = new Set<string>();
   const usedPairSignatures = new Set<string>();
+  const usedClozeSentences = new Set<string>();
 
   for (const ex of node.exercises) {
     if (ex.type === 'discovery_card') {
@@ -460,6 +540,8 @@ function buildLessonPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): L
       usedEnglishSentences.add(normalizeSentenceKey(e));
     } else if (ex.type === 'listen_decode') {
       usedListenAudio.add(normalizeSentenceKey(ex.audioText, glossary));
+    } else if (ex.type === 'context_cloze') {
+      usedClozeSentences.add(normalizeSentenceKey(ex.fullForeignSentence, glossary));
     } else if (ex.type === 'pair_match_rush') {
       const sig = ex.pairs
         .map((p) => p.vocabId ?? p.foreign)
@@ -473,8 +555,45 @@ function buildLessonPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): L
   const lessonIndex = Math.max(0, node.order - 1);
   let poolSeq = 1;
 
+  // 0. For B1-C1_C2 units, pull dynamic context_cloze items from sibling lessons or cards
+  if (unitTier === 'B1' || unitTier === 'B2' || unitTier === 'C1_C2') {
+    let clozeAdded = 0;
+    for (const sibling of unit.nodes) {
+      if (sibling.id === node.id || sibling.nodeType !== 'lesson') continue;
+      for (const sex of sibling.exercises) {
+        if (sex.type !== 'context_cloze') continue;
+        const ck = normalizeSentenceKey(sex.fullForeignSentence, glossary);
+        if (usedClozeSentences.has(ck)) continue;
+        usedClozeSentences.add(ck);
+        challenges.push({
+          ...sex,
+          id: `${node.id}-pool-cc-${poolSeq++}`,
+        });
+        clozeAdded++;
+        if (clozeAdded >= 3) break;
+      }
+      if (clozeAdded >= 3) break;
+    }
+    for (let i = 0; i < cards.length && clozeAdded < 2; i++) {
+      const card = cards[(lessonIndex * 2 + i) % cards.length];
+      const ck = normalizeSentenceKey(card.exampleForeign, glossary);
+      if (usedClozeSentences.has(ck)) continue;
+      const dynCloze = makeDynamicContextClozeFromCard(
+        `${node.id}-pool-cc-${poolSeq++}`,
+        card,
+        unit,
+        glossary
+      );
+      if (!dynCloze) continue;
+      usedClozeSentences.add(ck);
+      challenges.push(dynCloze);
+      clozeAdded++;
+    }
+  }
+
   // 1. Add up to 4 card-example WordBank (to_english) challenges
-  for (let i = 0; i < cards.length && challenges.length < 10; i++) {
+  let wbEnAdded = 0;
+  for (let i = 0; i < cards.length && wbEnAdded < 4 && challenges.length < 12; i++) {
     const card = cards[(lessonIndex * 3 + i) % cards.length];
     const fk = normalizeSentenceKey(card.exampleForeign, glossary);
     const ek = normalizeSentenceKey(card.exampleEnglish);
@@ -490,6 +609,7 @@ function buildLessonPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): L
         i + lessonIndex + 1
       )
     );
+    wbEnAdded++;
   }
 
   // 2. Add up to 3 card-example WordBank (to_foreign) challenges
@@ -555,13 +675,15 @@ function buildLessonPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): L
 
   // 5. Add 2 distinct 5-pair PairMatchRush sets (avoid overlapping acceptedEnglish within same round)
   let pmAdded = 0;
+  const pairStride =
+    cards.length % 3 !== 0 ? 3 : cards.length % 5 !== 0 ? 5 : 1;
   for (let shift = 0; shift < cards.length && pmAdded < 2; shift++) {
     const start = (lessonIndex * 2 + shift * 3) % cards.length;
     const picked: VocabCard[] = [];
     const usedIds = new Set<string>();
     const usedEngKeys = new Set<string>();
     for (let step = 0; step < cards.length && picked.length < 5; step++) {
-      const candidate = cards[(start + step * 2) % cards.length];
+      const candidate = cards[(start + step * pairStride) % cards.length];
       if (usedIds.has(candidate.id)) continue;
       const candKeys = cardEnglishKeySet(candidate);
       let overlaps = false;
@@ -636,6 +758,8 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
     throw new Error(`Boss node "${node.id}" missing boss_gauntlet exercise`);
   }
 
+  const unitTier = unit.proficiencyTier ?? resolveUnitProficiencyTier(unit.order);
+  const enableFreeRecall = unitTier === 'B2' || unitTier === 'C1_C2';
   const turnsPool: BossTurn[] = [...baseExercise.turns];
   const usedSay = new Set(turnsPool.map((t) => normalizeSentenceKey(t.companionSayForeign, glossary)));
   const usedExpected = new Set(turnsPool.map((t) => normalizeSentenceKey(t.expectedAnswer, glossary)));
@@ -716,7 +840,13 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
         victoryReplyEnglish: answerCard.exampleEnglish,
       });
     } else {
-      const targetTokens = tokenizeCleanWords(answerCard.exampleForeign, glossary);
+      let targetTokens = tokenizeCleanWords(answerCard.exampleForeign, glossary);
+      if (!LANGUAGE_META[lang].usesSpaces && targetTokens.length < 2) {
+        const chars = Array.from(stripEdgePunctuation(answerCard.exampleForeign)).filter(
+          (ch) => ch.trim() !== ''
+        );
+        if (chars.length >= 2) targetTokens = chars;
+      }
       const joined = targetTokens.join(' ');
       const distractors = pickForeignDistractors(unit, targetTokens, i + unit.order + 2, glossary);
       turnsPool.push({
@@ -743,6 +873,7 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
         ...(answerCard.exampleRomanized ? { romanizedAnswer: answerCard.exampleRomanized } : {}),
         victoryReplyForeign: answerCard.foreignWithArticle,
         victoryReplyEnglish: answerCard.english,
+        ...(enableFreeRecall ? { allowFreeRecall: true } : {}),
       });
     }
     seq++;
@@ -793,6 +924,15 @@ function getOrBuildPool(lang: LanguageCode, nodeId: string): NodePoolEntry | und
   const cached = poolCache.get(cacheKey);
   if (cached) return cached;
 
+  const checkpointMatch = nodeId.match(/-checkpoint-(A2|B1|B2|C1_C2)$/);
+  if (checkpointMatch) {
+    const targetTier = checkpointMatch[1] as Exclude<ProficiencyTier, 'A1'>;
+    const cpNode = buildTierCheckpointNode(lang, targetTier);
+    const entry: NodePoolEntry = { kind: 'static', exercises: [...cpNode.exercises] };
+    poolCache.set(cacheKey, entry);
+    return entry;
+  }
+
   const found = findUnitAndNode(lang, nodeId);
   if (!found) return undefined;
 
@@ -810,6 +950,167 @@ function getOrBuildPool(lang: LanguageCode, nodeId: string): NodePoolEntry | und
 
   poolCache.set(cacheKey, entry);
   return entry;
+}
+
+const SOURCE_TIER_FOR_CHECKPOINT: Record<Exclude<ProficiencyTier, 'A1'>, ProficiencyTier> = {
+  A2: 'A1',
+  B1: 'A2',
+  B2: 'B1',
+  C1_C2: 'B2',
+};
+
+/**
+ * Builds a 5-exercise placement checkpoint node sampling cards and challenges
+ * from the proficiency tier immediately below `targetTier`.
+ */
+export function buildTierCheckpointNode(
+  lang: LanguageCode,
+  targetTier: Exclude<ProficiencyTier, 'A1'>
+): MapNode {
+  const course = COURSES_MAP[lang];
+  const glossary = GLOSSARIES[lang];
+  const sourceTier = SOURCE_TIER_FOR_CHECKPOINT[targetTier];
+  const tierMeta = PROFICIENCY_TIER_META[targetTier];
+  const nodeId = `${lang}-checkpoint-${targetTier}`;
+
+  const matchingSourceUnits = course.units.filter(
+    (u) => (u.proficiencyTier ?? resolveUnitProficiencyTier(u.order)) === sourceTier
+  );
+  const sourceUnits =
+    matchingSourceUnits.length > 0 ? matchingSourceUnits : course.units.slice(0, 4);
+
+  const targetUnit =
+    course.units.find(
+      (u) => (u.proficiencyTier ?? resolveUnitProficiencyTier(u.order)) === targetTier
+    ) ?? course.units[course.units.length - 1];
+
+  // Sample across source units, prioritizing the upper units of the prerequisite tier
+  const orderedUnits = [...sourceUnits].reverse();
+  const unitCardEntries: { unit: CourseUnit; card: VocabCard }[] = [];
+  const maxCardCount = Math.max(...orderedUnits.map((u) => u.vocabCards.length));
+  for (let cIdx = 0; cIdx < maxCardCount; cIdx++) {
+    for (const u of orderedUnits) {
+      const card = u.vocabCards[cIdx];
+      if (card) unitCardEntries.push({ unit: u, card });
+    }
+  }
+
+  const pickDistinctEntry = (
+    usedKeys: Set<string>,
+    startIndex: number
+  ): { unit: CourseUnit; card: VocabCard } => {
+    for (let offset = 0; offset < unitCardEntries.length; offset++) {
+      const entry = unitCardEntries[(startIndex + offset) % unitCardEntries.length];
+      const key = normalizeSentenceKey(entry.card.exampleForeign, glossary);
+      if (!usedKeys.has(key)) {
+        usedKeys.add(key);
+        return entry;
+      }
+    }
+    return unitCardEntries[0];
+  };
+
+  // Pull an authored context_cloze from the prerequisite tier when available (B1/B2),
+  // otherwise test listening assembly across the source tier.
+  let authoredCloze: ContextClozeExercise | undefined;
+  for (const u of orderedUnits) {
+    for (const n of u.nodes) {
+      const found = n.exercises.find(
+        (ex): ex is ContextClozeExercise => ex.type === 'context_cloze'
+      );
+      if (found) {
+        authoredCloze = found;
+        break;
+      }
+    }
+    if (authoredCloze) break;
+  }
+
+  const usedExampleKeys = new Set<string>();
+  if (authoredCloze) {
+    usedExampleKeys.add(normalizeSentenceKey(authoredCloze.fullForeignSentence, glossary));
+  }
+  const entry1 = pickDistinctEntry(usedExampleKeys, 0);
+  const entry2 = pickDistinctEntry(usedExampleKeys, 3);
+  const entry3 = pickDistinctEntry(usedExampleKeys, 6);
+  const entry4 = pickDistinctEntry(usedExampleKeys, 9);
+
+  const enableFreeRecall = targetTier === 'B2' || targetTier === 'C1_C2';
+  const ex1: WordBankExercise = {
+    ...makeDynamicWordBankToEn(
+      `${nodeId}-e1`,
+      entry1.card,
+      entry1.unit,
+      glossary,
+      3
+    ),
+    ...(enableFreeRecall ? { allowFreeRecall: true } : {}),
+  };
+
+  const ex2 = makeDynamicListenMeaning(
+    `${nodeId}-e2`,
+    entry2.card,
+    entry2.unit,
+    glossary,
+    true
+  );
+
+  const ex3: LessonExercise = authoredCloze
+    ? { ...authoredCloze, id: `${nodeId}-e3` }
+    : makeDynamicListenAssemble(`${nodeId}-e3`, entry3.card, entry3.unit, glossary, 5);
+
+  const ex4: WordBankExercise = {
+    ...makeDynamicWordBankToForeign(
+      `${nodeId}-e4`,
+      entry4.card,
+      entry4.unit,
+      glossary,
+      7
+    ),
+    ...(enableFreeRecall ? { allowFreeRecall: true } : {}),
+  };
+
+  const pairCards: VocabCard[] = [];
+  const usedPairEng = new Set<string>();
+  const usedPairIds = new Set<string>();
+  for (const { card } of unitCardEntries) {
+    if (usedPairIds.has(card.id)) continue;
+    const keys = cardEnglishKeySet(card);
+    let overlaps = false;
+    for (const k of keys) {
+      if (usedPairEng.has(k)) {
+        overlaps = true;
+        break;
+      }
+    }
+    if (overlaps) continue;
+    usedPairIds.add(card.id);
+    for (const k of keys) usedPairEng.add(k);
+    pairCards.push(card);
+    if (pairCards.length >= 5) break;
+  }
+
+  const ex5 = pairMatchFromCards(
+    `${nodeId}-e5`,
+    `${tierMeta.cefrLabel} Checkpoint Match`,
+    pairCards,
+    45
+  );
+
+  return {
+    id: nodeId,
+    unitId: targetUnit.id,
+    order: 0,
+    nodeType: 'lesson',
+    proficiencyTier: targetTier,
+    checkpointTargetTier: targetTier,
+    title: `${tierMeta.cefrLabel} ${tierMeta.title} Checkpoint`,
+    subtitle: `Pass this 5-challenge placement trial to unlock ${tierMeta.cefrLabel} (${tierMeta.title})!`,
+    xpReward: 75,
+    gemReward: 40,
+    exercises: [ex1, ex2, ex3, ex4, ex5],
+    rewardVocabIds: pairCards.slice(0, 3).map((c) => c.id),
+  };
 }
 
 function selectChallengesWithoutRepeats<T extends { id: string }>(

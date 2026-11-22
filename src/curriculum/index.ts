@@ -1,5 +1,6 @@
 import type {
   ArcadeLanternItem,
+  ArcadeProficiencyTier,
   CourseUnit,
   LanguageCode,
   LanguageCourse,
@@ -66,9 +67,14 @@ export function getVocabCard(lang: LanguageCode, vocabId: string): VocabCard | u
 export function getArcadeLexicon(
   lang: LanguageCode,
   unlockedVocabIds: readonly string[],
-  currentUnitIndex: number
+  currentUnitIndex: number,
+  arcadeTier?: ArcadeProficiencyTier
 ): ArcadeLanternItem[] {
-  return buildArcadeLexicon(COURSES[lang], unlockedVocabIds, currentUnitIndex);
+  return buildArcadeLexicon(COURSES[lang], unlockedVocabIds, currentUnitIndex, arcadeTier);
 }
 
-export { getNodePoolSize, getPlayableNodeExercises } from './levelPool';
+export {
+  buildTierCheckpointNode,
+  getNodePoolSize,
+  getPlayableNodeExercises,
+} from './levelPool';

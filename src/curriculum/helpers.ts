@@ -1,9 +1,14 @@
-import { ILLUSTRATION_KEYS, LANGUAGE_META } from '../types/contracts';
+import {
+  ILLUSTRATION_KEYS,
+  LANGUAGE_META,
+  resolveUnitProficiencyTier,
+} from '../types/contracts';
 import type {
   AccentCallout,
   BossGauntletExercise,
   BossTurn,
   CompanionId,
+  ContextClozeExercise,
   CourseUnit,
   DiscoveryCardExercise,
   GenderCategory,
@@ -16,6 +21,8 @@ import type {
   MiniStoryExercise,
   PairMatchItem,
   PairMatchRushExercise,
+  ProficiencyTier,
+  RegisterNuanceTag,
   StoryBubble,
   StoryDecision,
   TapHintToken,
@@ -31,6 +38,8 @@ export interface GlossaryEntry {
   romanized?: string;
   articleNote?: string;
   accentNote?: string;
+  registerNote?: string;
+  grammarNote?: string;
   speakText?: string;
 }
 
@@ -182,6 +191,8 @@ export function buildTapHints(
       ...(entry.romanized ? { romanized: entry.romanized } : {}),
       ...(entry.articleNote ? { articleNote: entry.articleNote } : {}),
       ...(entry.accentNote ? { accentNote: entry.accentNote } : {}),
+      ...(entry.registerNote ? { registerNote: entry.registerNote } : {}),
+      ...(entry.grammarNote ? { grammarNote: entry.grammarNote } : {}),
       speakText: entry.speakText ?? surface,
     });
   }
@@ -198,6 +209,7 @@ function cjkSpacelessVariants(text: string): string[] {
 
 export interface CardSeed {
   id: string;
+  proficiencyTier?: ProficiencyTier;
   foreignWithArticle: string;
   bareForeign: string;
   article?: string;
@@ -208,6 +220,8 @@ export interface CardSeed {
   phonetic: string;
   romanized?: string;
   accentCallout?: AccentCallout;
+  registerNote?: string;
+  grammarNote?: string;
   illustrationKey: IllustrationKey;
   exampleForeign: string;
   exampleEnglish: string;
@@ -242,6 +256,7 @@ export function makeCard(language: LanguageCode, unitId: string, seed: CardSeed)
     id: seed.id,
     language,
     unitId,
+    ...(seed.proficiencyTier ? { proficiencyTier: seed.proficiencyTier } : {}),
     foreignWithArticle: seed.foreignWithArticle,
     bareForeign: seed.bareForeign,
     ...(seed.article ? { article: seed.article } : {}),
@@ -252,6 +267,8 @@ export function makeCard(language: LanguageCode, unitId: string, seed: CardSeed)
     phonetic: seed.phonetic,
     ...(seed.romanized ? { romanized: seed.romanized } : {}),
     ...(seed.accentCallout ? { accentCallout: seed.accentCallout } : {}),
+    ...(seed.registerNote ? { registerNote: seed.registerNote } : {}),
+    ...(seed.grammarNote ? { grammarNote: seed.grammarNote } : {}),
     illustrationKey: seed.illustrationKey,
     exampleForeign: seed.exampleForeign,
     exampleEnglish: seed.exampleEnglish,
@@ -280,6 +297,8 @@ export function buildGlossaryFromCards(
         ...(c.accentCallout
           ? { accentNote: `${c.accentCallout.char}: ${c.accentCallout.tip}` }
           : {}),
+        ...(c.registerNote ? { registerNote: c.registerNote } : {}),
+        ...(c.grammarNote ? { grammarNote: c.grammarNote } : {}),
         speakText: c.foreignWithArticle.includes(' ')
           ? c.foreignWithArticle
           : surface,
@@ -385,6 +404,9 @@ export function wordBankToEn(
     distractorTokens: string[];
     phoneticHint?: string;
     articleHint?: string;
+    nuanceNote?: string;
+    registerTag?: RegisterNuanceTag;
+    allowFreeRecall?: boolean;
     vocabIds: string[];
     hintOverrides?: Record<string, GlossaryEntry>;
   },
@@ -412,6 +434,9 @@ export function wordBankToEn(
     distractorTokens: params.distractorTokens,
     phoneticHint: params.phoneticHint ?? params.promptPhonetic,
     ...(params.articleHint ? { articleHint: params.articleHint } : {}),
+    ...(params.nuanceNote ? { nuanceNote: params.nuanceNote } : {}),
+    ...(params.registerTag ? { registerTag: params.registerTag } : {}),
+    ...(params.allowFreeRecall !== undefined ? { allowFreeRecall: params.allowFreeRecall } : {}),
     vocabIds: params.vocabIds,
   };
 }
@@ -425,6 +450,9 @@ export function wordBankToForeign(params: {
   distractorTokens: string[];
   phoneticHint: string;
   articleHint?: string;
+  nuanceNote?: string;
+  registerTag?: RegisterNuanceTag;
+  allowFreeRecall?: boolean;
   vocabIds: string[];
 }): WordBankExercise {
   const joined = params.targetTokens.join(' ');
@@ -449,6 +477,92 @@ export function wordBankToForeign(params: {
     distractorTokens: params.distractorTokens,
     phoneticHint: params.phoneticHint,
     ...(params.articleHint ? { articleHint: params.articleHint } : {}),
+    ...(params.nuanceNote ? { nuanceNote: params.nuanceNote } : {}),
+    ...(params.registerTag ? { registerTag: params.registerTag } : {}),
+    ...(params.allowFreeRecall !== undefined ? { allowFreeRecall: params.allowFreeRecall } : {}),
+    vocabIds: params.vocabIds,
+  };
+}
+
+export interface ContextClozeParams {
+  id: string;
+  sentenceBeforeBlank: string;
+  sentenceAfterBlank: string;
+  fullForeignSentence: string;
+  englishTranslation: string;
+  phonetic: string;
+  romanized?: string;
+  choices: string[];
+  expectedBlank: string;
+  acceptedBlanks?: string[];
+  nuanceNote: string;
+  registerTag?: RegisterNuanceTag;
+  vocabIds: string[];
+  hintOverrides?: Record<string, GlossaryEntry>;
+}
+
+export function contextCloze(
+  params: ContextClozeParams,
+  glossary: GlossaryMap
+): ContextClozeExercise {
+  const expectedBlank = params.expectedBlank.trim();
+  if (!expectedBlank) {
+    throw new Error(`ContextCloze "${params.id}": expectedBlank must be non-empty`);
+  }
+  if (!params.choices.includes(params.expectedBlank)) {
+    throw new Error(
+      `ContextCloze "${params.id}": choices must include expectedBlank "${params.expectedBlank}"`
+    );
+  }
+  if (params.choices.length < 2) {
+    throw new Error(`ContextCloze "${params.id}": needs at least 2 choices`);
+  }
+  if (!params.nuanceNote.trim()) {
+    throw new Error(`ContextCloze "${params.id}": nuanceNote must be non-empty`);
+  }
+
+  const seenChoiceNorms = new Set<string>();
+  for (const rawChoice of params.choices) {
+    const trimmed = rawChoice.trim();
+    const norm = normalizeLookupKey(trimmed);
+    if (!trimmed || !norm) {
+      throw new Error(`ContextCloze "${params.id}": empty choice`);
+    }
+    if (seenChoiceNorms.has(norm)) {
+      throw new Error(
+        `ContextCloze "${params.id}": duplicate or diacritic-colliding choice "${rawChoice}"`
+      );
+    }
+    seenChoiceNorms.add(norm);
+  }
+
+  const wrongNorms = new Set(
+    params.choices
+      .filter((c) => c !== params.expectedBlank)
+      .map((c) => normalizeLookupKey(c))
+  );
+
+  const acceptedBlanks = dedupeStrings([
+    params.expectedBlank,
+    stripEdgePunctuation(params.expectedBlank),
+    ...(params.acceptedBlanks ?? []).filter((b) => !wrongNorms.has(normalizeLookupKey(b))),
+  ]);
+
+  return {
+    type: 'context_cloze',
+    id: params.id,
+    sentenceBeforeBlank: params.sentenceBeforeBlank,
+    sentenceAfterBlank: params.sentenceAfterBlank,
+    fullForeignSentence: params.fullForeignSentence,
+    englishTranslation: params.englishTranslation,
+    phonetic: params.phonetic,
+    ...(params.romanized ? { romanized: params.romanized } : {}),
+    choices: params.choices,
+    expectedBlank: params.expectedBlank,
+    acceptedBlanks,
+    nuanceNote: params.nuanceNote,
+    ...(params.registerTag ? { registerTag: params.registerTag } : {}),
+    tapHints: buildTapHints(params.fullForeignSentence, glossary, params.hintOverrides),
     vocabIds: params.vocabIds,
   };
 }
@@ -610,6 +724,9 @@ export function makeBossTurn(
     romanizedAnswer?: string;
     victoryReplyForeign: string;
     victoryReplyEnglish: string;
+    nuanceNote?: string;
+    registerTag?: RegisterNuanceTag;
+    allowFreeRecall?: boolean;
     hintOverrides?: Record<string, GlossaryEntry>;
   },
   glossary: GlossaryMap
@@ -664,6 +781,9 @@ export function makeBossTurn(
     ...(params.romanizedAnswer ? { romanizedAnswer: params.romanizedAnswer } : {}),
     victoryReplyForeign: params.victoryReplyForeign,
     victoryReplyEnglish: params.victoryReplyEnglish,
+    ...(params.nuanceNote ? { nuanceNote: params.nuanceNote } : {}),
+    ...(params.registerTag ? { registerTag: params.registerTag } : {}),
+    ...(params.allowFreeRecall !== undefined ? { allowFreeRecall: params.allowFreeRecall } : {}),
   };
 }
 
@@ -671,6 +791,8 @@ export function lessonNode(params: {
   id: string;
   unitId: string;
   order: number;
+  proficiencyTier?: ProficiencyTier;
+  checkpointTargetTier?: Exclude<ProficiencyTier, 'A1'>;
   title: string;
   subtitle: string;
   xpReward: number;
@@ -688,6 +810,7 @@ export function storyNode(params: {
   id: string;
   unitId: string;
   order: number;
+  proficiencyTier?: ProficiencyTier;
   title: string;
   subtitle: string;
   xpReward: number;
@@ -700,6 +823,7 @@ export function storyNode(params: {
     unitId: params.unitId,
     order: params.order,
     nodeType: 'story',
+    ...(params.proficiencyTier ? { proficiencyTier: params.proficiencyTier } : {}),
     title: params.title,
     subtitle: params.subtitle,
     xpReward: params.xpReward,
@@ -713,6 +837,7 @@ export function chestNode(params: {
   id: string;
   unitId: string;
   order: number;
+  proficiencyTier?: ProficiencyTier;
   title: string;
   subtitle: string;
   xpReward: number;
@@ -724,6 +849,7 @@ export function chestNode(params: {
     unitId: params.unitId,
     order: params.order,
     nodeType: 'chest',
+    ...(params.proficiencyTier ? { proficiencyTier: params.proficiencyTier } : {}),
     title: params.title,
     subtitle: params.subtitle,
     xpReward: params.xpReward,
@@ -737,6 +863,7 @@ export function bossNode(params: {
   id: string;
   unitId: string;
   order: number;
+  proficiencyTier?: ProficiencyTier;
   title: string;
   subtitle: string;
   xpReward: number;
@@ -749,6 +876,7 @@ export function bossNode(params: {
     unitId: params.unitId,
     order: params.order,
     nodeType: 'boss',
+    ...(params.proficiencyTier ? { proficiencyTier: params.proficiencyTier } : {}),
     title: params.title,
     subtitle: params.subtitle,
     xpReward: params.xpReward,
@@ -769,21 +897,640 @@ export function makeStoryExercise(params: {
   return params;
 }
 
-export function buildCourse(language: LanguageCode, units: CourseUnit[]): LanguageCourse {
-  const vocabById: Record<string, VocabCard> = {};
-  for (const unit of units) {
-    for (const card of unit.vocabCards) {
-      if (vocabById[card.id]) {
-        throw new Error(`Duplicate VocabCard id "${card.id}" in "${language}"`);
+const MASTERY_REWARDS: Record<
+  ProficiencyTier,
+  {
+    lessonXp: number;
+    lessonGems: number;
+    storyXp: number;
+    storyGems: number;
+    chestXp: number;
+    chestGems: number;
+    bossXp: number;
+    bossGems: number;
+  }
+> = {
+  A1: { lessonXp: 25, lessonGems: 12, storyXp: 30, storyGems: 15, chestXp: 30, chestGems: 35, bossXp: 60, bossGems: 40 },
+  A2: { lessonXp: 30, lessonGems: 15, storyXp: 35, storyGems: 20, chestXp: 35, chestGems: 45, bossXp: 70, bossGems: 50 },
+  B1: { lessonXp: 40, lessonGems: 20, storyXp: 45, storyGems: 25, chestXp: 40, chestGems: 40, bossXp: 75, bossGems: 40 },
+  B2: { lessonXp: 50, lessonGems: 25, storyXp: 55, storyGems: 30, chestXp: 50, chestGems: 50, bossXp: 90, bossGems: 50 },
+  C1_C2: { lessonXp: 65, lessonGems: 35, storyXp: 70, storyGems: 40, chestXp: 65, chestGems: 65, bossXp: 110, bossGems: 60 },
+};
+
+function pickForeignDistractorsFromCards(
+  cards: readonly VocabCard[],
+  targetTokens: readonly string[],
+  glossary: GlossaryMap,
+  seedOffset: number,
+  count = 3
+): string[] {
+  const forbidden = new Set<string>();
+  for (const t of targetTokens) {
+    forbidden.add(t.toLowerCase());
+    forbidden.add(normalizeLookupKey(t));
+  }
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (let pass = 0; pass < 2 && out.length < count; pass++) {
+    for (let i = 0; i < cards.length; i++) {
+      const c = cards[(i + seedOffset) % cards.length];
+      const tokens = [
+        ...segmentSentenceTokens(c.foreignWithArticle, glossary),
+        ...segmentSentenceTokens(c.exampleForeign, glossary),
+      ];
+      for (const tok of tokens) {
+        if (pass === 0 && !CJK_CHAR_RE.test(tok) && tok.length < 2) continue;
+        const lower = tok.toLowerCase();
+        const norm = normalizeLookupKey(tok);
+        if (!norm || forbidden.has(lower) || forbidden.has(norm) || seen.has(norm)) continue;
+        seen.add(norm);
+        out.push(tok);
+        if (out.length >= count) return out;
       }
-      vocabById[card.id] = card;
     }
   }
+  return out;
+}
+
+function pickEnglishDistractorsFromCards(
+  cards: readonly VocabCard[],
+  targetTokens: readonly string[],
+  seedOffset: number,
+  count = 3
+): string[] {
+  const forbidden = new Set(targetTokens.map((t) => t.toLowerCase()));
+  forbidden.add('clue');
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < cards.length; i++) {
+    const c = cards[(i + seedOffset) % cards.length];
+    const tokens = [
+      ...segmentSentenceTokens(c.english),
+      ...segmentSentenceTokens(c.exampleEnglish),
+    ];
+    for (const tok of tokens) {
+      if (tok.length < 2) continue;
+      const lower = tok.toLowerCase();
+      if (forbidden.has(lower) || seen.has(lower)) continue;
+      seen.add(lower);
+      out.push(tok);
+      if (out.length >= count) return out;
+    }
+  }
+  return out;
+}
+
+function deterministicRotateChoices(items: readonly string[], seed: string): string[] {
+  const arr = [...items];
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  for (let i = arr.length - 1; i > 0; i--) {
+    hash ^= hash << 13;
+    hash ^= hash >>> 17;
+    hash ^= hash << 5;
+    const j = Math.abs(hash) % (i + 1);
+    const tmp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = tmp;
+  }
+  return arr;
+}
+
+function pickDistinctEnglishChoices(
+  cards: readonly VocabCard[],
+  correct: string,
+  useExample: boolean,
+  seed: string
+): string[] {
+  const choices = [correct];
+  const seen = new Set<string>([normalizeLookupKey(correct)]);
+  for (const c of cards) {
+    const cand = useExample ? c.exampleEnglish : c.english;
+    const norm = normalizeLookupKey(cand);
+    if (!norm || seen.has(norm)) continue;
+    seen.add(norm);
+    choices.push(cand);
+    if (choices.length >= 4) break;
+  }
+  return deterministicRotateChoices(choices, seed);
+}
+
+export interface MasteryLessonMeta {
+  title: string;
+  subtitle: string;
+  nuanceNote?: string;
+  registerTag?: RegisterNuanceTag;
+}
+
+export interface MasteryStoryBubbleSeed {
+  id?: string;
+  speakerId: CompanionId;
+  speakerName: string;
+  side: 'left' | 'right';
+  foreignText: string;
+  englishText: string;
+  phonetic: string;
+  romanized?: string;
+  hintOverrides?: Record<string, GlossaryEntry>;
+  tapHints?: TapHintToken[];
+}
+
+export interface MasteryStorySpec {
+  id?: string;
+  title: string;
+  settingSubtitle: string;
+  bubbles: readonly MasteryStoryBubbleSeed[];
+  decisions: StoryDecision[];
+  vocabIds?: string[];
+}
+
+export interface MasteryBossTurnSeed {
+  id?: string;
+  companionSayForeign: string;
+  companionSayEnglish: string;
+  companionPhonetic: string;
+  companionRomanized?: string;
+  promptEnglish: string;
+  mode: 'word_bank' | 'choice';
+  choices?: string[];
+  targetTokens?: string[];
+  distractorTokens?: string[];
+  expectedAnswer: string;
+  acceptedAnswers?: string[];
+  phoneticAnswer: string;
+  romanizedAnswer?: string;
+  victoryReplyForeign: string;
+  victoryReplyEnglish: string;
+  nuanceNote?: string;
+  registerTag?: RegisterNuanceTag;
+  allowFreeRecall?: boolean;
+  hintOverrides?: Record<string, GlossaryEntry>;
+  tapHints?: TapHintToken[];
+}
+
+export interface MasteryBossSpec {
+  id?: string;
+  title: string;
+  introLine: string;
+  turns: readonly MasteryBossTurnSeed[];
+  vocabIds?: string[];
+}
+
+export interface MasteryUnitSpec {
+  language: LanguageCode;
+  order: number;
+  id?: string;
+  proficiencyTier?: ProficiencyTier;
+  title: string;
+  culturalLandmark: string;
+  subtitle: string;
+  themeColor: string;
+  cards: readonly VocabCard[];
+  lessonMeta: readonly [
+    MasteryLessonMeta,
+    MasteryLessonMeta,
+    MasteryLessonMeta,
+    MasteryLessonMeta,
+  ];
+  clozes: readonly (Omit<ContextClozeParams, 'id'> & { id?: string })[];
+  storyNodeTitle: string;
+  storyNodeSubtitle: string;
+  story: MasteryStorySpec;
+  chestTitle: string;
+  chestSubtitle: string;
+  chestRewardVocabIds?: string[];
+  bossNodeTitle: string;
+  bossNodeSubtitle: string;
+  boss: MasteryBossSpec;
+  glossary: GlossaryMap;
+}
+
+export function compileMasteryUnit(spec: MasteryUnitSpec): CourseUnit {
+  const { language, order, cards, glossary } = spec;
+  const unitId = spec.id ?? `${language}-u${order}`;
+  const tier = spec.proficiencyTier ?? resolveUnitProficiencyTier(order);
+  const meta = LANGUAGE_META[language];
+  const isSpaceless = !meta.usesSpaces;
+  const enableFreeRecall = tier === 'B2' || tier === 'C1_C2';
+  const rewards = MASTERY_REWARDS[tier];
+
+  if (cards.length < 6) {
+    throw new Error(`compileMasteryUnit("${unitId}"): needs at least 6 VocabCards`);
+  }
+  if (spec.clozes.length < 4) {
+    throw new Error(`compileMasteryUnit("${unitId}"): needs at least 4 context clozes`);
+  }
+
+  const normalizedCards: VocabCard[] = cards.map((card) => ({
+    ...card,
+    proficiencyTier: card.proficiencyTier ?? tier,
+  }));
+
+  const seenCardEng = new Set<string>();
+  const seenCardForeign = new Set<string>();
+  const seenCardExamples = new Set<string>();
+  for (const c of normalizedCards) {
+    const fKey = c.foreignWithArticle.toLowerCase();
+    const eKey = c.english.toLowerCase();
+    const exKey = c.exampleForeign.toLowerCase();
+    if (seenCardForeign.has(fKey)) {
+      throw new Error(`compileMasteryUnit("${unitId}"): duplicate foreignWithArticle "${c.foreignWithArticle}"`);
+    }
+    if (seenCardEng.has(eKey)) {
+      throw new Error(`compileMasteryUnit("${unitId}"): duplicate english "${c.english}"`);
+    }
+    if (seenCardExamples.has(exKey)) {
+      throw new Error(`compileMasteryUnit("${unitId}"): duplicate exampleForeign "${c.exampleForeign}"`);
+    }
+    seenCardForeign.add(fKey);
+    seenCardEng.add(eKey);
+    seenCardExamples.add(exKey);
+    if (language === 'en') {
+      if (normalizeLookupKey(c.english) === normalizeLookupKey(c.bareForeign) ||
+          normalizeLookupKey(c.english) === normalizeLookupKey(c.foreignWithArticle)) {
+        throw new Error(`compileMasteryUnit("${unitId}"): English clue must differ on "${c.id}"`);
+      }
+      if (normalizeLookupKey(c.exampleEnglish) === normalizeLookupKey(c.exampleForeign)) {
+        throw new Error(`compileMasteryUnit("${unitId}"): English example clue must differ on "${c.id}"`);
+      }
+    }
+  }
+
+  const lessonNodes: MapNode[] = [];
+  const usedWbKeys = new Set<string>();
+  const usedListenKeys = new Set<string>();
+
+  for (let idx = 0; idx < 4; idx++) {
+    const lMeta = spec.lessonMeta[idx];
+    const nodeOrder = idx + 1;
+    const nodeId = `${unitId}-n${nodeOrder}`;
+    const cPrimary = normalizedCards[(idx * 2) % normalizedCards.length];
+    const cSecondary = normalizedCards[(idx * 2 + 1) % normalizedCards.length];
+    const extraDiscoveries =
+      idx === 3 && normalizedCards.length > 8
+        ? normalizedCards.slice(8).map((c, extraIdx) =>
+            discovery(`${nodeId}-e${10 + extraIdx}`, c.id, c.registerNote ?? c.grammarNote)
+          )
+        : [];
+
+    const clozeSpec = spec.clozes[idx];
+    if (
+      language === 'en' &&
+      normalizeLookupKey(clozeSpec.englishTranslation) ===
+        normalizeLookupKey(clozeSpec.fullForeignSentence)
+    ) {
+      throw new Error(
+        `compileMasteryUnit("${unitId}"): English cloze clue must differ from fullForeignSentence`
+      );
+    }
+    const clozeEx = contextCloze(
+      {
+        ...clozeSpec,
+        id: clozeSpec.id ?? `${nodeId}-cloze`,
+      },
+      glossary
+    );
+
+    const useToEnglishWb = idx % 2 === 0;
+    let wbEx: WordBankExercise;
+    if (useToEnglishWb) {
+      const targetTokens = segmentSentenceTokens(cPrimary.exampleEnglish);
+      wbEx = wordBankToEn(
+        {
+          id: `${nodeId}-wb`,
+          promptText: cPrimary.exampleForeign,
+          promptPhonetic: cPrimary.examplePhonetic,
+          ...(cPrimary.exampleRomanized ? { promptRomanized: cPrimary.exampleRomanized } : {}),
+          expectedSentence: cPrimary.exampleEnglish,
+          targetTokens,
+          distractorTokens: pickEnglishDistractorsFromCards(
+            normalizedCards,
+            targetTokens,
+            idx + 1
+          ),
+          ...(cPrimary.registerNote || cPrimary.grammarNote || lMeta.nuanceNote
+            ? { nuanceNote: cPrimary.registerNote ?? cPrimary.grammarNote ?? lMeta.nuanceNote }
+            : {}),
+          ...(lMeta.registerTag ? { registerTag: lMeta.registerTag } : {}),
+          ...(enableFreeRecall ? { allowFreeRecall: true } : {}),
+          vocabIds: [cPrimary.id],
+        },
+        glossary
+      );
+    } else {
+      const targetTokens = segmentSentenceTokens(cPrimary.exampleForeign, glossary);
+      if (isSpaceless && targetTokens.length < 2) {
+        throw new Error(
+          `compileMasteryUnit("${unitId}"): CJK wordBank "${cPrimary.exampleForeign}" segmented into < 2 tokens`
+        );
+      }
+      wbEx = wordBankToForeign({
+        id: `${nodeId}-wb`,
+        promptText: cPrimary.exampleEnglish,
+        expectedSentence: cPrimary.exampleForeign,
+        ...(cPrimary.exampleRomanized ? { acceptedSentences: [cPrimary.exampleRomanized] } : {}),
+        targetTokens,
+        distractorTokens: pickForeignDistractorsFromCards(
+          normalizedCards,
+          targetTokens,
+          glossary,
+          idx + 2
+        ),
+        phoneticHint: cPrimary.examplePhonetic,
+        ...(cPrimary.registerNote || cPrimary.grammarNote || lMeta.nuanceNote
+          ? { nuanceNote: cPrimary.registerNote ?? cPrimary.grammarNote ?? lMeta.nuanceNote }
+          : {}),
+        ...(lMeta.registerTag ? { registerTag: lMeta.registerTag } : {}),
+        ...(enableFreeRecall ? { allowFreeRecall: true } : {}),
+        vocabIds: [cPrimary.id],
+      });
+    }
+
+    const wbKey = `${wbEx.promptText.trim().toLowerCase()}||${wbEx.expectedSentence.trim().toLowerCase()}`;
+    if (usedWbKeys.has(wbKey)) {
+      throw new Error(`compileMasteryUnit("${unitId}"): duplicate WordBank key "${wbKey}"`);
+    }
+    usedWbKeys.add(wbKey);
+
+    const useListenMeaning = idx % 2 === 0;
+    let listenEx: ListenDecodeExercise;
+    if (useListenMeaning) {
+      const wordCount = segmentSentenceTokens(cSecondary.exampleForeign, glossary).length;
+      const choices = pickDistinctEnglishChoices(
+        normalizedCards,
+        cSecondary.exampleEnglish,
+        true,
+        `${nodeId}-lm`
+      );
+      listenEx = listenMeaning(
+        {
+          id: `${nodeId}-ld`,
+          audioText: cSecondary.exampleForeign,
+          phonetic: cSecondary.examplePhonetic,
+          ...(cSecondary.exampleRomanized ? { romanized: cSecondary.exampleRomanized } : {}),
+          voiceFallbackPhoneticPrompt: `Syllables: ${cSecondary.examplePhonetic.replace(/\s+/g, ' • ')} (${wordCount} ${wordCount === 1 ? 'word' : 'words'})`,
+          englishMeaning: cSecondary.exampleEnglish,
+          choices,
+          vocabIds: [cSecondary.id],
+        },
+        glossary
+      );
+    } else {
+      const targetTokens = segmentSentenceTokens(cSecondary.exampleForeign, glossary);
+      if (isSpaceless && targetTokens.length < 2) {
+        throw new Error(
+          `compileMasteryUnit("${unitId}"): CJK listenAssemble "${cSecondary.exampleForeign}" segmented into < 2 tokens`
+        );
+      }
+      listenEx = listenAssemble(
+        {
+          id: `${nodeId}-ld`,
+          audioText: cSecondary.exampleForeign,
+          phonetic: cSecondary.examplePhonetic,
+          ...(cSecondary.exampleRomanized ? { romanized: cSecondary.exampleRomanized } : {}),
+          voiceFallbackPhoneticPrompt: `Syllables: ${cSecondary.examplePhonetic.replace(/\s+/g, ' • ')} (${targetTokens.length} ${targetTokens.length === 1 ? 'word' : 'words'})`,
+          englishMeaning: cSecondary.exampleEnglish,
+          targetTokens,
+          distractorTokens: pickForeignDistractorsFromCards(
+            normalizedCards,
+            targetTokens,
+            glossary,
+            idx + 4
+          ),
+          vocabIds: [cSecondary.id],
+        },
+        glossary
+      );
+    }
+
+    const listenKey = listenEx.audioText.trim().toLowerCase();
+    if (usedListenKeys.has(listenKey)) {
+      throw new Error(`compileMasteryUnit("${unitId}"): duplicate ListenDecode audio "${listenKey}"`);
+    }
+    usedListenKeys.add(listenKey);
+
+    const pairCards: VocabCard[] = [];
+    for (let step = 0; step < 5; step++) {
+      pairCards.push(normalizedCards[(idx * 2 + step) % normalizedCards.length]);
+    }
+    const pairEx = pairMatchFromCards(
+      `${nodeId}-pm`,
+      `${spec.culturalLandmark} Match`,
+      pairCards,
+      45
+    );
+
+    const exercises: LessonExercise[] = [
+      discovery(`${nodeId}-e1`, cPrimary.id, cPrimary.registerNote ?? cPrimary.grammarNote),
+      discovery(`${nodeId}-e2`, cSecondary.id, cSecondary.registerNote ?? cSecondary.grammarNote),
+      ...extraDiscoveries,
+      clozeEx,
+      wbEx,
+      listenEx,
+      pairEx,
+    ];
+
+    lessonNodes.push(
+      lessonNode({
+        id: nodeId,
+        unitId,
+        order: nodeOrder,
+        proficiencyTier: tier,
+        title: lMeta.title,
+        subtitle: lMeta.subtitle,
+        xpReward: rewards.lessonXp,
+        gemReward: rewards.lessonGems,
+        exercises,
+        rewardVocabIds: [cPrimary.id, cSecondary.id],
+      })
+    );
+  }
+
+  const storyBubbles: StoryBubble[] = spec.story.bubbles.map((b, bIdx) => {
+    const bubbleId = b.id ?? `${unitId}-st-b${bIdx + 1}`;
+    if (b.tapHints && b.tapHints.length > 0) {
+      return {
+        id: bubbleId,
+        speakerId: b.speakerId,
+        speakerName: b.speakerName,
+        side: b.side,
+        foreignText: b.foreignText,
+        englishText: b.englishText,
+        phonetic: b.phonetic,
+        ...(b.romanized ? { romanized: b.romanized } : {}),
+        tapHints: b.tapHints,
+      };
+    }
+    return makeBubble(
+      {
+        id: bubbleId,
+        speakerId: b.speakerId,
+        speakerName: b.speakerName,
+        side: b.side,
+        foreignText: b.foreignText,
+        englishText: b.englishText,
+        phonetic: b.phonetic,
+        ...(b.romanized ? { romanized: b.romanized } : {}),
+        ...(b.hintOverrides ? { hintOverrides: b.hintOverrides } : {}),
+      },
+      glossary
+    );
+  });
+
+  const storyVocabIds = spec.story.vocabIds ?? normalizedCards.slice(0, 4).map((c) => c.id);
+  const compiledStoryNode = storyNode({
+    id: `${unitId}-n5`,
+    unitId,
+    order: 5,
+    proficiencyTier: tier,
+    title: spec.storyNodeTitle,
+    subtitle: spec.storyNodeSubtitle,
+    xpReward: rewards.storyXp,
+    gemReward: rewards.storyGems,
+    story: {
+      id: spec.story.id ?? `${unitId}-story`,
+      title: spec.story.title,
+      settingSubtitle: spec.story.settingSubtitle,
+      bubbles: storyBubbles,
+      decisions: spec.story.decisions,
+      vocabIds: storyVocabIds,
+    },
+    rewardVocabIds: storyVocabIds.slice(0, 3),
+  });
+
+  const compiledChestNode = chestNode({
+    id: `${unitId}-n6`,
+    unitId,
+    order: 6,
+    proficiencyTier: tier,
+    title: spec.chestTitle,
+    subtitle: spec.chestSubtitle,
+    xpReward: rewards.chestXp,
+    gemReward: rewards.chestGems,
+    rewardVocabIds:
+      spec.chestRewardVocabIds ?? normalizedCards.slice(0, 3).map((c) => c.id),
+  });
+
+  const bossTurns: BossTurn[] = spec.boss.turns.map((turn, tIdx) => {
+    const turnId = turn.id ?? `${unitId}-b${tIdx + 1}`;
+    const resolvedTokens =
+      turn.mode === 'word_bank'
+        ? turn.targetTokens ?? segmentSentenceTokens(turn.expectedAnswer, glossary)
+        : turn.targetTokens;
+    if (turn.mode === 'word_bank' && isSpaceless && (resolvedTokens?.length ?? 0) < 2) {
+      throw new Error(
+        `compileMasteryUnit("${unitId}"): CJK boss turn "${turn.expectedAnswer}" segmented into < 2 tokens`
+      );
+    }
+    const resolvedDistractors =
+      turn.mode === 'word_bank'
+        ? turn.distractorTokens ??
+          pickForeignDistractorsFromCards(
+            normalizedCards,
+            resolvedTokens ?? [],
+            glossary,
+            tIdx + 3
+          )
+        : turn.distractorTokens;
+
+    return makeBossTurn(
+      {
+        id: turnId,
+        companionSayForeign: turn.companionSayForeign,
+        companionSayEnglish: turn.companionSayEnglish,
+        companionPhonetic: turn.companionPhonetic,
+        ...(turn.companionRomanized ? { companionRomanized: turn.companionRomanized } : {}),
+        promptEnglish: turn.promptEnglish,
+        mode: turn.mode,
+        ...(turn.choices ? { choices: turn.choices } : {}),
+        ...(resolvedTokens ? { targetTokens: resolvedTokens } : {}),
+        ...(resolvedDistractors ? { distractorTokens: resolvedDistractors } : {}),
+        expectedAnswer: turn.expectedAnswer,
+        ...(turn.acceptedAnswers ? { acceptedAnswers: turn.acceptedAnswers } : {}),
+        phoneticAnswer: turn.phoneticAnswer,
+        ...(turn.romanizedAnswer ? { romanizedAnswer: turn.romanizedAnswer } : {}),
+        victoryReplyForeign: turn.victoryReplyForeign,
+        victoryReplyEnglish: turn.victoryReplyEnglish,
+        ...(turn.nuanceNote ? { nuanceNote: turn.nuanceNote } : {}),
+        ...(turn.registerTag ? { registerTag: turn.registerTag } : {}),
+        ...(turn.mode === 'word_bank' && enableFreeRecall
+          ? { allowFreeRecall: turn.allowFreeRecall ?? true }
+          : turn.allowFreeRecall !== undefined
+          ? { allowFreeRecall: turn.allowFreeRecall }
+          : {}),
+        ...(turn.hintOverrides ? { hintOverrides: turn.hintOverrides } : {}),
+      },
+      glossary
+    );
+  });
+
+  const bossVocabIds = spec.boss.vocabIds ?? normalizedCards.map((c) => c.id);
+  const compiledBossNode = bossNode({
+    id: `${unitId}-n7`,
+    unitId,
+    order: 7,
+    proficiencyTier: tier,
+    title: spec.bossNodeTitle,
+    subtitle: spec.bossNodeSubtitle,
+    xpReward: rewards.bossXp,
+    gemReward: rewards.bossGems,
+    boss: {
+      id: spec.boss.id ?? `${unitId}-boss`,
+      companionId: meta.companionId,
+      companionName: meta.companionName,
+      title: spec.boss.title,
+      introLine: spec.boss.introLine,
+      turns: bossTurns,
+      rewardChestGems: rewards.bossGems,
+      vocabIds: bossVocabIds,
+    },
+    rewardVocabIds: bossVocabIds.slice(0, 3),
+  });
+
+  return {
+    id: unitId,
+    language,
+    order,
+    proficiencyTier: tier,
+    title: spec.title,
+    culturalLandmark: spec.culturalLandmark,
+    subtitle: spec.subtitle,
+    themeColor: spec.themeColor,
+    vocabCards: normalizedCards,
+    nodes: [...lessonNodes, compiledStoryNode, compiledChestNode, compiledBossNode],
+  };
+}
+
+export function buildCourse(language: LanguageCode, units: CourseUnit[]): LanguageCourse {
+  const vocabById: Record<string, VocabCard> = {};
+  const normalizedUnits: CourseUnit[] = units.map((unit) => {
+    const unitTier = unit.proficiencyTier ?? resolveUnitProficiencyTier(unit.order);
+    const taggedCards: VocabCard[] = unit.vocabCards.map((card) => {
+      const tagged = card.proficiencyTier ? card : { ...card, proficiencyTier: unitTier };
+      if (vocabById[tagged.id]) {
+        throw new Error(`Duplicate VocabCard id "${tagged.id}" in "${language}"`);
+      }
+      vocabById[tagged.id] = tagged;
+      return tagged;
+    });
+    const taggedNodes: MapNode[] = unit.nodes.map((node) =>
+      node.proficiencyTier ? node : { ...node, proficiencyTier: unitTier }
+    );
+    return {
+      ...unit,
+      proficiencyTier: unitTier,
+      vocabCards: taggedCards,
+      nodes: taggedNodes,
+    };
+  });
 
   return {
     language,
     meta: LANGUAGE_META[language],
-    units,
+    units: normalizedUnits,
     vocabById,
   };
 }
