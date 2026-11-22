@@ -13,6 +13,7 @@ function toLanternItem(card: VocabCard): ArcadeLanternItem {
     foreign: card.foreignWithArticle,
     english: card.english,
     phonetic: card.phonetic,
+    ...(card.romanized ? { romanized: card.romanized } : {}),
     illustrationKey: card.illustrationKey,
   };
 }

@@ -20,6 +20,7 @@ import {
   buildTapHints,
   normalizeLookupKey,
   pairMatchFromCards,
+  segmentSentenceTokens,
   stripEdgePunctuation,
 } from './helpers';
 import type { GlossaryMap } from './helpers';
@@ -87,16 +88,21 @@ function deterministicShuffle<T>(items: readonly T[], seed: string): T[] {
   return arr;
 }
 
-function tokenizeCleanWords(sentence: string): string[] {
-  return sentence
-    .trim()
-    .split(/\s+/)
-    .map((w) => stripEdgePunctuation(w).replace(/[’‘]/g, "'"))
-    .filter(Boolean);
+const CJK_CHAR_RE = /[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/;
+
+function tokenizeCleanWords(sentence: string, glossary?: GlossaryMap): string[] {
+  return segmentSentenceTokens(sentence, glossary);
 }
 
-function normalizeSentenceKey(sentence: string): string {
-  return tokenizeCleanWords(sentence).join(' ').toLowerCase();
+function normalizeSentenceKey(sentence: string, glossary?: GlossaryMap): string {
+  return tokenizeCleanWords(sentence, glossary).join(' ').toLowerCase();
+}
+
+function cjkSpacelessVariants(text: string, glossary?: GlossaryMap): string[] {
+  if (!CJK_CHAR_RE.test(text)) return [];
+  const stripped = stripEdgePunctuation(text).replace(/\s+/g, '');
+  const tokensJoined = tokenizeCleanWords(text, glossary).join('').replace(/\s+/g, '');
+  return dedupeAccepted([stripped, tokensJoined]);
 }
 
 function dedupeAccepted(items: readonly string[]): string[] {
@@ -118,6 +124,7 @@ function pickForeignDistractors(
   unit: CourseUnit,
   targetTokens: readonly string[],
   seedOffset: number,
+  glossary: GlossaryMap,
   count = 3
 ): string[] {
   const forbidden = new Set<string>();
@@ -129,20 +136,22 @@ function pickForeignDistractors(
   const candidates: string[] = [];
   const seenCand = new Set<string>();
   const cards = unit.vocabCards;
-  for (let i = 0; i < cards.length; i++) {
-    const c = cards[(i + seedOffset) % cards.length];
-    const words = [
-      ...tokenizeCleanWords(c.foreignWithArticle),
-      ...tokenizeCleanWords(c.exampleForeign),
-    ];
-    for (const w of words) {
-      if (w.length < 2) continue;
-      const lower = w.toLowerCase();
-      const norm = normalizeLookupKey(w);
-      if (forbidden.has(lower) || forbidden.has(norm) || seenCand.has(norm)) continue;
-      seenCand.add(norm);
-      candidates.push(w);
-      if (candidates.length >= count) return candidates;
+  for (let pass = 0; pass < 2 && candidates.length < count; pass++) {
+    for (let i = 0; i < cards.length; i++) {
+      const c = cards[(i + seedOffset) % cards.length];
+      const words = [
+        ...tokenizeCleanWords(c.foreignWithArticle, glossary),
+        ...tokenizeCleanWords(c.exampleForeign, glossary),
+      ];
+      for (const w of words) {
+        if (pass === 0 && !CJK_CHAR_RE.test(w) && w.length < 2) continue;
+        const lower = w.toLowerCase();
+        const norm = normalizeLookupKey(w);
+        if (forbidden.has(lower) || forbidden.has(norm) || seenCand.has(norm)) continue;
+        seenCand.add(norm);
+        candidates.push(w);
+        if (candidates.length >= count) return candidates;
+      }
     }
   }
   return candidates;
@@ -190,10 +199,10 @@ function cardEnglishKeySet(card: VocabCard): Set<string> {
   return keys;
 }
 
-function cardForeignKeySet(card: VocabCard): Set<string> {
+function cardForeignKeySet(card: VocabCard, glossary?: GlossaryMap): Set<string> {
   const keys = new Set<string>();
   for (const s of [card.foreignWithArticle, card.bareForeign, ...card.acceptedForeign]) {
-    const clean = normalizeSentenceKey(s);
+    const clean = normalizeSentenceKey(s, glossary);
     if (clean) keys.add(clean);
   }
   return keys;
@@ -256,6 +265,7 @@ function makeDynamicWordBankToEn(
     direction: 'to_english',
     promptText: card.exampleForeign,
     promptPhonetic: card.examplePhonetic,
+    ...(card.exampleRomanized ? { promptRomanized: card.exampleRomanized } : {}),
     promptSpeakText: card.exampleForeign,
     promptTokens: buildTapHints(card.exampleForeign, glossary),
     expectedSentence: card.exampleEnglish,
@@ -277,11 +287,12 @@ function makeDynamicWordBankToForeign(
   id: string,
   card: VocabCard,
   unit: CourseUnit,
+  glossary: GlossaryMap,
   seedOffset: number
 ): WordBankExercise {
-  const targetTokens = tokenizeCleanWords(card.exampleForeign);
+  const targetTokens = tokenizeCleanWords(card.exampleForeign, glossary);
   const joined = targetTokens.join(' ');
-  const distractorTokens = pickForeignDistractors(unit, targetTokens, seedOffset);
+  const distractorTokens = pickForeignDistractors(unit, targetTokens, seedOffset, glossary);
   return {
     type: 'word_bank',
     id,
@@ -293,6 +304,9 @@ function makeDynamicWordBankToForeign(
       card.exampleForeign,
       stripEdgePunctuation(card.exampleForeign),
       joined,
+      ...cjkSpacelessVariants(card.exampleForeign, glossary),
+      ...cjkSpacelessVariants(joined, glossary),
+      ...(card.exampleRomanized ? [card.exampleRomanized] : []),
     ]),
     targetTokens,
     distractorTokens,
@@ -311,8 +325,9 @@ function makeDynamicListenMeaning(
 ): ListenDecodeExercise {
   const audioText = useExample ? card.exampleForeign : card.foreignWithArticle;
   const phonetic = useExample ? card.examplePhonetic : card.phonetic;
+  const romanized = useExample ? card.exampleRomanized : card.romanized;
   const englishMeaning = useExample ? card.exampleEnglish : card.english;
-  const wordCount = tokenizeCleanWords(audioText).length;
+  const wordCount = tokenizeCleanWords(audioText, glossary).length;
   const generatedChoices = pickEnglishChoices(unit, card, englishMeaning, useExample, id);
   const wrongLower = new Set(
     generatedChoices
@@ -328,6 +343,7 @@ function makeDynamicListenMeaning(
     mode: 'select_meaning',
     audioText,
     phonetic,
+    ...(romanized ? { romanized } : {}),
     voiceFallbackPhoneticPrompt: `Syllables: ${phonetic.replace(/\s+/g, ' • ')} (${wordCount} ${wordCount === 1 ? 'word' : 'words'})`,
     englishMeaning,
     choices: generatedChoices,
@@ -348,16 +364,17 @@ function makeDynamicListenAssemble(
   glossary: GlossaryMap,
   seedOffset: number
 ): ListenDecodeExercise {
-  const targetTokens = tokenizeCleanWords(card.exampleForeign);
+  const targetTokens = tokenizeCleanWords(card.exampleForeign, glossary);
   const joined = targetTokens.join(' ');
-  const distractorTokens = pickForeignDistractors(unit, targetTokens, seedOffset);
+  const distractorTokens = pickForeignDistractors(unit, targetTokens, seedOffset, glossary);
   return {
     type: 'listen_decode',
     id,
     mode: 'assemble_heard',
     audioText: card.exampleForeign,
     phonetic: card.examplePhonetic,
-    voiceFallbackPhoneticPrompt: `Syllables: ${card.examplePhonetic.replace(/\s+/g, ' • ')} (${targetTokens.length} words)`,
+    ...(card.exampleRomanized ? { romanized: card.exampleRomanized } : {}),
+    voiceFallbackPhoneticPrompt: `Syllables: ${card.examplePhonetic.replace(/\s+/g, ' • ')} (${targetTokens.length} ${targetTokens.length === 1 ? 'word' : 'words'})`,
     englishMeaning: card.exampleEnglish,
     targetTokens,
     distractorTokens,
@@ -365,6 +382,9 @@ function makeDynamicListenAssemble(
       card.exampleForeign,
       stripEdgePunctuation(card.exampleForeign),
       joined,
+      ...cjkSpacelessVariants(card.exampleForeign, glossary),
+      ...cjkSpacelessVariants(joined, glossary),
+      ...(card.exampleRomanized ? [card.exampleRomanized] : []),
     ]),
     tapHints: buildTapHints(card.exampleForeign, glossary),
     vocabIds: [card.id],
@@ -399,10 +419,10 @@ function buildLessonPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): L
     if (ex.type === 'word_bank') {
       const f = ex.direction === 'to_english' ? ex.promptText : ex.expectedSentence;
       const e = ex.direction === 'to_english' ? ex.expectedSentence : ex.promptText;
-      usedForeignSentences.add(normalizeSentenceKey(f));
+      usedForeignSentences.add(normalizeSentenceKey(f, glossary));
       usedEnglishSentences.add(normalizeSentenceKey(e));
     } else if (ex.type === 'listen_decode') {
-      usedListenAudio.add(normalizeSentenceKey(ex.audioText));
+      usedListenAudio.add(normalizeSentenceKey(ex.audioText, glossary));
     } else if (ex.type === 'pair_match_rush') {
       const sig = ex.pairs
         .map((p) => p.vocabId ?? p.foreign)
@@ -419,7 +439,7 @@ function buildLessonPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): L
   // 1. Add up to 4 card-example WordBank (to_english) challenges
   for (let i = 0; i < cards.length && challenges.length < 10; i++) {
     const card = cards[(lessonIndex * 3 + i) % cards.length];
-    const fk = normalizeSentenceKey(card.exampleForeign);
+    const fk = normalizeSentenceKey(card.exampleForeign, glossary);
     const ek = normalizeSentenceKey(card.exampleEnglish);
     if (usedForeignSentences.has(fk) || usedEnglishSentences.has(ek)) continue;
     usedForeignSentences.add(fk);
@@ -439,7 +459,7 @@ function buildLessonPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): L
   let wbForeignAdded = 0;
   for (let i = 0; i < cards.length && wbForeignAdded < 3; i++) {
     const card = cards[(lessonIndex * 3 + 4 + i) % cards.length];
-    const fk = normalizeSentenceKey(card.exampleForeign);
+    const fk = normalizeSentenceKey(card.exampleForeign, glossary);
     const ek = normalizeSentenceKey(card.exampleEnglish);
     if (usedForeignSentences.has(fk) || usedEnglishSentences.has(ek)) continue;
     usedForeignSentences.add(fk);
@@ -449,6 +469,7 @@ function buildLessonPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): L
         `${node.id}-pool-wbfr-${poolSeq++}`,
         card,
         unit,
+        glossary,
         i + lessonIndex + 3
       )
     );
@@ -461,7 +482,7 @@ function buildLessonPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): L
     const card = cards[(lessonIndex * 3 + 7 + i) % cards.length];
     const useExample = lmAdded === 0;
     const text = useExample ? card.exampleForeign : card.foreignWithArticle;
-    const ak = normalizeSentenceKey(text);
+    const ak = normalizeSentenceKey(text, glossary);
     if (usedListenAudio.has(ak)) continue;
     usedListenAudio.add(ak);
     challenges.push(
@@ -480,7 +501,7 @@ function buildLessonPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): L
   let laAdded = 0;
   for (let i = 0; i < cards.length && laAdded < 3; i++) {
     const card = cards[(lessonIndex * 3 + 9 + i) % cards.length];
-    const ak = normalizeSentenceKey(card.exampleForeign);
+    const ak = normalizeSentenceKey(card.exampleForeign, glossary);
     if (usedListenAudio.has(ak)) continue;
     usedListenAudio.add(ak);
     challenges.push(
@@ -546,7 +567,7 @@ function buildLessonPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): L
   // Fallback safety if any unit still needs extra challenges to guarantee >= 14 total
   for (let i = 0; i < cards.length && discoveries.length + challenges.length < 16; i++) {
     const card = cards[(lessonIndex + i) % cards.length];
-    const ak = normalizeSentenceKey(card.foreignWithArticle);
+    const ak = normalizeSentenceKey(card.foreignWithArticle, glossary);
     if (!usedListenAudio.has(ak)) {
       usedListenAudio.add(ak);
       challenges.push(
@@ -579,8 +600,8 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
   }
 
   const turnsPool: BossTurn[] = [...baseExercise.turns];
-  const usedSay = new Set(turnsPool.map((t) => normalizeSentenceKey(t.companionSayForeign)));
-  const usedExpected = new Set(turnsPool.map((t) => normalizeSentenceKey(t.expectedAnswer)));
+  const usedSay = new Set(turnsPool.map((t) => normalizeSentenceKey(t.companionSayForeign, glossary)));
+  const usedExpected = new Set(turnsPool.map((t) => normalizeSentenceKey(t.expectedAnswer, glossary)));
   const cards = unit.vocabCards;
   const langName = LANGUAGE_META[lang].name;
 
@@ -590,9 +611,9 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
     const answerCard = cards[(i * 2 + unit.order + 3) % cards.length];
     const isChoiceTurn = seq % 2 === 1;
 
-    const sayKey = normalizeSentenceKey(sayCard.exampleForeign);
+    const sayKey = normalizeSentenceKey(sayCard.exampleForeign, glossary);
     const ansText = isChoiceTurn ? answerCard.foreignWithArticle : answerCard.exampleForeign;
-    const ansKey = normalizeSentenceKey(ansText);
+    const ansKey = normalizeSentenceKey(ansText, glossary);
 
     if (usedSay.has(sayKey) || usedExpected.has(ansKey)) continue;
     usedSay.add(sayKey);
@@ -601,13 +622,13 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
     if (isChoiceTurn) {
       const choiceList = [answerCard.foreignWithArticle];
       const seenChoices = new Set([answerCard.foreignWithArticle.toLowerCase()]);
-      const forbiddenForeign = cardForeignKeySet(answerCard);
+      const forbiddenForeign = cardForeignKeySet(answerCard, glossary);
       const forbiddenEng = cardEnglishKeySet(answerCard);
       const shuffledChoicesPool = deterministicShuffle(cards, `${baseExercise.id}-pool-t${seq}-pool`);
       for (const c of shuffledChoicesPool) {
         if (seenChoices.has(c.foreignWithArticle.toLowerCase())) continue;
         let collides = false;
-        for (const fk of cardForeignKeySet(c)) {
+        for (const fk of cardForeignKeySet(c, glossary)) {
           if (forbiddenForeign.has(fk)) {
             collides = true;
             break;
@@ -629,10 +650,10 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
       const wrongLower = new Set(
         choiceList
           .filter((c) => c !== answerCard.foreignWithArticle)
-          .map((c) => normalizeSentenceKey(c))
+          .map((c) => normalizeSentenceKey(c, glossary))
       );
       const safeAcceptedForeign = answerCard.acceptedForeign.filter(
-        (af) => !wrongLower.has(normalizeSentenceKey(af))
+        (af) => !wrongLower.has(normalizeSentenceKey(af, glossary))
       );
       const shuffledChoices = deterministicShuffle(choiceList, `${baseExercise.id}-pool-t${seq}`);
       turnsPool.push({
@@ -640,6 +661,7 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
         companionSayForeign: sayCard.exampleForeign,
         companionSayEnglish: sayCard.exampleEnglish,
         companionPhonetic: sayCard.examplePhonetic,
+        ...(sayCard.exampleRomanized ? { companionRomanized: sayCard.exampleRomanized } : {}),
         tapHints: buildTapHints(sayCard.exampleForeign, glossary),
         promptEnglish: `Pick the ${langName} phrase for "${answerCard.english}":`,
         mode: 'choice',
@@ -648,21 +670,24 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
         acceptedAnswers: dedupeAccepted([
           answerCard.foreignWithArticle,
           stripEdgePunctuation(answerCard.foreignWithArticle),
+          ...cjkSpacelessVariants(answerCard.foreignWithArticle, glossary),
           ...safeAcceptedForeign,
         ]),
         phoneticAnswer: answerCard.phonetic,
+        ...(answerCard.romanized ? { romanizedAnswer: answerCard.romanized } : {}),
         victoryReplyForeign: answerCard.exampleForeign,
         victoryReplyEnglish: answerCard.exampleEnglish,
       });
     } else {
-      const targetTokens = tokenizeCleanWords(answerCard.exampleForeign);
+      const targetTokens = tokenizeCleanWords(answerCard.exampleForeign, glossary);
       const joined = targetTokens.join(' ');
-      const distractors = pickForeignDistractors(unit, targetTokens, i + unit.order + 2);
+      const distractors = pickForeignDistractors(unit, targetTokens, i + unit.order + 2, glossary);
       turnsPool.push({
         id: `${baseExercise.id}-pool-t${seq}`,
         companionSayForeign: sayCard.exampleForeign,
         companionSayEnglish: sayCard.exampleEnglish,
         companionPhonetic: sayCard.examplePhonetic,
+        ...(sayCard.exampleRomanized ? { companionRomanized: sayCard.exampleRomanized } : {}),
         tapHints: buildTapHints(sayCard.exampleForeign, glossary),
         promptEnglish: `Build in ${langName}: "${answerCard.exampleEnglish}"`,
         mode: 'word_bank',
@@ -673,8 +698,12 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
           answerCard.exampleForeign,
           stripEdgePunctuation(answerCard.exampleForeign),
           joined,
+          ...cjkSpacelessVariants(answerCard.exampleForeign, glossary),
+          ...cjkSpacelessVariants(joined, glossary),
+          ...(answerCard.exampleRomanized ? [answerCard.exampleRomanized] : []),
         ]),
         phoneticAnswer: answerCard.examplePhonetic,
+        ...(answerCard.exampleRomanized ? { romanizedAnswer: answerCard.exampleRomanized } : {}),
         victoryReplyForeign: answerCard.foreignWithArticle,
         victoryReplyEnglish: answerCard.english,
       });
@@ -711,7 +740,7 @@ function buildStoryPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): St
   bonusChallenges.push(
     makeDynamicWordBankToEn(`${node.id}-pool-bonus-1`, c1, unit, glossary, 2),
     makeDynamicListenMeaning(`${node.id}-pool-bonus-2`, c2, unit, glossary, true),
-    makeDynamicWordBankToForeign(`${node.id}-pool-bonus-3`, c3, unit, 5),
+    makeDynamicWordBankToForeign(`${node.id}-pool-bonus-3`, c3, unit, glossary, 5),
     makeDynamicListenAssemble(`${node.id}-pool-bonus-4`, c4, unit, glossary, 7)
   );
 

@@ -28,6 +28,7 @@ const VALID_ILLUSTRATIONS = new Set<string>(ILLUSTRATION_KEYS);
 export interface GlossaryEntry {
   translation: string;
   phonetic: string;
+  romanized?: string;
   articleNote?: string;
   accentNote?: string;
   speakText?: string;
@@ -35,7 +36,12 @@ export interface GlossaryEntry {
 
 export type GlossaryMap = Record<string, GlossaryEntry>;
 
-const EDGE_PUNCTUATION_RE = /^[¡!¿?.,;:()[\]«»"“”„]+|[¡!¿?.,;:()[\]«»"“”„]+$/g;
+const EDGE_PUNCTUATION_RE =
+  /^[¡!¿?.,;:()[\]«»"“”„。？！，、・「」『』（）【】《》〈〉؟،؛।॥…—–～·]+|[¡!¿?.,;:()[\]«»"“”„。？！，、・「」『』（）【】《》〈〉؟،؛।॥…—–～·]+$/g;
+const INTERNAL_PUNCT_SPLIT_RE =
+  /[¡!¿?.,;:()[\]«»"“”„。？！，、・「」『』（）【】《》〈〉؟،؛।॥…—–～·]+/;
+const CJK_CHAR_RE = /[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/;
+const ARABIC_DIACRITICS_RE = /[\u064B-\u065F\u0670\u0640]/g;
 
 export function stripEdgePunctuation(word: string): string {
   return word.replace(EDGE_PUNCTUATION_RE, '');
@@ -46,8 +52,13 @@ export function normalizeLookupKey(raw: string): string {
     .trim()
     .replace(/[’‘]/g, "'")
     .toLowerCase()
+    .replace(ARABIC_DIACRITICS_RE, '')
+    .replace(/[أإآٱ]/g, 'ا')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .normalize('NFC')
+    .replace(/đ/g, 'd')
+    .replace(/ё/g, 'е')
     .replace(/ß/g, 'ss')
     .replace(/œ/g, 'oe')
     .replace(/æ/g, 'ae');
@@ -68,28 +79,94 @@ function dedupeStrings(items: readonly string[]): string[] {
   return out;
 }
 
+function lookupGlossaryEntry(
+  surface: string,
+  glossary?: GlossaryMap,
+  overrides?: Record<string, GlossaryEntry>
+): GlossaryEntry | undefined {
+  if (!surface) return undefined;
+  const lower = surface.toLowerCase();
+  const normKey = normalizeLookupKey(surface);
+  return (
+    overrides?.[surface] ??
+    overrides?.[lower] ??
+    overrides?.[normKey] ??
+    glossary?.[surface] ??
+    glossary?.[lower] ??
+    glossary?.[normKey]
+  );
+}
+
+/**
+ * Splits a sentence into clean word/character tokens, supporting Latin/Cyrillic/Arabic/Indic
+ * whitespace + international punctuation as well as greedy longest-match CJK/Kana segmentation.
+ */
+export function segmentSentenceTokens(
+  sentence: string,
+  glossary?: GlossaryMap,
+  overrides?: Record<string, GlossaryEntry>
+): string[] {
+  const rawParts = sentence.trim().split(/\s+/);
+  const tokens: string[] = [];
+
+  for (const raw of rawParts) {
+    const cleaned = stripEdgePunctuation(raw).replace(/[’‘]/g, "'");
+    if (!cleaned) continue;
+
+    const subParts = cleaned.split(INTERNAL_PUNCT_SPLIT_RE).filter(Boolean);
+    for (const part of subParts) {
+      if (!CJK_CHAR_RE.test(part) || (!glossary && !overrides)) {
+        tokens.push(part);
+        continue;
+      }
+
+      if (lookupGlossaryEntry(part, glossary, overrides)) {
+        tokens.push(part);
+        continue;
+      }
+
+      let i = 0;
+      while (i < part.length) {
+        let matched = '';
+        const maxLen = Math.min(12, part.length - i);
+        for (let len = maxLen; len >= 1; len--) {
+          const slice = part.slice(i, i + len);
+          if (lookupGlossaryEntry(slice, glossary, overrides)) {
+            matched = slice;
+            break;
+          }
+        }
+        if (matched) {
+          tokens.push(matched);
+          i += matched.length;
+        } else if (/[A-Za-z0-9'-]/.test(part[i])) {
+          const rest = part.slice(i);
+          const asciiMatch = rest.match(/^[A-Za-z0-9'-]+/);
+          const asciiTok = asciiMatch ? asciiMatch[0] : part[i];
+          tokens.push(asciiTok);
+          i += asciiTok.length;
+        } else {
+          tokens.push(part[i]);
+          i += 1;
+        }
+      }
+    }
+  }
+
+  return tokens;
+}
+
 export function buildTapHints(
   sentence: string,
   glossary: GlossaryMap,
   overrides?: Record<string, GlossaryEntry>
 ): TapHintToken[] {
-  const rawParts = sentence.trim().split(/\s+/);
+  const surfaces = segmentSentenceTokens(sentence, glossary, overrides);
   const tokens: TapHintToken[] = [];
 
-  for (const raw of rawParts) {
-    const surface = stripEdgePunctuation(raw).replace(/[’‘]/g, "'");
-    if (!surface) continue;
-
-    const lower = surface.toLowerCase();
+  for (const surface of surfaces) {
     const normKey = normalizeLookupKey(surface);
-
-    const entry =
-      overrides?.[surface] ??
-      overrides?.[lower] ??
-      overrides?.[normKey] ??
-      glossary[surface] ??
-      glossary[lower] ??
-      glossary[normKey];
+    const entry = lookupGlossaryEntry(surface, glossary, overrides);
 
     if (!entry) {
       throw new Error(
@@ -102,6 +179,7 @@ export function buildTapHints(
       normalizedId: normKey,
       translation: entry.translation,
       phonetic: entry.phonetic,
+      ...(entry.romanized ? { romanized: entry.romanized } : {}),
       ...(entry.articleNote ? { articleNote: entry.articleNote } : {}),
       ...(entry.accentNote ? { accentNote: entry.accentNote } : {}),
       speakText: entry.speakText ?? surface,
@@ -109,6 +187,13 @@ export function buildTapHints(
   }
 
   return tokens;
+}
+
+function cjkSpacelessVariants(text: string): string[] {
+  if (!CJK_CHAR_RE.test(text)) return [];
+  const clean = stripEdgePunctuation(text).replace(/\s+/g, '');
+  const noPunct = text.replace(INTERNAL_PUNCT_SPLIT_RE, '').replace(/\s+/g, '');
+  return dedupeStrings([clean, noPunct]);
 }
 
 export interface CardSeed {
@@ -121,11 +206,13 @@ export interface CardSeed {
   acceptedEnglish?: string[];
   acceptedForeign?: string[];
   phonetic: string;
+  romanized?: string;
   accentCallout?: AccentCallout;
   illustrationKey: IllustrationKey;
   exampleForeign: string;
   exampleEnglish: string;
   examplePhonetic: string;
+  exampleRomanized?: string;
 }
 
 export function makeCard(language: LanguageCode, unitId: string, seed: CardSeed): VocabCard {
@@ -147,6 +234,7 @@ export function makeCard(language: LanguageCode, unitId: string, seed: CardSeed)
     cleanWithArt,
     seed.bareForeign,
     cleanBare,
+    ...(seed.romanized ? [seed.romanized] : []),
     ...(seed.acceptedForeign ?? []),
   ]);
 
@@ -162,11 +250,13 @@ export function makeCard(language: LanguageCode, unitId: string, seed: CardSeed)
     acceptedEnglish,
     acceptedForeign,
     phonetic: seed.phonetic,
+    ...(seed.romanized ? { romanized: seed.romanized } : {}),
     ...(seed.accentCallout ? { accentCallout: seed.accentCallout } : {}),
     illustrationKey: seed.illustrationKey,
     exampleForeign: seed.exampleForeign,
     exampleEnglish: seed.exampleEnglish,
     examplePhonetic: seed.examplePhonetic,
+    ...(seed.exampleRomanized ? { exampleRomanized: seed.exampleRomanized } : {}),
   };
 }
 
@@ -183,6 +273,7 @@ export function buildGlossaryFromCards(
       const entry: GlossaryEntry = {
         translation: c.english.replace(/^the\s+/i, ''),
         phonetic: c.phonetic,
+        ...(c.romanized ? { romanized: c.romanized } : {}),
         ...(c.article
           ? { articleNote: `Used with "${c.article}" (${c.gender})` }
           : {}),
@@ -202,6 +293,7 @@ export function buildGlossaryFromCards(
       const entry: GlossaryEntry = {
         translation: c.english,
         phonetic: c.phonetic,
+        ...(c.romanized ? { romanized: c.romanized } : {}),
         ...(c.accentCallout
           ? { accentNote: `${c.accentCallout.char}: ${c.accentCallout.tip}` }
           : {}),
@@ -216,6 +308,7 @@ export function buildGlossaryFromCards(
       const elidedEntry: GlossaryEntry = {
         translation: c.english,
         phonetic: c.phonetic,
+        ...(c.romanized ? { romanized: c.romanized } : {}),
         ...(c.article
           ? { articleNote: `Elided article "${c.article}" (${c.gender}) before vowel` }
           : {}),
@@ -284,6 +377,7 @@ export function wordBankToEn(
     id: string;
     promptText: string;
     promptPhonetic: string;
+    promptRomanized?: string;
     promptSpeakText?: string;
     expectedSentence: string;
     acceptedSentences?: string[];
@@ -309,6 +403,7 @@ export function wordBankToEn(
     direction: 'to_english',
     promptText: params.promptText,
     promptPhonetic: params.promptPhonetic,
+    ...(params.promptRomanized ? { promptRomanized: params.promptRomanized } : {}),
     promptSpeakText: params.promptSpeakText ?? params.promptText,
     promptTokens: buildTapHints(params.promptText, glossary, params.hintOverrides),
     expectedSentence: params.expectedSentence,
@@ -337,6 +432,8 @@ export function wordBankToForeign(params: {
     params.expectedSentence,
     joined,
     stripEdgePunctuation(params.expectedSentence),
+    ...cjkSpacelessVariants(params.expectedSentence),
+    ...cjkSpacelessVariants(joined),
     ...(params.acceptedSentences ?? []),
   ]);
 
@@ -361,6 +458,7 @@ export function listenMeaning(
     id: string;
     audioText: string;
     phonetic: string;
+    romanized?: string;
     voiceFallbackPhoneticPrompt: string;
     englishMeaning: string;
     choices: string[];
@@ -387,6 +485,7 @@ export function listenMeaning(
     mode: 'select_meaning',
     audioText: params.audioText,
     phonetic: params.phonetic,
+    ...(params.romanized ? { romanized: params.romanized } : {}),
     voiceFallbackPhoneticPrompt: params.voiceFallbackPhoneticPrompt,
     englishMeaning: params.englishMeaning,
     choices: params.choices,
@@ -406,6 +505,7 @@ export function listenAssemble(
     id: string;
     audioText: string;
     phonetic: string;
+    romanized?: string;
     voiceFallbackPhoneticPrompt: string;
     englishMeaning: string;
     targetTokens: string[];
@@ -423,6 +523,7 @@ export function listenAssemble(
     mode: 'assemble_heard',
     audioText: params.audioText,
     phonetic: params.phonetic,
+    ...(params.romanized ? { romanized: params.romanized } : {}),
     voiceFallbackPhoneticPrompt: params.voiceFallbackPhoneticPrompt,
     englishMeaning: params.englishMeaning,
     targetTokens: params.targetTokens,
@@ -431,6 +532,9 @@ export function listenAssemble(
       params.audioText,
       joined,
       stripEdgePunctuation(params.audioText),
+      ...cjkSpacelessVariants(params.audioText),
+      ...cjkSpacelessVariants(joined),
+      ...(params.romanized ? [params.romanized] : []),
       ...(params.acceptedAnswers ?? []),
     ]),
     tapHints: buildTapHints(params.audioText, glossary, params.hintOverrides),
@@ -449,6 +553,7 @@ export function pairMatchFromCards(
     foreign: c.foreignWithArticle,
     english: c.english,
     phonetic: c.phonetic,
+    ...(c.romanized ? { romanized: c.romanized } : {}),
     vocabId: c.id,
   }));
   return {
@@ -469,6 +574,7 @@ export function makeBubble(
     foreignText: string;
     englishText: string;
     phonetic: string;
+    romanized?: string;
     hintOverrides?: Record<string, GlossaryEntry>;
   },
   glossary: GlossaryMap
@@ -481,6 +587,7 @@ export function makeBubble(
     foreignText: params.foreignText,
     englishText: params.englishText,
     phonetic: params.phonetic,
+    ...(params.romanized ? { romanized: params.romanized } : {}),
     tapHints: buildTapHints(params.foreignText, glossary, params.hintOverrides),
   };
 }
@@ -491,6 +598,7 @@ export function makeBossTurn(
     companionSayForeign: string;
     companionSayEnglish: string;
     companionPhonetic: string;
+    companionRomanized?: string;
     promptEnglish: string;
     mode: 'word_bank' | 'choice';
     choices?: string[];
@@ -499,6 +607,7 @@ export function makeBossTurn(
     expectedAnswer: string;
     acceptedAnswers?: string[];
     phoneticAnswer: string;
+    romanizedAnswer?: string;
     victoryReplyForeign: string;
     victoryReplyEnglish: string;
     hintOverrides?: Record<string, GlossaryEntry>;
@@ -519,16 +628,21 @@ export function makeBossTurn(
   const bareNounChoices: string[] = [];
   if (params.mode === 'choice') {
     const cleanExp = stripEdgePunctuation(params.expectedAnswer).trim();
-    const m = cleanExp.match(/^(?:el|la|los|las|le|l'|un|una|une|der|die|das|ein|eine|einen|il|lo|gli)\s*([a-z\u00C0-\u024F-]+)$/i);
+    const m = cleanExp.match(/^(?:el|la|los|las|le|l'|un|una|une|der|die|das|ein|eine|einen|il|lo|gli|o|a|os|as|um|uma)\s*([a-z\u00C0-\u024F-]+)$/i);
     if (m && m[1] && !wrongChoiceLower.has(m[1].toLowerCase())) {
       bareNounChoices.push(m[1]);
     }
   }
+  const safeRomanized =
+    params.romanizedAnswer && !wrongChoiceLower.has(stripEdgePunctuation(params.romanizedAnswer).toLowerCase())
+      ? [params.romanizedAnswer]
+      : [];
   return {
     id: params.id,
     companionSayForeign: params.companionSayForeign,
     companionSayEnglish: params.companionSayEnglish,
     companionPhonetic: params.companionPhonetic,
+    ...(params.companionRomanized ? { companionRomanized: params.companionRomanized } : {}),
     tapHints: buildTapHints(params.companionSayForeign, glossary, params.hintOverrides),
     promptEnglish: params.promptEnglish,
     mode: params.mode,
@@ -540,10 +654,14 @@ export function makeBossTurn(
       params.expectedAnswer,
       ...(joined ? [joined] : []),
       stripEdgePunctuation(params.expectedAnswer),
+      ...cjkSpacelessVariants(params.expectedAnswer),
+      ...(joined ? cjkSpacelessVariants(joined) : []),
       ...bareNounChoices,
+      ...safeRomanized,
       ...(params.acceptedAnswers ?? []),
     ]),
     phoneticAnswer: params.phoneticAnswer,
+    ...(params.romanizedAnswer ? { romanizedAnswer: params.romanizedAnswer } : {}),
     victoryReplyForeign: params.victoryReplyForeign,
     victoryReplyEnglish: params.victoryReplyEnglish,
   };
