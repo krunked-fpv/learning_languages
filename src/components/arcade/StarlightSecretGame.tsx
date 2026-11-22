@@ -1,16 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { Music, Play, Star, Volume2, X } from 'lucide-react';
+import { Music, Play, Star, X } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
 import { useVaultStore, vaultActions } from '../../store/useVaultStore';
-import type { ArcadeLanternItem, CharacterPose, CompanionId } from '../../types/contracts';
+import { LANGUAGE_META, type ArcadeLanternItem, type CharacterPose, type CompanionId } from '../../types/contracts';
 import { MascotStage } from '../characters/MascotStage';
 import {
   ARCADE_SHELL_STYLE,
   ArcadeSummaryCard,
   CARD_SURFACE_STYLE,
   SOFT_BTN_STYLE,
+  TargetPromptBar,
+  getArcadeForeignTextStyle,
   useArcadeContainerMetrics,
   useArcadeDeck,
 } from './arcadeShared';
@@ -44,6 +46,7 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
   const { activeProfile } = useVaultStore();
   const { language, lexicon, bestScoreFor } = useArcadeDeck();
   const { containerRef, isCompact } = useArcadeContainerMetrics();
+  const langDir = LANGUAGE_META[language].dir;
 
   const [phase, setPhase] = useState<'ready' | 'playing' | 'summary'>('ready');
   const [timeLeft, setTimeLeft] = useState(ROUND_DURATION_SECONDS);
@@ -53,7 +56,7 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
   const [targetItem, setTargetItem] = useState<ArcadeLanternItem>(() => lexicon[0]);
   const [bubbles, setBubbles] = useState<SongBubbleEntity[]>([]);
   const [wobbleUid, setWobbleUid] = useState<number | null>(null);
-  const [toast, setToast] = useState<string>('Pop the floating Song-Bubble matching the clue!');
+  const [toast, setToast] = useState<ReactNode>('Pop the floating Song-Bubble matching the clue!');
   const [summary, setSummary] = useState<{
     score: number;
     heartsWon: number;
@@ -74,6 +77,13 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
   const nextUidRef = useRef(1);
   const finishedRef = useRef(false);
   const timersRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    if (phase === 'ready' && lexicon.length > 0) {
+      targetRef.current = lexicon[0];
+      setTargetItem(lexicon[0]);
+    }
+  }, [phase, lexicon]);
 
   useEffect(() => {
     return () => {
@@ -224,7 +234,7 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
             uid: nextUidRef.current++,
             kind: 'word',
             item: chosen,
-            x: 18 + Math.random() * 64,
+            x: 21 + Math.random() * 58,
             y: 100,
             speed: 13 + Math.random() * 6,
             swayOffset: Math.random() * Math.PI * 2,
@@ -237,8 +247,8 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
       for (const b of bubblesRef.current) {
         const nextY = b.y - b.speed * dt;
         const swayX = Math.max(
-          16,
-          Math.min(84, b.x + Math.sin(elapsedRef.current * 2.2 + b.swayOffset) * 5 * dt)
+          19,
+          Math.min(81, b.x + Math.sin(elapsedRef.current * 2.2 + b.swayOffset) * 5 * dt)
         );
         if (nextY > -12) {
           nextList.push({ ...b, x: swayX, y: nextY });
@@ -286,15 +296,20 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
       });
 
       const poppedId = bubble.item.id;
+      const poppedForeign = bubble.item.foreign;
       bubblesRef.current = bubblesRef.current.filter(
         (b) => !(b.kind === 'word' && b.item?.id === poppedId)
       );
       setBubbles([...bubblesRef.current]);
       spawnTimerRef.current = 0.75;
       setToast(
-        isDisco
-          ? `STARLIGHT DISCO FEVER! +${pts} pts!`
-          : `Popped "${bubble.item.foreign}"! +${pts} pts!`
+        isDisco ? (
+          `STARLIGHT DISCO FEVER! +${pts} pts!`
+        ) : (
+          <>
+            Popped “<bdi dir={langDir}>{poppedForeign}</bdi>”! +{pts} pts!
+          </>
+        )
       );
       pickNextTarget(poppedId, false);
       if (!isDisco) {
@@ -339,7 +354,7 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
           borderColor: '#818cf8',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, maxWidth: '100%', flex: '1 1 160px' }}>
           <div
             style={{
               width: isCompact ? 32 : 36,
@@ -501,119 +516,61 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
       {/* Active Musical Stage */}
       {phase === 'playing' ? (
         <>
-          <div
-            style={{
-              ...CARD_SURFACE_STYLE,
-              flexShrink: 0,
-              padding: isCompact ? '6px 10px' : '8px 14px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 8,
-              flexWrap: 'wrap',
-              borderRadius: 16,
-              borderColor: discoActive ? '#f43f5e' : '#fbbf24',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-              <span
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: isCompact ? '0.72rem' : '0.8rem',
-                  fontWeight: 900,
-                  color: '#f59e0b',
-                }}
-              >
-                POP SONG-BUBBLE:
-              </span>
-              <strong
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: isCompact ? '0.98rem' : '1.12rem',
-                  color: 'var(--text-main, #1e1b4b)',
-                }}
-              >
-                {targetItem.english}
-              </strong>
-              <span
-                style={{
-                  padding: '2px 8px',
-                  borderRadius: 999,
-                  background: '#eef2ff',
-                  color: '#4338ca',
-                  fontSize: isCompact ? '0.72rem' : '0.78rem',
-                  fontWeight: 800,
-                }}
-              >
-                {targetItem.phonetic}
-              </span>
-              <button
-                type="button"
-                className="tactile-btn"
-                style={{
-                  ...SOFT_BTN_STYLE,
-                  padding: '3px 8px',
-                  fontSize: '0.75rem',
-                  borderRadius: 10,
-                }}
-                onClick={() => {
-                  void speakPhrase({
-                    text: targetItem.foreign,
-                    language,
-                    phonetic: targetItem.phonetic,
-                  });
-                }}
-              >
-                <Volume2 size={13} /> Hear
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: isCompact ? 88 : 112 }}>
-                <div
-                  style={{
-                    fontSize: '0.68rem',
-                    fontWeight: 900,
-                    color: discoActive ? '#f43f5e' : 'var(--text-muted, #4338ca)',
-                  }}
-                >
-                  {discoActive ? 'DISCO FEVER 2x!' : `Disco ${streak}/5`}
-                </div>
-                <div
-                  style={{
-                    height: 7,
-                    borderRadius: 999,
-                    background: 'rgba(148, 163, 184, 0.35)',
-                    overflow: 'hidden',
-                  }}
-                >
+          <TargetPromptBar
+            label="POP SONG-BUBBLE:"
+            targetItem={targetItem}
+            language={language}
+            isCompact={isCompact}
+            borderColor={discoActive ? '#f43f5e' : '#fbbf24'}
+            rightContent={
+              <>
+                <div style={{ width: isCompact ? 82 : 112 }}>
                   <div
                     style={{
-                      width: `${discoPct}%`,
-                      height: '100%',
-                      background: discoActive
-                        ? 'linear-gradient(90deg, #f43f5e, #f59e0b, #6366f1)'
-                        : '#6366f1',
-                      transition: 'width 180ms ease',
+                      fontSize: '0.68rem',
+                      fontWeight: 900,
+                      color: discoActive ? '#f43f5e' : 'var(--text-muted, #4338ca)',
+                      whiteSpace: 'nowrap',
                     }}
-                  />
+                  >
+                    {discoActive ? 'DISCO FEVER 2x!' : `Disco ${streak}/5`}
+                  </div>
+                  <div
+                    style={{
+                      height: 7,
+                      borderRadius: 999,
+                      background: 'rgba(148, 163, 184, 0.35)',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${discoPct}%`,
+                        height: '100%',
+                        background: discoActive
+                          ? 'linear-gradient(90deg, #f43f5e, #f59e0b, #6366f1)'
+                          : '#6366f1',
+                        transition: 'width 180ms ease',
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <button
-                type="button"
-                className="tactile-btn tactile-btn-success"
-                style={{
-                  padding: isCompact ? '5px 10px' : '6px 12px',
-                  fontSize: isCompact ? '0.76rem' : '0.82rem',
-                  borderRadius: 12,
-                }}
-                onClick={finishRun}
-              >
-                Claim Rewards
-              </button>
-            </div>
-          </div>
+                <button
+                  type="button"
+                  className="tactile-btn tactile-btn-success"
+                  style={{
+                    padding: isCompact ? '5px 10px' : '6px 12px',
+                    fontSize: isCompact ? '0.76rem' : '0.82rem',
+                    borderRadius: 12,
+                  }}
+                  onClick={finishRun}
+                >
+                  Claim Rewards
+                </button>
+              </>
+            }
+          />
 
           {/* Floating Bubbles Stage + 5-Companion Choir */}
           <div
@@ -643,6 +600,7 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
                 top: 8,
                 left: '50%',
                 transform: 'translateX(-50%)',
+                maxWidth: 'calc(100% - 16px)',
                 padding: '3px 11px',
                 borderRadius: 999,
                 background: 'rgba(15, 23, 42, 0.78)',
@@ -650,6 +608,8 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
                 fontSize: '0.75rem',
                 fontWeight: 800,
                 whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
                 zIndex: 5,
                 pointerEvents: 'none',
               }}
@@ -672,6 +632,7 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
                       left: `${b.x}%`,
                       top: `${b.y}%`,
                       transform: 'translate(-50%, -50%)',
+                      willChange: 'top, left',
                       padding: '6px 11px',
                       borderRadius: 999,
                       background: 'linear-gradient(135deg, #fde047 0%, #f59e0b 100%)',
@@ -704,6 +665,7 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
                 <motion.button
                   key={b.uid}
                   type="button"
+                  dir={langDir}
                   onClick={() => handlePopBubble(b)}
                   animate={isWobbling ? { x: [-6, 6, -4, 4, 0] } : { x: 0 }}
                   transition={{ duration: 0.35 }}
@@ -713,8 +675,9 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
                     left: `${b.x}%`,
                     top: `${b.y}%`,
                     transform: 'translate(-50%, -50%)',
+                    willChange: 'top, left',
                     padding: isCompact ? '5px 9px' : '6px 11px',
-                    borderRadius: 999,
+                    borderRadius: 24,
                     background: pal.bg,
                     borderTopWidth: 2,
                     borderRightWidth: 2,
@@ -723,24 +686,30 @@ export function StarlightSecretGame({ onExit }: StarlightSecretGameProps) {
                     borderStyle: 'solid',
                     borderColor: pal.border,
                     color: pal.text,
-                    fontWeight: 900,
-                    fontSize: isCompact ? '0.78rem' : '0.85rem',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 5,
-                    maxWidth: isCompact ? '46%' : 'none',
-                    whiteSpace: 'nowrap',
+                    maxWidth: isCompact ? '44%' : '250px',
                     cursor: 'pointer',
                     boxShadow: '0 8px 20px rgba(0, 0, 0, 0.25)',
                     zIndex: 8,
                   }}
                 >
-                  <VocabIllustration
-                    illustrationKey={b.item.illustrationKey}
-                    language={language}
-                    size={isCompact ? 22 : 26}
-                  />
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                    <VocabIllustration
+                      illustrationKey={b.item.illustrationKey}
+                      language={language}
+                      size={isCompact ? 20 : 26}
+                    />
+                  </span>
+                  <span
+                    dir={langDir}
+                    style={getArcadeForeignTextStyle(language, b.item.foreign, {
+                      isCompact,
+                      density: 'normal',
+                      color: pal.text,
+                    })}
+                  >
                     {b.item.foreign}
                   </span>
                 </motion.button>

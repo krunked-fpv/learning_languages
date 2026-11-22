@@ -1,16 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Volume2 } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
 import { vaultActions } from '../../store/useVaultStore';
-import type { ArcadeLanternItem } from '../../types/contracts';
+import { LANGUAGE_META, type ArcadeLanternItem } from '../../types/contracts';
 import { ConstellationMemoryEmblem } from './ArcadeEmblems';
 import {
   ARCADE_SHELL_STYLE,
   ArcadeHeaderBar,
   ArcadeReadyCard,
   ArcadeSummaryCard,
+  getArcadeForeignTextStyle,
   useArcadeContainerMetrics,
   useArcadeDeck,
 } from './arcadeShared';
@@ -52,6 +53,7 @@ export interface ConstellationMemoryArcadeProps {
 export function ConstellationMemoryArcade({ onExit }: ConstellationMemoryArcadeProps) {
   const { language, lexicon, bestScoreFor } = useArcadeDeck();
   const { containerRef, isCompact, isNarrow } = useArcadeContainerMetrics();
+  const langDir = LANGUAGE_META[language].dir;
 
   const [phase, setPhase] = useState<'ready' | 'playing' | 'summary'>('ready');
   const [timeLeft, setTimeLeft] = useState(ROUND_DURATION_SECONDS);
@@ -65,7 +67,7 @@ export function ConstellationMemoryArcade({ onExit }: ConstellationMemoryArcadeP
   const [constellationLinks, setConstellationLinks] = useState<
     Array<{ id: string; aIdx: number; bIdx: number }>
   >([]);
-  const [toast, setToast] = useState<string>('Match each picture star with its word twin!');
+  const [toast, setToast] = useState<ReactNode>('Match each picture star with its word twin!');
   const [summary, setSummary] = useState<{
     score: number;
     heartsWon: number;
@@ -229,7 +231,11 @@ export function ConstellationMemoryArcade({ onExit }: ConstellationMemoryArcadeP
         language,
         phonetic: firstCard.item.phonetic,
       });
-      setToast(`Star twin "${firstCard.item.foreign}" = ${firstCard.item.english}! +${pts}`);
+      setToast(
+        <>
+          Star twin “<bdi dir={langDir}>{firstCard.item.foreign}</bdi>” = {firstCard.item.english}! +{pts}
+        </>
+      );
 
       if (nextMatched.length >= cards.length / 2) {
         lockBoardRef.current = true;
@@ -320,7 +326,7 @@ export function ConstellationMemoryArcade({ onExit }: ConstellationMemoryArcadeP
               color: 'var(--text-main, #1e1b4b)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
               <span
                 style={{
                   padding: '2px 9px',
@@ -442,6 +448,7 @@ export function ConstellationMemoryArcade({ onExit }: ConstellationMemoryArcadeP
                   <motion.button
                     key={card.uid}
                     type="button"
+                    dir={revealed && card.side === 'phrase' ? langDir : 'ltr'}
                     aria-label={
                       revealed
                         ? card.side === 'picture'
@@ -493,21 +500,30 @@ export function ConstellationMemoryArcade({ onExit }: ConstellationMemoryArcadeP
                     {revealed ? (
                       card.side === 'picture' ? (
                         <>
-                          <VocabIllustration
-                            illustrationKey={card.item.illustrationKey}
-                            language={language}
-                            size={isCompact ? 34 : 48}
-                          />
+                          <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                            <VocabIllustration
+                              illustrationKey={card.item.illustrationKey}
+                              language={language}
+                              size={isCompact ? 28 : 46}
+                            />
+                          </span>
                           <span
+                            dir="ltr"
                             style={{
                               fontWeight: 900,
-                              fontSize: isCompact ? '0.68rem' : '0.8rem',
-                              lineHeight: 1.15,
+                              fontSize:
+                                card.item.english.length > 20
+                                  ? isCompact
+                                    ? '0.6rem'
+                                    : '0.72rem'
+                                  : isCompact
+                                    ? '0.68rem'
+                                    : '0.8rem',
+                              lineHeight: 1.24,
                               color: '#1e1b4b',
                               textAlign: 'center',
                               maxWidth: '100%',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
+                              overflowWrap: 'break-word',
                             }}
                           >
                             {card.item.english}
@@ -515,32 +531,35 @@ export function ConstellationMemoryArcade({ onExit }: ConstellationMemoryArcadeP
                         </>
                       ) : (
                         <>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 3, color: '#4f46e5' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 3, color: '#4f46e5', flexShrink: 0 }}>
                             <Volume2 size={isCompact ? 12 : 14} />
                           </div>
                           <span
-                            style={{
-                              fontFamily: 'var(--font-display)',
-                              fontWeight: 900,
-                              fontSize: isCompact ? '0.72rem' : '0.92rem',
-                              lineHeight: 1.15,
+                            dir={langDir}
+                            style={getArcadeForeignTextStyle(language, card.item.foreign, {
+                              isCompact,
+                              density: 'tight',
                               color: '#1e1b4b',
-                              textAlign: 'center',
-                              maxWidth: '100%',
-                              overflowWrap: 'anywhere',
-                            }}
+                            })}
                           >
                             {card.item.foreign}
                           </span>
                           {!isCompact ? (
                             <span
+                              dir="ltr"
                               style={{
-                                fontSize: '0.68rem',
+                                fontSize: '0.66rem',
                                 fontWeight: 700,
+                                lineHeight: 1.25,
                                 color: '#64748b',
+                                maxWidth: '100%',
+                                overflowWrap: 'break-word',
+                                textAlign: 'center',
                               }}
                             >
-                              {card.item.phonetic}
+                              {card.item.romanized
+                                ? `${card.item.romanized} · ${card.item.phonetic}`
+                                : card.item.phonetic}
                             </span>
                           ) : null}
                         </>
