@@ -1,4 +1,3 @@
-import { LANGUAGE_META } from '../types/contracts';
 import type {
   ArcadeLanternItem,
   CourseUnit,
@@ -7,21 +6,17 @@ import type {
   MapNode,
   VocabCard,
 } from '../types/contracts';
-
-function emptyCourse(language: LanguageCode): LanguageCourse {
-  return {
-    language,
-    meta: LANGUAGE_META[language],
-    units: [],
-    vocabById: {},
-  };
-}
+import { buildArcadeLexicon } from './arcadeLexicon';
+import { germanCourse } from './de';
+import { spanishCourse } from './es';
+import { frenchCourse } from './fr';
+import { italianCourse } from './it';
 
 export const COURSES: Record<LanguageCode, LanguageCourse> = {
-  es: emptyCourse('es'),
-  fr: emptyCourse('fr'),
-  de: emptyCourse('de'),
-  it: emptyCourse('it'),
+  es: spanishCourse,
+  fr: frenchCourse,
+  de: germanCourse,
+  it: italianCourse,
 };
 
 export function getCourse(lang: LanguageCode): LanguageCourse {
@@ -45,9 +40,9 @@ export function getVocabCard(lang: LanguageCode, vocabId: string): VocabCard | u
 }
 
 export function getArcadeLexicon(
-  _lang: LanguageCode,
-  _unlockedVocabIds: readonly string[],
-  _currentUnitIndex: number
+  lang: LanguageCode,
+  unlockedVocabIds: readonly string[],
+  currentUnitIndex: number
 ): ArcadeLanternItem[] {
-  return [];
+  return buildArcadeLexicon(COURSES[lang], unlockedVocabIds, currentUnitIndex);
 }
