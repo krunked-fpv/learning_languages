@@ -2,11 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Volume2, X } from 'lucide-react';
 import { playSfx, speakPhrase } from '../../audio';
-import type { LanguageCode, TapHintToken } from '../../types/contracts';
-import { clampPopoverPosition } from './lessonHelpers';
-
-const NO_SPACE_AFTER_RE = /['’¡¿(«-]$/;
-const NO_SPACE_BEFORE_RE = /^[.,!?;:)»]/;
+import { LANGUAGE_META, type LanguageCode, type TapHintToken } from '../../types/contracts';
+import { NO_SPACE_AFTER_RE, NO_SPACE_BEFORE_RE, clampPopoverPosition } from './lessonHelpers';
 
 export interface TapHintTextProps {
   tokens: readonly TapHintToken[];
@@ -31,12 +28,13 @@ export function TapHintText({
   const popoverRef = useRef<HTMLDivElement | null>(null);
 
   const activeToken = activeIndex !== null ? tokens[activeIndex] ?? null : null;
+  const langDir = LANGUAGE_META[language].dir;
 
   useLayoutEffect(() => {
     if (activeIndex === null || !anchorRef.current) return;
     const anchorRect = anchorRef.current.getBoundingClientRect();
     const measuredH = popoverRef.current?.offsetHeight || 156;
-    const measuredW = Math.min(264, window.innerWidth - 24);
+    const measuredW = Math.min(264, window.innerWidth - 20);
     setCoords(clampPopoverPosition(anchorRect, measuredW, measuredH));
   }, [activeIndex, activeToken?.surface]);
 
@@ -62,7 +60,8 @@ export function TapHintText({
       if (!anchorRef.current) return;
       const anchorRect = anchorRef.current.getBoundingClientRect();
       const measuredH = popoverRef.current?.offsetHeight || 156;
-      setCoords(clampPopoverPosition(anchorRect, 264, measuredH));
+      const measuredW = Math.min(264, window.innerWidth - 20);
+      setCoords(clampPopoverPosition(anchorRect, measuredW, measuredH));
     };
 
     document.addEventListener('pointerdown', handlePointerDown);
@@ -76,13 +75,18 @@ export function TapHintText({
   }, [activeIndex]);
 
   if (tokens.length === 0) {
-    return <span className={className}>{fallbackText ?? ''}</span>;
+    return (
+      <span className={className} dir={langDir}>
+        {fallbackText ?? ''}
+      </span>
+    );
   }
 
   const popoverNode = activeToken ? (
     <div
       ref={popoverRef}
       role="dialog"
+      dir="ltr"
       aria-label={`Word hint for ${activeToken.surface}`}
       className="tap-hint-popover"
       style={{
@@ -100,7 +104,14 @@ export function TapHintText({
           marginBottom: 6,
         }}
       >
-        <strong style={{ fontSize: '1.05rem', color: 'var(--lang-primary)' }}>
+        <strong
+          dir={langDir}
+          style={{
+            fontSize: '1.05rem',
+            color: 'var(--lang-primary)',
+            lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
+          }}
+        >
           {activeToken.surface}
         </strong>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -135,6 +146,11 @@ export function TapHintText({
       <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
         {activeToken.translation}
       </div>
+      {activeToken.romanized ? (
+        <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--lang-primary)', marginTop: 2 }}>
+          {activeToken.romanized}
+        </div>
+      ) : null}
       <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: 2 }}>
         Say: <strong style={{ color: 'var(--text-main)' }}>{activeToken.phonetic}</strong>
       </div>
@@ -174,7 +190,7 @@ export function TapHintText({
   ) : null;
 
   return (
-    <span className={className} style={{ lineHeight: 1.5 }}>
+    <span className={className} dir={langDir} style={{ lineHeight: 1.5, unicodeBidi: 'isolate' }}>
       {tokens.map((token, idx) => {
         const prev = idx > 0 ? tokens[idx - 1].surface : '';
         const needsSpace =

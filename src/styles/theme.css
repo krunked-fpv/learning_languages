@@ -4,8 +4,8 @@
    ========================================================================== */
 
 :root {
-  --font-display: 'Fredoka Variable', 'Fredoka', 'Nunito Variable', sans-serif;
-  --font-body: 'Nunito Variable', 'Nunito', sans-serif;
+  --font-display: 'Fredoka Variable', 'Fredoka', 'Nunito Variable', 'Nunito', 'Noto Sans Arabic', 'Noto Sans SC', 'Noto Sans JP', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'PingFang SC', 'Hiragino Kaku Gothic ProN', 'Microsoft YaHei', 'Yu Gothic', 'Meiryo', 'Geeza Pro', 'Kohinoor Devanagari', 'Kohinoor Bangla', 'Nirmala UI', 'Segoe UI', 'Tahoma', system-ui, -apple-system, sans-serif;
+  --font-body: 'Nunito Variable', 'Nunito', 'Noto Sans Arabic', 'Noto Sans SC', 'Noto Sans JP', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'PingFang SC', 'Hiragino Kaku Gothic ProN', 'Microsoft YaHei', 'Yu Gothic', 'Meiryo', 'Geeza Pro', 'Kohinoor Devanagari', 'Kohinoor Bangla', 'Nirmala UI', 'Segoe UI', 'Tahoma', system-ui, -apple-system, sans-serif;
 
   /* 1. Default: Storybook Parchment */
   --app-bg: linear-gradient(180deg, #fffdf7 0%, #fef6e4 55%, #f8efe0 100%);
@@ -386,6 +386,27 @@ select {
   border-radius: 999px;
 }
 
+.console-scroll-pane-x {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--card-border) transparent;
+}
+
+.console-scroll-pane-x::-webkit-scrollbar {
+  height: 5px;
+}
+
+.console-scroll-pane-x::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 999px;
+}
+
+[dir='rtl'] {
+  line-height: 1.5;
+}
+
 /* ==========================================================================
    ZERO-SCROLL GAME CONSOLE SHELL
    ========================================================================== */
@@ -670,7 +691,7 @@ select {
   box-shadow: 0 20px 44px rgba(2, 6, 23, 0.36);
   backdrop-filter: blur(16px);
   padding: 12px;
-  max-width: calc(100vw - 24px);
+  max-width: calc(100vw - 16px);
 }
 
 /* ==========================================================================
@@ -1089,7 +1110,7 @@ select {
 .modal-card {
   width: 100%;
   max-width: 640px;
-  max-height: min(90dvh, 760px);
+  max-height: calc(100dvh - 28px);
   overflow-y: auto;
   background: var(--modal-bg);
   color: var(--text-main);

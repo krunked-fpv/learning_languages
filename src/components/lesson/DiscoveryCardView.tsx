@@ -1,7 +1,7 @@
 import { Volume2, Turtle, Sparkles } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase, useSpeechRuntimeState } from '../../audio';
-import { GENDER_BADGE_META, type DiscoveryCardExercise, type LanguageCode, type VocabCard } from '../../types/contracts';
+import { GENDER_BADGE_META, LANGUAGE_META, type DiscoveryCardExercise, type LanguageCode, type VocabCard } from '../../types/contracts';
 import { TapHintText } from './TapHintText';
 import { buildTapHintsFromExample } from './lessonHelpers';
 
@@ -32,6 +32,7 @@ export function DiscoveryCardView({
     );
   }
 
+  const langDir = LANGUAGE_META[language].dir;
   const genderMeta = GENDER_BADGE_META[vocabCard.gender];
   const exampleTokens = buildTapHintsFromExample(
     vocabCard.exampleForeign,
@@ -111,14 +112,15 @@ export function DiscoveryCardView({
         />
       </div>
 
-      {/* Foreign Word + English + Phonetics */}
+      {/* Foreign Word + English + Romanized + Phonetics */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <div
+          dir={langDir}
           style={{
             fontSize: compact ? '1.4rem' : '1.85rem',
             fontWeight: 900,
             color: 'var(--lang-primary)',
-            lineHeight: 1.15,
+            lineHeight: langDir === 'rtl' ? 1.5 : 1.18,
           }}
         >
           {vocabCard.foreignWithArticle}
@@ -126,6 +128,11 @@ export function DiscoveryCardView({
         <div style={{ fontSize: compact ? '0.96rem' : '1.12rem', fontWeight: 800, color: 'var(--text-main)' }}>
           {vocabCard.english}
         </div>
+        {vocabCard.romanized ? (
+          <div style={{ fontSize: compact ? '0.84rem' : '0.94rem', fontWeight: 800, color: 'var(--text-muted)' }}>
+            {vocabCard.romanized}
+          </div>
+        ) : null}
         <div
           style={{
             display: 'inline-flex',
@@ -200,7 +207,15 @@ export function DiscoveryCardView({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: compact ? '0.92rem' : '1rem', fontWeight: 800, color: 'var(--text-main)' }}>
+          <span
+            dir={langDir}
+            style={{
+              fontSize: compact ? '0.92rem' : '1rem',
+              fontWeight: 800,
+              color: 'var(--text-main)',
+              lineHeight: langDir === 'rtl' ? 1.5 : 1.35,
+            }}
+          >
             <TapHintText
               tokens={exampleTokens}
               fallbackText={vocabCard.exampleForeign}
@@ -224,6 +239,11 @@ export function DiscoveryCardView({
             <Volume2 size={14} />
           </button>
         </div>
+        {vocabCard.exampleRomanized ? (
+          <div style={{ fontSize: compact ? '0.76rem' : '0.82rem', color: 'var(--lang-primary)', fontWeight: 700 }}>
+            {vocabCard.exampleRomanized}
+          </div>
+        ) : null}
         <div style={{ fontSize: compact ? '0.78rem' : '0.86rem', color: 'var(--text-muted)', fontWeight: 700 }}>
           {vocabCard.exampleEnglish}
         </div>
