@@ -108,6 +108,7 @@ function makeFreshProfile(params: {
     leagueTier: 'bronze_acorn',
     secretArcadeUnlocked: false,
     secretArcadeBestScore: 0,
+    arcadeHighScores: {},
     stats: {
       lessonsCompleted: 0,
       storiesCompleted: 0,
@@ -177,6 +178,7 @@ function cloneProfile(profile: KidProfile): KidProfile {
     ...profile,
     secretArcadeUnlocked: Boolean(profile.secretArcadeUnlocked),
     secretArcadeBestScore: profile.secretArcadeBestScore ?? 0,
+    arcadeHighScores: profile.arcadeHighScores ? { ...profile.arcadeHighScores } : {},
     equippedCosmetics: { ...profile.equippedCosmetics },
     unlockedCosmetics: [...profile.unlockedCosmetics],
     badges: [...profile.badges],
@@ -389,6 +391,21 @@ function validateKidProfile(
       error: `${prefix}.secretArcadeBestScore must be a non-negative number.`,
     };
   }
+  const arcadeHighScores: Record<string, number> = {};
+  if (raw.arcadeHighScores !== undefined) {
+    if (!isPlainObject(raw.arcadeHighScores)) {
+      return { ok: false, error: `${prefix}.arcadeHighScores must be an object.` };
+    }
+    for (const [gameId, scoreVal] of Object.entries(raw.arcadeHighScores)) {
+      if (gameId.trim().length === 0 || !isNonNegNumber(scoreVal)) {
+        return {
+          ok: false,
+          error: `${prefix}.arcadeHighScores["${gameId}"] must be a non-negative number.`,
+        };
+      }
+      arcadeHighScores[gameId] = Math.floor(scoreVal);
+    }
+  }
 
   const maxHearts = Math.floor(raw.maxHearts);
   return {
@@ -414,6 +431,7 @@ function validateKidProfile(
       secretArcadeUnlocked: raw.secretArcadeUnlocked ?? false,
       secretArcadeBestScore:
         raw.secretArcadeBestScore !== undefined ? Math.floor(raw.secretArcadeBestScore) : 0,
+      arcadeHighScores,
       stats: {
         lessonsCompleted: Math.floor(raw.stats.lessonsCompleted as number),
         storiesCompleted: Math.floor(raw.stats.storiesCompleted as number),
@@ -608,6 +626,11 @@ function mergeTwoProfiles(existing: KidProfile, incoming: KidProfile): KidProfil
   const lastPracticeISO =
     [existing.lastPracticeISO, incoming.lastPracticeISO].filter(Boolean).sort().pop() ?? null;
 
+  const mergedHighScores: Record<string, number> = { ...(existing.arcadeHighScores ?? {}) };
+  for (const [gameId, score] of Object.entries(incoming.arcadeHighScores ?? {})) {
+    mergedHighScores[gameId] = Math.max(mergedHighScores[gameId] ?? 0, score);
+  }
+
   const merged: KidProfile = {
     ...existing,
     gems: Math.max(existing.gems, incoming.gems),
@@ -631,6 +654,7 @@ function mergeTwoProfiles(existing: KidProfile, incoming: KidProfile): KidProfil
       existing.secretArcadeBestScore ?? 0,
       incoming.secretArcadeBestScore ?? 0
     ),
+    arcadeHighScores: mergedHighScores,
     stats: {
       lessonsCompleted: Math.max(
         existing.stats.lessonsCompleted,
@@ -1037,12 +1061,64 @@ export const vaultActions = {
       const bonusGems = Number.isFinite(params.bonusGems)
         ? Math.max(0, Math.floor(params.bonusGems))
         : 0;
+      const prevScores = profile.arcadeHighScores ?? {};
 
       const updated: KidProfile = {
         ...profile,
         hearts: Math.min(profile.maxHearts, profile.hearts + heartsWon),
         gems: profile.gems + bonusGems,
         secretArcadeBestScore: Math.max(profile.secretArcadeBestScore ?? 0, safeScore),
+        arcadeHighScores: {
+          ...prevScores,
+          starlight_choir: Math.max(prevScores.starlight_choir ?? 0, safeScore),
+        },
+        stats: {
+          ...profile.stats,
+          arcadeGamesWon: profile.stats.arcadeGamesWon + 1,
+        },
+      };
+
+      return {
+        ...updated,
+        badges: evaluateUnlockedBadges(updated),
+      };
+    });
+  },
+
+  recordArcadeGameResult(params: {
+    gameId: string;
+    score: number;
+    heartsWon: number;
+    bonusGems: number;
+  }): void {
+    const cleanGameId = typeof params.gameId === 'string' ? params.gameId.trim() : '';
+    if (!cleanGameId) return;
+
+    updateActiveProfile((profile) => {
+      const safeScore = Number.isFinite(params.score)
+        ? Math.max(0, Math.floor(params.score))
+        : 0;
+      const heartsWon = Number.isFinite(params.heartsWon)
+        ? Math.max(0, Math.floor(params.heartsWon))
+        : 0;
+      const bonusGems = Number.isFinite(params.bonusGems)
+        ? Math.max(0, Math.floor(params.bonusGems))
+        : 0;
+      const prevScores = profile.arcadeHighScores ?? {};
+      const nextBest = Math.max(prevScores[cleanGameId] ?? 0, safeScore);
+
+      const updated: KidProfile = {
+        ...profile,
+        hearts: Math.min(profile.maxHearts, profile.hearts + heartsWon),
+        gems: profile.gems + bonusGems,
+        arcadeHighScores: {
+          ...prevScores,
+          [cleanGameId]: nextBest,
+        },
+        secretArcadeBestScore:
+          cleanGameId === 'starlight_choir'
+            ? Math.max(profile.secretArcadeBestScore ?? 0, safeScore)
+            : profile.secretArcadeBestScore,
         stats: {
           ...profile.stats,
           arcadeGamesWon: profile.stats.arcadeGamesWon + 1,

@@ -99,6 +99,46 @@ export const COSMETIC_CATALOG: readonly CosmeticItem[] = [
     costGems: 50,
     accentColor: '#059669',
   },
+  {
+    id: 'theme_cosmic_galaxy',
+    slot: 'theme',
+    name: 'Cosmic Galaxy Nebula',
+    description: 'Deep-space violet nebula, twinkling starfield, and cyber-cyan glass!',
+    costGems: 40,
+    accentColor: '#c084fc',
+  },
+  {
+    id: 'theme_aurora_borealis',
+    slot: 'theme',
+    name: 'Arctic Aurora Borealis',
+    description: 'Polar night sky with glowing emerald and violet aurora ribbons!',
+    costGems: 55,
+    accentColor: '#34d399',
+  },
+  {
+    id: 'theme_candy_sakura',
+    slot: 'theme',
+    name: 'Sakura Berry Sorbet',
+    description: 'Dreamy cherry-blossom petals, warm cream, and raspberry bevels!',
+    costGems: 45,
+    accentColor: '#f472b6',
+  },
+  {
+    id: 'theme_ocean_lagoon',
+    slot: 'theme',
+    name: 'Capri Turquoise Lagoon',
+    description: 'Crystal Mediterranean sea-glass, sunlit aqua, and coral accents!',
+    costGems: 50,
+    accentColor: '#06b6d4',
+  },
+  {
+    id: 'theme_royal_velvet',
+    slot: 'theme',
+    name: 'Solaris Gold & Velvet',
+    description: 'Plush royal amethyst velvet crowned with gleaming sun-gold trim!',
+    costGems: 70,
+    accentColor: '#fbbf24',
+  },
 ] as const;
 
 export function getCosmeticById(id: CosmeticId): CosmeticItem | undefined {
