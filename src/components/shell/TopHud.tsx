@@ -1,7 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
 import {
   ChevronDown,
+  Compass,
   Download,
   Flame,
   Gamepad2,
@@ -36,6 +38,8 @@ export function TopHud({
   const { vault, activeProfile } = useVaultStore();
   const [openPopover, setOpenPopover] = useState<OpenPopover>(null);
   const [popoverCoords, setPopoverCoords] = useState({ top: 56, left: 16, width: 256 });
+  const [compassTaps, setCompassTaps] = useState(0);
+  const [compassAnimKey, setCompassAnimKey] = useState(0);
 
   const langBtnRef = useRef<HTMLButtonElement | null>(null);
   const heartsBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -85,6 +89,10 @@ export function TopHud({
     };
   }, [openPopover]);
 
+  useEffect(() => {
+    setCompassTaps(0);
+  }, [activeProfile.id]);
+
   const activeLangMeta = LANGUAGE_META[activeProfile.activeLanguage];
   const { volume, muted } = vault.audioSettings;
 
@@ -94,9 +102,25 @@ export function TopHud({
   };
 
   const handleSelectLanguage = (lang: LanguageCode) => {
-    playSfx('button_click');
+    playSfx('whoosh_transition');
     vaultActions.setActiveLanguage(lang);
     setOpenPopover(null);
+  };
+
+  const handleGoldenCompassTap = () => {
+    setCompassAnimKey((k) => k + 1);
+    if (activeProfile.secretArcadeUnlocked) {
+      playSfx('star_pop', 2);
+      return;
+    }
+    const nextTap = compassTaps + 1;
+    if (nextTap >= 5) {
+      setCompassTaps(0);
+      vaultActions.unlockSecretArcade();
+    } else {
+      setCompassTaps(nextTap);
+      playSfx('star_pop', nextTap - 1);
+    }
   };
 
   const popoverNode = openPopover ? (
@@ -219,7 +243,7 @@ export function TopHud({
   return (
     <header className="top-hud">
       <div className="top-hud-inner">
-        {/* Left: Kid Profile Switcher + Flag Language Switcher */}
+        {/* Left: Kid Profile Switcher + Flag Language Switcher + Golden Starlight Compass */}
         <div className="hud-group">
           <button
             type="button"
@@ -245,6 +269,37 @@ export function TopHud({
             <FlagIcon language={activeProfile.activeLanguage} size={24} />
             <span className="hud-hide-xs">{activeLangMeta.name}</span>
             <ChevronDown size={14} />
+          </button>
+
+          <button
+            type="button"
+            className="hud-pill"
+            aria-label="Golden Starlight Compass"
+            title={
+              activeProfile.secretArcadeUnlocked
+                ? 'Starlight Secret Unlocked!'
+                : 'Golden Starlight Compass'
+            }
+            style={{
+              background: '#fffbeb',
+              borderColor: '#f59e0b',
+              color: '#b45309',
+              padding: '6px 9px',
+            }}
+            onClick={handleGoldenCompassTap}
+          >
+            <motion.span
+              key={compassAnimKey}
+              initial={compassAnimKey > 0 ? { rotate: -18, scale: 1.22 } : false}
+              animate={{ rotate: 0, scale: 1 }}
+              transition={{ type: 'spring', stiffness: 460, damping: 14 }}
+              style={{ display: 'inline-flex', alignItems: 'center' }}
+            >
+              <Compass size={17} color="#d97706" />
+            </motion.span>
+            {compassTaps > 0 && !activeProfile.secretArcadeUnlocked ? (
+              <span style={{ fontSize: '0.7rem', fontWeight: 900 }}>{compassTaps}/5</span>
+            ) : null}
           </button>
         </div>
 

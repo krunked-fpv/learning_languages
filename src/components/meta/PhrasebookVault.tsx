@@ -479,8 +479,12 @@ export function PhrasebookVault() {
                     cursor: 'pointer',
                     padding: 22,
                     borderRadius: 24,
-                    border: '3px solid var(--lang-primary)',
+                    borderTopWidth: 3,
+                    borderRightWidth: 3,
+                    borderLeftWidth: 3,
                     borderBottomWidth: 6,
+                    borderStyle: 'solid',
+                    borderColor: 'var(--lang-primary)',
                     background: cardFlipped
                       ? 'linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%)'
                       : 'linear-gradient(180deg, #ffffff 0%, #eff6ff 100%)',

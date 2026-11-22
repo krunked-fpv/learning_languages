@@ -90,7 +90,7 @@ export function buildTapHintsFromExample(
 
   return words.map((word, index) => {
     const clean = word.toLowerCase().replace(/[¡!¿?.,;:"']/g, '');
-    const isTarget = Boolean(targetClean && (clean === targetClean || clean.includes(targetClean)));
+    const isTarget = Boolean(targetClean && clean === targetClean);
     return {
       surface: word,
       normalizedId: `${vocabCard?.id ?? 'ex'}-${index}`,

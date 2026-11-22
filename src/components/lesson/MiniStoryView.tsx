@@ -144,8 +144,12 @@ export function MiniStoryView({
                 padding: compact ? '9px 12px' : '12px 15px',
                 borderRadius: 18,
                 background: isRight ? 'var(--lang-tint)' : '#f8fafc',
-                border: `2px solid ${isRight ? 'var(--lang-primary)' : '#cbd5e1'}`,
+                borderTopWidth: 2,
+                borderRightWidth: 2,
+                borderLeftWidth: 2,
                 borderBottomWidth: 4,
+                borderStyle: 'solid',
+                borderColor: isRight ? 'var(--lang-primary)' : '#cbd5e1',
               }}
             >
               <div
@@ -245,8 +249,12 @@ export function MiniStoryView({
               padding: compact ? '10px 12px' : '14px 16px',
               borderRadius: 18,
               background: '#fffbeb',
-              border: '2px solid #f59e0b',
+              borderTopWidth: 2,
+              borderRightWidth: 2,
+              borderLeftWidth: 2,
               borderBottomWidth: 4,
+              borderStyle: 'solid',
+              borderColor: '#f59e0b',
               display: 'flex',
               flexDirection: 'column',
               gap: 8,

@@ -73,6 +73,13 @@ export function SkyCatcherArcade({
     return items.length > 0 ? items : FALLBACK_LEXICON[language];
   }, [language, activeProgress.unlockedVocabIds, activeProgress.currentUnitIndex]);
 
+  const targetLexicon = useMemo(() => {
+    if (activeProgress.currentUnitIndex === 0 && activeProgress.unlockedVocabIds.length < 13) {
+      return lexicon.slice(0, Math.min(13, lexicon.length));
+    }
+    return lexicon;
+  }, [lexicon, activeProgress.currentUnitIndex, activeProgress.unlockedVocabIds.length]);
+
   const [phase, setPhase] = useState<'ready' | 'playing' | 'summary'>(
     isHeartRecovery ? 'playing' : 'ready'
   );
@@ -81,7 +88,7 @@ export function SkyCatcherArcade({
   const [combo, setCombo] = useState(0);
   const [pipX, setPipX] = useState(50);
   const [pipPose, setPipPose] = useState<CharacterPose>('idle');
-  const [targetItem, setTargetItem] = useState<ArcadeLanternItem>(() => lexicon[0]);
+  const [targetItem, setTargetItem] = useState<ArcadeLanternItem>(() => targetLexicon[0]);
   const [entities, setEntities] = useState<FallingEntity[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [summaryResult, setSummaryResult] = useState<{
@@ -93,7 +100,7 @@ export function SkyCatcherArcade({
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const pipXRef = useRef(50);
   const keysRef = useRef<{ left: boolean; right: boolean }>({ left: false, right: false });
-  const targetRef = useRef<ArcadeLanternItem>(lexicon[0]);
+  const targetRef = useRef<ArcadeLanternItem>(targetLexicon[0]);
   const catchesRef = useRef(0);
   const comboRef = useRef(0);
   const entitiesRef = useRef<FallingEntity[]>([]);
@@ -104,14 +111,14 @@ export function SkyCatcherArcade({
 
   const pickNextTarget = useCallback(
     (avoidId?: string): ArcadeLanternItem => {
-      const pool = lexicon.filter((item) => item.id !== avoidId);
-      const list = pool.length > 0 ? pool : lexicon;
+      const pool = targetLexicon.filter((item) => item.id !== avoidId);
+      const list = pool.length > 0 ? pool : targetLexicon;
       const chosen = list[Math.floor(Math.random() * list.length)];
       targetRef.current = chosen;
       setTargetItem(chosen);
       return chosen;
     },
-    [lexicon]
+    [targetLexicon]
   );
 
   const finishRound = useCallback(() => {
@@ -221,12 +228,17 @@ export function SkyCatcherArcade({
         setPipX(nextPipX);
       }
 
-      // Spawn lanterns & occasional storm clouds
+      // Spawn lanterns & occasional storm clouds (never duplicate item.id or >1 target)
       spawnTimerRef.current += dt;
       if (spawnTimerRef.current >= 1.15 && entitiesRef.current.length < 6) {
         spawnTimerRef.current = 0;
+        const activeLanternIds = new Set(
+          entitiesRef.current
+            .filter((ent) => ent.kind === 'lantern' && ent.item)
+            .map((ent) => ent.item!.id)
+        );
         const hasTargetOnScreen = entitiesRef.current.some(
-          (ent) => ent.kind === 'lantern' && ent.item?.id === targetRef.current.id && ent.y < 68
+          (ent) => ent.kind === 'lantern' && ent.item?.id === targetRef.current.id
         );
         const shouldSpawnCloud = hasTargetOnScreen && Math.random() < 0.24;
 
@@ -240,33 +252,47 @@ export function SkyCatcherArcade({
             swayOffset: Math.random() * Math.PI * 2,
           });
         } else {
-          const spawnTarget = !hasTargetOnScreen || Math.random() < 0.55;
-          const others = lexicon.filter((i) => i.id !== targetRef.current.id);
-          const item =
-            spawnTarget || others.length === 0
-              ? targetRef.current
-              : others[Math.floor(Math.random() * others.length)];
-          entitiesRef.current.push({
-            uid: nextUidRef.current++,
-            kind: 'lantern',
-            item,
-            x: 14 + Math.random() * 72,
-            y: -10,
-            speed: 19 + Math.random() * 8,
-            swayOffset: Math.random() * Math.PI * 2,
-          });
+          const distractorChoices = lexicon.filter(
+            (i) => i.id !== targetRef.current.id && !activeLanternIds.has(i.id)
+          );
+          const item = !hasTargetOnScreen
+            ? targetRef.current
+            : distractorChoices.length > 0
+              ? distractorChoices[Math.floor(Math.random() * distractorChoices.length)]
+              : null;
+          if (item) {
+            entitiesRef.current.push({
+              uid: nextUidRef.current++,
+              kind: 'lantern',
+              item,
+              x: 14 + Math.random() * 72,
+              y: -10,
+              speed: 19 + Math.random() * 8,
+              swayOffset: Math.random() * Math.PI * 2,
+            });
+          }
         }
       }
 
       // Advance entities & test collision near Pip's basket (y: 74..92, |x - pipX| < 14)
-      const survivors: FallingEntity[] = [];
+      let survivors: FallingEntity[] = [];
+      const clearedItemIds = new Set<string>();
       for (const ent of entitiesRef.current) {
+        if (ent.kind === 'lantern' && ent.item && clearedItemIds.has(ent.item.id)) {
+          continue;
+        }
         const nextY = ent.y + ent.speed * dt;
         const swayX = Math.max(9, Math.min(91, ent.x + Math.sin(elapsedRef.current * 2 + ent.swayOffset) * 4 * dt));
         const hitPip = nextY >= 73 && nextY <= 92 && Math.abs(swayX - pipXRef.current) <= 13.5;
 
         if (hitPip) {
           if (ent.kind === 'lantern' && ent.item?.id === targetRef.current.id) {
+            const caughtId = ent.item.id;
+            clearedItemIds.add(caughtId);
+            survivors = survivors.filter(
+              (s) => !(s.kind === 'lantern' && s.item?.id === caughtId)
+            );
+            spawnTimerRef.current = 0.85;
             catchesRef.current += 1;
             comboRef.current += 1;
             setCatches(catchesRef.current);
@@ -274,7 +300,7 @@ export function SkyCatcherArcade({
             setPipPose('happy');
             setToast(`Caught "${ent.item.foreign}"! +1 Heart Charge!`);
             playSfx(comboRef.current >= 3 ? 'combo_3x' : 'heart_win', comboRef.current);
-            pickNextTarget(ent.item.id);
+            pickNextTarget(caughtId);
             window.setTimeout(() => setPipPose('idle'), 550);
           } else {
             comboRef.current = 0;
@@ -544,8 +570,12 @@ export function SkyCatcherArcade({
                     padding: '5px 10px',
                     borderRadius: 16,
                     background: '#ffffff',
-                    border: '2px solid #f59e0b',
+                    borderTopWidth: 2,
+                    borderRightWidth: 2,
+                    borderLeftWidth: 2,
                     borderBottomWidth: 4,
+                    borderStyle: 'solid',
+                    borderColor: '#f59e0b',
                     boxShadow: '0 8px 18px rgba(30, 27, 75, 0.2)',
                     display: 'flex',
                     alignItems: 'center',

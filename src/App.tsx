@@ -1,6 +1,10 @@
-import { useEffect, useState, type CSSProperties } from 'react';
-import { setAudioPreferences } from './audio';
-import { SkyCatcherArcade } from './components/arcade/SkyCatcherArcade';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { motion } from 'framer-motion';
+import { Music, Sparkles } from 'lucide-react';
+import { playSfx, setAudioPreferences } from './audio';
+import { ArcadeHub, type ArcadeGameMode } from './components/arcade/ArcadeHub';
+import { MascotStage } from './components/characters/MascotStage';
+import { ConfettiBurst } from './components/fx/JuiceEngine';
 import { LessonArena } from './components/lesson/LessonArena';
 import { AdventureMap } from './components/map/AdventureMap';
 import { CompanionShop } from './components/meta/CompanionShop';
@@ -21,18 +25,38 @@ interface BeforeInstallPromptEvent extends Event {
 export function App() {
   const { vault, activeProfile, activeProgress } = useVaultStore();
   const [activeTab, setActiveTab] = useState<NavTabId>('map');
+  const [arcadeInitialMode, setArcadeInitialMode] = useState<ArcadeGameMode>('hub');
   const [activeNode, setActiveNode] = useState<MapNode | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [secretUnlockedModalOpen, setSecretUnlockedModalOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isStandalone, setIsStandalone] = useState<boolean>(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return false;
     return window.matchMedia('(display-mode: standalone)').matches;
   });
 
+  const prevProfileIdRef = useRef<string>(activeProfile.id);
+  const prevSecretUnlockedRef = useRef<boolean>(Boolean(activeProfile.secretArcadeUnlocked));
+
   // Sync persisted audio volume & mute preferences into Web Audio + Speech engines
   useEffect(() => {
     setAudioPreferences(vault.audioSettings);
   }, [vault.audioSettings]);
+
+  // Detect secretArcadeUnlocked flipping false -> true for the same profile (Compass, 3 lessons, or Boss!)
+  useEffect(() => {
+    const isUnlockedNow = Boolean(activeProfile.secretArcadeUnlocked);
+    if (prevProfileIdRef.current !== activeProfile.id) {
+      prevProfileIdRef.current = activeProfile.id;
+      prevSecretUnlockedRef.current = isUnlockedNow;
+      return;
+    }
+    if (!prevSecretUnlockedRef.current && isUnlockedNow) {
+      playSfx('secret_fanfare');
+      setSecretUnlockedModalOpen(true);
+    }
+    prevSecretUnlockedRef.current = isUnlockedNow;
+  }, [activeProfile.id, activeProfile.secretArcadeUnlocked]);
 
   // Listen for PWA install prompt & standalone display mode changes
   useEffect(() => {
@@ -104,13 +128,21 @@ export function App() {
             activeTab={activeTab}
             unlockedPhraseCount={activeProgress.unlockedVocabIds.length}
             activeLanguage={activeProfile.activeLanguage}
-            onSelectTab={setActiveTab}
+            onSelectTab={(tab) => {
+              if (tab === 'arcade') {
+                setArcadeInitialMode('hub');
+              }
+              setActiveTab(tab);
+            }}
           />
 
           <div className="app-main-column">
             <TopHud
               onOpenProfileModal={() => setProfileModalOpen(true)}
-              onOpenArcade={() => setActiveTab('arcade')}
+              onOpenArcade={() => {
+                setArcadeInitialMode('sky_catcher');
+                setActiveTab('arcade');
+              }}
               canInstallApp={Boolean(installPrompt) && !isStandalone}
               onInstallApp={() => {
                 void handleInstallClick();
@@ -118,27 +150,37 @@ export function App() {
             />
 
             <main className="app-main-content">
-              {activeTab === 'map' ? (
-                <AdventureMap
-                  course={course}
-                  progress={activeProgress}
-                  equippedCosmetics={activeProfile.equippedCosmetics}
-                  onSelectNode={(node) => setActiveNode(node)}
-                  onSelectUnit={(unitIndex) =>
-                    vaultActions.setCurrentUnitIndex(activeProfile.activeLanguage, unitIndex)
-                  }
-                />
-              ) : null}
+              <motion.div
+                key={`${activeTab}-${activeProfile.activeLanguage}`}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+              >
+                {activeTab === 'map' ? (
+                  <AdventureMap
+                    course={course}
+                    progress={activeProgress}
+                    equippedCosmetics={activeProfile.equippedCosmetics}
+                    onSelectNode={(node) => setActiveNode(node)}
+                    onSelectUnit={(unitIndex) =>
+                      vaultActions.setCurrentUnitIndex(activeProfile.activeLanguage, unitIndex)
+                    }
+                  />
+                ) : null}
 
-              {activeTab === 'phrasebook' ? <PhrasebookVault /> : null}
+                {activeTab === 'phrasebook' ? <PhrasebookVault /> : null}
 
-              {activeTab === 'arcade' ? (
-                <SkyCatcherArcade onExit={() => setActiveTab('map')} />
-              ) : null}
+                {activeTab === 'arcade' ? (
+                  <ArcadeHub
+                    initialMode={arcadeInitialMode}
+                    onExitToMap={() => setActiveTab('map')}
+                  />
+                ) : null}
 
-              {activeTab === 'leagues' ? <LeagueAndBadges /> : null}
+                {activeTab === 'leagues' ? <LeagueAndBadges /> : null}
 
-              {activeTab === 'shop' ? <CompanionShop /> : null}
+                {activeTab === 'shop' ? <CompanionShop /> : null}
+              </motion.div>
             </main>
           </div>
         </div>
@@ -146,6 +188,79 @@ export function App() {
 
       {profileModalOpen ? (
         <ProfileVaultModal onClose={() => setProfileModalOpen(false)} />
+      ) : null}
+
+      {/* Secret Mini-Game Unlock Celebration Modal */}
+      {secretUnlockedModalOpen ? (
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Secret Unlocked: Starlight Critter Choir"
+        >
+          <ConfettiBurst active intensity="grand" />
+          <div className="modal-card" style={{ maxWidth: 470, textAlign: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+              <MascotStage
+                companionId="pip"
+                pose="victory_dance"
+                equippedCosmetics={activeProfile.equippedCosmetics}
+                comboCount={6}
+                size={136}
+                badgeText="SECRET UNLOCKED!"
+              />
+            </div>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '4px 12px',
+                borderRadius: 999,
+                background: '#fef3c7',
+                color: '#b45309',
+                fontWeight: 900,
+                fontSize: '0.8rem',
+                marginBottom: 8,
+              }}
+            >
+              <Sparkles size={14} /> GOLDEN DISCOVERY!
+            </div>
+            <h2 style={{ margin: '0 0 8px', fontSize: '1.35rem', fontWeight: 900, color: '#1e1b4b' }}>
+              SECRET UNLOCKED: Starlight Critter Choir!
+            </h2>
+            <p style={{ margin: '0 0 16px', fontWeight: 700, color: '#475569' }}>
+              You awakened the musical Starlight Critter Choir mini-game! Pop singing word
+              bubbles with all 5 companions and hit Disco Fever!
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                type="button"
+                className="tactile-btn tactile-btn-hero tactile-btn-indigo"
+                onClick={() => {
+                  playSfx('whoosh_transition');
+                  setSecretUnlockedModalOpen(false);
+                  setActiveNode(null);
+                  setArcadeInitialMode('starlight_choir');
+                  setActiveTab('arcade');
+                }}
+              >
+                <Music size={18} />
+                <span>Play Secret Game Now!</span>
+              </button>
+              <button
+                type="button"
+                className="tactile-btn tactile-btn-soft"
+                onClick={() => {
+                  playSfx('button_click');
+                  setSecretUnlockedModalOpen(false);
+                }}
+              >
+                Keep Exploring
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );
