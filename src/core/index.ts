@@ -7,6 +7,7 @@ export {
   calculateComboMultiplier,
   calculateLessonRewards,
   evaluateUnlockedBadges,
+  getBadgeProgress,
   resolveLeagueTierForXp,
 } from './progression';
 export {

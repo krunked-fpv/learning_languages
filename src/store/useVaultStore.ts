@@ -57,6 +57,8 @@ const TIER_RANK: Record<LeagueTier, number> = {
   starlight_legend: 4,
 };
 
+const MAX_SEEN_EXERCISES = 600;
+
 function emptyLangProgress(): LanguageProgressState {
   return {
     completedNodeIds: [],
@@ -65,6 +67,7 @@ function emptyLangProgress(): LanguageProgressState {
     claimedChestIds: [],
     currentUnitIndex: 0,
     xpEarned: 0,
+    seenExerciseIds: [],
   };
 }
 
@@ -103,6 +106,8 @@ function makeFreshProfile(params: {
     weeklyXp: 0,
     totalXp: 0,
     leagueTier: 'bronze_acorn',
+    secretArcadeUnlocked: false,
+    secretArcadeBestScore: 0,
     stats: {
       lessonsCompleted: 0,
       storiesCompleted: 0,
@@ -163,12 +168,15 @@ function cloneLangProgress(lp: LanguageProgressState): LanguageProgressState {
     claimedChestIds: [...lp.claimedChestIds],
     currentUnitIndex: lp.currentUnitIndex,
     xpEarned: lp.xpEarned,
+    seenExerciseIds: lp.seenExerciseIds ? [...lp.seenExerciseIds] : [],
   };
 }
 
 function cloneProfile(profile: KidProfile): KidProfile {
   return {
     ...profile,
+    secretArcadeUnlocked: Boolean(profile.secretArcadeUnlocked),
+    secretArcadeBestScore: profile.secretArcadeBestScore ?? 0,
     equippedCosmetics: { ...profile.equippedCosmetics },
     unlockedCosmetics: [...profile.unlockedCosmetics],
     badges: [...profile.badges],
@@ -214,6 +222,13 @@ function validateLangProgress(
   if (!isNonNegNumber(raw.xpEarned)) {
     return { ok: false, error: `${label}.xpEarned must be a non-negative number.` };
   }
+  let seenExerciseIds: string[] = [];
+  if (raw.seenExerciseIds !== undefined) {
+    if (!isStringArray(raw.seenExerciseIds)) {
+      return { ok: false, error: `${label}.seenExerciseIds must be an array of strings.` };
+    }
+    seenExerciseIds = Array.from(new Set(raw.seenExerciseIds)).slice(-MAX_SEEN_EXERCISES);
+  }
 
   return {
     ok: true,
@@ -224,6 +239,7 @@ function validateLangProgress(
       claimedChestIds: Array.from(new Set(raw.claimedChestIds)),
       currentUnitIndex: Math.floor(raw.currentUnitIndex),
       xpEarned: Math.round(raw.xpEarned),
+      seenExerciseIds,
     },
   };
 }
@@ -361,6 +377,19 @@ function validateKidProfile(
     validatedLangProgress[lang] = res.value;
   }
 
+  if (
+    raw.secretArcadeUnlocked !== undefined &&
+    typeof raw.secretArcadeUnlocked !== 'boolean'
+  ) {
+    return { ok: false, error: `${prefix}.secretArcadeUnlocked must be a boolean.` };
+  }
+  if (raw.secretArcadeBestScore !== undefined && !isNonNegNumber(raw.secretArcadeBestScore)) {
+    return {
+      ok: false,
+      error: `${prefix}.secretArcadeBestScore must be a non-negative number.`,
+    };
+  }
+
   const maxHearts = Math.floor(raw.maxHearts);
   return {
     ok: true,
@@ -382,6 +411,9 @@ function validateKidProfile(
       weeklyXp: Math.round(raw.weeklyXp),
       totalXp: Math.round(raw.totalXp),
       leagueTier: raw.leagueTier as LeagueTier,
+      secretArcadeUnlocked: raw.secretArcadeUnlocked ?? false,
+      secretArcadeBestScore:
+        raw.secretArcadeBestScore !== undefined ? Math.floor(raw.secretArcadeBestScore) : 0,
       stats: {
         lessonsCompleted: Math.floor(raw.stats.lessonsCompleted as number),
         storiesCompleted: Math.floor(raw.stats.storiesCompleted as number),
@@ -561,6 +593,9 @@ function mergeTwoProfiles(existing: KidProfile, incoming: KidProfile): KidProfil
       claimedChestIds: Array.from(new Set([...a.claimedChestIds, ...b.claimedChestIds])),
       currentUnitIndex: Math.max(a.currentUnitIndex, b.currentUnitIndex),
       xpEarned: Math.max(a.xpEarned, b.xpEarned),
+      seenExerciseIds: Array.from(
+        new Set([...(a.seenExerciseIds ?? []), ...(b.seenExerciseIds ?? [])])
+      ).slice(-MAX_SEEN_EXERCISES),
     };
   }
 
@@ -589,6 +624,13 @@ function mergeTwoProfiles(existing: KidProfile, incoming: KidProfile): KidProfil
     weeklyXp,
     totalXp: Math.max(existing.totalXp, incoming.totalXp),
     leagueTier: resolveLeagueTierForXp(weeklyXp, higherTier),
+    secretArcadeUnlocked: Boolean(
+      existing.secretArcadeUnlocked || incoming.secretArcadeUnlocked
+    ),
+    secretArcadeBestScore: Math.max(
+      existing.secretArcadeBestScore ?? 0,
+      incoming.secretArcadeBestScore ?? 0
+    ),
     stats: {
       lessonsCompleted: Math.max(
         existing.stats.lessonsCompleted,
@@ -888,6 +930,21 @@ export const vaultActions = {
       const nextWeeklyXp = profile.weeklyXp + safeXp;
       const nextTotalXp = profile.totalXp + safeXp;
       const isLesson = !params.isStory && !params.isBoss && !params.isChest;
+      const nextLessonsCompleted = profile.stats.lessonsCompleted + (isLesson ? 1 : 0);
+
+      const nextLanguageProgress: Record<LanguageCode, LanguageProgressState> = {
+        ...profile.languageProgress,
+        [params.language]: nextLangProg,
+      };
+      const totalCompletedNodes = LANGUAGE_LIST.reduce(
+        (sum, lang) => sum + nextLanguageProgress[lang].completedNodeIds.length,
+        0
+      );
+      const shouldUnlockSecretArcade =
+        Boolean(profile.secretArcadeUnlocked) ||
+        Boolean(params.isBoss) ||
+        totalCompletedNodes >= 3 ||
+        nextLessonsCompleted >= 3;
 
       const updated: KidProfile = {
         ...profile,
@@ -895,9 +952,10 @@ export const vaultActions = {
         weeklyXp: nextWeeklyXp,
         totalXp: nextTotalXp,
         leagueTier: resolveLeagueTierForXp(nextWeeklyXp, profile.leagueTier),
+        secretArcadeUnlocked: shouldUnlockSecretArcade,
         stats: {
           ...profile.stats,
-          lessonsCompleted: profile.stats.lessonsCompleted + (isLesson ? 1 : 0),
+          lessonsCompleted: nextLessonsCompleted,
           storiesCompleted: profile.stats.storiesCompleted + (params.isStory ? 1 : 0),
           bossesCleared: profile.stats.bossesCleared + (params.isBoss ? 1 : 0),
           bestComboStreak: Math.max(
@@ -905,16 +963,95 @@ export const vaultActions = {
             Math.max(0, Math.floor(params.maxCombo))
           ),
         },
-        languageProgress: {
-          ...profile.languageProgress,
-          [params.language]: nextLangProg,
-        },
+        languageProgress: nextLanguageProgress,
       };
 
       const withStreak = applyDailyPracticeStreak(updated);
       return {
         ...withStreak,
         badges: evaluateUnlockedBadges(withStreak),
+      };
+    });
+  },
+
+  recordSeenExercises(lang: LanguageCode, exerciseIds: readonly string[]): void {
+    if (!VALID_LANGUAGES.has(lang) || exerciseIds.length === 0) return;
+    updateActiveProfile((profile) => {
+      const langProg = profile.languageProgress[lang];
+      const existing = langProg.seenExerciseIds ?? [];
+      const seenSet = new Set(existing);
+      const toAppend: string[] = [];
+
+      for (const rawId of exerciseIds) {
+        if (typeof rawId === 'string' && rawId.length > 0 && !seenSet.has(rawId)) {
+          seenSet.add(rawId);
+          toAppend.push(rawId);
+        }
+      }
+
+      if (toAppend.length === 0) return profile;
+
+      const nextSeen = [...existing, ...toAppend].slice(-MAX_SEEN_EXERCISES);
+      return {
+        ...profile,
+        languageProgress: {
+          ...profile.languageProgress,
+          [lang]: {
+            ...langProg,
+            seenExerciseIds: nextSeen,
+          },
+        },
+      };
+    });
+  },
+
+  unlockSecretArcade(): boolean {
+    const activeProfile =
+      memoryVault.profiles.find((p) => p.id === memoryVault.activeProfileId) ??
+      memoryVault.profiles[0];
+    if (!activeProfile || activeProfile.secretArcadeUnlocked) return false;
+
+    updateActiveProfile((profile) => {
+      if (profile.secretArcadeUnlocked) return profile;
+      return {
+        ...profile,
+        secretArcadeUnlocked: true,
+        gems: profile.gems + 15,
+      };
+    });
+    return true;
+  },
+
+  completeSecretArcadeRun(params: {
+    score: number;
+    heartsWon: number;
+    bonusGems: number;
+  }): void {
+    updateActiveProfile((profile) => {
+      const safeScore = Number.isFinite(params.score)
+        ? Math.max(0, Math.floor(params.score))
+        : 0;
+      const heartsWon = Number.isFinite(params.heartsWon)
+        ? Math.max(0, Math.floor(params.heartsWon))
+        : 0;
+      const bonusGems = Number.isFinite(params.bonusGems)
+        ? Math.max(0, Math.floor(params.bonusGems))
+        : 0;
+
+      const updated: KidProfile = {
+        ...profile,
+        hearts: Math.min(profile.maxHearts, profile.hearts + heartsWon),
+        gems: profile.gems + bonusGems,
+        secretArcadeBestScore: Math.max(profile.secretArcadeBestScore ?? 0, safeScore),
+        stats: {
+          ...profile.stats,
+          arcadeGamesWon: profile.stats.arcadeGamesWon + 1,
+        },
+      };
+
+      return {
+        ...updated,
+        badges: evaluateUnlockedBadges(updated),
       };
     });
   },
