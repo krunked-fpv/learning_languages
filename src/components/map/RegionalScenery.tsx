@@ -1,8 +1,31 @@
 import type { ReactNode } from 'react';
 import { useId } from 'react';
-import type { LanguageCode } from '../../types/contracts';
+import {
+  resolveUnitProficiencyTier,
+  type LanguageCode,
+  type ProficiencyTier,
+} from '../../types/contracts';
 
 const INK = '#1E293B';
+
+const LANGUAGE_ACCENTS: Record<LanguageCode, { roof: string; glow: string; hill: string }> = {
+  es: { roof: '#EA580C', glow: '#FBBF24', hill: '#FED7AA' },
+  fr: { roof: '#4F46E5', glow: '#C4B5FD', hill: '#DDD6FE' },
+  de: { roof: '#D97706', glow: '#6EE7B7', hill: '#BBF7D0' },
+  it: { roof: '#059669', glow: '#67E8F9', hill: '#BAE6FD' },
+  pt: { roof: '#0D9488', glow: '#FDE047', hill: '#CCFBF1' },
+  en: { roof: '#1D4ED8', glow: '#FBBF24', hill: '#DBEAFE' },
+  zh: { roof: '#DC2626', glow: '#FDE047', hill: '#FEE2E2' },
+  ja: { roof: '#DB2777', glow: '#F9A8D4', hill: '#FCE7F3' },
+  hi: { roof: '#EA580C', glow: '#FDBA74', hill: '#FEF3C7' },
+  bn: { roof: '#047857', glow: '#6EE7B7', hill: '#D1FAE5' },
+  ar: { roof: '#059669', glow: '#F59E0B', hill: '#D1FAE5' },
+  arz: { roof: '#0284C7', glow: '#FDE047', hill: '#E0F2FE' },
+  ru: { roof: '#4F46E5', glow: '#FDA4AF', hill: '#E0E7FF' },
+  id: { roof: '#0891B2', glow: '#FB923C', hill: '#CFFAFE' },
+  vi: { roof: '#E11D48', glow: '#34D399', hill: '#FFE4E6' },
+  sw: { roof: '#D97706', glow: '#38BDF8', hill: '#FEF3C7' },
+};
 
 const SCENERY_SVG_STYLE = {
   position: 'absolute',
@@ -58,25 +81,7 @@ function Unit6To8Overlay({
   unitOrder: number;
   uid: string;
 }) {
-  const accentMap: Record<LanguageCode, { roof: string; glow: string; hill: string }> = {
-    es: { roof: '#EA580C', glow: '#FBBF24', hill: '#FED7AA' },
-    fr: { roof: '#4F46E5', glow: '#C4B5FD', hill: '#DDD6FE' },
-    de: { roof: '#D97706', glow: '#6EE7B7', hill: '#BBF7D0' },
-    it: { roof: '#059669', glow: '#67E8F9', hill: '#BAE6FD' },
-    pt: { roof: '#0D9488', glow: '#FDE047', hill: '#CCFBF1' },
-    en: { roof: '#1D4ED8', glow: '#FBBF24', hill: '#DBEAFE' },
-    zh: { roof: '#DC2626', glow: '#FDE047', hill: '#FEE2E2' },
-    ja: { roof: '#DB2777', glow: '#F9A8D4', hill: '#FCE7F3' },
-    hi: { roof: '#EA580C', glow: '#FDBA74', hill: '#FEF3C7' },
-    bn: { roof: '#047857', glow: '#6EE7B7', hill: '#D1FAE5' },
-    ar: { roof: '#059669', glow: '#F59E0B', hill: '#D1FAE5' },
-    arz: { roof: '#0284C7', glow: '#FDE047', hill: '#E0F2FE' },
-    ru: { roof: '#4F46E5', glow: '#FDA4AF', hill: '#E0E7FF' },
-    id: { roof: '#0891B2', glow: '#FB923C', hill: '#CFFAFE' },
-    vi: { roof: '#E11D48', glow: '#34D399', hill: '#FFE4E6' },
-    sw: { roof: '#D97706', glow: '#38BDF8', hill: '#FEF3C7' },
-  };
-  const tint = accentMap[language];
+  const tint = LANGUAGE_ACCENTS[language];
 
   if (unitOrder === 6) {
     // Unit 6: Music, Art & Playtime Festival
@@ -269,14 +274,221 @@ function Unit6To8Overlay({
   );
 }
 
-export function RegionalScenery({
+function TierAtmosphereAccents({ tier }: { tier: ProficiencyTier }) {
+  if (tier === 'A1' || tier === 'A2') return null;
+
+  if (tier === 'B1') {
+    // Storyweaver twilight firefly dust & soft constellation arcs
+    return (
+      <g data-tier-atmosphere="B1">
+        <path
+          d="M52 54Q190 22 315 58T556 42"
+          fill="none"
+          stroke="#C4B5FD"
+          strokeWidth="1.6"
+          strokeDasharray="4 7"
+          opacity="0.55"
+        />
+        {[
+          [78, 72, 3.2],
+          [194, 44, 2.5],
+          [312, 62, 3],
+          [438, 40, 2.6],
+          [526, 78, 3.2],
+        ].map(([cx, cy, r], idx) => (
+          <g key={idx}>
+            <circle cx={cx} cy={cy} r={r * 2.5} fill="#FEF08A" opacity="0.22" />
+            <circle cx={cx} cy={cy} r={r} fill="#FDE047" opacity="0.72" />
+          </g>
+        ))}
+      </g>
+    );
+  }
+
+  if (tier === 'B2') {
+    // Wayfinder Diplomat brass compass rose shimmer & floating golden stars
+    return (
+      <g data-tier-atmosphere="B2">
+        <circle cx="528" cy="64" r="28" fill="none" stroke="#F59E0B" strokeWidth="1.4" strokeDasharray="5 5" opacity="0.38" />
+        <circle cx="528" cy="64" r="18" fill="none" stroke="#FDE047" strokeWidth="1.2" opacity="0.42" />
+        <path d="M528 42L531 61L550 64L531 67L528 86L525 67L506 64L525 61Z" fill="#FDE047" opacity="0.35" />
+        {[
+          [66, 54, 2.8],
+          [176, 38, 2.2],
+          [322, 46, 2.6],
+          [442, 34, 2.4],
+        ].map(([cx, cy, r], idx) => (
+          <circle key={idx} cx={cx} cy={cy} r={r} fill="#FBBF24" opacity="0.6" />
+        ))}
+      </g>
+    );
+  }
+
+  // C1_C2 Polyglot Laureate aurora ribbons & imperial starlight laurels
+  return (
+    <g data-tier-atmosphere="C1_C2">
+      <path d="M24 88Q165 24 315 74T576 48" fill="none" stroke="#34D399" strokeWidth="10" opacity="0.2" strokeLinecap="round" />
+      <path d="M40 108Q195 44 345 92T566 66" fill="none" stroke="#F472B6" strokeWidth="8" opacity="0.2" strokeLinecap="round" />
+      {[
+        [68, 42, 3.2],
+        [152, 68, 2.4],
+        [258, 34, 3],
+        [362, 56, 2.6],
+        [456, 32, 3.2],
+        [540, 62, 2.8],
+      ].map(([cx, cy, r], idx) => (
+        <path
+          key={idx}
+          d={`M${cx} ${cy - r * 2} L${cx + r * 0.65} ${cy - r * 0.65} L${cx + r * 2} ${cy} L${cx + r * 0.65} ${cy + r * 0.65} L${cx} ${cy + r * 2} L${cx - r * 0.65} ${cy + r * 0.65} L${cx - r * 2} ${cy} L${cx - r * 0.65} ${cy - r * 0.65} Z`}
+          fill="#FEF08A"
+          opacity="0.78"
+        />
+      ))}
+    </g>
+  );
+}
+
+function Unit9To16Overlay({
   language,
   unitOrder,
+  tier,
+  uid,
 }: {
   language: LanguageCode;
   unitOrder: number;
+  tier: ProficiencyTier;
+  uid: string;
+}) {
+  const tint = LANGUAGE_ACCENTS[language];
+
+  if (tier === 'B1') {
+    const isDreamHorizon = unitOrder === 10;
+    const isWellnessLake = unitOrder === 11;
+    return (
+      <DioramaSvg
+        unitOrder={unitOrder}
+        skyId={`u9-11-sky-${uid}`}
+        skyTop={isDreamHorizon ? '#E0F2FE' : isWellnessLake ? '#CCFBF1' : '#EDE9FE'}
+        skyMid={tint.hill}
+        skyBottom="#FEF3C7"
+      >
+        <TierAtmosphereAccents tier={tier} />
+        <path d="M0 302Q155 246 315 294T600 282V420H0Z" fill="#A78BFA" opacity="0.34" />
+        <path d="M0 342Q195 304 395 344T600 332V420H0Z" fill={isWellnessLake ? '#2DD4BF' : '#34D399'} opacity="0.46" />
+        {/* Storybook Arch / Ruins / Horizon Spire Landmark */}
+        <g transform="translate(20, 232)" opacity="0.9">
+          <rect x="6" y="42" width="76" height="80" rx="6" fill="#FFFBEB" stroke={INK} strokeWidth="1.9" />
+          <path d="M0 44L44 10L88 44Z" fill={tint.roof} stroke={INK} strokeWidth="1.9" strokeLinejoin="round" />
+          <path d="M28 122V76C28 60 60 60 60 76V122Z" fill="#FDE68A" stroke={INK} strokeWidth="1.8" />
+        </g>
+        {isWellnessLake ? (
+          <g transform="translate(474, 342)" opacity="0.9">
+            <ellipse cx="42" cy="14" rx="28" ry="8" fill="#16A34A" stroke={INK} strokeWidth="1.6" />
+            <path d="M42 10C30 4 24 -8 30 -16C36 -11 40 -2 42 10Z" fill="#F472B6" stroke={INK} strokeWidth="1.4" />
+            <path d="M42 10C54 4 60 -8 54 -16C48 -11 44 -2 42 10Z" fill="#F472B6" stroke={INK} strokeWidth="1.4" />
+            <path d="M42 -18C48 -8 48 4 42 11C36 4 36 -8 42 -18Z" fill="#FCE7F3" stroke={INK} strokeWidth="1.5" />
+          </g>
+        ) : (
+          <g transform="translate(486, 238)" opacity="0.9">
+            <rect x="14" y="46" width="58" height="72" rx="4" fill="#E2E8F0" stroke={INK} strokeWidth="1.8" />
+            <path d="M10 46C10 18 76 18 76 46Z" fill={tint.glow} stroke={INK} strokeWidth="1.8" />
+            <rect x="44" y="18" width="32" height="9" rx="4" transform="rotate(-24 44 18)" fill="#F59E0B" stroke={INK} strokeWidth="1.5" />
+          </g>
+        )}
+      </DioramaSvg>
+    );
+  }
+
+  if (tier === 'B2') {
+    const isFestival = unitOrder === 13;
+    const isBridge = unitOrder === 14;
+    return (
+      <DioramaSvg
+        unitOrder={unitOrder}
+        skyId={`u12-14-sky-${uid}`}
+        skyTop={isFestival ? '#FFF1F2' : '#E0F2FE'}
+        skyMid="#FEF3C7"
+        skyBottom={tint.hill}
+      >
+        <TierAtmosphereAccents tier={tier} />
+        <path d="M0 308Q170 258 340 304T600 294V420H0Z" fill="#6EE7B7" opacity="0.42" />
+        <path d="M0 340Q150 324 300 342T600 332V420H0Z" fill="#38BDF8" opacity="0.46" />
+        {isFestival && (
+          <>
+            <path d="M0 26Q150 58 300 24T600 28" fill="none" stroke="#92400E" strokeWidth="2" opacity="0.55" />
+            {[64, 152, 448, 536].map((x, idx) => (
+              <g key={x} transform={`translate(${x}, 36)`}>
+                <circle cx="0" cy="18" r="18" fill="#FDE047" opacity="0.28" />
+                <ellipse cx="0" cy="18" rx="10" ry="13" fill={idx % 2 === 0 ? tint.roof : '#F59E0B'} stroke={INK} strokeWidth="1.6" />
+              </g>
+            ))}
+          </>
+        )}
+        {isBridge && (
+          <path d="M120 348Q300 242 480 348" fill="none" stroke={tint.roof} strokeWidth="9" opacity="0.72" />
+        )}
+        <g transform="translate(22, 240)" opacity="0.9">
+          <rect x="8" y="34" width="76" height="84" rx="5" fill="#FFFBEB" stroke={INK} strokeWidth="1.9" />
+          <path d="M4 36L46 4L88 36Z" fill={tint.roof} stroke={INK} strokeWidth="1.9" strokeLinejoin="round" />
+          <circle cx="46" cy="70" r="14" fill={tint.glow} stroke={INK} strokeWidth="1.6" />
+        </g>
+      </DioramaSvg>
+    );
+  }
+
+  // C1_C2 Polyglot Laureate: Grand Symposium Rotunda & Golden Aurora Peaks
+  return (
+    <DioramaSvg
+      unitOrder={unitOrder}
+      skyId={`u15-16-sky-${uid}`}
+      skyTop="#1E1B4B"
+      skyMid="#4C1D95"
+      skyBottom="#701A75"
+    >
+      <TierAtmosphereAccents tier={tier} />
+      <path d="M0 318Q155 268 310 312T600 296V420H0Z" fill="#312E81" opacity="0.82" />
+      <path d="M0 352Q210 326 420 354T600 344V420H0Z" fill="#4338CA" opacity="0.72" />
+      {/* Grand Laureate Symposium Rotunda Left */}
+      <g transform="translate(20, 224)" opacity="0.94">
+        <path d="M8 52C8 14 94 14 94 52Z" fill="#F59E0B" stroke={INK} strokeWidth="2" />
+        <rect x="14" y="52" width="74" height="72" rx="4" fill="#FEF3C7" stroke={INK} strokeWidth="2" />
+        {[26, 44, 62, 76].map((x) => (
+          <rect key={x} x={x} y="58" width="7" height="60" rx="2" fill="#FFFBEB" stroke={INK} strokeWidth="1.3" />
+        ))}
+        <circle cx="51" cy="14" r="6" fill="#FDE047" stroke={INK} strokeWidth="1.5" />
+      </g>
+      {/* Golden Laureate Torch Tower Right */}
+      <g transform="translate(502, 232)" opacity="0.92">
+        <rect x="20" y="42" width="44" height="84" rx="4" fill="#E0E7FF" stroke={INK} strokeWidth="1.9" />
+        <path d="M14 42L42 10L70 42Z" fill={tint.roof} stroke={INK} strokeWidth="1.9" strokeLinejoin="round" />
+        <circle cx="42" cy="70" r="11" fill="#FACC15" stroke={INK} strokeWidth="1.6" />
+      </g>
+    </DioramaSvg>
+  );
+}
+
+export function RegionalScenery({
+  language,
+  unitOrder,
+  proficiencyTier,
+}: {
+  language: LanguageCode;
+  unitOrder: number;
+  proficiencyTier?: ProficiencyTier;
 }) {
   const uid = useId().replace(/:/g, '');
+  const resolvedTier = proficiencyTier ?? resolveUnitProficiencyTier(unitOrder);
+
+  if (unitOrder >= 9) {
+    return (
+      <Unit9To16Overlay
+        language={language}
+        unitOrder={unitOrder}
+        tier={resolvedTier}
+        uid={uid}
+      />
+    );
+  }
 
   if (unitOrder >= 6) {
     return <Unit6To8Overlay language={language} unitOrder={unitOrder} uid={uid} />;

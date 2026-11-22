@@ -7,6 +7,8 @@ import { UNIT3_SCENES } from './vocab/unit3Nature';
 import { UNIT4_SCENES } from './vocab/unit4FamilyColors';
 import { UNIT5_SCENES } from './vocab/unit5Expedition';
 import { UNIT6_TO_8_SCENES } from './vocab/unit6to8Extras';
+import { UNIT9_TO_12_SCENES } from './vocab/unit9to12Intermediate';
+import { UNIT13_TO_16_SCENES } from './vocab/unit13to16Mastery';
 
 export interface VocabIllustrationProps {
   illustrationKey: IllustrationKey;
@@ -22,6 +24,8 @@ export const VOCAB_ILLUSTRATIONS: Record<IllustrationKey, SceneRenderer> = {
   ...UNIT4_SCENES,
   ...UNIT5_SCENES,
   ...UNIT6_TO_8_SCENES,
+  ...UNIT9_TO_12_SCENES,
+  ...UNIT13_TO_16_SCENES,
 };
 
 const STICKER_BACKGROUNDS: Record<

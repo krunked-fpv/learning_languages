@@ -2,15 +2,19 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AvatarBadge } from '../../art/AvatarBadge';
 import { FlagIcon } from '../../art/FlagIcon';
-import type {
-  AvatarId,
-  CompanionId,
-  CourseUnit,
-  EquippedCosmetics,
-  LanguageCourse,
-  LanguageProgressState,
-  MapNode,
-  MapNodeType,
+import {
+  PROFICIENCY_TIERS,
+  PROFICIENCY_TIER_META,
+  resolveUnitProficiencyTier,
+  type AvatarId,
+  type CompanionId,
+  type CourseUnit,
+  type EquippedCosmetics,
+  type LanguageCourse,
+  type LanguageProgressState,
+  type MapNode,
+  type MapNodeType,
+  type ProficiencyTier,
 } from '../../types/contracts';
 import { MascotStage } from '../characters/MascotStage';
 import { GoldStar, MapNodeIcon, PadlockBadge } from './NodeIcons';
@@ -22,6 +26,7 @@ export interface AdventureMapProps {
   equippedCosmetics: EquippedCosmetics;
   onSelectNode: (node: MapNode) => void;
   onSelectUnit?: (unitIndex: number) => void;
+  onStartTierCheckpoint?: (targetTier: Exclude<ProficiencyTier, 'A1'>) => void;
 }
 
 const COMPANION_AVATAR_MAP: Record<Exclude<CompanionId, 'pip'>, AvatarId> = {
@@ -106,6 +111,7 @@ export function AdventureMap({
   equippedCosmetics,
   onSelectNode,
   onSelectUnit,
+  onStartTierCheckpoint,
 }: AdventureMapProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [isCompactWidth, setIsCompactWidth] = useState<boolean>(() =>
@@ -145,24 +151,58 @@ export function AdventureMap({
     [course.units]
   );
 
-  const { completedSet, activeNodeId, activeUnitIdx, totalStars, maxStars } = useMemo(() => {
+  const {
+    completedSet,
+    activeNodeId,
+    activeUnitIdx,
+    totalStars,
+    maxStars,
+    tierUnlockedMap,
+    tierJumpUnitIdx,
+    unlockedTierActiveNodeIds,
+  } = useMemo(() => {
     const completed = new Set<string>([
       ...progress.completedNodeIds,
       ...progress.claimedChestIds,
     ]);
+    const explicitlyUnlocked = new Set<ProficiencyTier>(progress.unlockedTiers ?? []);
     let firstActive: string | null = null;
     let firstActiveUnit = 0;
     let earnedStars = 0;
     let possibleStars = 0;
 
+    const unlockedTiers: Record<ProficiencyTier, boolean> = {
+      A1: true,
+      A2: explicitlyUnlocked.has('A2'),
+      B1: explicitlyUnlocked.has('B1'),
+      B2: explicitlyUnlocked.has('B2'),
+      C1_C2: explicitlyUnlocked.has('C1_C2'),
+    };
+    const tierFirstIdx: Partial<Record<ProficiencyTier, number>> = {};
+    const tierActiveIdx: Partial<Record<ProficiencyTier, number>> = {};
+    const tierFirstUncompleted = new Map<ProficiencyTier, string>();
+
     sortedUnits.forEach((unit, uIdx) => {
+      const uTier = unit.proficiencyTier ?? resolveUnitProficiencyTier(unit.order);
+      if (tierFirstIdx[uTier] === undefined) {
+        tierFirstIdx[uTier] = uIdx;
+      }
       for (const node of unit.nodes) {
         possibleStars += 3;
         if (completed.has(node.id)) {
           earnedStars += progress.nodeStars[node.id] ?? 3;
-        } else if (firstActive === null) {
-          firstActive = node.id;
-          firstActiveUnit = uIdx;
+          unlockedTiers[uTier] = true;
+        } else {
+          if (firstActive === null) {
+            firstActive = node.id;
+            firstActiveUnit = uIdx;
+          }
+          if (tierActiveIdx[uTier] === undefined) {
+            tierActiveIdx[uTier] = uIdx;
+          }
+          if (!tierFirstUncompleted.has(uTier) && explicitlyUnlocked.has(uTier)) {
+            tierFirstUncompleted.set(uTier, node.id);
+          }
         }
       }
     });
@@ -174,14 +214,29 @@ export function AdventureMap({
       );
     }
 
+    const jumpIdx: Partial<Record<ProficiencyTier, number>> = {};
+    for (const tier of PROFICIENCY_TIERS) {
+      jumpIdx[tier] = tierActiveIdx[tier] ?? tierFirstIdx[tier];
+    }
+
     return {
       completedSet: completed,
       activeNodeId: firstActive,
       activeUnitIdx: firstActiveUnit,
       totalStars: earnedStars,
       maxStars: possibleStars,
+      tierUnlockedMap: unlockedTiers,
+      tierJumpUnitIdx: jumpIdx,
+      unlockedTierActiveNodeIds: tierFirstUncompleted,
     };
-  }, [sortedUnits, progress.completedNodeIds, progress.claimedChestIds, progress.nodeStars, progress.currentUnitIndex]);
+  }, [
+    sortedUnits,
+    progress.completedNodeIds,
+    progress.claimedChestIds,
+    progress.nodeStars,
+    progress.currentUnitIndex,
+    progress.unlockedTiers,
+  ]);
 
   const [focusedUnitIdx, setFocusedUnitIdx] = useState<number>(activeUnitIdx);
   const [slideDir, setSlideDir] = useState<number>(1);
@@ -240,6 +295,13 @@ export function AdventureMap({
     onSelectUnit?.(clamped);
   };
 
+  const handleSelectTier = (tier: ProficiencyTier) => {
+    const targetIdx = tierJumpUnitIdx[tier];
+    if (targetIdx !== undefined) {
+      handleSelectChapter(targetIdx);
+    }
+  };
+
   if (sortedUnits.length === 0 || !currentUnit) {
     return (
       <div
@@ -274,6 +336,11 @@ export function AdventureMap({
 
   const doneCount = currentUnit.nodes.filter((n) => completedSet.has(n.id)).length;
   const segments = buildPercentCurveSegments(currentUnit.nodes, isCompactWidth);
+  const currentUnitTier: ProficiencyTier =
+    currentUnit.proficiencyTier ?? resolveUnitProficiencyTier(currentUnit.order);
+  const currentTierMeta = PROFICIENCY_TIER_META[currentUnitTier];
+  const isCurrentTierLocked =
+    currentUnitTier !== 'A1' && !tierUnlockedMap[currentUnitTier];
 
   return (
     <div
@@ -417,13 +484,105 @@ export function AdventureMap({
           </div>
         </div>
 
-        {/* Chapter 1..8 Carousel Tabs with Prev / Next */}
+        {/* 5-Tier CEFR Atlas Ribbon (A1 Sprout · A2 Trailblazer · B1 Storyweaver · B2 Diplomat · C1+ Laureate) */}
+        <div
+          role="navigation"
+          aria-label="CEFR proficiency tiers"
+          data-cefr-ribbon="true"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: isCompactWidth ? 4 : 6,
+            marginTop: 7,
+            overflowX: 'auto',
+            scrollbarWidth: 'none',
+            paddingBottom: 1,
+          }}
+        >
+          {PROFICIENCY_TIERS.map((tier) => {
+            const meta = PROFICIENCY_TIER_META[tier];
+            const hasUnits = tierJumpUnitIdx[tier] !== undefined;
+            const isActiveTier = currentUnitTier === tier;
+            const isUnlocked = tierUnlockedMap[tier];
+            const compactLabel =
+              tier === 'B2' ? 'Diplomat' : tier === 'C1_C2' ? 'Laureate' : meta.title;
+
+            return (
+              <motion.button
+                key={tier}
+                type="button"
+                disabled={!hasUnits}
+                data-tier-pill={tier}
+                data-tier-locked={isUnlocked ? 'false' : 'true'}
+                aria-pressed={isActiveTier}
+                aria-label={`${meta.cefrLabel} ${meta.title}`}
+                whileTap={hasUnits ? { scale: 0.96, y: 1 } : undefined}
+                transition={{ type: 'spring', stiffness: 460, damping: 26 }}
+                onClick={() => handleSelectTier(tier)}
+                style={{
+                  flex: isCompactWidth ? '0 0 auto' : '1 1 0%',
+                  minWidth: isCompactWidth ? 'auto' : 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: isCompactWidth ? 4 : 5,
+                  padding: isCompactWidth ? '3px 8px' : '4px 9px',
+                  borderRadius: 999,
+                  fontSize: isCompactWidth ? 10.5 : 11,
+                  fontWeight: 800,
+                  whiteSpace: 'nowrap',
+                  cursor: hasUnits ? 'pointer' : 'not-allowed',
+                  opacity: hasUnits ? 1 : 0.45,
+                  backgroundColor: isActiveTier
+                    ? meta.badgeColor
+                    : isUnlocked
+                      ? meta.surfaceTint
+                      : 'var(--card-soft-bg, #f8fafc)',
+                  color: isActiveTier ? '#FFFFFF' : 'var(--text-main, #0f172a)',
+                  borderStyle: 'solid',
+                  borderWidth: '1.5px 1.5px 3px 1.5px',
+                  borderColor: isActiveTier
+                    ? '#0F172A'
+                    : isUnlocked
+                      ? meta.badgeColor
+                      : 'var(--card-border, #cbd5e1)',
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    flexShrink: 0,
+                    backgroundColor: isActiveTier
+                      ? '#FFFFFF'
+                      : isUnlocked
+                        ? meta.badgeColor
+                        : '#94A3B8',
+                  }}
+                />
+                <span style={{ fontWeight: 900 }}>{meta.cefrLabel}</span>
+                <span
+                  style={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {isCompactWidth ? compactLabel : meta.title}
+                </span>
+              </motion.button>
+            );
+          })}
+        </div>
+
+        {/* Chapter 1..16 Carousel Tabs with Prev / Next */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 6,
-            marginTop: 8,
+            marginTop: 6,
           }}
         >
           <motion.button
@@ -478,6 +637,8 @@ export function AdventureMap({
               const unitDoneCount = unit.nodes.filter((n) => completedSet.has(n.id)).length;
               const isSelected = safeUnitIdx === idx;
               const unitComplete = unit.nodes.length > 0 && unitDoneCount === unit.nodes.length;
+              const unitTier = unit.proficiencyTier ?? resolveUnitProficiencyTier(unit.order);
+              const unitTierMeta = PROFICIENCY_TIER_META[unitTier];
 
               return (
                 <motion.button
@@ -487,6 +648,7 @@ export function AdventureMap({
                   aria-selected={isSelected}
                   aria-label={`Chapter ${unit.order}: ${unit.title}`}
                   data-unit-tab={unit.id}
+                  data-unit-tier={unitTier}
                   whileTap={{ scale: 0.95, y: 1 }}
                   transition={{ type: 'spring', stiffness: 460, damping: 26 }}
                   onClick={() => handleSelectChapter(idx)}
@@ -509,6 +671,16 @@ export function AdventureMap({
                     borderColor: isSelected ? palette.bevel : 'var(--card-border, #cbd5e1)',
                   }}
                 >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      flexShrink: 0,
+                      backgroundColor: isSelected ? '#FDE047' : unitTierMeta.badgeColor,
+                    }}
+                  />
                   <span>{isCompactWidth ? `Ch ${unit.order}` : `Unit ${unit.order}`}</span>
                   <span
                     style={{
@@ -609,7 +781,7 @@ export function AdventureMap({
                 position: 'relative',
                 zIndex: 2,
                 display: 'flex',
-                flexWrap: 'nowrap',
+                flexWrap: isCompactWidth ? 'wrap' : 'nowrap',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 gap: isCompactWidth ? 6 : 10,
@@ -621,8 +793,23 @@ export function AdventureMap({
                 borderBottomColor: 'rgba(15, 23, 42, 0.22)',
               }}
             >
-              <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+              <div style={{ flex: '1 1 160px', minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                  <span
+                    style={{
+                      flexShrink: 0,
+                      padding: '1px 7px',
+                      borderRadius: 999,
+                      backgroundColor: currentTierMeta.badgeColor,
+                      color: '#FFFFFF',
+                      border: '1px solid rgba(255,255,255,0.45)',
+                      fontSize: isCompactWidth ? 9.5 : 10,
+                      fontWeight: 900,
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {currentTierMeta.cefrLabel}
+                  </span>
                   <span
                     title={`Unit ${currentUnit.order} • ${currentUnit.culturalLandmark}`}
                     style={{
@@ -678,18 +865,59 @@ export function AdventureMap({
               <div
                 style={{
                   flexShrink: 0,
-                  padding: isCompactWidth ? '3px 8px' : '4px 10px',
-                  borderRadius: 12,
-                  backgroundColor: 'rgba(255, 255, 255, 0.22)',
-                  borderStyle: 'solid',
-                  borderWidth: 1.5,
-                  borderColor: 'rgba(255, 255, 255, 0.45)',
-                  fontWeight: 800,
-                  fontSize: isCompactWidth ? 11 : 12,
-                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
                 }}
               >
-                {doneCount} / {currentUnit.nodes.length} Stops
+                {currentUnitTier !== 'A1' && isCurrentTierLocked && (
+                  <motion.button
+                    type="button"
+                    data-tier-checkpoint={currentUnitTier}
+                    aria-label={`Test into ${currentTierMeta.cefrLabel}`}
+                    whileHover={{ scale: 1.05, y: -1 }}
+                    whileTap={{ scale: 0.95, y: 1 }}
+                    transition={{ type: 'spring', stiffness: 450, damping: 24 }}
+                    onClick={() => onStartTierCheckpoint?.(currentUnitTier)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      padding: isCompactWidth ? '4px 9px' : '5px 12px',
+                      borderRadius: 999,
+                      background: 'linear-gradient(135deg, #FEF08A 0%, #FACC15 100%)',
+                      color: '#0F172A',
+                      borderStyle: 'solid',
+                      borderWidth: '2px 2px 3.5px 2px',
+                      borderColor: '#92400E',
+                      fontWeight: 900,
+                      fontSize: isCompactWidth ? 11 : 12,
+                      whiteSpace: 'nowrap',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(15, 23, 42, 0.2)',
+                    }}
+                  >
+                    <GoldStar filled size={isCompactWidth ? 12 : 14} />
+                    <span>Test into {currentTierMeta.cefrLabel}</span>
+                  </motion.button>
+                )}
+
+                <div
+                  style={{
+                    flexShrink: 0,
+                    padding: isCompactWidth ? '3px 8px' : '4px 10px',
+                    borderRadius: 12,
+                    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+                    borderStyle: 'solid',
+                    borderWidth: 1.5,
+                    borderColor: 'rgba(255, 255, 255, 0.45)',
+                    fontWeight: 800,
+                    fontSize: isCompactWidth ? 11 : 12,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {doneCount} / {currentUnit.nodes.length} Stops
+                </div>
               </div>
             </header>
 
@@ -699,11 +927,15 @@ export function AdventureMap({
                 position: 'relative',
                 flex: '1 1 0%',
                 width: '100%',
-                minHeight: 'min(265px, 38dvh)',
+                minHeight: 'min(220px, 32dvh)',
                 overflow: 'hidden',
               }}
             >
-              <RegionalScenery language={course.language} unitOrder={currentUnit.order} />
+              <RegionalScenery
+                language={course.language}
+                unitOrder={currentUnit.order}
+                proficiencyTier={currentUnitTier}
+              />
 
               {/* Smooth Percentage S-Curve Vector Path */}
               <svg
@@ -756,7 +988,10 @@ export function AdventureMap({
               {/* All Unit Nodes Positioned Cleanly via Percentage Coordinates */}
               {currentUnit.nodes.map((node, nodeIdx) => {
                 const isCompleted = completedSet.has(node.id);
-                const isActive = !isCompleted && activeNodeId === node.id;
+                const isActive =
+                  !isCompleted &&
+                  (activeNodeId === node.id ||
+                    unlockedTierActiveNodeIds.get(currentUnitTier) === node.id);
                 const state: 'completed' | 'active' | 'locked' = isCompleted
                   ? 'completed'
                   : isActive

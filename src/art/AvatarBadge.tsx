@@ -48,6 +48,30 @@ const AVATAR_META: Record<
     bgEnd: '#1E1B4B',
     rimColor: '#FDE047',
   },
+  origami_crane_crest: {
+    label: 'Origami Crane Crest avatar',
+    bgStart: '#F472B6',
+    bgEnd: '#831843',
+    rimColor: '#FDE047',
+  },
+  clockwork_owl_crest: {
+    label: 'Clockwork Owl Crest avatar',
+    bgStart: '#0EA5E9',
+    bgEnd: '#1E1B4B',
+    rimColor: '#F59E0B',
+  },
+  fennec_voyager: {
+    label: 'Fennec Voyager avatar',
+    bgStart: '#FBBF24',
+    bgEnd: '#9A3412',
+    rimColor: '#FEF08A',
+  },
+  grand_laureate_crest: {
+    label: 'Grand Laureate Crest avatar',
+    bgStart: '#9333EA',
+    bgEnd: '#3B0764',
+    rimColor: '#FACC15',
+  },
 };
 
 const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
@@ -300,6 +324,157 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
       {/* Sparkles */}
       <circle cx="14" cy="18" r="1.4" fill="#FDE047" />
       <circle cx="51" cy="20" r="1.2" fill="#FDE047" />
+    </g>
+  ),
+
+  origami_crane_crest: (uid) => (
+    <g>
+      <defs>
+        <linearGradient id={`ori-wing-${uid}`} x1="14" y1="14" x2="50" y2="48" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FFF1F2" />
+          <stop offset="65%" stopColor="#FBCFE8" />
+          <stop offset="100%" stopColor="#F472B6" />
+        </linearGradient>
+      </defs>
+      {/* Floating Sakura Blossoms */}
+      <circle cx="14" cy="18" r="2.2" fill="#FCE7F3" opacity="0.85" />
+      <circle cx="50" cy="46" r="2" fill="#FDE047" opacity="0.8" />
+      <circle cx="48" cy="16" r="1.4" fill="#FFFFFF" opacity="0.85" />
+      {/* Back Origami Wing */}
+      <polygon points="30,31 46,14 42,35" fill="#F9A8D4" stroke="#0F172A" strokeWidth="1.4" strokeLinejoin="round" />
+      {/* Tail & Neck Fold */}
+      <polygon points="24,38 11,22 20,40" fill="#FB7185" stroke="#0F172A" strokeWidth="1.4" strokeLinejoin="round" />
+      <polygon points="39,35 50,23 54,26 48,29 42,39" fill="#FFFBEB" stroke="#0F172A" strokeWidth="1.4" strokeLinejoin="round" />
+      {/* Main Folded Paper Body & Front Wing */}
+      <polygon points="20,40 31,29 42,39 32,48" fill="#FFF1F2" stroke="#0F172A" strokeWidth="1.5" strokeLinejoin="round" />
+      <polygon points="16,19 34,29 24,41" fill={`url(#ori-wing-${uid})`} stroke="#0F172A" strokeWidth="1.5" strokeLinejoin="round" />
+      {/* Crisp Origami Crease Highlights */}
+      <line x1="25" y1="31" x2="32" y2="48" stroke="#DB2777" strokeWidth="1" opacity="0.55" />
+      <circle cx="49" cy="25" r="0.9" fill="#0F172A" />
+    </g>
+  ),
+
+  clockwork_owl_crest: (uid) => (
+    <g>
+      <defs>
+        <radialGradient id={`cwo-body-${uid}`} cx="45%" cy="35%" r="68%">
+          <stop offset="0%" stopColor="#FDE047" />
+          <stop offset="65%" stopColor="#F59E0B" />
+          <stop offset="100%" stopColor="#B45309" />
+        </radialGradient>
+      </defs>
+      {/* Brass Gear Halo Behind Head */}
+      <circle cx="32" cy="33" r="20" fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.7" />
+      {/* Shoulders */}
+      <path d="M13 62C15 49 22 45 32 45C42 45 49 49 51 62Z" fill="#1E3A8A" stroke="#0F172A" strokeWidth="1.6" />
+      <circle cx="32" cy="54" r="4.8" fill="#F59E0B" stroke="#0F172A" strokeWidth="1.2" />
+      <circle cx="32" cy="54" r="2" fill="#38BDF8" />
+      {/* Ear Tufts */}
+      <polygon points="18,22 14,11 25,18" fill="#D97706" stroke="#0F172A" strokeWidth="1.4" strokeLinejoin="round" />
+      <polygon points="46,22 50,11 39,18" fill="#D97706" stroke="#0F172A" strokeWidth="1.4" strokeLinejoin="round" />
+      {/* Owl Head */}
+      <ellipse cx="32" cy="31.5" rx="16.5" ry="14.5" fill={`url(#cwo-body-${uid})`} stroke="#0F172A" strokeWidth="1.7" />
+      {/* Brass Lens Eyes */}
+      <circle cx="24.5" cy="30" r="6" fill="#0F172A" stroke="#FEF08A" strokeWidth="1.5" />
+      <circle cx="39.5" cy="30" r="6" fill="#0F172A" stroke="#FEF08A" strokeWidth="1.5" />
+      <circle cx="24.5" cy="30" r="3.6" fill="#38BDF8" />
+      <circle cx="39.5" cy="30" r="3.6" fill="#38BDF8" />
+      <circle cx="25.6" cy="28.8" r="1.2" fill="#FFFFFF" />
+      <circle cx="40.6" cy="28.8" r="1.2" fill="#FFFFFF" />
+      {/* Brass Beak */}
+      <polygon points="29,34.5 35,34.5 32,40.5" fill="#FDE047" stroke="#0F172A" strokeWidth="1.3" strokeLinejoin="round" />
+    </g>
+  ),
+
+  fennec_voyager: (uid) => (
+    <g>
+      <defs>
+        <radialGradient id={`fnv-fur-${uid}`} cx="45%" cy="35%" r="68%">
+          <stop offset="0%" stopColor="#FEF3C7" />
+          <stop offset="70%" stopColor="#FCD34D" />
+          <stop offset="100%" stopColor="#F59E0B" />
+        </radialGradient>
+      </defs>
+      {/* Explorer Turquoise Scarf */}
+      <path d="M13 62C15 50 22 46 32 46C42 46 49 50 51 62Z" fill="#0284C7" stroke="#0F172A" strokeWidth="1.6" />
+      <path d="M22 48L32 56L42 48" fill="none" stroke="#FDE047" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Signature Oversized Fennec Ears */}
+      <polygon points="18,31 9,10 28,22" fill="#F59E0B" stroke="#0F172A" strokeWidth="1.5" strokeLinejoin="round" />
+      <polygon points="17.5,27.5 12.5,14.5 25,22" fill="#FFFBEB" />
+      <polygon points="46,31 55,10 36,22" fill="#F59E0B" stroke="#0F172A" strokeWidth="1.5" strokeLinejoin="round" />
+      <polygon points="46.5,27.5 51.5,14.5 39,22" fill="#FFFBEB" />
+      {/* Fennec Face */}
+      <path
+        d="M16 34C16 25 23 20 32 20C41 20 48 25 48 34C48 42 40 46 32 46C24 46 16 42 16 34Z"
+        fill={`url(#fnv-fur-${uid})`}
+        stroke="#0F172A"
+        strokeWidth="1.7"
+      />
+      {/* Rosy Cheeks & Eyes */}
+      <ellipse cx="21" cy="37" rx="3" ry="1.8" fill="#FB7185" opacity="0.55" />
+      <ellipse cx="43" cy="37" rx="3" ry="1.8" fill="#FB7185" opacity="0.55" />
+      <circle cx="24.5" cy="32" r="2.9" fill="#0F172A" />
+      <circle cx="39.5" cy="32" r="2.9" fill="#0F172A" />
+      <circle cx="25.4" cy="30.9" r="1.1" fill="#FFFFFF" />
+      <circle cx="40.4" cy="30.9" r="1.1" fill="#FFFFFF" />
+      {/* Tiny Nose & Smile */}
+      <polygon points="29.8,36.5 34.2,36.5 32,39.2" fill="#0F172A" />
+      <path d="M28.5 40.8C30.2 42.3 33.8 42.3 35.5 40.8" stroke="#0F172A" strokeWidth="1.3" strokeLinecap="round" fill="none" />
+    </g>
+  ),
+
+  grand_laureate_crest: (uid) => (
+    <g>
+      <defs>
+        <linearGradient id={`glc-gold-${uid}`} x1="14" y1="14" x2="50" y2="52" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FEF08A" />
+          <stop offset="100%" stopColor="#D97706" />
+        </linearGradient>
+      </defs>
+      {/* Golden Laurel Wreath Arcs */}
+      {[
+        [17, 41, -40],
+        [14, 33, -15],
+        [16, 24, 15],
+        [22, 17, 45],
+      ].map(([cx, cy, rot], i) => (
+        <ellipse
+          key={`ll-${i}`}
+          cx={cx}
+          cy={cy}
+          rx="5"
+          ry="2.8"
+          transform={`rotate(${rot} ${cx} ${cy})`}
+          fill={`url(#glc-gold-${uid})`}
+          stroke="#0F172A"
+          strokeWidth="1.1"
+        />
+      ))}
+      {[
+        [47, 41, 40],
+        [50, 33, 15],
+        [48, 24, -15],
+        [42, 17, -45],
+      ].map(([cx, cy, rot], i) => (
+        <ellipse
+          key={`rl-${i}`}
+          cx={cx}
+          cy={cy}
+          rx="5"
+          ry="2.8"
+          transform={`rotate(${rot} ${cx} ${cy})`}
+          fill={`url(#glc-gold-${uid})`}
+          stroke="#0F172A"
+          strokeWidth="1.1"
+        />
+      ))}
+      {/* Polyglot Sapphire Medallion */}
+      <circle cx="32" cy="33" r="12.5" fill="#2563EB" stroke="#FDE047" strokeWidth="1.8" />
+      <path d="M25 27C29 26 32 29 30 34C27 37 23 34 25 27Z" fill="#4ADE80" />
+      <path d="M35 28C39 28 41 33 38 38C34 40 33 33 35 28Z" fill="#22C55E" />
+      {/* Crown Apex Star & Crimson Ribbon Base */}
+      <path d="M32 10L34 15L39 17L34 19L32 24L30 19L25 17L30 15Z" fill="#FDE047" stroke="#0F172A" strokeWidth="1" />
+      <path d="M22 46L17 55L26 52L32 48L38 52L47 55L42 46Z" fill="#E11D48" stroke="#0F172A" strokeWidth="1.3" strokeLinejoin="round" />
     </g>
   ),
 };
