@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard, Grid, Volume2, Turtle } from 'lucide-react';
+import { Eye, EyeOff, Grid, Keyboard, Sparkles, Turtle, Volume2, Zap } from 'lucide-react';
 import { playSfx, speakPhrase } from '../../audio';
-import { LANGUAGE_META, type LanguageCode, type WordBankExercise } from '../../types/contracts';
+import {
+  FREE_RECALL_BONUS_GEMS,
+  FREE_RECALL_BONUS_XP,
+  LANGUAGE_META,
+  type LanguageCode,
+  type ProficiencyTier,
+  type RegisterNuanceTag,
+  type WordBankExercise,
+} from '../../types/contracts';
 import { TapHintText } from './TapHintText';
 import { WordBankTray, buildWordBankPool, getAssembledText } from './WordBankTray';
+import { REGISTER_TAG_META } from './lessonHelpers';
 
 export interface ExerciseDraftPayload {
   submitted: string;
@@ -12,6 +21,9 @@ export interface ExerciseDraftPayload {
   expectedArticle?: string;
   speakOnResult?: string;
   phoneticHint?: string;
+  isFreeRecall?: boolean;
+  nuanceNote?: string;
+  registerTag?: RegisterNuanceTag;
 }
 
 export interface WordBankViewProps {
@@ -19,7 +31,10 @@ export interface WordBankViewProps {
   language: LanguageCode;
   compact: boolean;
   locked: boolean;
+  proficiencyTier?: ProficiencyTier;
+  scaffoldingMode?: 'guided' | 'bridge' | 'fluent';
   onTurtlePlay: () => void;
+  onFluentPlay?: () => void;
   onDraftChange: (draft: ExerciseDraftPayload | null) => void;
   onSubmitShortcut?: () => void;
 }
@@ -29,19 +44,24 @@ export function WordBankView({
   language,
   compact,
   locked,
+  proficiencyTier = 'A1',
+  scaffoldingMode = 'guided',
   onTurtlePlay,
+  onFluentPlay,
   onDraftChange,
   onSubmitShortcut,
 }: WordBankViewProps) {
   const [inputMode, setInputMode] = useState<'tiles' | 'type'>('tiles');
   const [selectedTileUids, setSelectedTileUids] = useState<string[]>([]);
   const [typedText, setTypedText] = useState('');
+  const [peekPhonetics, setPeekPhonetics] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setInputMode('tiles');
     setSelectedTileUids([]);
     setTypedText('');
+    setPeekPhonetics(false);
   }, [exercise.id]);
 
   const pool = useMemo(
@@ -67,14 +87,25 @@ export function WordBankView({
       speakOnResult:
         exercise.direction === 'to_foreign' ? exercise.expectedSentence : exercise.promptSpeakText,
       phoneticHint: exercise.phoneticHint,
+      isFreeRecall: inputMode === 'type',
+      nuanceNote: exercise.nuanceNote,
+      registerTag: exercise.registerTag,
     });
-  }, [submittedValue, exercise, onDraftChange]);
+  }, [submittedValue, exercise, inputMode, onDraftChange]);
 
   const langMeta = LANGUAGE_META[language];
   const promptDir = exercise.direction === 'to_english' ? langMeta.dir : 'ltr';
   const answerDir = exercise.direction === 'to_foreign' ? langMeta.dir : 'ltr';
   const hasManyAccents = langMeta.helperAccents.length > 14;
-  const speakPromptText = exercise.promptSpeakText ?? (exercise.direction === 'to_english' ? exercise.promptText : undefined);
+  const speakPromptText =
+    exercise.promptSpeakText ?? (exercise.direction === 'to_english' ? exercise.promptText : undefined);
+
+  const isGuided = scaffoldingMode === 'guided';
+  const hasPromptSupport = Boolean(exercise.promptRomanized || exercise.promptPhonetic);
+  const showPhoneticSupport = isGuided || peekPhonetics;
+  const highlightFreeRecall =
+    Boolean(exercise.allowFreeRecall) || proficiencyTier === 'B2' || proficiencyTier === 'C1_C2';
+  const registerBadge = exercise.registerTag ? REGISTER_TAG_META[exercise.registerTag] : null;
 
   const insertAccentChar = (ch: string) => {
     if (locked) return;
@@ -98,59 +129,117 @@ export function WordBankView({
     <div
       className="tactile-card"
       style={{
-        padding: compact ? '12px 14px' : '20px 22px',
+        padding: compact ? '10px 12px' : '18px 22px',
         display: 'flex',
         flexDirection: 'column',
-        gap: compact ? 10 : 14,
+        gap: compact ? 8 : 13,
         width: '100%',
       }}
     >
       {/* Top Direction Header + Mode Toggle */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-        <span
-          style={{
-            padding: '4px 10px',
-            borderRadius: 999,
-            background: 'var(--tint-indigo-bg)',
-            color: 'var(--tint-indigo-ink)',
-            fontSize: '0.75rem',
-            fontWeight: 900,
-            textTransform: 'uppercase',
-          }}
-        >
-          {exercise.direction === 'to_english'
-            ? 'Translate to English'
-            : `Translate to ${langMeta.name}`}
-        </span>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 6,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span
+            style={{
+              padding: '4px 10px',
+              borderRadius: 999,
+              background: 'var(--tint-indigo-bg)',
+              color: 'var(--tint-indigo-ink)',
+              fontSize: '0.74rem',
+              fontWeight: 900,
+              textTransform: 'uppercase',
+            }}
+          >
+            {exercise.direction === 'to_english'
+              ? 'Translate to English'
+              : `Translate to ${langMeta.name}`}
+          </span>
 
-        <button
-          type="button"
-          className="tactile-btn tactile-btn-soft"
-          style={{ padding: '5px 10px', fontSize: '0.78rem', borderRadius: 12 }}
-          disabled={locked}
-          onClick={() => {
-            playSfx('button_click');
-            setInputMode((m) => (m === 'tiles' ? 'type' : 'tiles'));
-          }}
-        >
-          {inputMode === 'tiles' ? (
-            <>
-              <Keyboard size={15} />
-              <span>Type Instead</span>
-            </>
-          ) : (
-            <>
-              <Grid size={15} />
-              <span>Use Word Tiles</span>
-            </>
-          )}
-        </button>
+          {registerBadge ? (
+            <span
+              style={{
+                padding: '3px 9px',
+                borderRadius: 999,
+                background: registerBadge.bg,
+                border: `1.5px solid ${registerBadge.border}`,
+                color: registerBadge.ink,
+                fontSize: '0.7rem',
+                fontWeight: 900,
+              }}
+            >
+              {registerBadge.label}
+            </span>
+          ) : null}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          {!isGuided && hasPromptSupport ? (
+            <button
+              type="button"
+              className={`tactile-btn ${peekPhonetics ? 'tactile-btn-amber' : 'tactile-btn-soft'}`}
+              style={{ padding: '4px 9px', fontSize: '0.74rem', borderRadius: 12 }}
+              onClick={() => {
+                playSfx('tile_tap');
+                setPeekPhonetics((v) => !v);
+              }}
+            >
+              {peekPhonetics ? <EyeOff size={13} /> : <Eye size={13} />}
+              <span>{peekPhonetics ? 'Hide Phonetic / Romanized' : 'Peek Phonetic / Romanized'}</span>
+            </button>
+          ) : null}
+
+          <button
+            type="button"
+            className={`tactile-btn ${
+              inputMode === 'tiles' && highlightFreeRecall ? 'tactile-btn-amber' : 'tactile-btn-soft'
+            }`}
+            style={{ padding: '5px 10px', fontSize: '0.76rem', borderRadius: 12 }}
+            disabled={locked}
+            onClick={() => {
+              playSfx('button_click');
+              setInputMode((m) => (m === 'tiles' ? 'type' : 'tiles'));
+            }}
+          >
+            {inputMode === 'tiles' ? (
+              highlightFreeRecall ? (
+                <>
+                  <Sparkles size={14} />
+                  <span>
+                    Keyboard Free-Recall (+{FREE_RECALL_BONUS_XP} XP / +{FREE_RECALL_BONUS_GEMS} Gems)
+                  </span>
+                  <span className="visually-hidden"> Type Instead</span>
+                </>
+              ) : (
+                <>
+                  <Keyboard size={15} />
+                  <span>Type Instead</span>
+                  <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>
+                    (Free-Recall +{FREE_RECALL_BONUS_XP} XP)
+                  </span>
+                </>
+              )
+            ) : (
+              <>
+                <Grid size={15} />
+                <span>Use Word Tiles</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Prompt Sentence Card */}
       <div
         style={{
-          padding: compact ? '10px 12px' : '14px 16px',
+          padding: compact ? '9px 11px' : '14px 16px',
           borderRadius: 18,
           background: 'var(--card-soft-bg)',
           border: '2px solid var(--card-border)',
@@ -165,7 +254,7 @@ export function WordBankView({
           <div
             dir={promptDir}
             style={{
-              fontSize: compact ? '1.12rem' : '1.35rem',
+              fontSize: compact ? '1.05rem' : '1.3rem',
               fontWeight: 900,
               color: 'var(--text-main)',
               lineHeight: promptDir === 'rtl' ? 1.5 : 1.3,
@@ -181,7 +270,7 @@ export function WordBankView({
               exercise.promptText
             )}
           </div>
-          {exercise.promptRomanized || exercise.promptPhonetic ? (
+          {showPhoneticSupport && (exercise.promptRomanized || exercise.promptPhonetic) ? (
             <div
               style={{
                 display: 'flex',
@@ -192,30 +281,30 @@ export function WordBankView({
               }}
             >
               {exercise.promptRomanized ? (
-                <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--lang-primary)' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--lang-primary)' }}>
                   {exercise.promptRomanized}
                 </span>
               ) : null}
               {exercise.promptPhonetic ? (
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
                   {exercise.promptPhonetic}
                 </span>
               ) : null}
             </div>
           ) : null}
           {exercise.direction === 'to_english' && exercise.promptTokens.length > 0 ? (
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', marginTop: 3 }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', marginTop: 2 }}>
               Tap any dotted word to peek!
             </div>
           ) : null}
         </div>
 
         {speakPromptText ? (
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             <button
               type="button"
               className="tactile-btn tactile-btn-primary"
-              style={{ padding: '7px 11px', fontSize: '0.82rem' }}
+              style={{ padding: '6px 10px', fontSize: '0.8rem' }}
               aria-label="Listen at normal speed"
               onClick={() => {
                 playSfx('button_click');
@@ -223,37 +312,59 @@ export function WordBankView({
                   text: speakPromptText,
                   language: exercise.direction === 'to_english' ? language : 'en',
                   phonetic: exercise.promptPhonetic,
+                  speed: 'normal',
                 });
               }}
             >
-              <Volume2 size={16} />
+              <Volume2 size={15} />
               <span>1.0x</span>
             </button>
             {exercise.direction === 'to_english' ? (
-              <button
-                type="button"
-                className="tactile-btn tactile-btn-amber"
-                style={{ padding: '7px 11px', fontSize: '0.82rem' }}
-                aria-label="Listen slowly"
-                onClick={() => {
-                  onTurtlePlay();
-                  void speakPhrase({
-                    text: speakPromptText,
-                    language,
-                    phonetic: exercise.promptPhonetic,
-                    slow: true,
-                  });
-                }}
-              >
-                <Turtle size={16} />
-                <span>0.65x</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="tactile-btn tactile-btn-amber"
+                  style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+                  aria-label="Listen slowly"
+                  onClick={() => {
+                    onTurtlePlay();
+                    void speakPhrase({
+                      text: speakPromptText,
+                      language,
+                      phonetic: exercise.promptPhonetic,
+                      slow: true,
+                      speed: 'slow',
+                    });
+                  }}
+                >
+                  <Turtle size={15} />
+                  <span>0.65x</span>
+                </button>
+                <button
+                  type="button"
+                  className="tactile-btn tactile-btn-indigo"
+                  style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+                  aria-label="Listen at fluent speed"
+                  onClick={() => {
+                    onFluentPlay?.();
+                    void speakPhrase({
+                      text: speakPromptText,
+                      language,
+                      phonetic: exercise.promptPhonetic,
+                      speed: 'fluent',
+                    });
+                  }}
+                >
+                  <Zap size={14} />
+                  <span>1.12x</span>
+                </button>
+              </>
             ) : null}
           </div>
         ) : null}
       </div>
 
-      {/* Input Area: Word Bank OR Type Instead */}
+      {/* Input Area: Word Bank OR Keyboard Free-Recall */}
       {inputMode === 'tiles' ? (
         <WordBankTray
           seed={exercise.id}
@@ -267,6 +378,29 @@ export function WordBankView({
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 6,
+              padding: '4px 10px',
+              borderRadius: 12,
+              background: 'var(--tint-amber-bg)',
+              border: '1.5px solid var(--tint-amber-border)',
+              color: 'var(--tint-amber-ink)',
+              fontSize: '0.76rem',
+              fontWeight: 900,
+            }}
+          >
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <Sparkles size={13} /> Keyboard Free-Recall Active!
+            </span>
+            <span>
+              +{FREE_RECALL_BONUS_XP} XP · +{FREE_RECALL_BONUS_GEMS} Gems
+            </span>
+          </div>
+
           <input
             ref={inputRef}
             type="text"

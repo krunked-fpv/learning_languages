@@ -62,6 +62,8 @@ export function WordBankTray({
     () => getAssembledText(pool, selectedTileUids),
     [pool, selectedTileUids]
   );
+  const denseChips = compact || targetTokens.length >= 9 || pool.length >= 9;
+  const veryDense = targetTokens.length >= 9 || pool.length >= 11;
 
   const addTile = (uid: string) => {
     if (disabled || selectedSet.has(uid)) return;
@@ -76,33 +78,42 @@ export function WordBankTray({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? 8 : 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: denseChips ? 7 : 12 }}>
       {/* Answer Assembly Tray */}
       <div
         aria-label="Answer tray"
         dir={dir}
+        data-dense={veryDense ? 'true' : 'false'}
         style={{
-          minHeight: compact ? 54 : 66,
-          padding: compact ? '8px 10px' : '11px 14px',
-          borderRadius: 18,
+          minHeight: veryDense ? 46 : denseChips ? 54 : 66,
+          padding: veryDense ? '6px 9px' : denseChips ? '8px 10px' : '11px 14px',
+          borderRadius: veryDense ? 15 : 18,
           background: 'var(--card-soft-bg)',
           border: '2px dashed var(--card-border)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
-          gap: 6,
+          gap: veryDense ? 4 : 6,
         }}
       >
         {selectedTileUids.length === 0 ? (
           <span
             dir="ltr"
-            style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.88rem', textAlign: 'center' }}
+            style={{
+              color: 'var(--text-muted)',
+              fontWeight: 700,
+              fontSize: veryDense ? '0.82rem' : '0.88rem',
+              textAlign: 'center',
+            }}
           >
             Tap word tiles below in order
           </span>
         ) : (
           <>
-            <div dir={dir} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+            <div
+              dir={dir}
+              style={{ display: 'flex', flexWrap: 'wrap', gap: veryDense ? 4 : 6, alignItems: 'center' }}
+            >
               {selectedTileUids.map((uid) => {
                 const tile = byUid.get(uid);
                 if (!tile) return null;
@@ -114,12 +125,16 @@ export function WordBankTray({
                     initial={{ scale: 0.88, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: 'spring', stiffness: 460, damping: 28 }}
-                    className="tactile-tile is-selected"
-                    style={{
-                      padding: compact ? '6px 11px' : '8px 14px',
-                      fontSize: compact ? '0.9rem' : '0.98rem',
-                      lineHeight: dir === 'rtl' ? 1.5 : 1.25,
-                    }}
+                    className={`tactile-tile is-selected ${veryDense ? 'word-bank-chip is-dense' : ''}`}
+                    style={
+                      veryDense
+                        ? { lineHeight: dir === 'rtl' ? 1.5 : 1.2 }
+                        : {
+                            padding: denseChips ? '6px 11px' : '8px 14px',
+                            fontSize: denseChips ? '0.9rem' : '0.98rem',
+                            lineHeight: dir === 'rtl' ? 1.5 : 1.25,
+                          }
+                    }
                     disabled={disabled}
                     onClick={() => removeTile(uid)}
                   >
@@ -131,11 +146,11 @@ export function WordBankTray({
             <div
               dir="ltr"
               style={{
-                fontSize: '0.8rem',
+                fontSize: veryDense ? '0.74rem' : '0.8rem',
                 fontWeight: 700,
                 color: 'var(--text-muted)',
                 borderTop: '1px solid var(--card-border)',
-                paddingTop: 4,
+                paddingTop: 3,
               }}
             >
               Preview:{' '}
@@ -163,7 +178,7 @@ export function WordBankTray({
           display: 'flex',
           flexWrap: 'wrap',
           justifyContent: 'center',
-          gap: compact ? 6 : 8,
+          gap: veryDense ? 5 : denseChips ? 6 : 8,
         }}
       >
         {pool.map((tile) => {
@@ -172,12 +187,18 @@ export function WordBankTray({
             <button
               key={tile.uid}
               type="button"
-              className={`tactile-tile ${isUsed ? 'is-ghost' : ''}`}
-              style={{
-                padding: compact ? '6px 11px' : '8px 14px',
-                fontSize: compact ? '0.9rem' : '0.98rem',
-                lineHeight: dir === 'rtl' ? 1.5 : 1.25,
-              }}
+              className={`tactile-tile ${veryDense ? 'word-bank-chip is-dense' : ''} ${
+                isUsed ? 'is-ghost' : ''
+              }`}
+              style={
+                veryDense
+                  ? { lineHeight: dir === 'rtl' ? 1.5 : 1.2 }
+                  : {
+                      padding: denseChips ? '6px 11px' : '8px 14px',
+                      fontSize: denseChips ? '0.9rem' : '0.98rem',
+                      lineHeight: dir === 'rtl' ? 1.5 : 1.25,
+                    }
+              }
               disabled={disabled || isUsed}
               aria-hidden={isUsed}
               tabIndex={isUsed ? -1 : 0}

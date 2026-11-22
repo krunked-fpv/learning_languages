@@ -12,19 +12,29 @@ import { playSfx } from '../../audio';
 import { useVaultStore } from '../../store/useVaultStore';
 import type { LeagueTier } from '../../types/contracts';
 
-const TIER_ORDER: readonly LeagueTier[] = [
+const ALL_LEAGUE_TIERS: readonly LeagueTier[] = [
   'bronze_acorn',
   'silver_compass',
   'gold_feather',
   'sapphire_sky',
   'starlight_legend',
+  'emerald_diplomat',
+  'amethyst_symposium',
+  'grand_polyglot_laureate',
 ];
+
+type LeagueMetaEntry = { label: string; minXpHint: number; color: string; crestBg: string };
 
 export function LeagueAndBadges() {
   const { activeProfile } = useVaultStore();
   const [mobileView, setMobileView] = useState<'league' | 'badges'>('league');
 
-  const tierMeta = LEAGUE_TIER_META[activeProfile.leagueTier];
+  const tierMetaMap = LEAGUE_TIER_META as Partial<Record<LeagueTier, LeagueMetaEntry>>;
+  const visibleTiers = useMemo(
+    () => ALL_LEAGUE_TIERS.filter((tier) => Boolean(tierMetaMap[tier])),
+    [tierMetaMap]
+  );
+  const tierMeta = tierMetaMap[activeProfile.leagueTier] ?? LEAGUE_TIER_META.bronze_acorn;
   const leaderboard = useMemo(
     () => buildWeeklyLeaderboard(activeProfile),
     [activeProfile]
@@ -71,7 +81,7 @@ export function LeagueAndBadges() {
             setMobileView('badges');
           }}
         >
-          <Award size={15} /> Badges ({activeProfile.badges.length} / {BADGE_CATALOG.length || 12})
+          <Award size={15} /> Badges ({activeProfile.badges.length} / {BADGE_CATALOG.length})
         </button>
       </div>
 
@@ -82,51 +92,65 @@ export function LeagueAndBadges() {
             mobileView !== 'league' ? 'is-hidden-mobile' : ''
           }`}
           style={{
-            padding: 16,
+            padding: 15,
             borderColor: tierMeta.color,
             gap: 10,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 14,
-                  background: tierMeta.color,
-                  color: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Trophy size={22} />
-              </div>
-              <div>
-                <h1 style={{ margin: 0, fontSize: '1.18rem', fontWeight: 900, color: 'var(--text-main)' }}>
-                  {tierMeta.label} League
-                </h1>
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-                  Weekly score: <strong>{activeProfile.weeklyXp} XP</strong>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 14,
+                    background: tierMeta.color,
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Trophy size={22} />
+                </div>
+                <div>
+                  <h1 style={{ margin: 0, fontSize: '1.16rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                    {tierMeta.label} League
+                  </h1>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                    Weekly score: <strong>{activeProfile.weeklyXp} XP</strong>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-              {TIER_ORDER.map((tier) => {
-                const m = LEAGUE_TIER_META[tier];
+            <div
+              className="console-scroll-pane-x"
+              style={{
+                display: 'flex',
+                gap: 4,
+                flexWrap: 'nowrap',
+                overflowX: 'auto',
+                paddingBottom: 2,
+              }}
+            >
+              {visibleTiers.map((tier) => {
+                const m = tierMetaMap[tier]!;
                 const isCurrent = tier === activeProfile.leagueTier;
                 return (
                   <span
                     key={tier}
                     style={{
-                      padding: '3px 7px',
+                      padding: '3px 8px',
                       borderRadius: 999,
                       background: isCurrent ? m.color : 'var(--card-soft-bg)',
+                      border: `1.5px solid ${isCurrent ? m.color : 'var(--card-border)'}`,
                       color: isCurrent ? '#ffffff' : 'var(--text-muted)',
                       fontSize: '0.68rem',
                       fontWeight: 900,
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
                     }}
                   >
                     {m.label}
@@ -237,20 +261,20 @@ export function LeagueAndBadges() {
           </div>
         </div>
 
-        {/* Right Pane: 12 Achievement Badges Grid */}
+        {/* Right Pane: All 24 Expedition Achievement Badges */}
         <div
           className={`tactile-card leagues-pane-card ${
             mobileView !== 'badges' ? 'is-hidden-mobile' : ''
           }`}
           style={{
-            padding: 16,
+            padding: 15,
             gap: 10,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <Award size={20} color="#f59e0b" />
             <h2 style={{ margin: 0, fontSize: '1.16rem', fontWeight: 900, color: 'var(--text-main)' }}>
-              Expedition Badges ({activeProfile.badges.length} / {BADGE_CATALOG.length || 12})
+              Expedition Badges ({activeProfile.badges.length} / {BADGE_CATALOG.length})
             </h2>
           </div>
 

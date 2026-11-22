@@ -1,21 +1,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Flame, Gem, Heart, RotateCcw, Sparkles, Star, Volume2, X } from 'lucide-react';
+import { Flame, Gem, Heart, RotateCcw, Sparkles, Star, Volume2, X, Zap } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import {
   calculateComboMultiplier,
   calculateLessonRewards,
   gradeAnswer,
 } from '../../core';
-import { getPlayableNodeExercises, getVocabCard } from '../../curriculum';
+import { getCourse, getPlayableNodeExercises, getUnitById, getVocabCard } from '../../curriculum';
 import { playSfx, speakPhrase, stopSpeech } from '../../audio';
 import { useVaultStore, vaultActions } from '../../store/useVaultStore';
 import { MascotStage } from '../characters/MascotStage';
 import { SkyCatcherArcade } from '../arcade/SkyCatcherArcade';
 import { AmbientBackdrop } from '../fx/AmbientBackdrop';
 import { ConfettiBurst, CountUpTicker, FloatingPopToast, type PopToastItem } from '../fx/JuiceEngine';
+import { safeVaultActions } from '../shell/vaultSafeActions';
 import {
+  FREE_RECALL_BONUS_GEMS,
+  FREE_RECALL_BONUS_XP,
+  HEART_ELIXIR_COST_GEMS,
   LANGUAGE_META,
+  PROFICIENCY_TIER_META,
   type AccentCoaching,
   type ArticleCoaching,
   type CharacterPose,
@@ -24,12 +29,17 @@ import {
   type MapNode,
 } from '../../types/contracts';
 import { BossGauntletView } from './BossGauntletView';
+import { ContextClozeView } from './ContextClozeView';
 import { DiscoveryCardView } from './DiscoveryCardView';
 import { ListenDecodeView } from './ListenDecodeView';
 import { MiniStoryView } from './MiniStoryView';
 import { PairMatchRushView } from './PairMatchRushView';
 import { WordBankView, type ExerciseDraftPayload } from './WordBankView';
-import { useCompactViewport } from './lessonHelpers';
+import {
+  resolveNodeProficiencyTier,
+  resolveUnitOrderFromId,
+  useCompactViewport,
+} from './lessonHelpers';
 
 interface FeedbackBannerState {
   kind: 'correct' | 'accent' | 'nudge';
@@ -51,6 +61,12 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
   const { activeProfile, activeProgress } = useVaultStore();
   const compact = useCompactViewport();
   const langDir = LANGUAGE_META[language].dir;
+  const activeUnit = getUnitById(language, node.unitId);
+  const nodeTier = resolveNodeProficiencyTier(node, activeUnit);
+  const tierMeta = PROFICIENCY_TIER_META[nodeTier];
+  const scaffoldingMode = tierMeta.scaffoldingMode;
+  const unitOrder = activeUnit?.order ?? resolveUnitOrderFromId(node.unitId);
+  const isUnit16Boss = node.nodeType === 'boss' && unitOrder >= 16;
 
   const [replayNonce, setReplayNonce] = useState(0);
   const [sessionExercises, setSessionExercises] = useState<LessonExercise[]>(() => {
@@ -72,6 +88,8 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
   const [maxCombo, setMaxCombo] = useState(0);
   const [mistakesCount, setMistakesCount] = useState(0);
   const [extraGems, setExtraGems] = useState(0);
+  const [freeRecallCount, setFreeRecallCount] = useState(0);
+  const [boosterAppliedAtWin, setBoosterAppliedAtWin] = useState(false);
   const [draft, setDraft] = useState<ExerciseDraftPayload | null>(null);
   const [feedback, setFeedback] = useState<FeedbackBannerState | null>(null);
   const [lessonWon, setLessonWon] = useState(false);
@@ -86,9 +104,11 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
   const toastCounterRef = useRef(0);
   const seenAtStartRef = useRef<readonly string[] | undefined>(activeProgress.seenExerciseIds);
   const claimedAtStartRef = useRef<readonly string[]>(activeProgress.claimedChestIds);
+  const boosterChargesRef = useRef<number>(activeProfile.xpBoosterCharges ?? 0);
 
   seenAtStartRef.current = activeProgress.seenExerciseIds;
   claimedAtStartRef.current = activeProgress.claimedChestIds;
+  boosterChargesRef.current = activeProfile.xpBoosterCharges ?? 0;
 
   // Play whoosh transition when entering arena & stop lingering speech on unmount
   useEffect(() => {
@@ -115,6 +135,8 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
     setMaxCombo(0);
     setMistakesCount(0);
     setExtraGems(0);
+    setFreeRecallCount(0);
+    setBoosterAppliedAtWin(false);
     setDraft(null);
     setFeedback(null);
     setLessonWon(false);
@@ -146,16 +168,31 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
   const showZeroHeartModal =
     requiresHearts && activeProfile.hearts <= 0 && !lessonWon && !inRecoveryArcade && !isChestNode;
 
-  const victoryRewards = useMemo(
-    () =>
-      calculateLessonRewards({
-        baseXp: node.xpReward,
-        baseGems: node.gemReward + extraGems,
-        maxCombo,
-        mistakesCount,
-      }),
-    [node.xpReward, node.gemReward, extraGems, maxCombo, mistakesCount]
-  );
+  const victoryRewards = useMemo(() => {
+    const raw = calculateLessonRewards({
+      baseXp: node.xpReward,
+      baseGems: node.gemReward + extraGems,
+      maxCombo,
+      mistakesCount,
+      ...(freeRecallCount > 0 ? { freeRecallCount } : {}),
+    } as Parameters<typeof calculateLessonRewards>[0]);
+    const hasBoost = lessonWon ? boosterAppliedAtWin : (activeProfile.xpBoosterCharges ?? 0) > 0;
+    return {
+      ...raw,
+      xpEarned: hasBoost ? raw.xpEarned * 2 : raw.xpEarned,
+      boostApplied: hasBoost,
+    };
+  }, [
+    node.xpReward,
+    node.gemReward,
+    extraGems,
+    maxCombo,
+    mistakesCount,
+    freeRecallCount,
+    lessonWon,
+    boosterAppliedAtWin,
+    activeProfile.xpBoosterCharges,
+  ]);
 
   // Staggered star pop celebration on victory
   useEffect(() => {
@@ -178,15 +215,23 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
   }, [lessonWon, victoryRewards.stars]);
 
   const finalizeVictory = useCallback(
-    (finalMaxCombo: number, finalMistakes: number, bonusGems: number) => {
+    (
+      finalMaxCombo: number,
+      finalMistakes: number,
+      bonusGems: number,
+      finalFreeRecallCount: number
+    ) => {
       if (!savedNodeRef.current) {
         savedNodeRef.current = true;
+        const hadBooster = boosterChargesRef.current > 0;
+        setBoosterAppliedAtWin(hadBooster);
         const rewards = calculateLessonRewards({
           baseXp: node.xpReward,
           baseGems: node.gemReward + bonusGems,
           maxCombo: finalMaxCombo,
           mistakesCount: finalMistakes,
-        });
+          ...(finalFreeRecallCount > 0 ? { freeRecallCount: finalFreeRecallCount } : {}),
+        } as Parameters<typeof calculateLessonRewards>[0]);
         vaultActions.recordSeenExercises(
           language,
           exercises.map((ex) => ex.id)
@@ -203,15 +248,43 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
           isBoss: node.nodeType === 'boss',
           isChest: node.nodeType === 'chest',
         });
-        playSfx('unit_fanfare');
+
+        if (node.checkpointTargetTier) {
+          const course = getCourse(language);
+          const sortedUnits = [...course.units].sort((a, b) => a.order - b.order);
+          const targetOrder = PROFICIENCY_TIER_META[node.checkpointTargetTier].unitRange[0];
+          const targetUnitIndex = Math.max(
+            0,
+            sortedUnits.findIndex((u) => u.order >= targetOrder)
+          );
+          const prerequisiteNodeIds = sortedUnits
+            .filter((u) => u.order < targetOrder)
+            .flatMap((u) => u.nodes.map((n) => n.id));
+          safeVaultActions.unlockProficiencyTier({
+            language,
+            targetTier: node.checkpointTargetTier,
+            prerequisiteNodeIds,
+            targetUnitIndex,
+          });
+          playSfx('tier_unlock');
+        } else if (isUnit16Boss) {
+          playSfx('laureate_fanfare');
+        } else {
+          playSfx('unit_fanfare');
+        }
       }
       setLessonWon(true);
     },
-    [language, node, exercises]
+    [language, node, exercises, isUnit16Boss]
   );
 
   const advanceExercise = useCallback(
-    (overrideMaxCombo?: number, overrideMistakes?: number, overrideExtraGems?: number) => {
+    (
+      overrideMaxCombo?: number,
+      overrideMistakes?: number,
+      overrideExtraGems?: number,
+      overrideFreeRecall?: number
+    ) => {
       setDraft(null);
       setFeedback(null);
       setBossTurnIndex(0);
@@ -219,13 +292,22 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
         finalizeVictory(
           overrideMaxCombo ?? maxCombo,
           overrideMistakes ?? mistakesCount,
-          overrideExtraGems ?? extraGems
+          overrideExtraGems ?? extraGems,
+          overrideFreeRecall ?? freeRecallCount
         );
       } else {
         setExerciseIndex((i) => i + 1);
       }
     },
-    [exerciseIndex, exercises.length, finalizeVictory, maxCombo, mistakesCount, extraGems]
+    [
+      exerciseIndex,
+      exercises.length,
+      finalizeVictory,
+      maxCombo,
+      mistakesCount,
+      extraGems,
+      freeRecallCount,
+    ]
   );
 
   const handleCheck = useCallback(() => {
@@ -251,13 +333,32 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
         usedAccentCoaching: Boolean(result.accentCoaching),
       });
 
+      if (currentExercise?.type === 'context_cloze') {
+        safeVaultActions.recordClozeSolve();
+      }
+
+      if (draft.isFreeRecall) {
+        safeVaultActions.recordFreeRecallSolve();
+        setFreeRecallCount((c) => c + 1);
+      }
+
       if (result.accentCoaching) {
-        playSfx('accent_sparkle');
-        pushPopToast('Golden Accent! +XP', 'accent');
+        if (draft.isFreeRecall) {
+          playSfx('free_recall_ace');
+          pushPopToast(
+            `Free-Recall + Accent! +${FREE_RECALL_BONUS_XP} XP +${FREE_RECALL_BONUS_GEMS} Gems`,
+            'accent'
+          );
+        } else {
+          playSfx('accent_sparkle');
+          pushPopToast('Golden Accent! +XP', 'accent');
+        }
         triggerMiniConfetti();
         setFeedback({
           kind: 'accent',
-          headline: 'Accent Spotlight! Spot-on!',
+          headline: draft.isFreeRecall
+            ? 'Free-Recall + Accent Spotlight!'
+            : 'Accent Spotlight! Spot-on!',
           detail: result.accentCoaching.friendlyTip,
           accentCoaching: result.accentCoaching,
           articleCoaching: result.articleCoaching,
@@ -265,7 +366,14 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
           phonetic: draft.phoneticHint,
         });
       } else {
-        if (nextCombo >= 6) {
+        if (draft.isFreeRecall) {
+          playSfx('free_recall_ace');
+          pushPopToast(
+            `Free-Recall Ace! +${FREE_RECALL_BONUS_XP} XP +${FREE_RECALL_BONUS_GEMS} Gems`,
+            'bonus'
+          );
+          triggerMiniConfetti();
+        } else if (nextCombo >= 6) {
           playSfx('combo_fire', nextCombo);
           pushPopToast('ON FIRE! 2.0x', 'combo');
           triggerMiniConfetti();
@@ -283,7 +391,15 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
 
         setFeedback({
           kind: 'correct',
-          headline: comboMeta.label ? `${comboMeta.label} Great job!` : 'Nicely done!',
+          headline: draft.isFreeRecall
+            ? `Free-Recall Ace! (+${FREE_RECALL_BONUS_XP} XP / +${FREE_RECALL_BONUS_GEMS} Gems)`
+            : comboMeta.label
+              ? `${comboMeta.label} Great job!`
+              : 'Nicely done!',
+          detail:
+            currentExercise?.type !== 'context_cloze' && draft.nuanceNote
+              ? `Nuance: ${draft.nuanceNote}`
+              : undefined,
           articleCoaching: result.articleCoaching,
           speakText: draft.speakOnResult,
           phonetic: draft.phoneticHint,
@@ -306,7 +422,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
         phonetic: draft.phoneticHint,
       });
     }
-  }, [draft, feedback, language, comboCount, maxCombo, pushPopToast, triggerMiniConfetti]);
+  }, [draft, feedback, language, comboCount, maxCombo, currentExercise, pushPopToast, triggerMiniConfetti]);
 
   const handleDiscoveryCollect = () => {
     if (!currentExercise || currentExercise.type !== 'discovery_card') return;
@@ -384,6 +500,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
     currentExercise &&
     (currentExercise.type === 'discovery_card' ||
       currentExercise.type === 'word_bank' ||
+      currentExercise.type === 'context_cloze' ||
       currentExercise.type === 'listen_decode');
 
   return (
@@ -420,6 +537,20 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
         <div className="lesson-progress-track" aria-label="Lesson progress">
           <div className="lesson-progress-fill" style={{ width: `${progressPct}%` }} />
         </div>
+
+        <span
+          className="hud-pill hud-pill-static hud-hide-xs"
+          style={{
+            background: tierMeta.surfaceTint,
+            borderColor: tierMeta.badgeColor,
+            color: '#0f172a',
+            fontWeight: 900,
+          }}
+        >
+          {node.checkpointTargetTier
+            ? `Checkpoint → ${PROFICIENCY_TIER_META[node.checkpointTargetTier].cefrLabel}`
+            : `${tierMeta.cefrLabel} · ${tierMeta.title}`}
+        </span>
 
         {replayNonce > 0 ? (
           <span
@@ -680,6 +811,20 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
               </div>
 
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                {node.checkpointTargetTier ? (
+                  <span
+                    className="hud-pill hud-pill-static"
+                    style={{
+                      background: 'var(--tint-emerald-bg)',
+                      borderColor: 'var(--tint-emerald-border)',
+                      color: 'var(--tint-emerald-ink)',
+                    }}
+                  >
+                    <Sparkles size={15} /> Tier Unlocked:{' '}
+                    {PROFICIENCY_TIER_META[node.checkpointTargetTier].cefrLabel}{' '}
+                    {PROFICIENCY_TIER_META[node.checkpointTargetTier].title}!
+                  </span>
+                ) : null}
                 <span
                   className="hud-pill hud-pill-static"
                   style={{
@@ -690,6 +835,18 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                 >
                   <Sparkles size={15} /> +<CountUpTicker target={victoryRewards.xpEarned} /> XP
                 </span>
+                {victoryRewards.boostApplied ? (
+                  <span
+                    className="hud-pill hud-pill-static"
+                    style={{
+                      background: 'var(--tint-indigo-bg)',
+                      borderColor: 'var(--tint-indigo-border)',
+                      color: 'var(--tint-indigo-ink)',
+                    }}
+                  >
+                    <Zap size={14} /> 2x XP Boost!
+                  </span>
+                ) : null}
                 <span
                   className="hud-pill hud-pill-static"
                   style={{
@@ -834,6 +991,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                       vocabCard={getVocabCard(language, currentExercise.vocabId)}
                       compact={compact}
                       onTurtlePlay={() => vaultActions.recordTurtlePlay()}
+                      onFluentPlay={() => safeVaultActions.recordFluentPlay()}
                     />
                   ) : null}
 
@@ -843,9 +1001,26 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                       language={language}
                       compact={compact}
                       locked={Boolean(feedback)}
+                      proficiencyTier={nodeTier}
+                      scaffoldingMode={scaffoldingMode}
                       onTurtlePlay={() => vaultActions.recordTurtlePlay()}
+                      onFluentPlay={() => safeVaultActions.recordFluentPlay()}
                       onDraftChange={setDraft}
                       onSubmitShortcut={handleCheck}
+                    />
+                  ) : null}
+
+                  {currentExercise.type === 'context_cloze' ? (
+                    <ContextClozeView
+                      exercise={currentExercise}
+                      language={language}
+                      compact={compact}
+                      locked={Boolean(feedback)}
+                      revealed={Boolean(feedback)}
+                      scaffoldingMode={scaffoldingMode}
+                      onTurtlePlay={() => vaultActions.recordTurtlePlay()}
+                      onFluentPlay={() => safeVaultActions.recordFluentPlay()}
+                      onDraftChange={setDraft}
                     />
                   ) : null}
 
@@ -856,7 +1031,9 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                       compact={compact}
                       locked={Boolean(feedback)}
                       revealed={Boolean(feedback)}
+                      scaffoldingMode={scaffoldingMode}
                       onTurtlePlay={() => vaultActions.recordTurtlePlay()}
+                      onFluentPlay={() => safeVaultActions.recordFluentPlay()}
                       onDraftChange={setDraft}
                     />
                   ) : null}
@@ -881,7 +1058,9 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                       exercise={currentExercise}
                       language={language}
                       compact={compact}
+                      scaffoldingMode={scaffoldingMode}
                       onTurtlePlay={() => vaultActions.recordTurtlePlay()}
+                      onFluentPlay={() => safeVaultActions.recordFluentPlay()}
                       onComplete={() => advanceExercise()}
                     />
                   ) : null}
@@ -891,18 +1070,30 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                       exercise={currentExercise}
                       language={language}
                       compact={compact}
+                      proficiencyTier={nodeTier}
+                      scaffoldingMode={scaffoldingMode}
                       initialTurnIndex={bossTurnIndex}
                       onTurnIndexChange={setBossTurnIndex}
                       onTurtlePlay={() => vaultActions.recordTurtlePlay()}
-                      onTurnResult={({ isCorrect, usedAccentCoaching }) => {
+                      onFluentPlay={() => safeVaultActions.recordFluentPlay()}
+                      onTurnResult={({ isCorrect, usedAccentCoaching, usedFreeRecall }) => {
                         if (isCorrect) {
                           const nextCombo = comboCount + 1;
                           setComboCount(nextCombo);
                           setMaxCombo((m) => Math.max(m, nextCombo));
-                          pushPopToast(
-                            usedAccentCoaching ? 'Golden Accent!' : 'Boss Hit!',
-                            usedAccentCoaching ? 'accent' : 'combo'
-                          );
+                          if (usedFreeRecall) {
+                            safeVaultActions.recordFreeRecallSolve();
+                            setFreeRecallCount((c) => c + 1);
+                            pushPopToast(
+                              `Free-Recall Ace! +${FREE_RECALL_BONUS_XP} XP +${FREE_RECALL_BONUS_GEMS} Gems`,
+                              'bonus'
+                            );
+                          } else {
+                            pushPopToast(
+                              usedAccentCoaching ? 'Golden Accent!' : 'Boss Hit!',
+                              usedAccentCoaching ? 'accent' : 'combo'
+                            );
+                          }
                           vaultActions.recordAnswerOutcome({
                             isCorrect: true,
                             comboCount: nextCombo,
@@ -917,7 +1108,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                       onComplete={(bossGems) => {
                         const nextExtra = extraGems + bossGems;
                         setExtraGems(nextExtra);
-                        advanceExercise(maxCombo, mistakesCount, nextExtra);
+                        advanceExercise(maxCombo, mistakesCount, nextExtra, freeRecallCount);
                       }}
                     />
                   ) : null}
@@ -1071,7 +1262,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                 pose="sympathetic"
                 equippedCosmetics={activeProfile.equippedCosmetics}
                 size={124}
-                badgeText="0/5 Hearts!"
+                badgeText={`0/${activeProfile.maxHearts} Hearts!`}
               />
             </div>
             <h2
@@ -1084,11 +1275,48 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
             >
               Pip’s Hearts Need a Recharge!
             </h2>
-            <p style={{ margin: '0 0 16px', fontWeight: 700, color: 'var(--text-muted)' }}>
-              No worries, explorer! Hop into a quick round of Sky-Catcher Fiesta to win back +1 to
-              +5 Hearts and bonus Gems, then jump right back here!
+            <p style={{ margin: '0 0 14px', fontWeight: 700, color: 'var(--text-muted)' }}>
+              No worries, explorer! Use a Heart Refill Elixir or hop into Sky-Catcher Fiesta to win
+              back Hearts and bonus Gems!
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+              {(activeProfile.heartElixirs ?? 0) > 0 ? (
+                <button
+                  type="button"
+                  className="tactile-btn tactile-btn-hero tactile-btn-success"
+                  onClick={() => {
+                    const ok = safeVaultActions.useHeartElixir();
+                    if (ok) {
+                      playSfx('heart_win');
+                      pushPopToast('Hearts Refilled!', 'bonus');
+                      setFeedback(null);
+                    }
+                  }}
+                >
+                  <Sparkles size={18} />
+                  <span>Use Heart Refill Elixir ({activeProfile.heartElixirs} in Pack)</span>
+                </button>
+              ) : null}
+
+              <button
+                type="button"
+                className="tactile-btn tactile-btn-hero tactile-btn-rose"
+                disabled={activeProfile.gems < HEART_ELIXIR_COST_GEMS}
+                onClick={() => {
+                  const ok = safeVaultActions.buyHeartElixir();
+                  if (ok) {
+                    playSfx('heart_win');
+                    pushPopToast('Elixir Refilled Hearts!', 'bonus');
+                    setFeedback(null);
+                  } else {
+                    playSfx('gentle_nudge');
+                  }
+                }}
+              >
+                <Gem size={17} />
+                <span>Buy & Use Heart Refill Elixir ({HEART_ELIXIR_COST_GEMS} Gems)</span>
+              </button>
+
               <button
                 type="button"
                 className="tactile-btn tactile-btn-hero tactile-btn-amber"

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type ComponentType, type CSSProperties } from 'react';
 import { motion } from 'framer-motion';
 import { Music, Sparkles } from 'lucide-react';
 import { playSfx, setAudioPreferences } from './audio';
@@ -7,16 +7,28 @@ import { MascotStage } from './components/characters/MascotStage';
 import { AmbientBackdrop } from './components/fx/AmbientBackdrop';
 import { ConfettiBurst } from './components/fx/JuiceEngine';
 import { LessonArena } from './components/lesson/LessonArena';
-import { AdventureMap } from './components/map/AdventureMap';
+import { AdventureMap, type AdventureMapProps } from './components/map/AdventureMap';
 import { CompanionShop } from './components/meta/CompanionShop';
 import { LeagueAndBadges } from './components/meta/LeagueAndBadges';
 import { PhrasebookVault } from './components/meta/PhrasebookVault';
 import { BottomNav, type NavTabId } from './components/shell/BottomNav';
 import { ProfileVaultModal } from './components/shell/ProfileVaultModal';
 import { TopHud } from './components/shell/TopHud';
+import * as curriculum from './curriculum';
 import { getCourse } from './curriculum';
 import { useVaultStore, vaultActions } from './store/useVaultStore';
-import { LANGUAGE_META, type MapNode } from './types/contracts';
+import {
+  LANGUAGE_META,
+  type LanguageCode,
+  type MapNode,
+  type ProficiencyTier,
+} from './types/contracts';
+
+const AdaptiveAdventureMap = AdventureMap as ComponentType<
+  AdventureMapProps & {
+    onStartTierCheckpoint?: (targetTier: Exclude<ProficiencyTier, 'A1'>) => void;
+  }
+>;
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -98,6 +110,21 @@ export function App() {
     }
   };
 
+  const handleStartTierCheckpoint = (targetTier: Exclude<ProficiencyTier, 'A1'>) => {
+    const buildCheckpoint = (
+      curriculum as {
+        buildTierCheckpointNode?: (
+          lang: LanguageCode,
+          tier: Exclude<ProficiencyTier, 'A1'>
+        ) => MapNode;
+      }
+    ).buildTierCheckpointNode;
+    if (typeof buildCheckpoint === 'function') {
+      const checkpointNode = buildCheckpoint(activeProfile.activeLanguage, targetTier);
+      setActiveNode(checkpointNode);
+    }
+  };
+
   const course = getCourse(activeProfile.activeLanguage);
   const palette = LANGUAGE_META[activeProfile.activeLanguage].accentPalette;
   const equippedTheme = activeProfile.equippedCosmetics.theme ?? 'default';
@@ -165,7 +192,7 @@ export function App() {
                 }}
               >
                 {activeTab === 'map' ? (
-                  <AdventureMap
+                  <AdaptiveAdventureMap
                     course={course}
                     progress={activeProgress}
                     equippedCosmetics={activeProfile.equippedCosmetics}
@@ -173,6 +200,7 @@ export function App() {
                     onSelectUnit={(unitIndex) =>
                       vaultActions.setCurrentUnitIndex(activeProfile.activeLanguage, unitIndex)
                     }
+                    onStartTierCheckpoint={handleStartTierCheckpoint}
                   />
                 ) : null}
 

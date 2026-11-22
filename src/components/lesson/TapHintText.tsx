@@ -186,6 +186,38 @@ export function TapHintText({
           {activeToken.accentNote}
         </div>
       ) : null}
+
+      {activeToken.registerNote ? (
+        <div
+          style={{
+            marginTop: 6,
+            padding: '4px 8px',
+            borderRadius: 10,
+            background: 'var(--tint-emerald-bg)',
+            color: 'var(--tint-emerald-ink)',
+            fontSize: '0.76rem',
+            fontWeight: 700,
+          }}
+        >
+          {activeToken.registerNote}
+        </div>
+      ) : null}
+
+      {activeToken.grammarNote ? (
+        <div
+          style={{
+            marginTop: 6,
+            padding: '4px 8px',
+            borderRadius: 10,
+            background: 'var(--tint-rose-bg)',
+            color: 'var(--tint-rose-ink)',
+            fontSize: '0.76rem',
+            fontWeight: 700,
+          }}
+        >
+          {activeToken.grammarNote}
+        </div>
+      ) : null}
     </div>
   ) : null;
 
