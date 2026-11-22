@@ -23,6 +23,11 @@ import {
   bengaliExtraGlossary6to8,
   buildBengaliUnits6to8,
 } from './bnUnits6to8';
+import {
+  bengaliCards9to16,
+  bengaliExtraGlossary9to16,
+  buildBengaliUnits9to16,
+} from './bnUnits9to16';
 
 const U1 = 'bn-u1';
 const U2 = 'bn-u2';
@@ -1095,7 +1100,15 @@ const u5Cards: VocabCard[] = [
   }),
 ];
 
-const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards, ...bengaliCards6to8];
+const allCards = [
+  ...u1Cards,
+  ...u2Cards,
+  ...u3Cards,
+  ...u4Cards,
+  ...u5Cards,
+  ...bengaliCards6to8,
+  ...bengaliCards9to16,
+];
 
 const extraGlossary: GlossaryMap = {
   পিপ: { translation: 'Pip (our starling!)', phonetic: 'peep', romanized: 'Pip' },
@@ -1379,7 +1392,11 @@ const extraGlossary: GlossaryMap = {
   দুই: { translation: 'two', phonetic: 'dui', romanized: 'dui' },
 };
 
-const G = buildGlossaryFromCards(allCards, { ...extraGlossary, ...bengaliExtraGlossary6to8 });
+const G = buildGlossaryFromCards(allCards, {
+  ...extraGlossary,
+  ...bengaliExtraGlossary6to8,
+  ...bengaliExtraGlossary9to16,
+});
 export const bengaliGlossary: GlossaryMap = G;
 
 const units: CourseUnit[] = [
@@ -4182,6 +4199,7 @@ const units: CourseUnit[] = [
     ],
   },
   ...buildBengaliUnits6to8(G),
+  ...buildBengaliUnits9to16(G),
 ];
 
 export const bengaliCourse: LanguageCourse = buildCourse('bn', units);

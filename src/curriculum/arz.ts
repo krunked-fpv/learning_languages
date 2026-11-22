@@ -23,6 +23,11 @@ import {
   egyptianArabicCards6to8,
   egyptianArabicExtraGlossary6to8,
 } from './arzUnits6to8';
+import {
+  buildEgyptianArabicUnits9to16,
+  egyptianArabicCards9to16,
+  egyptianArabicExtraGlossary9to16,
+} from './arzUnits9to16';
 
 const U1 = 'arz-u1';
 const U2 = 'arz-u2';
@@ -1128,10 +1133,12 @@ const allCards: VocabCard[] = [
   ...u4Cards,
   ...u5Cards,
   ...egyptianArabicCards6to8,
+  ...egyptianArabicCards9to16,
 ];
 
 const extraGlossary: GlossaryMap = {
   ...egyptianArabicExtraGlossary6to8,
+  ...egyptianArabicExtraGlossary9to16,
   أهلاً: { translation: 'welcome / hello', phonetic: 'AH-lan', romanized: 'ahlan' },
   بيك: { translation: 'to you', phonetic: 'BEEK', romanized: 'bīk' },
   صباح: { translation: 'morning', phonetic: 'sa-BAAH', romanized: 'ṣabāḥ' },
@@ -4192,6 +4199,7 @@ const units: CourseUnit[] = [
     ],
   },
   ...buildEgyptianArabicUnits6to8(G),
+  ...buildEgyptianArabicUnits9to16(G),
 ];
 
 export const egyptianArabicCourse: LanguageCourse = buildCourse('arz', units);
