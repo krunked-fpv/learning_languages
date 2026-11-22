@@ -282,7 +282,6 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
         setFeedback({
           kind: 'correct',
           headline: comboMeta.label ? `${comboMeta.label} Great job!` : 'Nicely done!',
-          detail: result.articleCoaching?.note,
           articleCoaching: result.articleCoaching,
           speakText: draft.speakOnResult,
           phonetic: draft.phoneticHint,

@@ -221,11 +221,11 @@ export function PhrasebookVault() {
           />
         </div>
 
-        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           <button
             type="button"
             className={`tactile-tile ${unitFilter === 'all' ? 'is-selected' : ''}`}
-            style={{ padding: '4px 10px', fontSize: '0.76rem', whiteSpace: 'nowrap' }}
+            style={{ padding: '4px 11px', fontSize: '0.76rem', whiteSpace: 'nowrap' }}
             onClick={() => setUnitFilter('all')}
           >
             All Units
@@ -234,11 +234,13 @@ export function PhrasebookVault() {
             <button
               key={u.id}
               type="button"
+              title={`Unit ${u.order}: ${u.title}`}
+              aria-label={`Unit ${u.order}: ${u.title}`}
               className={`tactile-tile ${unitFilter === u.id ? 'is-selected' : ''}`}
               style={{ padding: '4px 10px', fontSize: '0.76rem', whiteSpace: 'nowrap' }}
               onClick={() => setUnitFilter(u.id)}
             >
-              U{u.order}: {u.title}
+              U{u.order}
             </button>
           ))}
         </div>

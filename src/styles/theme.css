@@ -459,20 +459,20 @@ select {
 
 .responsive-nav {
   width: 100%;
-  max-width: 720px;
+  max-width: 780px;
   background: var(--nav-bg);
   border: 2px solid var(--shell-border);
   border-bottom-width: 4px;
   border-radius: 24px;
   backdrop-filter: blur(16px);
   box-shadow: var(--card-glow);
-  padding: 5px 6px;
+  padding: 5px 7px;
 }
 
 .nav-items-list {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 4px;
+  gap: 6px;
 }
 
 .nav-item-btn {

@@ -20,14 +20,15 @@ export function BottomNav({
   const items: Array<{
     id: NavTabId;
     label: string;
+    shortLabel: string;
     icon: typeof Compass;
     badge?: number;
   }> = [
-    { id: 'map', label: 'Atlas Map', icon: Compass },
-    { id: 'phrasebook', label: 'Phrasebook', icon: BookOpen, badge: unlockedPhraseCount },
-    { id: 'arcade', label: 'Arcade', icon: Gamepad2 },
-    { id: 'leagues', label: 'Leagues & Badges', icon: Trophy },
-    { id: 'shop', label: 'Gem Shop', icon: ShoppingBag },
+    { id: 'map', label: 'Atlas Map', shortLabel: 'Atlas Map', icon: Compass },
+    { id: 'phrasebook', label: 'Phrasebook', shortLabel: 'Phrasebook', icon: BookOpen, badge: unlockedPhraseCount },
+    { id: 'arcade', label: 'Arcade', shortLabel: 'Arcade', icon: Gamepad2 },
+    { id: 'leagues', label: 'Leagues & Badges', shortLabel: 'Trophies', icon: Trophy },
+    { id: 'shop', label: 'Gem Shop', shortLabel: 'Gem Shop', icon: ShoppingBag },
   ];
 
   return (
@@ -42,6 +43,7 @@ export function BottomNav({
                 key={item.id}
                 type="button"
                 className={`nav-item-btn ${isActive ? 'is-active' : ''}`}
+                aria-label={item.label}
                 aria-current={isActive ? 'page' : undefined}
                 onClick={() => {
                   playSfx('button_click');
@@ -63,7 +65,7 @@ export function BottomNav({
                   >
                     <Icon size={19} />
                   </motion.span>
-                  <span className="nav-item-label">{item.label}</span>
+                  <span className="nav-item-label">{item.shortLabel}</span>
                   {typeof item.badge === 'number' ? (
                     <span className="nav-count-badge" aria-label={`${item.badge} unlocked`}>
                       {item.badge}

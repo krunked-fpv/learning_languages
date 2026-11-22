@@ -383,15 +383,15 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
               </div>
 
               {/* Title & Description */}
-              <div style={{ minHeight: 0 }}>
+              <div style={{ minHeight: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <h2
                   style={{
-                    margin: '0 0 2px',
+                    margin: 0,
                     fontFamily: 'var(--font-display)',
-                    fontSize: isNarrow ? '0.88rem' : '1.02rem',
+                    fontSize: isNarrow ? '0.84rem' : '1.02rem',
                     fontWeight: 900,
                     color: 'var(--text-main, #1e1b4b)',
-                    lineHeight: 1.15,
+                    lineHeight: 1.12,
                   }}
                 >
                   {cab.title}
@@ -399,10 +399,10 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                 <p
                   style={{
                     margin: 0,
-                    fontSize: isNarrow ? '0.68rem' : '0.76rem',
+                    fontSize: isNarrow ? '0.67rem' : '0.76rem',
                     fontWeight: 700,
                     color: 'var(--text-muted, #475569)',
-                    lineHeight: 1.28,
+                    lineHeight: 1.24,
                     display: '-webkit-box',
                     WebkitLineClamp: isNarrow ? 2 : 3,
                     WebkitBoxOrient: 'vertical',
@@ -419,9 +419,11 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                 className={`tactile-btn ${cab.btnClass}`}
                 style={{
                   width: '100%',
+                  marginTop: isNarrow ? 4 : 0,
                   padding: isNarrow ? '6px 8px' : '8px 12px',
                   fontSize: isNarrow ? '0.76rem' : '0.86rem',
                   borderRadius: 13,
+                  flexShrink: 0,
                 }}
                 onClick={() => {
                   playSfx('whoosh_transition');

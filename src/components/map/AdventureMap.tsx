@@ -929,7 +929,7 @@ export function AdventureMap({
                           borderColor: 'rgba(15, 23, 42, 0.14)',
                           boxShadow: '0 2px 6px rgba(15, 23, 42, 0.08)',
                           textAlign: 'center',
-                          maxWidth: isCompactWidth ? 96 : 126,
+                          maxWidth: isCompactWidth ? 98 : 138,
                         }}
                       >
                         <div
@@ -937,10 +937,11 @@ export function AdventureMap({
                             fontSize: isCompactWidth ? 9.5 : 10.5,
                             fontWeight: 800,
                             color: state === 'locked' ? '#64748B' : '#0F172A',
-                            lineHeight: 1.2,
-                            whiteSpace: 'nowrap',
+                            lineHeight: 1.18,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
                             overflow: 'hidden',
-                            textOverflow: 'ellipsis',
                           }}
                         >
                           {node.title}
