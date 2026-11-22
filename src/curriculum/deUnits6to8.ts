@@ -696,6 +696,9 @@ export const germanExtraGlossary6to8: GlossaryMap = {
   sternen: { translation: 'stars (dat. pl.)', phonetic: 'SHTEHR-nen' },
   frische: { translation: 'fresh (masc. nom.)', phonetic: 'FRIH-sheh' },
   bunten: { translation: 'colorful (pl.)', phonetic: 'BOON-ten' },
+  im: { translation: 'in the', phonetic: 'im' },
+  leuchten: { translation: 'shine', phonetic: 'LOYKH-ten' },
+  bunter: { translation: 'colorful (masc. nom.)', phonetic: 'BOON-ter' },
   wann: { translation: 'when', phonetic: 'vahn' },
   warum: { translation: 'why', phonetic: 'vah-ROOM' },
   sehr: { translation: 'very', phonetic: 'zehr' },
@@ -929,10 +932,11 @@ export function buildGermanUnits6to8(G: GlossaryMap): CourseUnit[] {
               {
                 id: 'de-u6-n4-e5',
                 promptText: 'The story in the book.',
-                expectedSentence: 'Die Geschichte in dem Buch.',
-                targetTokens: ['Die', 'Geschichte', 'in', 'dem', 'Buch'],
+                expectedSentence: 'Die Geschichte im Buch.',
+                acceptedSentences: ['Die Geschichte in dem Buch.', 'Die Geschichte in dem Buch'],
+                targetTokens: ['Die', 'Geschichte', 'im', 'Buch'],
                 distractorTokens: ['Gitarre', 'der', 'Tanz'],
-                phoneticHint: 'dee geh-SHIKH-teh in dehm bookh',
+                phoneticHint: 'dee geh-SHIKH-teh im bookh',
                 vocabIds: ['de-u6-c11', 'de-u6-c10'],
               }
             ),
@@ -1099,10 +1103,11 @@ export function buildGermanUnits6to8(G: GlossaryMap): CourseUnit[] {
               makeBossTurn(
                 {
                   id: 'de-u6-b1',
-                  companionSayForeign: 'Welche Musikinstrument spielen wir am Abend?',
+                  companionSayForeign: 'Welches Musikinstrument spielen wir am Abend?',
                   companionSayEnglish: 'Which musical instrument do we play in the evening?',
-                  companionPhonetic: 'VEHL-kheh moo-ZEEK-in-shtroo-mehnt SHPEE-len veer ahm AH-bent?',
+                  companionPhonetic: 'VEHL-khes moo-ZEEK-in-shtroo-mehnt SHPEE-len veer ahm AH-bent?',
                   hintOverrides: {
+                    welches: { translation: 'which (neut.)', phonetic: 'VEHL-khes' },
                     musikinstrument: { translation: 'musical instrument', phonetic: 'moo-ZEEK-in-shtroo-mehnt' },
                   },
                   promptEnglish: 'Choose the guitar:',
@@ -1240,10 +1245,11 @@ export function buildGermanUnits6to8(G: GlossaryMap): CourseUnit[] {
               {
                 id: 'de-u7-n1-e6',
                 promptText: 'The pillow in the room.',
-                expectedSentence: 'Das Kissen in dem Zimmer.',
-                targetTokens: ['Das', 'Kissen', 'in', 'dem', 'Zimmer'],
+                expectedSentence: 'Das Kissen im Zimmer.',
+                acceptedSentences: ['Das Kissen in dem Zimmer.', 'Das Kissen in dem Zimmer'],
+                targetTokens: ['Das', 'Kissen', 'im', 'Zimmer'],
                 distractorTokens: ['der', 'Hut', 'Mantel'],
-                phoneticHint: 'dahs KIS-sen in dehm TSIM-er',
+                phoneticHint: 'dahs KIS-sen im TSIM-er',
                 vocabIds: ['de-u7-c2', 'de-u7-c3'],
               }
             ),
@@ -1475,9 +1481,9 @@ export function buildGermanUnits6to8(G: GlossaryMap): CourseUnit[] {
                   speakerId: 'benni',
                   speakerName: 'Benni',
                   side: 'left',
-                  foreignText: 'Haha! Deine Stiefel sind in dem Bett unter dem Kissen!',
+                  foreignText: 'Haha! Deine Stiefel sind im Bett unter dem Kissen!',
                   englishText: 'Haha! Your boots are in the bed under the pillow!',
-                  phonetic: 'hah-HAH! DY-neh SHTEE-fel zint in dehm beht OON-ter dehm KIS-sen!',
+                  phonetic: 'hah-HAH! DY-neh SHTEE-fel zint im beht OON-ter dehm KIS-sen!',
                   hintOverrides: {
                     deine: { translation: 'your (pl.)', phonetic: 'DY-neh' },
                   },
@@ -1526,8 +1532,8 @@ export function buildGermanUnits6to8(G: GlossaryMap): CourseUnit[] {
                 options: [
                   {
                     id: 'opt-1',
-                    label: 'In dem Bett unter dem Kissen (In the bed under the pillow)',
-                    phonetic: 'in dehm beht OON-ter dehm KIS-sen',
+                    label: 'Im Bett unter dem Kissen (In the bed under the pillow)',
+                    phonetic: 'im beht OON-ter dehm KIS-sen',
                     isCorrect: true,
                     reactionEnglish: 'What a cozy hiding spot! Time to lace up!',
                     reactionForeign: 'Klatsch-klatsch durch das Wasser!',
@@ -1949,12 +1955,9 @@ export function buildGermanUnits6to8(G: GlossaryMap): CourseUnit[] {
                   speakerId: 'pip',
                   speakerName: 'Pip',
                   side: 'right',
-                  foreignText: 'Oh! Ich sehe den Mond, einen Komet und einen bunten Planet!',
-                  englishText: 'Oh! I see the moon, a comet, and a colorful planet!',
-                  phonetic: 'oh! ikh ZAY-eh dehn mohnt, EYE-nen koh-MAYT oont EYE-nen BOON-ten plah-NAYT!',
-                  hintOverrides: {
-                    bunten: { translation: 'colorful (acc. masc.)', phonetic: 'BOON-ten' },
-                  },
+                  foreignText: 'Oh! Dort leuchten der Mond, ein Komet und ein bunter Planet!',
+                  englishText: 'Oh! There shine the moon, a comet, and a colorful planet!',
+                  phonetic: 'oh! dohrt LOYKH-ten dehr mohnt, ine koh-MAYT oont ine BOON-ter plah-NAYT!',
                 },
                 G
               ),
@@ -2067,16 +2070,15 @@ export function buildGermanUnits6to8(G: GlossaryMap): CourseUnit[] {
               makeBossTurn(
                 {
                   id: 'de-u8-b1',
-                  companionSayForeign: 'Welches Fahrzeug fliegt schnell zu einem fernen Planet?',
-                  companionSayEnglish: 'Which craft flies fast to a distant planet?',
-                  companionPhonetic: 'VEHL-khes FAR-tsoyg fleekt shnehl tsoo EYE-nem FEHR-nen plah-NAYT?',
+                  companionSayForeign: 'Welches Fahrzeug fliegt schnell durch den tiefen Weltraum?',
+                  companionSayEnglish: 'Which craft flies fast through deep space?',
+                  companionPhonetic: 'VEHL-khes FAR-tsoyg fleekt shnehl doorkh dehn TEE-fen VEHLT-rowm?',
                   hintOverrides: {
                     welches: { translation: 'which (neut.)', phonetic: 'VEHL-khes' },
                     fahrzeug: { translation: 'craft / vehicle', phonetic: 'FAR-tsoyg' },
                     fliegt: { translation: 'flies', phonetic: 'fleekt' },
                     schnell: { translation: 'fast', phonetic: 'shnehl' },
-                    einem: { translation: 'a (dat.)', phonetic: 'EYE-nem' },
-                    fernen: { translation: 'distant', phonetic: 'FEHR-nen' },
+                    tiefen: { translation: 'deep (acc. masc.)', phonetic: 'TEE-fen' },
                   },
                   promptEnglish: 'Choose the rocket:',
                   mode: 'choice',

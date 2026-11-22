@@ -1117,7 +1117,6 @@ export function buildItalianUnits6to8(G: GlossaryMap): CourseUnit[] {
                   companionPhonetic: 'KOH-zah OO-zee pehr dee-PEEN-jeh-reh STEHL-leh bloo nehl dee-ZEH-nyoh?',
                   hintOverrides: {
                     usi: { translation: 'you use', phonetic: 'OO-zee' },
-                    nehl_word: { translation: 'in the', phonetic: 'nehl' },
                   },
                   promptEnglish: 'Pick the paintbrush:',
                   mode: 'choice',
@@ -1565,8 +1564,8 @@ export function buildItalianUnits6to8(G: GlossaryMap): CourseUnit[] {
                   choices: ['la sciarpa', 'il cuscino', 'il libro'],
                   expectedAnswer: 'la sciarpa',
                   phoneticAnswer: 'lah SHAHR-pah',
-                  victoryReplyForeign: 'Perfetto! Caldo e comodo!',
-                  victoryReplyEnglish: 'Perfect! Warm and comfortable!',
+                  victoryReplyForeign: 'Perfetto! Morbida e calda!',
+                  victoryReplyEnglish: 'Perfect! Soft and warm!',
                 },
                 G
               ),
@@ -1603,7 +1602,7 @@ export function buildItalianUnits6to8(G: GlossaryMap): CourseUnit[] {
                   choices: ['gli stivali', 'la colazione', 'la musica'],
                   expectedAnswer: 'gli stivali',
                   phoneticAnswer: 'lyee stee-VAH-lee',
-                  victoryReplyForeign: 'Ciuf-ciuf nelle pozzanghere!',
+                  victoryReplyForeign: 'Splash-splash nelle pozzanghere!',
                   victoryReplyEnglish: 'Splash-splash through the puddles!',
                 },
                 G
@@ -2051,7 +2050,7 @@ export function buildItalianUnits6to8(G: GlossaryMap): CourseUnit[] {
                   distractorTokens: ['il', 'cuscino', 'camicia'],
                   expectedAnswer: "La luna e l'arcobaleno.",
                   phoneticAnswer: 'lah LOO-nah eh lahr-koh-bah-LEH-noh.',
-                  victoryReplyForeign: 'Splendido! Tutti i sette colori brillano!',
+                  victoryReplyForeign: 'Splendido! Tutti e sette i colori brillano!',
                   victoryReplyEnglish: 'Splendid! All seven colors shine!',
                 },
                 G

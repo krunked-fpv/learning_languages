@@ -198,9 +198,9 @@ const u1Cards: VocabCard[] = [
     acceptedEnglish: ['friend'],
     phonetic: 'lah-MEE',
     illustrationKey: 'friendly_handshake',
-    exampleForeign: "Colette est l'ami de Pip.",
-    exampleEnglish: 'Colette is the friend of Pip.',
-    examplePhonetic: 'koh-LEHT eh lah-MEE duh peep.',
+    exampleForeign: "Pip est l'ami de Colette.",
+    exampleEnglish: 'Pip is the friend of Colette.',
+    examplePhonetic: 'peep eh lah-MEE duh koh-LEHT.',
   }),
   makeCard('fr', U1, {
     id: 'fr-u1-c13',
@@ -1451,10 +1451,10 @@ const units: CourseUnit[] = [
           wordBankToEn(
             {
               id: 'fr-u1-n4-e3',
-              promptText: "Oui, Colette est l'ami de Pip.",
-              promptPhonetic: 'wee, koh-LEHT eh lah-MEE duh peep',
-              expectedSentence: 'Yes, Colette is the friend of Pip.',
-              targetTokens: ['Yes', 'Colette', 'is', 'the', 'friend', 'of', 'Pip'],
+              promptText: "Oui, Pip est l'ami de Colette.",
+              promptPhonetic: 'wee, peep eh lah-MEE duh koh-LEHT',
+              expectedSentence: 'Yes, Pip is the friend of Colette.',
+              targetTokens: ['Yes', 'Pip', 'is', 'the', 'friend', 'of', 'Colette'],
               distractorTokens: ['No', 'smile', 'name'],
               vocabIds: ['fr-u1-c10', 'fr-u1-c12'],
             },
@@ -3152,10 +3152,13 @@ const units: CourseUnit[] = [
                 speakerId: 'colette',
                 speakerName: 'Colette',
                 side: 'right',
-                foreignText: 'Oh! La peinture jaune et bleu est près du panier!',
+                foreignText: 'Oh! La peinture jaune et bleue est près du panier!',
                 englishText: 'Oh! The yellow and blue paint is near the basket!',
                 phonetic: 'oh! lah pan-TOOR zhohn ay bluh eh preh doo pah-NYAY!',
-                hintOverrides: { peinture: { translation: 'paint', phonetic: 'pan-TOOR' } },
+                hintOverrides: {
+                  peinture: { translation: 'paint', phonetic: 'pan-TOOR' },
+                  bleue: { translation: 'blue (fem.)', phonetic: 'bluh' },
+                },
               },
               G
             ),

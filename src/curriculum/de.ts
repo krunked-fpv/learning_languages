@@ -1159,6 +1159,7 @@ const extraGlossary: GlossaryMap = {
   gipfel: { translation: 'summit', phonetic: 'GIP-fel' },
   groß: { translation: 'big', phonetic: 'grohss' },
   führt: { translation: 'leads', phonetic: 'foort' },
+  heißer: { translation: 'hot (fem. dat.)', phonetic: 'HY-ser' },
   hause: { translation: 'home (nach Hause)', phonetic: 'HOW-zeh' },
 };
 
@@ -1207,9 +1208,9 @@ const units: CourseUnit[] = [
           wordBankToEn(
             {
               id: 'de-u1-n1-e5',
-              promptText: 'Hallo, guten Morgen Benni!',
-              promptPhonetic: 'hah-LOH, GOO-ten MOR-gen BEH-nee!',
-              expectedSentence: 'Hello, good morning Benni!',
+              promptText: 'Hallo, guten Morgen, Benni!',
+              promptPhonetic: 'hah-LOH, GOO-ten MOR-gen, BEH-nee!',
+              expectedSentence: 'Hello, good morning, Benni!',
               targetTokens: ['Hello', 'good', 'morning', 'Benni'],
               distractorTokens: ['night', 'please', 'no'],
               vocabIds: ['de-u1-c1', 'de-u1-c2'],
@@ -1750,9 +1751,9 @@ const units: CourseUnit[] = [
           wordBankToForeign(
             {
               id: 'de-u2-n1-e6',
-              promptText: 'The bread with the cheese.',
+              promptText: 'The bread with cheese.',
               expectedSentence: 'Das Brot mit Käse.',
-              acceptedSentences: ['Das Brot mit dem Käse'],
+              acceptedSentences: ['Das Brot mit dem Käse', 'Das Brot mit dem Käse.'],
               targetTokens: ['Das', 'Brot', 'mit', 'Käse'],
               distractorTokens: ['Wasser', 'Apfel', 'die'],
               phoneticHint: 'dahs broht mit KAY-zeh',
@@ -1807,8 +1808,8 @@ const units: CourseUnit[] = [
           wordBankToEn(
             {
               id: 'de-u2-n2-e6',
-              promptText: 'Das Hörnchen mit heiße Schokolade.',
-              promptPhonetic: 'dahs HURN-khyen mit HY-seh shoh-koh-LAH-deh',
+              promptText: 'Das Hörnchen mit heißer Schokolade.',
+              promptPhonetic: 'dahs HURN-khyen mit HY-ser shoh-koh-LAH-deh',
               expectedSentence: 'The croissant with hot chocolate.',
               targetTokens: ['The', 'croissant', 'with', 'hot', 'chocolate'],
               distractorTokens: ['orange', 'juice', 'cheese'],
@@ -2038,9 +2039,9 @@ const units: CourseUnit[] = [
                 speakerId: 'pip',
                 speakerName: 'Pip',
                 side: 'left',
-                foreignText: 'Diese Brezel mit heiße Schokolade ist lecker!',
+                foreignText: 'Diese Brezel mit heißer Schokolade ist lecker!',
                 englishText: 'This pretzel with hot chocolate is delicious!',
-                phonetic: 'DEE-zeh BRAY-tsel mit HY-seh shoh-koh-LAH-deh ist LEH-ker!',
+                phonetic: 'DEE-zeh BRAY-tsel mit HY-ser shoh-koh-LAH-deh ist LEH-ker!',
                 hintOverrides: { diese: { translation: 'this (fem.)', phonetic: 'DEE-zeh' } },
               },
               G

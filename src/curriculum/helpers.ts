@@ -251,6 +251,34 @@ export function discovery(
   };
 }
 
+function expandEnglishVariants(sentence: string, includeBareNoun = false): string[] {
+  const variants = [sentence, stripEdgePunctuation(sentence)];
+  const swapped = sentence
+    .replace(/\bYou are welcome\b/g, "You're welcome")
+    .replace(/\byou are welcome\b/g, "you're welcome")
+    .replace(/\bIt is\b/g, "It's")
+    .replace(/\bit is\b/g, "it's");
+  if (swapped !== sentence) {
+    variants.push(swapped, stripEdgePunctuation(swapped));
+  }
+  const expanded = sentence
+    .replace(/\bYou're welcome\b/g, 'You are welcome')
+    .replace(/\byou're welcome\b/g, 'you are welcome')
+    .replace(/\bIt's\b/g, 'It is')
+    .replace(/\bit's\b/g, 'it is');
+  if (expanded !== sentence) {
+    variants.push(expanded, stripEdgePunctuation(expanded));
+  }
+  if (includeBareNoun) {
+    const clean = stripEdgePunctuation(sentence);
+    const bareMatch = clean.match(/^(?:the|a|an)\s+([a-z][a-z -]*)$/i);
+    if (bareMatch && !/\b(?:is|are|and|or|with|in|on|under|to)\b/i.test(bareMatch[1])) {
+      variants.push(bareMatch[1].trim());
+    }
+  }
+  return dedupeStrings(variants);
+}
+
 export function wordBankToEn(
   params: {
     id: string;
@@ -270,9 +298,8 @@ export function wordBankToEn(
 ): WordBankExercise {
   const joined = params.targetTokens.join(' ');
   const acceptedSentences = dedupeStrings([
-    params.expectedSentence,
+    ...expandEnglishVariants(params.expectedSentence, true),
     joined,
-    stripEdgePunctuation(params.expectedSentence),
     ...(params.acceptedSentences ?? []),
   ]);
 
@@ -348,6 +375,12 @@ export function listenMeaning(
       `ListenMeaning "${params.id}": choices must contain "${params.englishMeaning}"`
     );
   }
+  const wrongLower = new Set(
+    params.choices.filter((c) => c !== params.englishMeaning).map((c) => stripEdgePunctuation(c).toLowerCase())
+  );
+  const safeExpanded = expandEnglishVariants(params.englishMeaning, true).filter(
+    (v) => !wrongLower.has(stripEdgePunctuation(v).toLowerCase())
+  );
   return {
     type: 'listen_decode',
     id: params.id,
@@ -360,6 +393,7 @@ export function listenMeaning(
     acceptedAnswers: dedupeStrings([
       params.englishMeaning,
       stripEdgePunctuation(params.englishMeaning),
+      ...safeExpanded,
       ...(params.acceptedAnswers ?? []),
     ]),
     tapHints: buildTapHints(params.audioText, glossary, params.hintOverrides),
@@ -477,6 +511,19 @@ export function makeBossTurn(
     );
   }
   const joined = params.targetTokens?.join(' ') ?? '';
+  const wrongChoiceLower = new Set(
+    (params.choices ?? [])
+      .filter((c) => c !== params.expectedAnswer)
+      .map((c) => stripEdgePunctuation(c).toLowerCase())
+  );
+  const bareNounChoices: string[] = [];
+  if (params.mode === 'choice') {
+    const cleanExp = stripEdgePunctuation(params.expectedAnswer).trim();
+    const m = cleanExp.match(/^(?:el|la|los|las|le|l'|un|una|une|der|die|das|ein|eine|einen|il|lo|gli)\s*([a-z\u00C0-\u024F-]+)$/i);
+    if (m && m[1] && !wrongChoiceLower.has(m[1].toLowerCase())) {
+      bareNounChoices.push(m[1]);
+    }
+  }
   return {
     id: params.id,
     companionSayForeign: params.companionSayForeign,
@@ -493,6 +540,7 @@ export function makeBossTurn(
       params.expectedAnswer,
       ...(joined ? [joined] : []),
       stripEdgePunctuation(params.expectedAnswer),
+      ...bareNounChoices,
       ...(params.acceptedAnswers ?? []),
     ]),
     phoneticAnswer: params.phoneticAnswer,

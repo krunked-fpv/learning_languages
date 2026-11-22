@@ -905,9 +905,9 @@ const u5Cards: VocabCard[] = [
     acceptedEnglish: ['backpack', 'bag'],
     phonetic: 'loh DZYE-noh',
     illustrationKey: 'backpack_ready',
-    exampleForeign: 'Lo zaino ha la mappa e acqua.',
-    exampleEnglish: 'The backpack has the map and water.',
-    examplePhonetic: 'loh DZYE-noh ah lah MAHP-pah eh AHK-wah.',
+    exampleForeign: "Lo zaino ha la mappa e l'acqua.",
+    exampleEnglish: 'The backpack has the map and the water.',
+    examplePhonetic: 'loh DZYE-noh ah lah MAHP-pah eh LAHK-wah.',
   }),
   makeCard('it', U5, {
     id: 'it-u5-c11',
@@ -2129,11 +2129,11 @@ const units: CourseUnit[] = [
             makeBossTurn(
               {
                 id: 'it-u2-b1',
-                companionSayForeign: 'Ciao! Cosa vorrei bere oggi?',
+                companionSayForeign: 'Ciao! Cosa vorresti bere oggi?',
                 companionSayEnglish: 'Hello! What would you like to drink today?',
-                companionPhonetic: 'CHOW! KOH-zah vor-RAY BEH-reh OHD-jee?',
+                companionPhonetic: 'CHOW! KOH-zah vor-REHS-tee BEH-reh OHD-jee?',
                 hintOverrides: {
-                  vorrei: { translation: 'would like', phonetic: 'vor-RAY' },
+                  vorresti: { translation: 'would you like', phonetic: 'vor-REHS-tee' },
                   bere: { translation: 'to drink', phonetic: 'BEH-reh' },
                 },
                 promptEnglish: 'Order hot chocolate politely:',
@@ -2541,12 +2541,13 @@ const units: CourseUnit[] = [
                 speakerId: 'pip',
                 speakerName: 'Pip',
                 side: 'left',
-                foreignText: 'La farfalla vola vicino ai fiori gialli di limoni!',
+                foreignText: 'La farfalla vola vicino ai fiori gialli di limone!',
                 englishText: 'The butterfly flies near the yellow lemon flowers!',
-                phonetic: 'lah far-FAHL-lah VOH-lah vee-CHEE-noh eye FYOH-ree JAHL-lee dee lee-MOH-nee!',
+                phonetic: 'lah far-FAHL-lah VOH-lah vee-CHEE-noh eye FYOH-ree JAHL-lee dee lee-MOH-neh!',
                 hintOverrides: {
                   ai: { translation: 'to/at the (masc. pl.)', phonetic: 'eye' },
                   gialli: { translation: 'yellow (pl.)', phonetic: 'JAHL-lee' },
+                  limone: { translation: 'lemon', phonetic: 'lee-MOH-neh' },
                 },
               },
               G

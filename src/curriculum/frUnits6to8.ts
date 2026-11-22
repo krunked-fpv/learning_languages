@@ -657,6 +657,7 @@ export const frenchExtraGlossary6to8: GlossaryMap = {
   'mets-tu': { translation: 'do you put on', phonetic: 'meh-TOO' },
   bien: { translation: 'very / well', phonetic: 'byehn' },
   haut: { translation: 'high / up', phonetic: 'oh' },
+  petite: { translation: 'little (fem.)', phonetic: 'puh-TEET' },
   soie: { translation: 'silk / soft', phonetic: 'swah' },
 };
 
@@ -1109,11 +1110,12 @@ export function buildFrenchUnits6to8(G: GlossaryMap): CourseUnit[] {
               makeBossTurn(
                 {
                   id: 'fr-u6-b1',
-                  companionSayForeign: 'De quel instrument je joue à la fête?',
-                  companionSayEnglish: 'Which instrument do I play at the party?',
-                  companionPhonetic: 'duh kehl an-stroo-MAHN zhuh zhoo ah lah feht?',
+                  companionSayForeign: 'De quel instrument jouons-nous à la fête?',
+                  companionSayEnglish: 'Which instrument do we play at the party?',
+                  companionPhonetic: 'duh kehl an-stroo-MAHN zhoo-ohn-NOO ah lah feht?',
                   hintOverrides: {
                     instrument: { translation: 'instrument', phonetic: 'an-stroo-MAHN' },
+                    'jouons-nous': { translation: 'do we play', phonetic: 'zhoo-ohn NOO' },
                   },
                   promptEnglish: 'Pick Colette’s favorite stringed instrument:',
                   mode: 'choice',
@@ -2063,9 +2065,9 @@ export function buildFrenchUnits6to8(G: GlossaryMap): CourseUnit[] {
                   speakerId: 'pip',
                   speakerName: 'Pip',
                   side: 'left',
-                  foreignText: "Notre fusée jouet vole vers l'espace!",
-                  englishText: 'Our toy rocket flies toward space!',
-                  phonetic: 'noh-truh foo-ZAY zhoo-EH vohl vehr lehs-PAHS!',
+                  foreignText: "Notre petite fusée vole vers l'espace!",
+                  englishText: 'Our little rocket flies toward space!',
+                  phonetic: 'noh-truh puh-TEET foo-ZAY vohl vehr lehs-PAHS!',
                 },
                 G
               ),

@@ -176,22 +176,66 @@ function pickEnglishDistractors(
   return candidates;
 }
 
+function cardEnglishKeySet(card: VocabCard): Set<string> {
+  const keys = new Set<string>();
+  const add = (s: string) => {
+    const clean = normalizeSentenceKey(s);
+    if (!clean) return;
+    keys.add(clean);
+    const bare = clean.replace(/^(?:the|a|an)\s+/, '');
+    if (bare) keys.add(bare);
+  };
+  add(card.english);
+  for (const ae of card.acceptedEnglish) add(ae);
+  return keys;
+}
+
+function cardForeignKeySet(card: VocabCard): Set<string> {
+  const keys = new Set<string>();
+  for (const s of [card.foreignWithArticle, card.bareForeign, ...card.acceptedForeign]) {
+    const clean = normalizeSentenceKey(s);
+    if (clean) keys.add(clean);
+  }
+  return keys;
+}
+
 function pickEnglishChoices(
   unit: CourseUnit,
+  targetCard: VocabCard,
   correct: string,
   useExamples: boolean,
   seed: string
 ): string[] {
   const choices = [correct];
+  const wrongForbidden = new Set([
+    normalizeSentenceKey(correct),
+    normalizeSentenceKey(correct).replace(/^(?:the|a|an)\s+/, ''),
+  ]);
+  if (!useExamples) {
+    for (const k of cardEnglishKeySet(targetCard)) wrongForbidden.add(k);
+  }
   const seen = new Set([correct.toLowerCase()]);
-  for (const c of unit.vocabCards) {
+  const shuffled = deterministicShuffle(unit.vocabCards, `${seed}-eng-choices`);
+  for (const c of shuffled) {
     const candidate = useExamples ? c.exampleEnglish : c.english;
     const key = candidate.toLowerCase();
-    if (!seen.has(key)) {
-      seen.add(key);
-      choices.push(candidate);
-      if (choices.length >= 4) break;
+    if (seen.has(key)) continue;
+    const candKey = normalizeSentenceKey(candidate);
+    const candBare = candKey.replace(/^(?:the|a|an)\s+/, '');
+    if (wrongForbidden.has(candKey) || wrongForbidden.has(candBare)) continue;
+    if (!useExamples) {
+      let overlapsTarget = false;
+      for (const ck of cardEnglishKeySet(c)) {
+        if (wrongForbidden.has(ck)) {
+          overlapsTarget = true;
+          break;
+        }
+      }
+      if (overlapsTarget) continue;
     }
+    seen.add(key);
+    choices.push(candidate);
+    if (choices.length >= 4) break;
   }
   return deterministicShuffle(choices, seed);
 }
@@ -269,6 +313,15 @@ function makeDynamicListenMeaning(
   const phonetic = useExample ? card.examplePhonetic : card.phonetic;
   const englishMeaning = useExample ? card.exampleEnglish : card.english;
   const wordCount = tokenizeCleanWords(audioText).length;
+  const generatedChoices = pickEnglishChoices(unit, card, englishMeaning, useExample, id);
+  const wrongLower = new Set(
+    generatedChoices
+      .filter((c) => c !== englishMeaning)
+      .map((c) => normalizeSentenceKey(c))
+  );
+  const expanded = useExample
+    ? []
+    : card.acceptedEnglish.filter((ae) => !wrongLower.has(normalizeSentenceKey(ae)));
   return {
     type: 'listen_decode',
     id,
@@ -277,11 +330,11 @@ function makeDynamicListenMeaning(
     phonetic,
     voiceFallbackPhoneticPrompt: `Syllables: ${phonetic.replace(/\s+/g, ' • ')} (${wordCount} ${wordCount === 1 ? 'word' : 'words'})`,
     englishMeaning,
-    choices: pickEnglishChoices(unit, englishMeaning, useExample, id),
+    choices: generatedChoices,
     acceptedAnswers: dedupeAccepted([
       englishMeaning,
       stripEdgePunctuation(englishMeaning),
-      ...(useExample ? [] : card.acceptedEnglish),
+      ...expanded,
     ]),
     tapHints: buildTapHints(audioText, glossary),
     vocabIds: [card.id],
@@ -442,13 +495,37 @@ function buildLessonPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): L
     laAdded++;
   }
 
-  // 5. Add 2 distinct 5-pair PairMatchRush sets
+  // 5. Add 2 distinct 5-pair PairMatchRush sets (avoid overlapping acceptedEnglish within same round)
   let pmAdded = 0;
   for (let shift = 0; shift < cards.length && pmAdded < 2; shift++) {
     const start = (lessonIndex * 2 + shift * 3) % cards.length;
     const picked: VocabCard[] = [];
-    for (let k = 0; k < 5; k++) {
-      picked.push(cards[(start + k * 2) % cards.length]);
+    const usedIds = new Set<string>();
+    const usedEngKeys = new Set<string>();
+    for (let step = 0; step < cards.length && picked.length < 5; step++) {
+      const candidate = cards[(start + step * 2) % cards.length];
+      if (usedIds.has(candidate.id)) continue;
+      const candKeys = cardEnglishKeySet(candidate);
+      let overlaps = false;
+      for (const ck of candKeys) {
+        if (usedEngKeys.has(ck)) {
+          overlaps = true;
+          break;
+        }
+      }
+      if (overlaps) continue;
+      usedIds.add(candidate.id);
+      for (const ck of candKeys) usedEngKeys.add(ck);
+      picked.push(candidate);
+    }
+    if (picked.length < 5) {
+      for (let k = 0; k < cards.length && picked.length < 5; k++) {
+        const candidate = cards[(start + k) % cards.length];
+        if (!usedIds.has(candidate.id)) {
+          usedIds.add(candidate.id);
+          picked.push(candidate);
+        }
+      }
     }
     const sig = picked
       .map((c) => c.id)
@@ -524,13 +601,39 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
     if (isChoiceTurn) {
       const choiceList = [answerCard.foreignWithArticle];
       const seenChoices = new Set([answerCard.foreignWithArticle.toLowerCase()]);
-      for (const c of cards) {
-        if (!seenChoices.has(c.foreignWithArticle.toLowerCase())) {
-          seenChoices.add(c.foreignWithArticle.toLowerCase());
-          choiceList.push(c.foreignWithArticle);
-          if (choiceList.length >= 3) break;
+      const forbiddenForeign = cardForeignKeySet(answerCard);
+      const forbiddenEng = cardEnglishKeySet(answerCard);
+      const shuffledChoicesPool = deterministicShuffle(cards, `${baseExercise.id}-pool-t${seq}-pool`);
+      for (const c of shuffledChoicesPool) {
+        if (seenChoices.has(c.foreignWithArticle.toLowerCase())) continue;
+        let collides = false;
+        for (const fk of cardForeignKeySet(c)) {
+          if (forbiddenForeign.has(fk)) {
+            collides = true;
+            break;
+          }
         }
+        if (!collides) {
+          for (const ek of cardEnglishKeySet(c)) {
+            if (forbiddenEng.has(ek)) {
+              collides = true;
+              break;
+            }
+          }
+        }
+        if (collides) continue;
+        seenChoices.add(c.foreignWithArticle.toLowerCase());
+        choiceList.push(c.foreignWithArticle);
+        if (choiceList.length >= 3) break;
       }
+      const wrongLower = new Set(
+        choiceList
+          .filter((c) => c !== answerCard.foreignWithArticle)
+          .map((c) => normalizeSentenceKey(c))
+      );
+      const safeAcceptedForeign = answerCard.acceptedForeign.filter(
+        (af) => !wrongLower.has(normalizeSentenceKey(af))
+      );
       const shuffledChoices = deterministicShuffle(choiceList, `${baseExercise.id}-pool-t${seq}`);
       turnsPool.push({
         id: `${baseExercise.id}-pool-t${seq}`,
@@ -545,7 +648,7 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
         acceptedAnswers: dedupeAccepted([
           answerCard.foreignWithArticle,
           stripEdgePunctuation(answerCard.foreignWithArticle),
-          ...answerCard.acceptedForeign,
+          ...safeAcceptedForeign,
         ]),
         phoneticAnswer: answerCard.phonetic,
         victoryReplyForeign: answerCard.exampleForeign,
