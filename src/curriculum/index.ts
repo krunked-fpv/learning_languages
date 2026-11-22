@@ -6,17 +6,41 @@ import type {
   MapNode,
   VocabCard,
 } from '../types/contracts';
+import { arabicCourse } from './ar';
 import { buildArcadeLexicon } from './arcadeLexicon';
+import { egyptianArabicCourse } from './arz';
+import { bengaliCourse } from './bn';
 import { germanCourse } from './de';
+import { englishCourse } from './en';
 import { spanishCourse } from './es';
 import { frenchCourse } from './fr';
+import { hindiCourse } from './hi';
+import { indonesianCourse } from './id';
 import { italianCourse } from './it';
+import { japaneseCourse } from './ja';
+import { portugueseCourse } from './pt';
+import { russianCourse } from './ru';
+import { swahiliCourse } from './sw';
+import { vietnameseCourse } from './vi';
+import { mandarinCourse } from './zh';
 
 export const COURSES: Record<LanguageCode, LanguageCourse> = {
   es: spanishCourse,
   fr: frenchCourse,
   de: germanCourse,
   it: italianCourse,
+  pt: portugueseCourse,
+  en: englishCourse,
+  zh: mandarinCourse,
+  ja: japaneseCourse,
+  hi: hindiCourse,
+  bn: bengaliCourse,
+  ar: arabicCourse,
+  arz: egyptianArabicCourse,
+  ru: russianCourse,
+  id: indonesianCourse,
+  vi: vietnameseCourse,
+  sw: swahiliCourse,
 };
 
 export function getCourse(lang: LanguageCode): LanguageCourse {
