@@ -23,6 +23,8 @@ interface ToneSpec {
   gain?: number;
   wave?: WarmWaveform;
   harmonicGain?: number;
+  subGain?: number;
+  twelfthGain?: number;
   filterCutoff?: number;
   filterEndCutoff?: number;
 }
@@ -331,6 +333,48 @@ function scheduleWarmTone(
       oscs.push(overtoneOsc);
     }
 
+    if (spec.subGain && spec.subGain > 0) {
+      const subOsc = ctx.createOscillator();
+      subOsc.type = 'sine';
+      const subLevel = ctx.createGain();
+      safeSetParam(subLevel.gain, 'setValueAtTime', spec.subGain, startTime);
+      safeSetParam(subOsc.frequency, 'setValueAtTime', spec.freq * 0.5, startTime);
+      if (typeof spec.endFreq === 'number' && spec.endFreq > 0) {
+        safeSetParam(
+          subOsc.frequency,
+          'exponentialRampToValueAtTime',
+          spec.endFreq * 0.5,
+          stopTime
+        );
+      }
+      subOsc.connect(subLevel);
+      subLevel.connect(entryNode);
+      subOsc.start(startTime);
+      subOsc.stop(stopTime + 0.012);
+      oscs.push(subOsc);
+    }
+
+    if (spec.twelfthGain && spec.twelfthGain > 0) {
+      const twelfthOsc = ctx.createOscillator();
+      twelfthOsc.type = 'sine';
+      const twelfthLevel = ctx.createGain();
+      safeSetParam(twelfthLevel.gain, 'setValueAtTime', spec.twelfthGain, startTime);
+      safeSetParam(twelfthOsc.frequency, 'setValueAtTime', spec.freq * 3, startTime);
+      if (typeof spec.endFreq === 'number' && spec.endFreq > 0) {
+        safeSetParam(
+          twelfthOsc.frequency,
+          'exponentialRampToValueAtTime',
+          spec.endFreq * 3,
+          stopTime
+        );
+      }
+      twelfthOsc.connect(twelfthLevel);
+      twelfthLevel.connect(entryNode);
+      twelfthOsc.start(startTime);
+      twelfthOsc.stop(stopTime + 0.012);
+      oscs.push(twelfthOsc);
+    }
+
     if (collector) {
       collector.push({ oscs, env });
     }
@@ -355,6 +399,68 @@ function scheduleSequence(ctx: AudioContext, dest: AudioNode, notes: readonly To
 }
 
 const TAP_SCALE = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5] as const;
+const BUBBLE_PENTATONIC_SCALE = [
+  523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.51,
+] as const;
+
+function scheduleAiryWhooshNoise(ctx: AudioContext, dest: AudioNode): void {
+  if (
+    typeof ctx.createBuffer !== 'function' ||
+    typeof ctx.createBufferSource !== 'function' ||
+    typeof ctx.createBiquadFilter !== 'function'
+  ) {
+    return;
+  }
+  try {
+    const sampleRate = typeof ctx.sampleRate === 'number' && ctx.sampleRate > 0 ? ctx.sampleRate : 44100;
+    const durationSec = 0.14;
+    const frameCount = Math.max(256, Math.floor(sampleRate * durationSec));
+    const buffer = ctx.createBuffer(1, frameCount, sampleRate);
+    const data = buffer.getChannelData(0);
+
+    // Soft pink-weighted airy noise (zero harsh DC clicks)
+    let smooth = 0;
+    for (let i = 0; i < frameCount; i += 1) {
+      const white = Math.random() * 2 - 1;
+      smooth = smooth * 0.72 + white * 0.28;
+      data[i] = smooth;
+    }
+
+    const now = typeof ctx.currentTime === 'number' ? ctx.currentTime : 0;
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+
+    const bandpass = ctx.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    safeSetParam(bandpass.Q, 'setValueAtTime', 1.1, now);
+    safeSetParam(bandpass.frequency, 'setValueAtTime', 380, now);
+    safeSetParam(bandpass.frequency, 'exponentialRampToValueAtTime', 1750, now + 0.065);
+    safeSetParam(bandpass.frequency, 'exponentialRampToValueAtTime', 640, now + durationSec);
+
+    const env = ctx.createGain();
+    safeSetParam(env.gain, 'setValueAtTime', 0.0001, now);
+    safeSetParam(env.gain, 'linearRampToValueAtTime', 0.11, now + 0.032);
+    safeSetParam(env.gain, 'exponentialRampToValueAtTime', 0.0001, now + durationSec);
+    safeSetParam(env.gain, 'setValueAtTime', 0, now + durationSec + 0.004);
+
+    source.connect(bandpass);
+    bandpass.connect(env);
+    env.connect(dest);
+    source.start(now);
+    source.stop(now + durationSec + 0.008);
+    source.onended = () => {
+      try {
+        source.disconnect();
+        bandpass.disconnect();
+        env.disconnect();
+      } catch {
+        // Ignore already disconnected nodes.
+      }
+    };
+  } catch {
+    // Ignore optional noise buffer limitations on constrained environments.
+  }
+}
 
 const SFX_RECIPES: Record<
   SoundEffectId,
@@ -473,37 +579,112 @@ const SFX_RECIPES: Record<
 
   combo_3x: (ctx, dest) => {
     scheduleSequence(ctx, dest, [
-      { freq: 523.25, delay: 0, wave: 'triangle', harmonicGain: 0.18, decay: 0.16, gain: 0.22 },
-      { freq: 659.25, delay: 0.065, wave: 'triangle', harmonicGain: 0.2, decay: 0.18, gain: 0.24 },
-      { freq: 783.99, delay: 0.13, wave: 'sine', harmonicGain: 0.28, decay: 0.32, gain: 0.28 },
+      {
+        freq: 523.25,
+        delay: 0,
+        wave: 'triangle',
+        harmonicGain: 0.24,
+        subGain: 0.14,
+        decay: 0.19,
+        gain: 0.23,
+        filterCutoff: 2400,
+      },
+      {
+        freq: 659.25,
+        delay: 0.065,
+        wave: 'triangle',
+        harmonicGain: 0.26,
+        twelfthGain: 0.08,
+        decay: 0.22,
+        gain: 0.25,
+        filterCutoff: 2700,
+      },
+      {
+        freq: 783.99,
+        delay: 0.13,
+        wave: 'sine',
+        harmonicGain: 0.3,
+        subGain: 0.12,
+        twelfthGain: 0.1,
+        decay: 0.36,
+        gain: 0.28,
+        filterCutoff: 3200,
+      },
     ]);
   },
 
   combo_5x: (ctx, dest) => {
     scheduleSequence(ctx, dest, [
-      { freq: 587.33, delay: 0, wave: 'triangle', harmonicGain: 0.2, decay: 0.16, gain: 0.22 },
-      { freq: 739.99, delay: 0.058, wave: 'triangle', harmonicGain: 0.22, decay: 0.18, gain: 0.24 },
-      { freq: 880.0, delay: 0.116, wave: 'sine', harmonicGain: 0.24, decay: 0.22, gain: 0.26 },
-      { freq: 1174.66, delay: 0.174, wave: 'sine', harmonicGain: 0.26, decay: 0.36, gain: 0.28 },
+      {
+        freq: 587.33,
+        delay: 0,
+        wave: 'triangle',
+        harmonicGain: 0.22,
+        subGain: 0.14,
+        decay: 0.18,
+        gain: 0.23,
+        filterCutoff: 2500,
+      },
+      {
+        freq: 739.99,
+        delay: 0.058,
+        wave: 'triangle',
+        harmonicGain: 0.24,
+        twelfthGain: 0.09,
+        decay: 0.2,
+        gain: 0.24,
+        filterCutoff: 2800,
+      },
+      {
+        freq: 880.0,
+        delay: 0.116,
+        wave: 'sine',
+        harmonicGain: 0.26,
+        subGain: 0.12,
+        decay: 0.26,
+        gain: 0.26,
+        filterCutoff: 3100,
+      },
+      {
+        freq: 1174.66,
+        delay: 0.174,
+        wave: 'sine',
+        harmonicGain: 0.28,
+        subGain: 0.16,
+        twelfthGain: 0.1,
+        decay: 0.4,
+        gain: 0.28,
+        filterCutoff: 3400,
+      },
     ]);
   },
 
   combo_fire: (ctx, dest) => {
     const notes = [523.25, 659.25, 783.99, 987.77, 1046.5, 1318.51];
-    scheduleSequence(
-      ctx,
-      dest,
-      notes.map((freq, index) => ({
+    scheduleSequence(ctx, dest, [
+      {
+        freq: 261.63,
+        delay: 0.02,
+        wave: 'triangle',
+        harmonicGain: 0.16,
+        attack: 0.02,
+        decay: 0.56,
+        gain: 0.18,
+        filterCutoff: 1400,
+      },
+      ...notes.map((freq, index) => ({
         freq,
-        delay: index * 0.05,
-        wave: index < 3 ? 'triangle' : 'sine',
-        harmonicGain: 0.24,
+        delay: index * 0.048,
+        wave: (index < 3 ? 'triangle' : 'sine') as WarmWaveform,
+        harmonicGain: 0.26,
+        subGain: index === notes.length - 1 ? 0.16 : 0.08,
+        twelfthGain: index >= 3 ? 0.1 : 0,
         attack: 0.007,
-        decay: index === notes.length - 1 ? 0.46 : 0.2,
+        decay: index === notes.length - 1 ? 0.5 : 0.22,
         gain: 0.24,
-        filterCutoff: 3200,
-      }))
-    );
+        filterCutoff: 3400,
+      })),
+    ]);
   },
 
   gentle_nudge: (ctx, dest) => {
@@ -561,12 +742,62 @@ const SFX_RECIPES: Record<
 
   chest_open: (ctx, dest) => {
     scheduleSequence(ctx, dest, [
-      { freq: 261.63, endFreq: 392.0, delay: 0, wave: 'triangle', attack: 0.015, decay: 0.15, gain: 0.2, filterCutoff: 1200 },
-      { freq: 523.25, delay: 0.1, wave: 'triangle', harmonicGain: 0.22, decay: 0.26, gain: 0.24 },
-      { freq: 659.25, delay: 0.145, wave: 'sine', harmonicGain: 0.24, decay: 0.28, gain: 0.22 },
-      { freq: 783.99, delay: 0.19, wave: 'sine', harmonicGain: 0.24, decay: 0.32, gain: 0.22 },
-      { freq: 1174.66, delay: 0.235, wave: 'sine', harmonicGain: 0.26, decay: 0.42, gain: 0.24 },
-      { freq: 1567.98, delay: 0.285, wave: 'sine', decay: 0.46, gain: 0.18 },
+      {
+        freq: 261.63,
+        endFreq: 392.0,
+        delay: 0,
+        wave: 'triangle',
+        subGain: 0.14,
+        attack: 0.015,
+        decay: 0.15,
+        gain: 0.2,
+        filterCutoff: 1300,
+      },
+      {
+        freq: 523.25,
+        delay: 0.095,
+        wave: 'triangle',
+        harmonicGain: 0.24,
+        subGain: 0.14,
+        decay: 0.28,
+        gain: 0.24,
+      },
+      {
+        freq: 659.25,
+        delay: 0.14,
+        wave: 'sine',
+        harmonicGain: 0.26,
+        twelfthGain: 0.09,
+        decay: 0.32,
+        gain: 0.22,
+      },
+      {
+        freq: 783.99,
+        delay: 0.185,
+        wave: 'sine',
+        harmonicGain: 0.26,
+        twelfthGain: 0.1,
+        decay: 0.36,
+        gain: 0.22,
+      },
+      {
+        freq: 987.77,
+        delay: 0.22,
+        wave: 'sine',
+        harmonicGain: 0.2,
+        decay: 0.4,
+        gain: 0.18,
+      },
+      {
+        freq: 1174.66,
+        delay: 0.255,
+        wave: 'sine',
+        harmonicGain: 0.28,
+        subGain: 0.12,
+        decay: 0.46,
+        gain: 0.24,
+      },
+      { freq: 1567.98, delay: 0.3, wave: 'sine', harmonicGain: 0.18, decay: 0.5, gain: 0.18 },
     ]);
   },
 
@@ -591,31 +822,246 @@ const SFX_RECIPES: Record<
 
   unit_fanfare: (ctx, dest) => {
     scheduleSequence(ctx, dest, [
-      { freq: 392.0, delay: 0, wave: 'triangle', harmonicGain: 0.2, decay: 0.14, gain: 0.22 },
-      { freq: 523.25, delay: 0.105, wave: 'triangle', harmonicGain: 0.22, decay: 0.14, gain: 0.24 },
-      { freq: 659.25, delay: 0.21, wave: 'triangle', harmonicGain: 0.24, decay: 0.14, gain: 0.25 },
-      { freq: 783.99, delay: 0.315, wave: 'sine', harmonicGain: 0.26, decay: 0.18, gain: 0.27 },
-      { freq: 659.25, delay: 0.43, wave: 'triangle', harmonicGain: 0.2, decay: 0.14, gain: 0.22 },
-      { freq: 523.25, delay: 0.54, wave: 'triangle', decay: 0.58, gain: 0.18 },
-      { freq: 783.99, delay: 0.54, wave: 'sine', decay: 0.58, gain: 0.16 },
-      { freq: 1046.5, delay: 0.54, wave: 'sine', harmonicGain: 0.28, decay: 0.64, gain: 0.28 },
+      { freq: 392.0, delay: 0, wave: 'triangle', harmonicGain: 0.22, subGain: 0.14, decay: 0.15, gain: 0.22 },
+      { freq: 523.25, delay: 0.105, wave: 'triangle', harmonicGain: 0.24, subGain: 0.12, decay: 0.15, gain: 0.24 },
+      { freq: 659.25, delay: 0.21, wave: 'triangle', harmonicGain: 0.26, twelfthGain: 0.08, decay: 0.15, gain: 0.25 },
+      { freq: 783.99, delay: 0.315, wave: 'sine', harmonicGain: 0.28, subGain: 0.12, decay: 0.19, gain: 0.27 },
+      { freq: 659.25, delay: 0.43, wave: 'triangle', harmonicGain: 0.22, decay: 0.15, gain: 0.22 },
+      { freq: 523.25, delay: 0.54, wave: 'triangle', subGain: 0.18, harmonicGain: 0.18, decay: 0.62, gain: 0.2 },
+      { freq: 659.25, delay: 0.54, wave: 'sine', harmonicGain: 0.16, decay: 0.62, gain: 0.15 },
+      { freq: 783.99, delay: 0.54, wave: 'sine', harmonicGain: 0.18, twelfthGain: 0.08, decay: 0.62, gain: 0.17 },
+      {
+        freq: 1046.5,
+        delay: 0.54,
+        wave: 'sine',
+        harmonicGain: 0.3,
+        twelfthGain: 0.1,
+        decay: 0.68,
+        gain: 0.28,
+        filterCutoff: 3400,
+      },
     ]);
   },
 
   star_pop: (ctx, dest, comboIndex) => {
-    SFX_RECIPES.accent_sparkle(ctx, dest, comboIndex);
+    const tier = Math.max(0, Math.floor(comboIndex));
+    if (tier === 0) {
+      scheduleSequence(ctx, dest, [
+        {
+          freq: 523.25,
+          delay: 0,
+          wave: 'sine',
+          harmonicGain: 0.28,
+          twelfthGain: 0.1,
+          attack: 0.004,
+          decay: 0.22,
+          gain: 0.25,
+          filterCutoff: 3400,
+        },
+        {
+          freq: 1046.5,
+          delay: 0.018,
+          wave: 'triangle',
+          attack: 0.004,
+          decay: 0.18,
+          gain: 0.14,
+          filterCutoff: 3600,
+        },
+      ]);
+      return;
+    }
+
+    if (tier === 1) {
+      scheduleSequence(ctx, dest, [
+        {
+          freq: 659.25,
+          delay: 0,
+          wave: 'sine',
+          harmonicGain: 0.3,
+          twelfthGain: 0.12,
+          attack: 0.004,
+          decay: 0.24,
+          gain: 0.26,
+          filterCutoff: 3600,
+        },
+        {
+          freq: 1318.51,
+          delay: 0.022,
+          wave: 'triangle',
+          attack: 0.004,
+          decay: 0.2,
+          gain: 0.15,
+          filterCutoff: 3800,
+        },
+      ]);
+      return;
+    }
+
+    const notes: ToneSpec[] = [
+      {
+        freq: 783.99,
+        delay: 0,
+        wave: 'triangle',
+        harmonicGain: 0.26,
+        twelfthGain: 0.1,
+        attack: 0.004,
+        decay: 0.24,
+        gain: 0.24,
+        filterCutoff: 3600,
+      },
+      {
+        freq: 1046.5,
+        delay: 0.042,
+        wave: 'sine',
+        harmonicGain: 0.3,
+        twelfthGain: 0.12,
+        attack: 0.004,
+        decay: 0.3,
+        gain: 0.26,
+        filterCutoff: 3800,
+      },
+      {
+        freq: 1567.98,
+        delay: 0.082,
+        wave: 'sine',
+        attack: 0.005,
+        decay: 0.28,
+        gain: 0.16,
+        filterCutoff: 4000,
+      },
+    ];
+    if (tier >= 3) {
+      notes.push({
+        freq: 1318.51,
+        delay: 0.115,
+        wave: 'sine',
+        attack: 0.005,
+        decay: 0.26,
+        gain: 0.13,
+        filterCutoff: 4000,
+      });
+    }
+    scheduleSequence(ctx, dest, notes);
   },
 
-  whoosh_transition: (ctx, dest, comboIndex) => {
-    SFX_RECIPES.flip_card(ctx, dest, comboIndex);
+  whoosh_transition: (ctx, dest) => {
+    scheduleAiryWhooshNoise(ctx, dest);
+    scheduleSequence(ctx, dest, [
+      {
+        freq: 261.63,
+        endFreq: 587.33,
+        delay: 0,
+        wave: 'sine',
+        harmonicGain: 0.12,
+        attack: 0.024,
+        decay: 0.115,
+        gain: 0.14,
+        filterCutoff: 1400,
+        filterEndCutoff: 2400,
+      },
+      {
+        freq: 392.0,
+        endFreq: 880.0,
+        delay: 0.018,
+        wave: 'triangle',
+        attack: 0.022,
+        decay: 0.105,
+        gain: 0.09,
+        filterCutoff: 1200,
+        filterEndCutoff: 2200,
+      },
+    ]);
   },
 
   bubble_pop: (ctx, dest, comboIndex) => {
-    SFX_RECIPES.tile_tap(ctx, dest, comboIndex);
+    const idx = Math.max(0, Math.floor(comboIndex)) % BUBBLE_PENTATONIC_SCALE.length;
+    const targetFreq = BUBBLE_PENTATONIC_SCALE[idx];
+    const startFreq = targetFreq * 0.56;
+    const endFreq = targetFreq * 1.16;
+
+    scheduleSequence(ctx, dest, [
+      {
+        freq: startFreq,
+        endFreq,
+        delay: 0,
+        wave: 'sine',
+        harmonicGain: 0.18,
+        attack: 0.004,
+        decay: 0.072,
+        gain: 0.24,
+        filterCutoff: 2400,
+        filterEndCutoff: 3400,
+      },
+      {
+        freq: targetFreq * 2,
+        endFreq: targetFreq * 2.25,
+        delay: 0.018,
+        wave: 'triangle',
+        attack: 0.004,
+        decay: 0.052,
+        gain: 0.09,
+        filterCutoff: 3200,
+      },
+    ]);
   },
 
-  secret_fanfare: (ctx, dest, comboIndex) => {
-    SFX_RECIPES.unit_fanfare(ctx, dest, comboIndex);
+  secret_fanfare: (ctx, dest) => {
+    const harpNotes = [349.23, 440.0, 523.25, 659.25, 783.99, 880.0, 1046.5];
+    scheduleSequence(ctx, dest, [
+      ...harpNotes.map((freq, idx) => ({
+        freq,
+        delay: idx * 0.046,
+        wave: (idx < 3 ? 'triangle' : 'sine') as WarmWaveform,
+        harmonicGain: 0.22,
+        subGain: idx === 0 ? 0.12 : 0,
+        attack: 0.006,
+        decay: 0.24,
+        gain: 0.2,
+        filterCutoff: 3200,
+      })),
+      {
+        freq: 698.46,
+        delay: 0.34,
+        wave: 'triangle',
+        subGain: 0.16,
+        harmonicGain: 0.22,
+        attack: 0.01,
+        decay: 0.4,
+        gain: 0.22,
+        filterCutoff: 2900,
+      },
+      {
+        freq: 880.0,
+        delay: 0.355,
+        wave: 'sine',
+        harmonicGain: 0.24,
+        attack: 0.01,
+        decay: 0.4,
+        gain: 0.21,
+        filterCutoff: 3200,
+      },
+      {
+        freq: 1046.5,
+        delay: 0.37,
+        wave: 'sine',
+        harmonicGain: 0.26,
+        twelfthGain: 0.1,
+        attack: 0.01,
+        decay: 0.41,
+        gain: 0.24,
+        filterCutoff: 3600,
+      },
+      {
+        freq: 1318.51,
+        delay: 0.39,
+        wave: 'sine',
+        harmonicGain: 0.2,
+        attack: 0.01,
+        decay: 0.38,
+        gain: 0.16,
+        filterCutoff: 3800,
+      },
+    ]);
   },
 };
 
