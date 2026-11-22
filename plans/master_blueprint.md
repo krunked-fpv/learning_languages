@@ -31,7 +31,7 @@ Every Phase 2 specialist branches from the committed Phase 1 baseline (`main`) u
 - `getBadgeProgress(profile: KidProfile, badgeId: BadgeId): { current: number; target: number; unlocked: boolean }`
 - `LEAGUE_TIER_META: Record<LeagueTier, { label: string; minXpHint: number; color: string; crestBg: string }>`
 - `buildWeeklyLeaderboard(profile: KidProfile): LeagueEntry[]`
-- `COSMETIC_CATALOG: readonly CosmeticItem[]` (all 12 `CosmeticId`s)
+- `COSMETIC_CATALOG: readonly CosmeticItem[]` (all 17 `CosmeticId`s including 8 unlockable UI theme palettes featuring `'theme_cosmic_galaxy'`)
 - `STREAK_SHIELD_COST_GEMS: number`
 
 ### 2.2 `src/store/useVaultStore.ts`
@@ -51,6 +51,7 @@ Every Phase 2 specialist branches from the committed Phase 1 baseline (`main`) u
   - `recordSeenExercises(lang: LanguageCode, exerciseIds: readonly string[]): void`
   - `unlockSecretArcade(): boolean`
   - `completeSecretArcadeRun(params: { score: number; heartsWon: number; bonusGems: number }): void`
+  - `recordArcadeGameResult(params: { gameId: string; score: number; heartsWon: number; bonusGems: number }): void`
   - `completeMapNode(params: { language: LanguageCode; nodeId: string; stars: 1 | 2 | 3; xpEarned: number; gemsEarned: number; unlockedVocabIds: string[]; maxCombo: number; isStory?: boolean; isBoss?: boolean; isChest?: boolean }): void`
   - `restoreHeartsFromArcade(params: { heartsWon: number; bonusGems: number }): void`
   - `buyAndEquipCosmetic(cosmeticId: CosmeticId): boolean`

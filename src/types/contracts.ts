@@ -212,6 +212,19 @@ export const ILLUSTRATION_KEYS = [
   'backpack_ready',
   'party_confetti',
   'starlight_trophy',
+  // Units 6–8: Music & Hobbies, Cozy Home & Clothes, Starlight Cosmos
+  'acoustic_guitar',
+  'soccer_ball',
+  'paint_palette',
+  'storybook_open',
+  'cozy_bed',
+  'explorer_boots',
+  'winter_coat',
+  'sunny_window',
+  'crescent_moon',
+  'ringed_planet',
+  'starlight_rocket',
+  'rainbow_arc',
 ] as const;
 
 export type IllustrationKey = (typeof ILLUSTRATION_KEYS)[number];
@@ -475,7 +488,12 @@ export type CosmeticId =
   | 'aura_fireflies'
   | 'theme_sunset_plaza'
   | 'theme_starlight_indigo'
-  | 'theme_alpine_meadow';
+  | 'theme_alpine_meadow'
+  | 'theme_cosmic_galaxy'
+  | 'theme_aurora_borealis'
+  | 'theme_candy_sakura'
+  | 'theme_ocean_lagoon'
+  | 'theme_royal_velvet';
 
 export interface EquippedCosmetics {
   hat?: CosmeticId;
@@ -570,6 +588,7 @@ export interface KidProfile {
   leagueTier: LeagueTier;
   secretArcadeUnlocked?: boolean;
   secretArcadeBestScore?: number;
+  arcadeHighScores?: Record<string, number>;
   stats: {
     lessonsCompleted: number;
     storiesCompleted: number;

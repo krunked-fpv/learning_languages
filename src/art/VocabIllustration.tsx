@@ -20,6 +20,18 @@ export const VOCAB_ILLUSTRATIONS: Record<IllustrationKey, SceneRenderer> = {
   ...UNIT3_SCENES,
   ...UNIT4_SCENES,
   ...UNIT5_SCENES,
+  acoustic_guitar: UNIT5_SCENES.party_confetti,
+  soccer_ball: UNIT5_SCENES.bicycle_ride,
+  paint_palette: UNIT5_SCENES.museum_lantern,
+  storybook_open: UNIT5_SCENES.compass_map,
+  cozy_bed: UNIT4_SCENES.cozy_home,
+  explorer_boots: UNIT5_SCENES.backpack_ready,
+  winter_coat: UNIT5_SCENES.rainy_umbrella,
+  sunny_window: UNIT5_SCENES.sunny_weather,
+  crescent_moon: UNIT1_SCENES.night_stars,
+  ringed_planet: UNIT5_SCENES.starlight_trophy,
+  starlight_rocket: UNIT5_SCENES.express_train,
+  rainbow_arc: UNIT3_SCENES.blooming_flower,
 };
 
 const STICKER_BACKGROUNDS: Record<
