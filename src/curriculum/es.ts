@@ -1147,9 +1147,51 @@ const extraGlossary: GlossaryMap = {
   llega: { translation: 'arrives', phonetic: 'YEH-gah' },
   va: { translation: 'goes', phonetic: 'bah' },
   caminan: { translation: 'walk', phonetic: 'kah-MEE-nahn' },
+  doradas: { translation: 'golden (fem. pl.)', phonetic: 'doh-RAH-dahs' },
+  ayuda: { translation: 'help', phonetic: 'ah-YOO-dah' },
+  pequeño: { translation: 'little', phonetic: 'peh-KEH-nyoh' },
+  ilumina: { translation: 'lights up', phonetic: 'ee-loo-MEE-nah' },
+  encanta: { translation: 'loves / delights', phonetic: 'ehn-KAHN-tah' },
+  miedo: { translation: 'fear', phonetic: 'MYEH-doh' },
+  mejor: { translation: 'best', phonetic: 'meh-HOR' },
+  huele: { translation: 'smells', phonetic: 'WEH-leh' },
+  bien: { translation: 'well / good', phonetic: 'byehn' },
+  favorito: { translation: 'favorite', phonetic: 'fah-voh-REE-toh' },
+  tomo: { translation: 'I drink / take', phonetic: 'TOH-moh' },
+  mango: { translation: 'mango', phonetic: 'MAHN-goh' },
+  frío: { translation: 'cold', phonetic: 'FREE-oh' },
+  prepara: { translation: 'prepares', phonetic: 'preh-PAH-rah' },
+  duerme: { translation: 'sleeps', phonetic: 'DWEHR-meh' },
+  visita: { translation: 'visits', phonetic: 'bee-SEE-tah' },
+  alto: { translation: 'tall / high', phonetic: 'AHL-toh' },
+  da: { translation: 'gives', phonetic: 'dah' },
+  mucha: { translation: 'much / lots of (fem.)', phonetic: 'MOO-chah' },
+  sombra: { translation: 'shade', phonetic: 'SOHM-brah' },
+  genial: { translation: 'great / awesome', phonetic: 'heh-NYAHL' },
+  subimos: { translation: 'we climb', phonetic: 'soo-BEE-mohs' },
+  lleno: { translation: 'full', phonetic: 'YEH-noh' },
+  cuenta: { translation: 'tells / counts', phonetic: 'KWEHN-tah' },
+  historias: { translation: 'stories', phonetic: 'ees-TOH-ryahs' },
+  bailan: { translation: 'dance', phonetic: 'BY-lahn' },
+  color: { translation: 'color', phonetic: 'koh-LOR' },
+  tranquilo: { translation: 'calm / peaceful', phonetic: 'trahn-KEE-loh' },
+  enorme: { translation: 'huge', phonetic: 'eh-NOR-meh' },
+  toda: { translation: 'all / whole (fem.)', phonetic: 'TOH-dah' },
+  celebra: { translation: 'celebrates', phonetic: 'seh-LEH-brah' },
+  unida: { translation: 'together / united', phonetic: 'oo-NEE-dah' },
+  cruza: { translation: 'crosses', phonetic: 'KROO-sah' },
+  valle: { translation: 'valley', phonetic: 'BAH-yeh' },
+  después: { translation: 'after', phonetic: 'dehs-PWEHS' },
+  camino: { translation: 'path / road', phonetic: 'kah-MEE-noh' },
+  secreto: { translation: 'secret', phonetic: 'seh-KREH-toh' },
+  monto: { translation: 'I ride', phonetic: 'MOHN-toh' },
+  hace: { translation: 'makes / is (weather)', phonetic: 'AH-seh' },
+  visitamos: { translation: 'we visit', phonetic: 'bee-see-TAH-mohs' },
+  hay: { translation: 'there is / are', phonetic: 'eye' },
 };
 
 const G = buildGlossaryFromCards(allCards, extraGlossary);
+export const spanishGlossary: GlossaryMap = G;
 
 const units: CourseUnit[] = [
   // =========================================================================
@@ -3007,12 +3049,12 @@ const units: CourseUnit[] = [
           wordBankToForeign(
             {
               id: 'es-u4-n4-e7',
-              promptText: 'I have three green apples.',
-              expectedSentence: 'Tengo tres manzanas verdes.',
-              targetTokens: ['Tengo', 'tres', 'manzanas', 'verdes'],
-              distractorTokens: ['diez', 'rojo', 'azul'],
-              phoneticHint: 'TEHN-goh trehs mahn-SAH-nahs BEHR-dehs',
-              vocabIds: ['es-u4-c11', 'es-u4-c10'],
+              promptText: 'Ten green apples.',
+              expectedSentence: 'Diez manzanas verdes.',
+              targetTokens: ['Diez', 'manzanas', 'verdes'],
+              distractorTokens: ['tres', 'rojo', 'azul'],
+              phoneticHint: 'dyehs mahn-SAH-nahs BEHR-dehs',
+              vocabIds: ['es-u4-c12', 'es-u4-c10'],
             }
           ),
           pairMatchFromCards(
@@ -3473,12 +3515,12 @@ const units: CourseUnit[] = [
           wordBankToForeign(
             {
               id: 'es-u5-n3-e7',
-              promptText: 'The museum is to the left.',
-              expectedSentence: 'El museo está a la izquierda.',
-              targetTokens: ['El', 'museo', 'está', 'a', 'la', 'izquierda'],
-              distractorTokens: ['paraguas', 'es', 'parque'],
-              phoneticHint: 'el moo-SEH-oh ehs-TAH ah lah ees-KYEHR-dah',
-              vocabIds: ['es-u5-c9', 'es-u5-c8'],
+              promptText: 'The park is to the left.',
+              expectedSentence: 'El parque está a la izquierda.',
+              targetTokens: ['El', 'parque', 'está', 'a', 'la', 'izquierda'],
+              distractorTokens: ['paraguas', 'es', 'museo'],
+              phoneticHint: 'el PAR-keh ehs-TAH ah lah ees-KYEHR-dah',
+              vocabIds: ['es-u5-c3', 'es-u5-c8'],
             }
           ),
           pairMatchFromCards(
