@@ -23,6 +23,11 @@ import {
   englishCards6to8,
   englishExtraGlossary6to8,
 } from './enUnits6to8';
+import {
+  buildEnglishUnits9to16,
+  englishCards9to16,
+  englishExtraGlossary9to16,
+} from './enUnits9to16';
 
 const U1 = 'en-u1';
 const U2 = 'en-u2';
@@ -940,7 +945,7 @@ const u5Cards: VocabCard[] = [
   }),
 ];
 
-const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards, ...englishCards6to8];
+const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards, ...englishCards6to8, ...englishCards9to16];
 
 const extraGlossary: GlossaryMap = {
   the: { translation: 'definite article pointing to a specific noun', phonetic: 'thuh' },
@@ -1230,7 +1235,11 @@ const extraGlossary: GlossaryMap = {
   under: { translation: 'beneath or below', phonetic: 'UN-der' },
 };
 
-const G = buildGlossaryFromCards(allCards, { ...extraGlossary, ...englishExtraGlossary6to8 });
+const G = buildGlossaryFromCards(allCards, {
+  ...extraGlossary,
+  ...englishExtraGlossary6to8,
+  ...englishExtraGlossary9to16,
+});
 export const englishGlossary: GlossaryMap = G;
 
 const units: CourseUnit[] = [
@@ -3868,6 +3877,7 @@ const units: CourseUnit[] = [
     ],
   },
   ...buildEnglishUnits6to8(G),
+  ...buildEnglishUnits9to16(G),
 ];
 
 export const englishCourse: LanguageCourse = buildCourse('en', units);
