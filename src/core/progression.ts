@@ -1,9 +1,13 @@
 import {
+  FREE_RECALL_BONUS_GEMS,
+  FREE_RECALL_BONUS_XP,
   LANGUAGE_LIST,
+  MAX_HEART_CONTAINERS,
   type AvatarId,
   type BadgeDefinition,
   type BadgeId,
   type KidProfile,
+  type LanguageProgressState,
   type LeagueEntry,
   type LeagueTier,
 } from '../types/contracts';
@@ -28,6 +32,7 @@ export function calculateLessonRewards(params: {
   baseGems: number;
   maxCombo: number;
   mistakesCount: number;
+  freeRecallCount?: number;
 }): { xpEarned: number; gemsEarned: number; stars: 1 | 2 | 3 } {
   const baseXp = Math.max(0, Math.round(params.baseXp));
   const baseGems = Math.max(0, Math.round(params.baseGems));
@@ -38,9 +43,16 @@ export function calculateLessonRewards(params: {
   const starXpBonus = baseXp > 0 ? (stars === 3 ? 5 : stars === 2 ? 2 : 0) : 0;
   const starGemBonus = baseGems > 0 && stars === 3 ? 2 : 0;
 
+  const freeRecallSolves =
+    typeof params.freeRecallCount === 'number' && Number.isFinite(params.freeRecallCount)
+      ? Math.max(0, Math.floor(params.freeRecallCount))
+      : 0;
+  const freeRecallXpBonus = freeRecallSolves * FREE_RECALL_BONUS_XP;
+  const freeRecallGemBonus = freeRecallSolves * FREE_RECALL_BONUS_GEMS;
+
   return {
-    xpEarned: Math.round(baseXp * combo.multiplier) + starXpBonus,
-    gemsEarned: baseGems + combo.bonusGems + starGemBonus,
+    xpEarned: Math.round(baseXp * combo.multiplier) + starXpBonus + freeRecallXpBonus,
+    gemsEarned: baseGems + combo.bonusGems + starGemBonus + freeRecallGemBonus,
     stars,
   };
 }
@@ -218,7 +230,119 @@ export const BADGE_CATALOG: readonly BadgeDefinition[] = [
     iconKey: 'starlight_trophy',
     targetCount: 300,
   },
+  {
+    id: 'globe_trotter_5',
+    name: 'Globe Trotter',
+    description: 'Practice and earn XP in at least 5 different languages.',
+    iconKey: 'travel_journal',
+    targetCount: 5,
+  },
+  {
+    id: 'grand_atlas_10',
+    name: 'Grand Atlas Voyager',
+    description: 'Practice and earn XP in at least 10 different languages.',
+    iconKey: 'grand_symposium_globe',
+    targetCount: 10,
+  },
+  {
+    id: 'storyweaver_b1',
+    name: 'Storyweaver (B1)',
+    description: 'Unlock B1 tier or reach Unit 9 in any language course.',
+    iconKey: 'campfire_story',
+    targetCount: 9,
+  },
+  {
+    id: 'diplomat_b2',
+    name: 'Wayfinder Diplomat (B2)',
+    description: 'Unlock B2 tier or reach Unit 12 in any language course.',
+    iconKey: 'balance_scales',
+    targetCount: 12,
+  },
+  {
+    id: 'polyglot_laureate_c2',
+    name: 'Polyglot Laureate (C1+)',
+    description: 'Unlock C1+ tier or reach Unit 15 in any language course.',
+    iconKey: 'crystal_owl_crest',
+    targetCount: 15,
+  },
+  {
+    id: 'free_recall_virtuoso',
+    name: 'Free-Recall Virtuoso',
+    description: 'Solve 5 challenges using Keyboard Free-Recall mode.',
+    iconKey: 'quill_inkwell',
+    targetCount: 5,
+  },
+  {
+    id: 'nuance_detective',
+    name: 'Nuance Detective',
+    description: 'Complete 5 Context Cloze nuance puzzles across your expeditions.',
+    iconKey: 'magnifying_discovery',
+    targetCount: 5,
+  },
+  {
+    id: 'fluent_listener',
+    name: 'Fluent Ear',
+    description: 'Practice listening with the 1.12x Fluent speech button 5 times.',
+    iconKey: 'symphony_conductor',
+    targetCount: 5,
+  },
+  {
+    id: 'wardrobe_stylist',
+    name: 'Wardrobe Stylist',
+    description: 'Unlock 5 cosmetics, props, sidekick pets, or UI themes in the Shop.',
+    iconKey: 'woven_tapestry',
+    targetCount: 5,
+  },
+  {
+    id: 'crystal_heart_guardian',
+    name: 'Crystal Heart Guardian',
+    description: 'Expand your Heart Containers up to the maximum of 8 with Heart Crystals.',
+    iconKey: 'helping_hands',
+    targetCount: MAX_HEART_CONTAINERS,
+  },
+  {
+    id: 'arcade_champion',
+    name: 'Arcade Champion',
+    description: 'Win 10 rounds across any mini-games in the Arcade Hub.',
+    iconKey: 'starlight_rocket',
+    targetCount: 10,
+  },
+  {
+    id: 'laureate_legend_xp',
+    name: 'Laureate Legend',
+    description: 'Earn 1,500 total XP across your global polyglot journey.',
+    iconKey: 'laureate_wreath',
+    targetCount: 1500,
+  },
 ] as const;
+
+function getMaxTierOrUnitReached(langProg: LanguageProgressState | undefined): number {
+  if (!langProg) return 0;
+  let best = 0;
+
+  const tiers = langProg.unlockedTiers ?? [];
+  if (tiers.includes('C1_C2')) best = Math.max(best, 15);
+  else if (tiers.includes('B2')) best = Math.max(best, 12);
+  else if (tiers.includes('B1')) best = Math.max(best, 9);
+  else if (tiers.includes('A2')) best = Math.max(best, 5);
+
+  const distinctUnits = new Set<number>();
+  let maxCompletedUnit = 0;
+  for (const nodeId of langProg.completedNodeIds) {
+    const match = /-u(\d+)-/i.exec(nodeId);
+    if (match) {
+      const unitNum = Number(match[1]);
+      if (Number.isFinite(unitNum) && unitNum > 0) {
+        distinctUnits.add(unitNum);
+        if (unitNum > maxCompletedUnit) {
+          maxCompletedUnit = unitNum;
+        }
+      }
+    }
+  }
+
+  return Math.max(best, distinctUnits.size, maxCompletedUnit);
+}
 
 function getRawBadgeProgress(badgeId: BadgeId, profile: KidProfile): number {
   const languagesPracticed = LANGUAGE_LIST.filter(
@@ -242,6 +366,11 @@ function getRawBadgeProgress(badgeId: BadgeId, profile: KidProfile): number {
     0
   );
 
+  const highestTierOrUnitAcrossLangs = LANGUAGE_LIST.reduce(
+    (best, lang) => Math.max(best, getMaxTierOrUnitReached(profile.languageProgress[lang])),
+    0
+  );
+
   switch (badgeId) {
     case 'first_hello':
       return (
@@ -251,6 +380,8 @@ function getRawBadgeProgress(badgeId: BadgeId, profile: KidProfile): number {
         totalCompletedNodes
       );
     case 'polyglot_explorer':
+    case 'globe_trotter_5':
+    case 'grand_atlas_10':
       return languagesPracticed;
     case 'turtle_listener':
       return profile.stats.turtlePlaysCount;
@@ -259,6 +390,7 @@ function getRawBadgeProgress(badgeId: BadgeId, profile: KidProfile): number {
     case 'phrasebook_collector':
       return totalUnlockedStickers;
     case 'arcade_ace':
+    case 'arcade_champion':
       return profile.stats.arcadeGamesWon;
     case 'boss_befriender':
       return profile.stats.bossesCleared;
@@ -271,7 +403,22 @@ function getRawBadgeProgress(badgeId: BadgeId, profile: KidProfile): number {
     case 'story_reader':
       return profile.stats.storiesCompleted;
     case 'starlight_master':
+    case 'laureate_legend_xp':
       return profile.totalXp;
+    case 'storyweaver_b1':
+    case 'diplomat_b2':
+    case 'polyglot_laureate_c2':
+      return highestTierOrUnitAcrossLangs;
+    case 'free_recall_virtuoso':
+      return profile.stats.freeRecallSolved ?? 0;
+    case 'nuance_detective':
+      return profile.stats.clozeSolved ?? 0;
+    case 'fluent_listener':
+      return profile.stats.fluentPlaysCount ?? 0;
+    case 'wardrobe_stylist':
+      return profile.unlockedCosmetics.length;
+    case 'crystal_heart_guardian':
+      return profile.maxHearts;
   }
 }
 
@@ -313,14 +460,35 @@ export const LEAGUE_TIER_META: Record<
     color: '#6D28D9',
     crestBg: '#EDE9FE',
   },
+  emerald_diplomat: {
+    label: 'Emerald Diplomat',
+    minXpHint: 2200,
+    color: '#059669',
+    crestBg: '#D1FAE5',
+  },
+  amethyst_symposium: {
+    label: 'Amethyst Symposium',
+    minXpHint: 3200,
+    color: '#9333EA',
+    crestBg: '#F3E8FF',
+  },
+  grand_polyglot_laureate: {
+    label: 'Grand Polyglot Laureate',
+    minXpHint: 4500,
+    color: '#DB2777',
+    crestBg: '#FCE7F3',
+  },
 };
 
-const TIER_ORDER: readonly LeagueTier[] = [
+export const TIER_ORDER: readonly LeagueTier[] = [
   'bronze_acorn',
   'silver_compass',
   'gold_feather',
   'sapphire_sky',
   'starlight_legend',
+  'emerald_diplomat',
+  'amethyst_symposium',
+  'grand_polyglot_laureate',
 ] as const;
 
 export function resolveLeagueTierForXp(
@@ -352,67 +520,91 @@ interface NpcRivalTemplate {
 
 const NPC_RIVAL_TEMPLATES: readonly NpcRivalTemplate[] = [
   {
+    id: 'npc-laureate-soren',
+    name: 'Laureate Soren',
+    avatarId: 'grand_laureate_crest',
+    multiplier: 1.24,
+    offset: 36,
+    floorXp: 135,
+  },
+  {
+    id: 'npc-sage-athena',
+    name: 'Sage Athena',
+    avatarId: 'clockwork_owl_crest',
+    multiplier: 1.15,
+    offset: 22,
+    floorXp: 118,
+  },
+  {
     id: 'npc-mateo-chef',
     name: 'Chef Mateo',
     avatarId: 'mateo_chef',
-    multiplier: 1.24,
-    offset: 28,
-    floorXp: 115,
+    multiplier: 1.09,
+    offset: 16,
+    floorXp: 98,
+  },
+  {
+    id: 'npc-voyager-tariq',
+    name: 'Voyager Tariq',
+    avatarId: 'fennec_voyager',
+    multiplier: 1.04,
+    offset: 8,
+    floorXp: 82,
   },
   {
     id: 'npc-colette-fox',
     name: 'Baker Colette',
     avatarId: 'colette_baker',
-    multiplier: 1.11,
-    offset: 14,
-    floorXp: 88,
+    multiplier: 0.96,
+    offset: 2,
+    floorXp: 68,
   },
   {
     id: 'npc-benni-badger',
     name: 'Tinker Benni',
     avatarId: 'benni_tinker',
-    multiplier: 1.03,
-    offset: 5,
-    floorXp: 64,
+    multiplier: 0.88,
+    offset: -4,
+    floorXp: 54,
+  },
+  {
+    id: 'npc-origami-ren',
+    name: 'Origami Ren',
+    avatarId: 'origami_crane_crest',
+    multiplier: 0.81,
+    offset: -8,
+    floorXp: 42,
   },
   {
     id: 'npc-luca-otter',
     name: 'Captain Luca',
     avatarId: 'luca_captain',
-    multiplier: 0.92,
-    offset: -6,
-    floorXp: 46,
+    multiplier: 0.72,
+    offset: -10,
+    floorXp: 30,
   },
   {
     id: 'npc-aria-star',
     name: 'Aria Starling',
     avatarId: 'star_compass',
-    multiplier: 0.78,
-    offset: -10,
-    floorXp: 32,
+    multiplier: 0.61,
+    offset: -12,
+    floorXp: 20,
   },
   {
     id: 'npc-koa-scout',
     name: 'Scout Koa',
     avatarId: 'pip_explorer',
-    multiplier: 0.62,
+    multiplier: 0.48,
     offset: -12,
-    floorXp: 18,
-  },
-  {
-    id: 'npc-zoe-lantern',
-    name: 'Zoe Lantern',
-    avatarId: 'colette_baker',
-    multiplier: 0.45,
-    offset: -10,
-    floorXp: 8,
+    floorXp: 10,
   },
 ];
 
 export function buildWeeklyLeaderboard(profile: KidProfile): LeagueEntry[] {
   const playerXp = Math.max(0, Math.round(profile.weeklyXp));
-  const tierHint = LEAGUE_TIER_META[profile.leagueTier].minXpHint;
-  const baseline = Math.max(playerXp, Math.round(tierHint * 0.4));
+  const tierHint = LEAGUE_TIER_META[profile.leagueTier]?.minXpHint ?? 0;
+  const baseline = Math.max(playerXp, Math.round(tierHint * 0.85));
 
   const entries: Omit<LeagueEntry, 'rank'>[] = NPC_RIVAL_TEMPLATES.map((npc) => {
     const scaled = Math.round(baseline * npc.multiplier) + npc.offset;
