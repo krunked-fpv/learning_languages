@@ -601,6 +601,22 @@ const SFX_RECIPES: Record<
       { freq: 1046.5, delay: 0.54, wave: 'sine', harmonicGain: 0.28, decay: 0.64, gain: 0.28 },
     ]);
   },
+
+  star_pop: (ctx, dest, comboIndex) => {
+    SFX_RECIPES.accent_sparkle(ctx, dest, comboIndex);
+  },
+
+  whoosh_transition: (ctx, dest, comboIndex) => {
+    SFX_RECIPES.flip_card(ctx, dest, comboIndex);
+  },
+
+  bubble_pop: (ctx, dest, comboIndex) => {
+    SFX_RECIPES.tile_tap(ctx, dest, comboIndex);
+  },
+
+  secret_fanfare: (ctx, dest, comboIndex) => {
+    SFX_RECIPES.unit_fanfare(ctx, dest, comboIndex);
+  },
 };
 
 function parsePhoneticSyllables(phonetic: string): ParsedSyllable[] {

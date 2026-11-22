@@ -547,6 +547,7 @@ export interface LanguageProgressState {
   claimedChestIds: string[];
   currentUnitIndex: number;
   xpEarned: number;
+  seenExerciseIds?: string[];
 }
 
 export interface KidProfile {
@@ -567,6 +568,8 @@ export interface KidProfile {
   weeklyXp: number;
   totalXp: number;
   leagueTier: LeagueTier;
+  secretArcadeUnlocked?: boolean;
+  secretArcadeBestScore?: number;
   stats: {
     lessonsCompleted: number;
     storiesCompleted: number;
@@ -623,7 +626,11 @@ export type SoundEffectId =
   | 'boss_hit'
   | 'unit_fanfare'
   | 'button_click'
-  | 'flip_card';
+  | 'flip_card'
+  | 'star_pop'
+  | 'whoosh_transition'
+  | 'bubble_pop'
+  | 'secret_fanfare';
 
 export interface SpeakRequest {
   text: string;

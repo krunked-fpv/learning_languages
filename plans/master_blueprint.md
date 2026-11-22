@@ -28,6 +28,7 @@ Every Phase 2 specialist branches from the committed Phase 1 baseline (`main`) u
 - `applyDailyPracticeStreak(profile: KidProfile, todayISO?: string): KidProfile`
 - `BADGE_CATALOG: readonly BadgeDefinition[]` (all 12 `BadgeId`s)
 - `evaluateUnlockedBadges(profile: KidProfile): BadgeId[]`
+- `getBadgeProgress(profile: KidProfile, badgeId: BadgeId): { current: number; target: number; unlocked: boolean }`
 - `LEAGUE_TIER_META: Record<LeagueTier, { label: string; minXpHint: number; color: string; crestBg: string }>`
 - `buildWeeklyLeaderboard(profile: KidProfile): LeagueEntry[]`
 - `COSMETIC_CATALOG: readonly CosmeticItem[]` (all 12 `CosmeticId`s)
@@ -47,6 +48,9 @@ Every Phase 2 specialist branches from the committed Phase 1 baseline (`main`) u
   - `setCurrentUnitIndex(lang: LanguageCode, unitIndex: number): void`
   - `recordAnswerOutcome(params: { isCorrect: boolean; comboCount: number; usedAccentCoaching?: boolean }): void`
   - `recordTurtlePlay(): void`
+  - `recordSeenExercises(lang: LanguageCode, exerciseIds: readonly string[]): void`
+  - `unlockSecretArcade(): boolean`
+  - `completeSecretArcadeRun(params: { score: number; heartsWon: number; bonusGems: number }): void`
   - `completeMapNode(params: { language: LanguageCode; nodeId: string; stars: 1 | 2 | 3; xpEarned: number; gemsEarned: number; unlockedVocabIds: string[]; maxCombo: number; isStory?: boolean; isBoss?: boolean; isChest?: boolean }): void`
   - `restoreHeartsFromArcade(params: { heartsWon: number; bonusGems: number }): void`
   - `buyAndEquipCosmetic(cosmeticId: CosmeticId): boolean`
@@ -56,13 +60,15 @@ Every Phase 2 specialist branches from the committed Phase 1 baseline (`main`) u
   - `resetVaultToDefaults(): void`
 - `useVaultStore(): { vault: SaveVault; activeProfile: KidProfile; activeProgress: LanguageProgressState }`
 
-### 2.3 `src/curriculum/index.ts`
+### 2.3 `src/curriculum/index.ts` (and `src/curriculum/levelPool.ts`)
 - `COURSES: Record<LanguageCode, LanguageCourse>` (`es`, `fr`, `de`, `it` — 5 units each, ≥55 unique `VocabCard`s each, 4 lessons + 1 story + 1 chest + 1 boss per unit)
 - `getCourse(lang: LanguageCode): LanguageCourse`
 - `getUnitById(lang: LanguageCode, unitId: string): CourseUnit | undefined`
 - `getNodeById(lang: LanguageCode, nodeId: string): MapNode | undefined`
 - `getVocabCard(lang: LanguageCode, vocabId: string): VocabCard | undefined`
 - `getArcadeLexicon(lang: LanguageCode, unlockedVocabIds: readonly string[], currentUnitIndex: number): ArcadeLanternItem[]`
+- `getPlayableNodeExercises(lang: LanguageCode, nodeId: string, seenExerciseIds?: readonly string[], isReplay?: boolean): LessonExercise[]`
+- `getNodePoolSize(lang: LanguageCode, nodeId: string): number`
 
 ### 2.4 `src/audio/index.ts` (and `synthEngine.ts`, `speechEngine.ts`)
 - `playSfx(id: SoundEffectId, comboIndex?: number): void`
