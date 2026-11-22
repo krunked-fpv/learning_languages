@@ -220,7 +220,7 @@ export const BADGE_CATALOG: readonly BadgeDefinition[] = [
   },
 ] as const;
 
-function isBadgeConditionMet(badgeId: BadgeId, profile: KidProfile): boolean {
+function getRawBadgeProgress(badgeId: BadgeId, profile: KidProfile): number {
   const languagesPracticed = LANGUAGE_LIST.filter(
     (lang) =>
       profile.languageProgress[lang].xpEarned > 0 ||
@@ -244,38 +244,54 @@ function isBadgeConditionMet(badgeId: BadgeId, profile: KidProfile): boolean {
 
   switch (badgeId) {
     case 'first_hello':
-      return profile.stats.lessonsCompleted >= 1 || totalCompletedNodes >= 1;
+      return (
+        profile.stats.lessonsCompleted +
+        profile.stats.storiesCompleted +
+        profile.stats.bossesCleared +
+        totalCompletedNodes
+      );
     case 'polyglot_explorer':
-      return languagesPracticed >= 2;
+      return languagesPracticed;
     case 'turtle_listener':
-      return profile.stats.turtlePlaysCount >= 5;
+      return profile.stats.turtlePlaysCount;
     case 'combo_comet':
-      return profile.stats.bestComboStreak >= 5;
+      return profile.stats.bestComboStreak;
     case 'phrasebook_collector':
-      return totalUnlockedStickers >= 15;
+      return totalUnlockedStickers;
     case 'arcade_ace':
-      return profile.stats.arcadeGamesWon >= 3;
+      return profile.stats.arcadeGamesWon;
     case 'boss_befriender':
-      return profile.stats.bossesCleared >= 1;
+      return profile.stats.bossesCleared;
     case 'accent_scholar':
-      return profile.stats.accentSpotlightsSeen >= 3;
+      return profile.stats.accentSpotlightsSeen;
     case 'streak_spark':
-      return profile.streakDays >= 3;
+      return profile.streakDays;
     case 'chest_hunter':
-      return totalClaimedChests >= 2;
+      return totalClaimedChests;
     case 'story_reader':
-      return profile.stats.storiesCompleted >= 2;
+      return profile.stats.storiesCompleted;
     case 'starlight_master':
-      return profile.totalXp >= 300;
+      return profile.totalXp;
   }
 }
 
+export function getBadgeProgress(
+  profile: KidProfile,
+  badgeId: BadgeId
+): { current: number; target: number; unlocked: boolean } {
+  const def = BADGE_CATALOG.find((b) => b.id === badgeId);
+  const target = def?.targetCount ?? 1;
+  const raw = Math.max(0, getRawBadgeProgress(badgeId, profile));
+  const unlocked = profile.badges.includes(badgeId) || raw >= target;
+  const current = unlocked ? target : Math.min(target, raw);
+  return { current, target, unlocked };
+}
+
 export function evaluateUnlockedBadges(profile: KidProfile): BadgeId[] {
-  const existing = new Set<BadgeId>(profile.badges);
   const unlocked: BadgeId[] = [];
 
   for (const def of BADGE_CATALOG) {
-    if (existing.has(def.id) || isBadgeConditionMet(def.id, profile)) {
+    if (getBadgeProgress(profile, def.id).unlocked) {
       unlocked.push(def.id);
     }
   }

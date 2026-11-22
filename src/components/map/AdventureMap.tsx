@@ -38,7 +38,9 @@ const NODE_TYPE_LABELS: Record<MapNodeType, string> = {
   boss: 'Boss',
 };
 
-const ROW_HEIGHT = 114;
+const ROW_HEIGHT = 156;
+const TOP_PAD = 44;
+const BOTTOM_PAD = 36;
 
 function getNodeXPct(indexInUnit: number, totalInUnit: number): number {
   if (totalInUnit <= 1 || indexInUnit === 0 || indexInUnit === totalInUnit - 1) {
@@ -48,10 +50,14 @@ function getNodeXPct(indexInUnit: number, totalInUnit: number): number {
   return Math.round((50 + wave) * 10) / 10;
 }
 
+function getNodeYPx(indexInUnit: number): number {
+  return TOP_PAD + indexInUnit * ROW_HEIGHT + ROW_HEIGHT / 2;
+}
+
 function buildCurveSegments(nodes: readonly MapNode[]) {
   const points = nodes.map((_, idx) => ({
     x: getNodeXPct(idx, nodes.length),
-    y: idx * ROW_HEIGHT + ROW_HEIGHT / 2,
+    y: getNodeYPx(idx),
   }));
 
   return points.slice(0, -1).map((from, idx) => {
@@ -171,8 +177,9 @@ export function AdventureMap({
           borderRadius: 24,
           padding: '16px 18px',
           background: `linear-gradient(135deg, ${palette.surfaceTint} 0%, #FFFFFF 100%)`,
-          border: `2.5px solid ${palette.primary}`,
-          borderBottomWidth: 5,
+          borderStyle: 'solid',
+          borderWidth: '2.5px 2.5px 5px 2.5px',
+          borderColor: palette.primary,
           boxShadow: '0 8px 24px rgba(15, 23, 42, 0.08)',
         }}
       >
@@ -278,8 +285,9 @@ export function AdventureMap({
                   fontWeight: 800,
                   backgroundColor: isSelected ? palette.primary : '#FFFFFF',
                   color: isSelected ? '#FFFFFF' : '#1E293B',
-                  border: `2px solid ${isSelected ? palette.bevel : '#CBD5E1'}`,
-                  borderBottomWidth: 4,
+                  borderStyle: 'solid',
+                  borderWidth: '2px 2px 4px 2px',
+                  borderColor: isSelected ? palette.bevel : '#CBD5E1',
                   transition: 'transform 0.12s ease',
                 }}
               >
@@ -309,7 +317,7 @@ export function AdventureMap({
       {/* Units & Winding S-Curve Trails */}
       {sortedUnits.map((unit, unitIdx) => {
         const doneCount = unit.nodes.filter((n) => completedSet.has(n.id)).length;
-        const unitHeight = Math.max(unit.nodes.length * ROW_HEIGHT, 240);
+        const unitHeight = Math.max(TOP_PAD + unit.nodes.length * ROW_HEIGHT + BOTTOM_PAD, 260);
         const segments = buildCurveSegments(unit.nodes);
 
         return (
@@ -323,8 +331,9 @@ export function AdventureMap({
               position: 'relative',
               borderRadius: 28,
               overflow: 'hidden',
-              border: '2.5px solid #CBD5E1',
-              borderBottomWidth: 5,
+              borderStyle: 'solid',
+              borderWidth: '2.5px 2.5px 5px 2.5px',
+              borderColor: '#CBD5E1',
               backgroundColor: palette.surfaceTint,
               boxShadow: '0 10px 28px rgba(15, 23, 42, 0.08)',
             }}
@@ -456,7 +465,8 @@ export function AdventureMap({
                     : 'locked';
 
                 const xPct = getNodeXPct(nodeIdx, unit.nodes.length);
-                const yPx = nodeIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
+                const yPx = getNodeYPx(nodeIdx);
+                const buttonSize = node.nodeType === 'boss' ? 72 : 64;
                 const stars = isCompleted ? progress.nodeStars[node.id] ?? 3 : 0;
 
                 const buttonBg =
@@ -494,11 +504,13 @@ export function AdventureMap({
                       position: 'absolute',
                       left: `${xPct}%`,
                       top: yPx,
+                      width: buttonSize,
+                      height: buttonSize,
                       transform: 'translate(-50%, -50%)',
                       zIndex: isActive ? 5 : 3,
                       display: 'flex',
-                      flexDirection: 'column',
                       alignItems: 'center',
+                      justifyContent: 'center',
                     }}
                   >
                     {/* Live Pip Explorer Companion cheering beside the Active Node! */}
@@ -506,8 +518,8 @@ export function AdventureMap({
                       <div
                         style={{
                           position: 'absolute',
-                          top: -12,
-                          ...(pipOnLeft ? { right: 86 } : { left: 86 }),
+                          top: -8,
+                          ...(pipOnLeft ? { right: buttonSize + 18 } : { left: buttonSize + 18 }),
                           pointerEvents: 'none',
                           zIndex: 6,
                         }}
@@ -529,9 +541,7 @@ export function AdventureMap({
                         transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
                         style={{
                           position: 'absolute',
-                          top: -9,
-                          width: 82,
-                          height: 82,
+                          inset: -9,
                           borderRadius: '50%',
                           border: `4px solid ${palette.secondary}`,
                           backgroundColor: 'rgba(250, 204, 21, 0.22)',
@@ -547,8 +557,10 @@ export function AdventureMap({
                         transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
                         style={{
                           position: 'absolute',
-                          top: -28,
-                          padding: '2px 10px',
+                          bottom: 'calc(100% + 10px)',
+                          left: '50%',
+                          x: '-50%',
+                          padding: '3px 11px',
                           borderRadius: 999,
                           backgroundColor: '#0F172A',
                           color: '#FDE047',
@@ -569,7 +581,7 @@ export function AdventureMap({
                     )}
 
                     {/* Tactile 3D-Bevel Node Medallion Button */}
-                    <button
+                    <motion.button
                       type="button"
                       disabled={state === 'locked'}
                       data-node-id={node.id}
@@ -582,6 +594,9 @@ export function AdventureMap({
                             ? 'Ready to play'
                             : 'Locked'
                       }`}
+                      whileHover={state !== 'locked' ? { scale: 1.09, y: -3 } : undefined}
+                      whileTap={state !== 'locked' ? { scale: 0.94, y: 2 } : undefined}
+                      transition={{ type: 'spring', stiffness: 420, damping: 20 }}
                       onClick={() => {
                         if (state !== 'locked') {
                           onSelectNode(node);
@@ -589,12 +604,15 @@ export function AdventureMap({
                       }}
                       style={{
                         position: 'relative',
-                        width: node.nodeType === 'boss' ? 72 : 64,
-                        height: node.nodeType === 'boss' ? 72 : 64,
+                        width: buttonSize,
+                        height: buttonSize,
                         borderRadius: '50%',
                         backgroundColor: buttonBg,
-                        border: `3px solid ${state === 'locked' ? '#94A3B8' : '#0F172A'}`,
-                        borderBottomWidth: 6,
+                        borderStyle: 'solid',
+                        borderWidth: '3px 3px 6px 3px',
+                        borderTopColor: state === 'locked' ? '#94A3B8' : '#0F172A',
+                        borderRightColor: state === 'locked' ? '#94A3B8' : '#0F172A',
+                        borderLeftColor: state === 'locked' ? '#94A3B8' : '#0F172A',
                         borderBottomColor: buttonBevel,
                         boxShadow: isActive
                           ? `0 8px 20px ${palette.glow}`
@@ -604,7 +622,6 @@ export function AdventureMap({
                         alignItems: 'center',
                         justifyContent: 'center',
                         padding: 0,
-                        transition: 'transform 0.12s ease',
                         opacity: state === 'locked' ? 0.85 : 1,
                       }}
                     >
@@ -625,55 +642,69 @@ export function AdventureMap({
                           <PadlockBadge />
                         </span>
                       )}
-                    </button>
+                    </motion.button>
 
-                    {/* 1–3 Gold Stars for Completed Nodes */}
-                    {isCompleted && (
-                      <div
-                        aria-label={`${stars} of 3 stars`}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 2,
-                          marginTop: -6,
-                          zIndex: 4,
-                          padding: '1px 6px',
-                          borderRadius: 999,
-                          backgroundColor: '#FFFFFF',
-                          border: '1.5px solid #F59E0B',
-                        }}
-                      >
-                        {[1, 2, 3].map((n) => (
-                          <GoldStar key={n} filled={n <= stars} size={13} />
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Node Title Pill */}
+                    {/* Stars & Node Title Stack anchored below medallion */}
                     <div
                       style={{
-                        marginTop: 4,
-                        padding: '2px 9px',
-                        borderRadius: 10,
-                        backgroundColor: 'rgba(255, 255, 255, 0.94)',
-                        border: '1.5px solid rgba(15, 23, 42, 0.14)',
-                        boxShadow: '0 2px 6px rgba(15, 23, 42, 0.08)',
-                        textAlign: 'center',
-                        maxWidth: 136,
+                        position: 'absolute',
+                        top: 'calc(100% + 2px)',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        pointerEvents: 'none',
                       }}
                     >
+                      {/* 1–3 Gold Stars for Completed Nodes */}
+                      {isCompleted && (
+                        <div
+                          aria-label={`${stars} of 3 stars`}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 2,
+                            marginTop: -8,
+                            zIndex: 4,
+                            padding: '1px 6px',
+                            borderRadius: 999,
+                            backgroundColor: '#FFFFFF',
+                            border: '1.5px solid #F59E0B',
+                          }}
+                        >
+                          {[1, 2, 3].map((n) => (
+                            <GoldStar key={n} filled={n <= stars} size={13} />
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Node Title Pill */}
                       <div
                         style={{
-                          fontSize: 11,
-                          fontWeight: 800,
-                          color: state === 'locked' ? '#64748B' : '#0F172A',
-                          lineHeight: 1.2,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
+                          marginTop: 4,
+                          padding: '2px 9px',
+                          borderRadius: 10,
+                          backgroundColor: 'rgba(255, 255, 255, 0.94)',
+                          border: '1.5px solid rgba(15, 23, 42, 0.14)',
+                          boxShadow: '0 2px 6px rgba(15, 23, 42, 0.08)',
+                          textAlign: 'center',
+                          maxWidth: 140,
                         }}
                       >
-                        {node.title}
+                        <div
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 800,
+                            color: state === 'locked' ? '#64748B' : '#0F172A',
+                            lineHeight: 1.2,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {node.title}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -695,8 +726,9 @@ export function AdventureMap({
             padding: '16px 20px',
             borderRadius: 24,
             background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
-            border: '2.5px solid #F59E0B',
-            borderBottomWidth: 5,
+            borderStyle: 'solid',
+            borderWidth: '2.5px 2.5px 5px 2.5px',
+            borderColor: '#F59E0B',
             boxShadow: '0 8px 20px rgba(245, 158, 11, 0.2)',
           }}
         >

@@ -255,6 +255,13 @@ function computeArticleCoaching(
       note: entry.note,
     };
   }
+  if (/\s/.test(trimmed) || trimmed.length > 8) {
+    return {
+      article: 'Grammar Tip',
+      gender: 'invariant',
+      note: trimmed,
+    };
+  }
   return {
     article: trimmed,
     gender: 'invariant',
