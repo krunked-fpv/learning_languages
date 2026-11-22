@@ -234,20 +234,17 @@ export function MascotStage({
         <circle cx="110" cy="116" r="88" fill={`url(#stage-halo-${uid})`} />
 
         {/* Ground contact shadow */}
-        <motion.ellipse
-          cx="110"
-          cy="196"
-          rx="48"
-          ry="9"
-          fill="#0F172A"
-          opacity="0.14"
+        <motion.g
+          style={{ originX: '110px', originY: '196px' }}
           animate={
             pose === 'happy' || pose === 'streak_fire' || pose === 'victory_dance'
-              ? { rx: [48, 38, 48], opacity: [0.15, 0.08, 0.15] }
-              : { rx: [48, 45, 48] }
+              ? { scaleX: [1, 0.79, 1], opacity: [0.16, 0.08, 0.16] }
+              : { scaleX: [1, 0.94, 1], opacity: [0.14, 0.11, 0.14] }
           }
           transition={{ duration: bodyMotion.transition.duration, repeat: Infinity, ease: 'easeInOut' }}
-        />
+        >
+          <ellipse cx="110" cy="196" rx="48" ry="9" fill="#0F172A" />
+        </motion.g>
 
         {/* Streak Fire Backdrop Glow */}
         {pose === 'streak_fire' && (
@@ -376,12 +373,50 @@ export function MascotStage({
         {/* Layer 6: Celebratory Star / Sparkle Burst when comboCount >= 3 or streak_fire / victory_dance */}
         {showSparkleBurst && (
           <g data-sparkle-burst="true">
+            {(pose === 'streak_fire' || pose === 'victory_dance') && (
+              <motion.g
+                data-celebration-rays="true"
+                style={{ originX: '110px', originY: '112px' }}
+                animate={{ rotate: [0, 18, 0], scale: [0.95, 1.07, 0.95], opacity: [0.5, 0.9, 0.5] }}
+                transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => {
+                  const rad = (deg * Math.PI) / 180;
+                  const x1 = 110 + Math.cos(rad) * 76;
+                  const y1 = 112 + Math.sin(rad) * 76;
+                  const x2 = 110 + Math.cos(rad) * 96;
+                  const y2 = 112 + Math.sin(rad) * 96;
+                  return (
+                    <line
+                      key={deg}
+                      x1={x1}
+                      y1={y1}
+                      x2={x2}
+                      y2={y2}
+                      stroke={pose === 'streak_fire' ? '#F97316' : '#FACC15'}
+                      strokeWidth="3.2"
+                      strokeLinecap="round"
+                    />
+                  );
+                })}
+              </motion.g>
+            )}
             {[
               { x: 34, y: 52, r: 8, color: '#FACC15', delay: 0 },
               { x: 186, y: 48, r: 9, color: '#FDE047', delay: 0.18 },
               { x: 42, y: 146, r: 6.5, color: '#38BDF8', delay: 0.35 },
               { x: 182, y: 138, r: 7.5, color: '#FB7185', delay: 0.12 },
               { x: 110, y: 20, r: 8.5, color: '#FACC15', delay: 0.25 },
+              ...((pose === 'streak_fire' || pose === 'victory_dance')
+                ? [
+                    { x: 24, y: 98, r: 7.5, color: '#FDE047', delay: 0.08 },
+                    { x: 196, y: 94, r: 8, color: '#FACC15', delay: 0.28 },
+                    { x: 64, y: 28, r: 6.5, color: '#4ADE80', delay: 0.22 },
+                    { x: 158, y: 28, r: 7, color: '#FB923C', delay: 0.4 },
+                    { x: 60, y: 176, r: 6, color: '#FDE047', delay: 0.15 },
+                    { x: 162, y: 174, r: 6.5, color: '#38BDF8', delay: 0.32 },
+                  ]
+                : []),
             ].map((s, idx) => (
               <motion.path
                 key={idx}
@@ -414,8 +449,9 @@ export function MascotStage({
             padding: '3px 12px',
             borderRadius: 999,
             backgroundColor: '#FEF3C7',
-            border: '2px solid #F59E0B',
-            borderBottomWidth: 3,
+            borderStyle: 'solid',
+            borderWidth: '2px 2px 3px 2px',
+            borderColor: '#F59E0B',
             color: '#92400E',
             fontSize: 12,
             fontWeight: 800,
