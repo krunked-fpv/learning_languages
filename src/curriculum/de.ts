@@ -18,6 +18,11 @@ import {
   wordBankToForeign,
 } from './helpers';
 import type { GlossaryMap } from './helpers';
+import {
+  buildGermanUnits6to8,
+  germanCards6to8,
+  germanExtraGlossary6to8,
+} from './deUnits6to8';
 
 const U1 = 'de-u1';
 const U2 = 'de-u2';
@@ -971,7 +976,7 @@ const u5Cards: VocabCard[] = [
   }),
 ];
 
-const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards];
+const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards, ...germanCards6to8];
 
 const extraGlossary: GlossaryMap = {
   der: { translation: 'the (masculine)', phonetic: 'dehr', articleNote: 'Masculine nominative article' },
@@ -1157,7 +1162,7 @@ const extraGlossary: GlossaryMap = {
   hause: { translation: 'home (nach Hause)', phonetic: 'HOW-zeh' },
 };
 
-const G = buildGlossaryFromCards(allCards, extraGlossary);
+const G = buildGlossaryFromCards(allCards, { ...extraGlossary, ...germanExtraGlossary6to8 });
 export const germanGlossary: GlossaryMap = G;
 
 const units: CourseUnit[] = [
@@ -3869,6 +3874,7 @@ const units: CourseUnit[] = [
       }),
     ],
   },
+  ...buildGermanUnits6to8(G),
 ];
 
 export const germanCourse: LanguageCourse = buildCourse('de', units);

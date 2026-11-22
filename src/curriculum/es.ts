@@ -18,6 +18,11 @@ import {
   wordBankToForeign,
 } from './helpers';
 import type { GlossaryMap } from './helpers';
+import {
+  buildSpanishUnits6to8,
+  spanishCards6to8,
+  spanishExtraGlossary6to8,
+} from './esUnits6to8';
 
 const U1 = 'es-u1';
 const U2 = 'es-u2';
@@ -971,7 +976,7 @@ const u5Cards: VocabCard[] = [
   }),
 ];
 
-const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards];
+const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards, ...spanishCards6to8];
 
 const extraGlossary: GlossaryMap = {
   el: { translation: 'the (masculine)', phonetic: 'ehl', articleNote: 'Masculine singular article' },
@@ -1190,7 +1195,7 @@ const extraGlossary: GlossaryMap = {
   hay: { translation: 'there is / are', phonetic: 'eye' },
 };
 
-const G = buildGlossaryFromCards(allCards, extraGlossary);
+const G = buildGlossaryFromCards(allCards, { ...extraGlossary, ...spanishExtraGlossary6to8 });
 export const spanishGlossary: GlossaryMap = G;
 
 const units: CourseUnit[] = [
@@ -3863,6 +3868,7 @@ const units: CourseUnit[] = [
       }),
     ],
   },
+  ...buildSpanishUnits6to8(G),
 ];
 
 export const spanishCourse: LanguageCourse = buildCourse('es', units);
