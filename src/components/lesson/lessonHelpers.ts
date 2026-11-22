@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { TapHintToken, VocabCard } from '../../types/contracts';
 
-const NO_SPACE_AFTER_RE = /['’¡¿(«-]$/;
-const NO_SPACE_BEFORE_RE = /^[.,!?;:)»]/;
+export const NO_SPACE_AFTER_RE = /['’¡¿(«「『（」』），、。？！・-]$/;
+export const NO_SPACE_BEFORE_RE = /^[.,!?;:)»。？！，、・「」『』（）؟،؛।॥]/;
+const EDGE_PUNCT_STRIP_RE = /[¡!¿?.,;:"'。？！，、・「」『』（）؟،؛।॥]/g;
 
 /**
  * Joins word-bank tokens while preserving French/Italian elisions (e.g. `l'` + `eau` -> `l'eau`)
@@ -63,8 +64,11 @@ export function splitPhoneticSyllables(phonetic: string): PhoneticSyllable[] {
   for (const word of words) {
     const parts = word.split('-').filter(Boolean);
     parts.forEach((part, idx) => {
-      const lettersOnly = part.replace(/[^a-zA-Z]/g, '');
-      const stressed = lettersOnly.length >= 2 && lettersOnly === lettersOnly.toUpperCase();
+      const lettersOnly = part.replace(/[^\p{L}]/gu, '');
+      const stressed =
+        lettersOnly.length >= 2 &&
+        lettersOnly === lettersOnly.toUpperCase() &&
+        lettersOnly !== lettersOnly.toLowerCase();
       result.push({
         text: part,
         stressed,
@@ -86,22 +90,28 @@ export function buildTapHintsFromExample(
   vocabCard?: VocabCard
 ): TapHintToken[] {
   const words = foreign.trim().split(/\s+/).filter(Boolean);
-  const targetClean = vocabCard?.bareForeign.toLowerCase().replace(/[¡!¿?.,;:"']/g, '') ?? '';
+  const targetClean = vocabCard?.bareForeign.toLowerCase().replace(EDGE_PUNCT_STRIP_RE, '') ?? '';
 
   return words.map((word, index) => {
-    const clean = word.toLowerCase().replace(/[¡!¿?.,;:"']/g, '');
+    const clean = word.toLowerCase().replace(EDGE_PUNCT_STRIP_RE, '');
     const isTarget = Boolean(targetClean && clean === targetClean);
+    const romanized = isTarget
+      ? vocabCard?.romanized
+      : words.length === 1
+        ? vocabCard?.exampleRomanized
+        : undefined;
     return {
       surface: word,
       normalizedId: `${vocabCard?.id ?? 'ex'}-${index}`,
       translation: isTarget && vocabCard ? vocabCard.english : english,
       phonetic: isTarget && vocabCard ? vocabCard.phonetic : phonetic,
+      ...(romanized ? { romanized } : {}),
       articleNote:
         isTarget && vocabCard?.article
           ? `Uses article "${vocabCard.article}" (${vocabCard.gender})`
           : undefined,
       accentNote: isTarget && vocabCard?.accentCallout ? vocabCard.accentCallout.tip : undefined,
-      speakText: word.replace(/[¡!¿?.,;:"]/g, ''),
+      speakText: word.replace(EDGE_PUNCT_STRIP_RE, '') || word,
     };
   });
 }
@@ -137,7 +147,7 @@ export function clampPopoverPosition(
 ): { top: number; left: number; width: number } {
   const vw = typeof window !== 'undefined' ? window.innerWidth : 1024;
   const vh = typeof window !== 'undefined' ? window.innerHeight : 768;
-  const margin = 12;
+  const margin = vw <= 640 ? 8 : 10;
   const width = Math.min(popoverWidth, Math.max(180, vw - margin * 2));
   const idealLeft = anchorRect.left + anchorRect.width / 2 - width / 2;
   const left = Math.max(margin, Math.min(vw - width - margin, idealLeft));

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
@@ -70,13 +70,33 @@ export function TopHud({
             ? audioBtnRef
             : null;
 
-  useLayoutEffect(() => {
+  const updatePopoverPosition = useCallback(() => {
     if (!openPopover || !activeAnchorRef?.current) return;
     const rect = activeAnchorRef.current.getBoundingClientRect();
-    const desiredW = openPopover === 'lang' || openPopover === 'palette' ? 286 : 246;
-    const measuredH = popoverRef.current?.offsetHeight || 200;
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 1024;
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 768;
+    const isMobile = vw <= 640;
+    const desiredW =
+      openPopover === 'lang'
+        ? isMobile
+          ? Math.min(355, vw - 16)
+          : Math.min(500, vw - 20)
+        : openPopover === 'palette'
+          ? 286
+          : 246;
+    const fallbackH =
+      openPopover === 'lang'
+        ? Math.min(420, Math.max(200, vh - 88))
+        : openPopover === 'palette'
+          ? Math.min(360, Math.max(180, vh - 88))
+          : 200;
+    const measuredH = popoverRef.current?.offsetHeight || fallbackH;
     setPopoverCoords(clampPopoverPosition(rect, desiredW, measuredH));
   }, [openPopover, activeAnchorRef]);
+
+  useLayoutEffect(() => {
+    updatePopoverPosition();
+  }, [updatePopoverPosition]);
 
   useEffect(() => {
     if (!openPopover) return;
@@ -97,13 +117,18 @@ export function TopHud({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpenPopover(null);
     };
+    const onResize = () => {
+      updatePopoverPosition();
+    };
     document.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onResize);
     return () => {
       document.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onResize);
     };
-  }, [openPopover]);
+  }, [openPopover, updatePopoverPosition]);
 
   useEffect(() => {
     setCompassTaps(0);
@@ -172,39 +197,74 @@ export function TopHud({
       }}
     >
       {openPopover === 'lang' ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ fontSize: '0.76rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
             Choose Expedition Land
           </div>
-          {LANGUAGE_LIST.map((lang) => {
-            const meta = LANGUAGE_META[lang];
-            const isSelected = lang === activeProfile.activeLanguage;
-            return (
-              <button
-                key={lang}
-                type="button"
-                className="tactile-btn"
-                style={{
-                  justifyContent: 'flex-start',
-                  padding: '8px 10px',
-                  background: isSelected ? 'var(--tint-indigo-bg)' : 'var(--tile-bg)',
-                  borderColor: isSelected ? meta.accentPalette.primary : 'var(--card-border)',
-                  color: 'var(--text-main)',
-                }}
-                onClick={() => handleSelectLanguage(lang)}
-              >
-                <FlagIcon language={lang} size={26} />
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: '0.88rem', fontWeight: 800 }}>
-                    {meta.name} ({meta.nativeName})
-                  </div>
-                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-                    {meta.landTitle}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
+          <div
+            className="console-scroll-pane"
+            style={{ maxHeight: 'min(420px, calc(100dvh - 88px))', paddingRight: 2 }}
+          >
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                gap: 6,
+              }}
+            >
+              {LANGUAGE_LIST.map((lang) => {
+                const meta = LANGUAGE_META[lang];
+                const isSelected = lang === activeProfile.activeLanguage;
+                return (
+                  <button
+                    key={lang}
+                    type="button"
+                    className="tactile-btn"
+                    style={{
+                      justifyContent: 'flex-start',
+                      padding: '7px 8px',
+                      gap: 7,
+                      minWidth: 0,
+                      background: isSelected ? 'var(--tint-indigo-bg)' : 'var(--tile-bg)',
+                      borderColor: isSelected ? meta.accentPalette.primary : 'var(--card-border)',
+                      color: 'var(--text-main)',
+                    }}
+                    onClick={() => handleSelectLanguage(lang)}
+                  >
+                    <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                      <FlagIcon language={lang} size={24} />
+                    </span>
+                    <div style={{ textAlign: 'left', minWidth: 0, flex: 1 }}>
+                      <div
+                        style={{
+                          fontSize: '0.8rem',
+                          fontWeight: 800,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {meta.name}
+                      </div>
+                      <div
+                        dir={meta.dir}
+                        style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          color: 'var(--text-muted)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {meta.nativeName}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -214,50 +274,61 @@ export function TopHud({
             Unlocked Color Palettes
           </div>
 
-          <button
-            type="button"
-            className="tactile-btn"
+          <div
+            className="console-scroll-pane"
             style={{
-              justifyContent: 'space-between',
-              padding: '8px 10px',
-              background: activeThemeId === 'default' ? 'var(--tint-indigo-bg)' : 'var(--tile-bg)',
-              borderColor: activeThemeId === 'default' ? 'var(--lang-primary)' : 'var(--card-border)',
+              maxHeight: 'min(360px, calc(100dvh - 88px))',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              paddingRight: 2,
             }}
-            onClick={() => handleSelectTheme(undefined)}
           >
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <PaletteOrbSwatches colors={THEME_SWATCH_TRIPLES.default} size={12} />
-              <span style={{ fontSize: '0.84rem' }}>Storybook Parchment</span>
-            </span>
-            {activeThemeId === 'default' ? <Check size={15} /> : null}
-          </button>
+            <button
+              type="button"
+              className="tactile-btn"
+              style={{
+                justifyContent: 'space-between',
+                padding: '8px 10px',
+                background: activeThemeId === 'default' ? 'var(--tint-indigo-bg)' : 'var(--tile-bg)',
+                borderColor: activeThemeId === 'default' ? 'var(--lang-primary)' : 'var(--card-border)',
+              }}
+              onClick={() => handleSelectTheme(undefined)}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <PaletteOrbSwatches colors={THEME_SWATCH_TRIPLES.default} size={12} />
+                <span style={{ fontSize: '0.84rem' }}>Storybook Parchment</span>
+              </span>
+              {activeThemeId === 'default' ? <Check size={15} /> : null}
+            </button>
 
-          {unlockedThemes.map((themeItem) => {
-            const isSelected = activeThemeId === themeItem.id;
-            const swatches = THEME_SWATCH_TRIPLES[themeItem.id] ?? THEME_SWATCH_TRIPLES.default;
-            return (
-              <button
-                key={themeItem.id}
-                type="button"
-                className="tactile-btn"
-                style={{
-                  justifyContent: 'space-between',
-                  padding: '8px 10px',
-                  background: isSelected ? 'var(--tint-indigo-bg)' : 'var(--tile-bg)',
-                  borderColor: isSelected ? themeItem.accentColor : 'var(--card-border)',
-                }}
-                onClick={() => handleSelectTheme(themeItem.id)}
-              >
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                  <PaletteOrbSwatches colors={swatches} size={12} />
-                  <span style={{ fontSize: '0.84rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {themeItem.name}
+            {unlockedThemes.map((themeItem) => {
+              const isSelected = activeThemeId === themeItem.id;
+              const swatches = THEME_SWATCH_TRIPLES[themeItem.id] ?? THEME_SWATCH_TRIPLES.default;
+              return (
+                <button
+                  key={themeItem.id}
+                  type="button"
+                  className="tactile-btn"
+                  style={{
+                    justifyContent: 'space-between',
+                    padding: '8px 10px',
+                    background: isSelected ? 'var(--tint-indigo-bg)' : 'var(--tile-bg)',
+                    borderColor: isSelected ? themeItem.accentColor : 'var(--card-border)',
+                  }}
+                  onClick={() => handleSelectTheme(themeItem.id)}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    <PaletteOrbSwatches colors={swatches} size={12} />
+                    <span style={{ fontSize: '0.84rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {themeItem.name}
+                    </span>
                   </span>
-                </span>
-                {isSelected ? <Check size={15} /> : null}
-              </button>
-            );
-          })}
+                  {isSelected ? <Check size={15} /> : null}
+                </button>
+              );
+            })}
+          </div>
 
           {onOpenShop ? (
             <button
@@ -355,7 +426,9 @@ export function TopHud({
             }}
           >
             <AvatarBadge avatarId={activeProfile.avatarId} size={24} />
-            <span>{activeProfile.name}</span>
+            <span style={{ maxWidth: 96, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {activeProfile.name}
+            </span>
           </button>
 
           <button

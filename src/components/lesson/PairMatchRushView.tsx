@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle2, Clock, Sparkles, Volume2 } from 'lucide-react';
 import { playSfx, speakPhrase } from '../../audio';
-import type { LanguageCode, PairMatchRushExercise } from '../../types/contracts';
+import { LANGUAGE_META, type LanguageCode, type PairMatchRushExercise } from '../../types/contracts';
 import { deterministicShuffle } from './lessonHelpers';
 
 export interface PairMatchRushViewProps {
@@ -105,6 +105,7 @@ export function PairMatchRushView({
 
   const pct = totalMs > 0 ? Math.round((timeLeftMs / totalMs) * 100) : 0;
   const secondsDisplay = Math.ceil(timeLeftMs / 1000);
+  const langDir = LANGUAGE_META[language].dir;
 
   return (
     <div
@@ -187,54 +188,80 @@ export function PairMatchRushView({
                 key={`L-${item.id}`}
                 animate={isShaking ? { x: [-6, 6, -4, 4, 0] } : { x: 0 }}
                 transition={{ duration: 0.35 }}
-                style={{ display: 'flex', gap: 4, alignItems: 'stretch' }}
+                style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
               >
-                <button
-                  type="button"
-                  disabled={isMatched}
-                  onClick={() => handleSelectLeft(item.id)}
-                  className="tactile-btn"
-                  style={{
-                    flex: 1,
-                    padding: compact ? '8px 10px' : '10px 12px',
-                    fontSize: compact ? '0.85rem' : '0.94rem',
-                    justifyContent: 'space-between',
-                    background: isMatched
-                      ? 'var(--tint-emerald-bg)'
-                      : isShaking
-                        ? 'var(--tint-rose-bg)'
+                <div style={{ display: 'flex', gap: 4, alignItems: 'stretch' }}>
+                  <button
+                    type="button"
+                    disabled={isMatched}
+                    dir={langDir}
+                    onClick={() => handleSelectLeft(item.id)}
+                    className="tactile-btn"
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      padding: compact ? '8px 10px' : '10px 12px',
+                      fontSize: compact ? '0.85rem' : '0.94rem',
+                      lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
+                      justifyContent: 'space-between',
+                      background: isMatched
+                        ? 'var(--tint-emerald-bg)'
+                        : isShaking
+                          ? 'var(--tint-rose-bg)'
+                          : isSelected
+                            ? 'var(--tile-selected-bg)'
+                            : 'var(--tile-bg)',
+                      borderColor: isMatched
+                        ? 'var(--tint-emerald-border)'
+                        : isShaking
+                          ? 'var(--tint-rose-border)'
+                          : isSelected
+                            ? 'var(--lang-primary)'
+                            : 'var(--tile-border)',
+                      color: isMatched
+                        ? 'var(--tint-emerald-ink)'
                         : isSelected
-                          ? 'var(--tile-selected-bg)'
-                          : 'var(--tile-bg)',
-                    borderColor: isMatched
-                      ? 'var(--tint-emerald-border)'
-                      : isShaking
-                        ? 'var(--tint-rose-border)'
-                        : isSelected
-                          ? 'var(--lang-primary)'
-                          : 'var(--tile-border)',
-                    color: isMatched
-                      ? 'var(--tint-emerald-ink)'
-                      : isSelected
-                        ? 'var(--tile-selected-ink)'
-                        : 'var(--text-main)',
-                    opacity: isMatched ? 0.72 : 1,
-                  }}
-                >
-                  <span style={{ textAlign: 'left' }}>{item.foreign}</span>
-                  {isMatched ? <CheckCircle2 size={16} /> : null}
-                </button>
-                <button
-                  type="button"
-                  className="tactile-btn tactile-btn-soft"
-                  style={{ padding: '0 8px', borderRadius: 14 }}
-                  aria-label={`Hear ${item.foreign}`}
-                  onClick={() => {
-                    void speakPhrase({ text: item.foreign, language, phonetic: item.phonetic });
-                  }}
-                >
-                  <Volume2 size={14} />
-                </button>
+                          ? 'var(--tile-selected-ink)'
+                          : 'var(--text-main)',
+                      opacity: isMatched ? 0.72 : 1,
+                    }}
+                  >
+                    <span
+                      dir={langDir}
+                      style={{
+                        textAlign: langDir === 'rtl' ? 'right' : 'left',
+                        lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
+                      }}
+                    >
+                      {item.foreign}
+                    </span>
+                    {isMatched ? <CheckCircle2 size={16} /> : null}
+                  </button>
+                  <button
+                    type="button"
+                    className="tactile-btn tactile-btn-soft"
+                    style={{ padding: '0 8px', borderRadius: 14 }}
+                    aria-label={`Hear ${item.foreign}`}
+                    onClick={() => {
+                      void speakPhrase({ text: item.foreign, language, phonetic: item.phonetic });
+                    }}
+                  >
+                    <Volume2 size={14} />
+                  </button>
+                </div>
+                {item.romanized ? (
+                  <div
+                    style={{
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      color: 'var(--text-muted)',
+                      paddingInline: 6,
+                      lineHeight: 1.15,
+                    }}
+                  >
+                    {item.romanized}
+                  </div>
+                ) : null}
               </motion.div>
             );
           })}

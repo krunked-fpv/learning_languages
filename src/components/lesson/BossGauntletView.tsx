@@ -3,7 +3,7 @@ import { Volume2, Turtle, Sparkles, Check, ShieldCheck } from 'lucide-react';
 import { gradeAnswer } from '../../core';
 import { playSfx, speakPhrase } from '../../audio';
 import { MascotStage } from '../characters/MascotStage';
-import type { BossGauntletExercise, CharacterPose, LanguageCode } from '../../types/contracts';
+import { LANGUAGE_META, type BossGauntletExercise, type CharacterPose, type LanguageCode } from '../../types/contracts';
 import { TapHintText } from './TapHintText';
 import { WordBankTray, buildWordBankPool, getAssembledText } from './WordBankTray';
 
@@ -46,6 +46,7 @@ export function BossGauntletView({
     setBossCleared(false);
   }, [exercise.id, initialTurnIndex]);
 
+  const langDir = LANGUAGE_META[language].dir;
   const currentTurn = exercise.turns[turnIndex];
 
   const pool = useMemo(
@@ -161,7 +162,9 @@ export function BossGauntletView({
       setTurnOutcome({
         kind: 'nudge',
         message: 'Almost! Give that reply one more try!',
-        subtext: `Clue: ${currentTurn.phoneticAnswer}`,
+        subtext: currentTurn.romanizedAnswer
+          ? `Clue: ${currentTurn.romanizedAnswer} (${currentTurn.phoneticAnswer})`
+          : `Clue: ${currentTurn.phoneticAnswer}`,
       });
     }
   };
@@ -298,13 +301,26 @@ export function BossGauntletView({
           </div>
         </div>
 
-        <div style={{ fontSize: compact ? '0.98rem' : '1.1rem', fontWeight: 900, color: 'var(--text-main)' }}>
+        <div
+          dir={langDir}
+          style={{
+            fontSize: compact ? '0.98rem' : '1.1rem',
+            fontWeight: 900,
+            color: 'var(--text-main)',
+            lineHeight: langDir === 'rtl' ? 1.5 : 1.35,
+          }}
+        >
           <TapHintText
             tokens={currentTurn.tapHints}
             fallbackText={currentTurn.companionSayForeign}
             language={language}
           />
         </div>
+        {currentTurn.companionRomanized ? (
+          <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--lang-primary)' }}>
+            {currentTurn.companionRomanized}
+          </div>
+        ) : null}
         <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
           {currentTurn.companionSayEnglish} • ({currentTurn.companionPhonetic})
         </div>
@@ -331,6 +347,7 @@ export function BossGauntletView({
                 key={choice}
                 type="button"
                 disabled={turnOutcome?.kind === 'ok'}
+                dir={langDir}
                 className="tactile-btn"
                 style={{
                   justifyContent: 'space-between',
@@ -338,7 +355,8 @@ export function BossGauntletView({
                   background: isSelected ? 'var(--tile-selected-bg)' : 'var(--tile-bg)',
                   borderColor: isSelected ? 'var(--lang-primary)' : 'var(--tile-border)',
                   color: isSelected ? 'var(--tile-selected-ink)' : 'var(--text-main)',
-                  textAlign: 'left',
+                  textAlign: langDir === 'rtl' ? 'right' : 'left',
+                  lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
                 }}
                 onClick={() => {
                   playSfx('tile_tap');
@@ -346,7 +364,7 @@ export function BossGauntletView({
                   setTurnOutcome(null);
                 }}
               >
-                <span>{choice}</span>
+                <span dir={langDir}>{choice}</span>
                 {isSelected ? <Check size={16} /> : null}
               </button>
             );
@@ -360,6 +378,7 @@ export function BossGauntletView({
           selectedTileUids={selectedTileUids}
           disabled={turnOutcome?.kind === 'ok'}
           compact={compact}
+          dir={langDir}
           onChangeSelected={(next) => {
             setSelectedTileUids(next);
             setTurnOutcome(null);
@@ -393,7 +412,9 @@ export function BossGauntletView({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <Sparkles size={15} />
-              <span>{turnOutcome.message}</span>
+              <span dir={turnOutcome.kind === 'ok' ? langDir : 'ltr'} style={{ unicodeBidi: 'isolate' }}>
+                {turnOutcome.message}
+              </span>
             </div>
             {turnOutcome.subtext ? (
               <div style={{ fontSize: '0.76rem', opacity: 0.9 }}>{turnOutcome.subtext}</div>

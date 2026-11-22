@@ -19,7 +19,12 @@ import {
   useVaultStore,
   vaultActions,
 } from '../../store/useVaultStore';
-import type { AvatarId } from '../../types/contracts';
+import {
+  LANGUAGE_LIST,
+  LANGUAGE_META,
+  type AvatarId,
+  type LanguageCode,
+} from '../../types/contracts';
 
 const AVATAR_OPTIONS: readonly { id: AvatarId; label: string }[] = [
   { id: 'pip_explorer', label: 'Pip' },
@@ -49,6 +54,7 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
   const [newName, setNewName] = useState('');
   const [newAvatar, setNewAvatar] = useState<AvatarId>('pip_explorer');
   const [newBanner, setNewBanner] = useState<string>(BANNER_PALETTE[0]);
+  const [newLanguage, setNewLanguage] = useState<LanguageCode>('es');
 
   const [importMode, setImportMode] = useState<'replace' | 'merge'>('replace');
   const [pasteJsonOpen, setPasteJsonOpen] = useState(false);
@@ -64,13 +70,17 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
     e.preventDefault();
     const trimmed = newName.trim();
     if (!trimmed) return;
-    vaultActions.createProfile({
+    const created = vaultActions.createProfile({
       name: trimmed.slice(0, 20),
       avatarId: newAvatar,
       bannerColor: newBanner,
     });
+    if (created.activeLanguage !== newLanguage) {
+      vaultActions.setActiveLanguage(newLanguage);
+    }
     playSfx('correct_chime');
     setNewName('');
+    setNewLanguage('es');
     setShowCreator(false);
     setVaultFeedback({ kind: 'ok', message: `Welcome aboard, ${trimmed}!` });
   };
@@ -131,9 +141,18 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="modal-card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div
+        className="modal-card"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+          maxHeight: 'calc(100dvh - 28px)',
+          overflow: 'hidden',
+        }}
+      >
         {/* Modal Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexShrink: 0 }}>
           <div>
             <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 900, color: 'var(--text-main)' }}>
               Explorer Profiles & Vault
@@ -152,6 +171,18 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
             <X size={18} />
           </button>
         </div>
+
+        <div
+          className="console-scroll-pane"
+          style={{
+            flex: '1 1 auto',
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+            paddingRight: 2,
+          }}
+        >
 
         {/* Profile Cards */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -231,13 +262,16 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 10,
+                        gap: 8,
+                        flexWrap: 'wrap',
                         fontSize: '0.78rem',
                         fontWeight: 700,
                         color: 'var(--text-muted)',
                         marginTop: 2,
                       }}
                     >
+                      <span>{LANGUAGE_META[profile.activeLanguage].name}</span>
+                      <span>•</span>
                       <span>{profile.totalXp} XP</span>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                         <Gem size={12} /> {profile.gems}
@@ -359,6 +393,67 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
                     }}
                   />
                 ))}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: 5 }}>
+                Pick Starting Language:
+              </div>
+              <div
+                className="console-scroll-pane"
+                style={{ maxHeight: 148, paddingRight: 2 }}
+              >
+                <div
+                  role="group"
+                  aria-label="Pick Starting Language"
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                    gap: 6,
+                  }}
+                >
+                  {LANGUAGE_LIST.map((lang) => {
+                    const meta = LANGUAGE_META[lang];
+                    const selected = newLanguage === lang;
+                    return (
+                      <button
+                        key={lang}
+                        type="button"
+                        aria-pressed={selected}
+                        className="tactile-btn"
+                        style={{
+                          justifyContent: 'flex-start',
+                          padding: '5px 8px',
+                          borderRadius: 12,
+                          gap: 6,
+                          minWidth: 0,
+                          background: selected ? 'var(--tint-indigo-bg)' : 'var(--tile-bg)',
+                          borderColor: selected ? meta.accentPalette.primary : 'var(--card-border)',
+                        }}
+                        onClick={() => {
+                          playSfx('tile_tap');
+                          setNewLanguage(lang);
+                        }}
+                      >
+                        <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                          <FlagIcon language={lang} size={18} />
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '0.74rem',
+                            fontWeight: 800,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {meta.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -497,6 +592,7 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
               <span>{vaultFeedback.message}</span>
             </div>
           ) : null}
+        </div>
         </div>
       </div>
     </div>

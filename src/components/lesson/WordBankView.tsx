@@ -71,6 +71,9 @@ export function WordBankView({
   }, [submittedValue, exercise, onDraftChange]);
 
   const langMeta = LANGUAGE_META[language];
+  const promptDir = exercise.direction === 'to_english' ? langMeta.dir : 'ltr';
+  const answerDir = exercise.direction === 'to_foreign' ? langMeta.dir : 'ltr';
+  const hasManyAccents = langMeta.helperAccents.length > 14;
   const speakPromptText = exercise.promptSpeakText ?? (exercise.direction === 'to_english' ? exercise.promptText : undefined);
 
   const insertAccentChar = (ch: string) => {
@@ -158,8 +161,16 @@ export function WordBankView({
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ flex: '1 1 200px' }}>
-          <div style={{ fontSize: compact ? '1.12rem' : '1.35rem', fontWeight: 900, color: 'var(--text-main)' }}>
+        <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+          <div
+            dir={promptDir}
+            style={{
+              fontSize: compact ? '1.12rem' : '1.35rem',
+              fontWeight: 900,
+              color: 'var(--text-main)',
+              lineHeight: promptDir === 'rtl' ? 1.5 : 1.3,
+            }}
+          >
             {exercise.direction === 'to_english' && exercise.promptTokens.length > 0 ? (
               <TapHintText
                 tokens={exercise.promptTokens}
@@ -170,9 +181,26 @@ export function WordBankView({
               exercise.promptText
             )}
           </div>
-          {exercise.promptPhonetic ? (
-            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', marginTop: 2 }}>
-              {exercise.promptPhonetic}
+          {exercise.promptRomanized || exercise.promptPhonetic ? (
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                gap: '2px 10px',
+                marginTop: 3,
+              }}
+            >
+              {exercise.promptRomanized ? (
+                <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--lang-primary)' }}>
+                  {exercise.promptRomanized}
+                </span>
+              ) : null}
+              {exercise.promptPhonetic ? (
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                  {exercise.promptPhonetic}
+                </span>
+              ) : null}
             </div>
           ) : null}
           {exercise.direction === 'to_english' && exercise.promptTokens.length > 0 ? (
@@ -234,6 +262,7 @@ export function WordBankView({
           selectedTileUids={selectedTileUids}
           disabled={locked}
           compact={compact}
+          dir={answerDir}
           onChangeSelected={setSelectedTileUids}
         />
       ) : (
@@ -241,6 +270,7 @@ export function WordBankView({
           <input
             ref={inputRef}
             type="text"
+            dir={answerDir}
             value={typedText}
             disabled={locked}
             onChange={(e) => setTypedText(e.target.value)}
@@ -268,6 +298,7 @@ export function WordBankView({
               borderColor: 'var(--lang-primary)',
               fontSize: '1rem',
               fontWeight: 800,
+              lineHeight: answerDir === 'rtl' ? 1.5 : 1.25,
               color: 'var(--text-main)',
               background: 'var(--input-bg)',
               outline: 'none',
@@ -277,14 +308,28 @@ export function WordBankView({
           {exercise.direction === 'to_foreign' ? (
             <div
               aria-label="Accent character bar"
-              style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}
+              dir={langMeta.dir}
+              className="console-scroll-pane"
+              style={{
+                maxHeight: compact ? 84 : 112,
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: hasManyAccents ? 5 : 6,
+                justifyContent: 'center',
+                padding: '2px 2px',
+              }}
             >
               {langMeta.helperAccents.map((ch) => (
                 <button
                   key={ch}
                   type="button"
                   className="tactile-tile"
-                  style={{ padding: '5px 11px', fontSize: '0.95rem', minWidth: 36 }}
+                  style={{
+                    padding: hasManyAccents ? '4px 8px' : '5px 11px',
+                    fontSize: hasManyAccents ? '0.88rem' : '0.95rem',
+                    minWidth: hasManyAccents ? 30 : 36,
+                    lineHeight: langMeta.dir === 'rtl' ? 1.5 : 1.25,
+                  }}
                   disabled={locked}
                   onClick={() => insertAccentChar(ch)}
                 >

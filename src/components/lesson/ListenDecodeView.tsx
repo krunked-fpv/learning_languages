@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Volume2, Turtle, Sparkles, Check } from 'lucide-react';
 import { hasNativeVoice, playSfx, speakPhrase, useSpeechRuntimeState } from '../../audio';
-import type { LanguageCode, ListenDecodeExercise } from '../../types/contracts';
+import { LANGUAGE_META, type LanguageCode, type ListenDecodeExercise } from '../../types/contracts';
 import { TapHintText } from './TapHintText';
 import { splitPhoneticSyllables } from './lessonHelpers';
 import { WordBankTray, buildWordBankPool, getAssembledText } from './WordBankTray';
@@ -70,6 +70,7 @@ export function ListenDecodeView({
     });
   }, [submittedValue, exercise, onDraftChange]);
 
+  const langDir = LANGUAGE_META[language].dir;
   const showPhoneticBanner =
     !hasNativeVoice(language) || speechState.fallbackActive || manualPhoneticOpen;
   const syllables = useMemo(() => splitPhoneticSyllables(exercise.phonetic), [exercise.phonetic]);
@@ -176,6 +177,11 @@ export function ListenDecodeView({
             <Sparkles size={15} />
             <span>Phonetic Sound Clue</span>
           </div>
+          {exercise.romanized ? (
+            <div style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--lang-primary)' }}>
+              {exercise.romanized}
+            </div>
+          ) : null}
           <div style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-main)' }}>
             {exercise.voiceFallbackPhoneticPrompt}
           </div>
@@ -261,6 +267,7 @@ export function ListenDecodeView({
           selectedTileUids={selectedTileUids}
           disabled={locked}
           compact={compact}
+          dir={langDir}
           onChangeSelected={setSelectedTileUids}
         />
       )}
@@ -275,14 +282,22 @@ export function ListenDecodeView({
             border: '2px solid var(--card-border)',
             fontSize: '0.9rem',
             fontWeight: 800,
+            color: 'var(--text-main)',
           }}
         >
-          Phrase:{' '}
-          <TapHintText
-            tokens={exercise.tapHints}
-            fallbackText={exercise.audioText}
-            language={language}
-          />
+          <span>Phrase: </span>
+          <span dir={langDir} style={{ unicodeBidi: 'isolate' }}>
+            <TapHintText
+              tokens={exercise.tapHints}
+              fallbackText={exercise.audioText}
+              language={language}
+            />
+          </span>
+          {exercise.romanized ? (
+            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', marginTop: 2 }}>
+              {exercise.romanized}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

@@ -16,6 +16,7 @@ import { VocabIllustration } from '../../art/VocabIllustration';
 import { getCourse } from '../../curriculum';
 import { playSfx, speakPhrase } from '../../audio';
 import { useVaultStore, vaultActions } from '../../store/useVaultStore';
+import { useCompactViewport } from '../lesson/lessonHelpers';
 import {
   GENDER_BADGE_META,
   LANGUAGE_LIST,
@@ -26,6 +27,7 @@ import {
 
 export function PhrasebookVault() {
   const { activeProfile } = useVaultStore();
+  const compact = useCompactViewport();
   const [viewLang, setViewLang] = useState<LanguageCode>(activeProfile.activeLanguage);
   const [unitFilter, setUnitFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,11 +41,13 @@ export function PhrasebookVault() {
     setUnitFilter('all');
   }, [activeProfile.activeLanguage]);
 
+  const viewLangMeta = LANGUAGE_META[viewLang];
+  const langDir = viewLangMeta.dir;
   const course = getCourse(viewLang);
   const langProgress = activeProfile.languageProgress[viewLang];
   const unlockedSet = useMemo(
-    () => new Set(langProgress.unlockedVocabIds),
-    [langProgress.unlockedVocabIds]
+    () => new Set(langProgress?.unlockedVocabIds ?? []),
+    [langProgress?.unlockedVocabIds]
   );
 
   const allCards = useMemo(
@@ -62,7 +66,8 @@ export function PhrasebookVault() {
           return (
             card.foreignWithArticle.toLowerCase().includes(q) ||
             card.english.toLowerCase().includes(q) ||
-            card.phonetic.toLowerCase().includes(q)
+            card.phonetic.toLowerCase().includes(q) ||
+            Boolean(card.romanized?.toLowerCase().includes(q))
           );
         }),
       }))
@@ -120,7 +125,7 @@ export function PhrasebookVault() {
       <div
         className="tactile-card"
         style={{
-          padding: '12px 16px',
+          padding: compact ? '9px 12px' : '12px 16px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -132,26 +137,26 @@ export function PhrasebookVault() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: 14,
+              width: compact ? 34 : 40,
+              height: compact ? 34 : 40,
+              borderRadius: 12,
               background: 'var(--lang-tint)',
               border: '2px solid var(--lang-primary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'var(--lang-primary)',
+              flexShrink: 0,
             }}
           >
-            <BookOpen size={20} />
+            <BookOpen size={compact ? 18 : 20} />
           </div>
           <div>
-            <h1 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 900, color: 'var(--text-main)' }}>
+            <h1 style={{ margin: 0, fontSize: compact ? '1.04rem' : '1.2rem', fontWeight: 900, color: 'var(--text-main)' }}>
               Living Phrasebook Sticker-Book
             </h1>
-            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-              {LANGUAGE_META[viewLang].name}: {unlockedCards.length} / {allCards.length} Stickers
-              Collected
+            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+              {viewLangMeta.name}: {unlockedCards.length} / {allCards.length} Stickers Collected
             </div>
           </div>
         </div>
@@ -159,6 +164,7 @@ export function PhrasebookVault() {
         <button
           type="button"
           className="tactile-btn tactile-btn-amber"
+          style={{ padding: compact ? '7px 12px' : '9px 16px', fontSize: compact ? '0.82rem' : '0.92rem' }}
           onClick={openShowOff}
         >
           <Sparkles size={16} />
@@ -166,18 +172,31 @@ export function PhrasebookVault() {
         </button>
       </div>
 
-      {/* Filters: Language + Search + U1..U8 Tabs */}
+      {/* Filters: 16-Language Horizontal Scroll Strip + Search + U1..U8 Tabs */}
       <div
         className="tactile-card"
         style={{
-          padding: '10px 12px',
+          padding: compact ? '8px 10px' : '10px 12px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 8,
+          gap: 7,
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div
+          role="group"
+          aria-label="Filter phrasebook by language"
+          className="console-scroll-pane-x"
+          style={{
+            display: 'flex',
+            gap: 6,
+            flexWrap: 'nowrap',
+            alignItems: 'center',
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            paddingBottom: 2,
+          }}
+        >
           {LANGUAGE_LIST.map((lang) => {
             const isSelected = lang === viewLang;
             const meta = LANGUAGE_META[lang];
@@ -185,12 +204,15 @@ export function PhrasebookVault() {
               <button
                 key={lang}
                 type="button"
+                aria-pressed={isSelected}
                 className="tactile-btn"
                 style={{
-                  padding: '5px 10px',
+                  padding: '4px 9px',
                   background: isSelected ? 'var(--tint-indigo-bg)' : 'var(--tile-bg)',
                   borderColor: isSelected ? meta.accentPalette.primary : 'var(--card-border)',
-                  fontSize: '0.82rem',
+                  fontSize: '0.78rem',
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap',
                 }}
                 onClick={() => {
                   playSfx('button_click');
@@ -198,12 +220,16 @@ export function PhrasebookVault() {
                   setUnitFilter('all');
                 }}
               >
-                <FlagIcon language={lang} size={20} />
+                <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                  <FlagIcon language={lang} size={18} />
+                </span>
                 <span>{meta.name}</span>
               </button>
             );
           })}
+        </div>
 
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <input
             type="search"
             className="themed-input"
@@ -212,37 +238,49 @@ export function PhrasebookVault() {
             placeholder="Search words or meanings..."
             aria-label="Search phrasebook"
             style={{
-              marginLeft: 'auto',
-              flex: '1 1 180px',
-              maxWidth: 260,
-              padding: '7px 11px',
-              fontSize: '0.84rem',
+              flex: '1 1 160px',
+              minWidth: 0,
+              maxWidth: compact ? '100%' : 240,
+              padding: '6px 10px',
+              fontSize: '0.82rem',
             }}
           />
-        </div>
 
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button
-            type="button"
-            className={`tactile-tile ${unitFilter === 'all' ? 'is-selected' : ''}`}
-            style={{ padding: '4px 11px', fontSize: '0.76rem', whiteSpace: 'nowrap' }}
-            onClick={() => setUnitFilter('all')}
+          <div
+            className="console-scroll-pane-x"
+            style={{
+              display: 'flex',
+              gap: 5,
+              flexWrap: 'nowrap',
+              alignItems: 'center',
+              overflowX: 'auto',
+              overflowY: 'hidden',
+              flex: '1 1 200px',
+              paddingBottom: 2,
+            }}
           >
-            All Units
-          </button>
-          {course.units.map((u) => (
             <button
-              key={u.id}
               type="button"
-              title={`Unit ${u.order}: ${u.title}`}
-              aria-label={`Unit ${u.order}: ${u.title}`}
-              className={`tactile-tile ${unitFilter === u.id ? 'is-selected' : ''}`}
-              style={{ padding: '4px 10px', fontSize: '0.76rem', whiteSpace: 'nowrap' }}
-              onClick={() => setUnitFilter(u.id)}
+              className={`tactile-tile ${unitFilter === 'all' ? 'is-selected' : ''}`}
+              style={{ padding: '4px 10px', fontSize: '0.75rem', whiteSpace: 'nowrap', flexShrink: 0 }}
+              onClick={() => setUnitFilter('all')}
             >
-              U{u.order}
+              All Units
             </button>
-          ))}
+            {course.units.map((u) => (
+              <button
+                key={u.id}
+                type="button"
+                title={`Unit ${u.order}: ${u.title}`}
+                aria-label={`Unit ${u.order}: ${u.title}`}
+                className={`tactile-tile ${unitFilter === u.id ? 'is-selected' : ''}`}
+                style={{ padding: '4px 9px', fontSize: '0.75rem', whiteSpace: 'nowrap', flexShrink: 0 }}
+                onClick={() => setUnitFilter(u.id)}
+              >
+                U{u.order}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -387,13 +425,26 @@ export function PhrasebookVault() {
                             language={viewLang}
                             size={64}
                           />
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: '1.02rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div
+                              dir={langDir}
+                              style={{
+                                fontSize: '1.02rem',
+                                fontWeight: 900,
+                                color: 'var(--text-main)',
+                                lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
+                              }}
+                            >
                               {card.foreignWithArticle}
                             </div>
                             <div style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-main)' }}>
                               {card.english}
                             </div>
+                            {card.romanized ? (
+                              <div style={{ fontSize: '0.77rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                                {card.romanized}
+                              </div>
+                            ) : null}
                             <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--lang-primary)' }}>
                               {card.phonetic}
                             </div>
@@ -409,9 +460,21 @@ export function PhrasebookVault() {
                             fontSize: '0.76rem',
                           }}
                         >
-                          <div style={{ fontWeight: 800, color: 'var(--text-main)' }}>
+                          <div
+                            dir={langDir}
+                            style={{
+                              fontWeight: 800,
+                              color: 'var(--text-main)',
+                              lineHeight: langDir === 'rtl' ? 1.5 : 1.35,
+                            }}
+                          >
                             {card.exampleForeign}
                           </div>
+                          {card.exampleRomanized ? (
+                            <div style={{ fontWeight: 700, color: 'var(--lang-primary)' }}>
+                              {card.exampleRomanized}
+                            </div>
+                          ) : null}
                           <div style={{ fontWeight: 600, color: 'var(--text-muted)' }}>
                             {card.exampleEnglish}
                           </div>
@@ -522,7 +585,15 @@ export function PhrasebookVault() {
                         language={viewLang}
                         size={120}
                       />
-                      <div style={{ fontSize: '1.65rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                      <div
+                        dir={langDir}
+                        style={{
+                          fontSize: '1.65rem',
+                          fontWeight: 900,
+                          color: 'var(--text-main)',
+                          lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
+                        }}
+                      >
                         {activeFlashcard.foreignWithArticle}
                       </div>
                       <div style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-muted)' }}>
@@ -544,6 +615,11 @@ export function PhrasebookVault() {
                       <div style={{ fontSize: '1.55rem', fontWeight: 900, color: 'var(--tint-amber-ink)' }}>
                         {activeFlashcard.english}
                       </div>
+                      {activeFlashcard.romanized ? (
+                        <div style={{ fontSize: '0.94rem', fontWeight: 800, color: 'var(--lang-primary)' }}>
+                          {activeFlashcard.romanized}
+                        </div>
+                      ) : null}
                       <div style={{ fontSize: '0.96rem', fontWeight: 800, color: 'var(--text-main)' }}>
                         Say: {activeFlashcard.phonetic}
                       </div>
@@ -557,7 +633,12 @@ export function PhrasebookVault() {
                           fontWeight: 800,
                         }}
                       >
-                        <div>{activeFlashcard.exampleForeign}</div>
+                        <div dir={langDir}>{activeFlashcard.exampleForeign}</div>
+                        {activeFlashcard.exampleRomanized ? (
+                          <div style={{ fontSize: '0.78rem', color: 'var(--lang-primary)' }}>
+                            {activeFlashcard.exampleRomanized}
+                          </div>
+                        ) : null}
                         <div style={{ color: 'var(--text-muted)' }}>{activeFlashcard.exampleEnglish}</div>
                       </div>
                     </>

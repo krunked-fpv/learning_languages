@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Volume2, Turtle, Eye, EyeOff, ArrowRight, Sparkles } from 'lucide-react';
 import { playSfx, speakPhrase } from '../../audio';
-import type { LanguageCode, MiniStoryExercise } from '../../types/contracts';
+import { LANGUAGE_META, type LanguageCode, type MiniStoryExercise } from '../../types/contracts';
 import { TapHintText } from './TapHintText';
 
 export interface MiniStoryViewProps {
@@ -51,6 +51,7 @@ export function MiniStoryView({
   );
   const allBubblesRevealed = visibleCount >= exercise.bubbles.length;
   const isFinished = allBubblesRevealed && !activeDecision;
+  const langDir = LANGUAGE_META[language].dir;
 
   const toggleEnglish = (bubbleId: string) => {
     playSfx('tile_tap');
@@ -210,13 +211,27 @@ export function MiniStoryView({
                 </div>
               </div>
 
-              <div style={{ fontSize: compact ? '0.96rem' : '1.06rem', fontWeight: 800, color: 'var(--text-main)' }}>
+              <div
+                dir={langDir}
+                style={{
+                  fontSize: compact ? '0.96rem' : '1.06rem',
+                  fontWeight: 800,
+                  color: 'var(--text-main)',
+                  lineHeight: langDir === 'rtl' ? 1.5 : 1.35,
+                }}
+              >
                 <TapHintText
                   tokens={bubble.tapHints}
                   fallbackText={bubble.foreignText}
                   language={language}
                 />
               </div>
+
+              {bubble.romanized ? (
+                <div style={{ fontSize: '0.78rem', color: 'var(--lang-primary)', fontWeight: 800, marginTop: 2 }}>
+                  {bubble.romanized}
+                </div>
+              ) : null}
 
               <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', fontWeight: 700, marginTop: 2 }}>
                 {bubble.phonetic}
@@ -296,7 +311,7 @@ export function MiniStoryView({
                   }}
                 >
                   <div>
-                    <div>{opt.label}</div>
+                    <div dir="auto">{opt.label}</div>
                     {opt.phonetic ? (
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{opt.phonetic}</div>
                     ) : null}
@@ -319,7 +334,7 @@ export function MiniStoryView({
               fontSize: '0.86rem',
             }}
           >
-            {decisionNote.foreign ? <div>{decisionNote.foreign}</div> : null}
+            {decisionNote.foreign ? <div dir={langDir}>{decisionNote.foreign}</div> : null}
             <div>{decisionNote.english}</div>
           </div>
         ) : null}

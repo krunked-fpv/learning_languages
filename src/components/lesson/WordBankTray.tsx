@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { playSfx } from '../../audio';
+import type { TextDirection } from '../../types/contracts';
 import { deterministicShuffle, joinWordBankTokens } from './lessonHelpers';
 
 export interface WordBankPoolTile {
@@ -15,6 +16,7 @@ export interface WordBankTrayProps {
   selectedTileUids: readonly string[];
   disabled?: boolean;
   compact?: boolean;
+  dir?: TextDirection;
   onChangeSelected: (nextUids: string[]) => void;
 }
 
@@ -46,6 +48,7 @@ export function WordBankTray({
   selectedTileUids,
   disabled = false,
   compact = false,
+  dir = 'ltr',
   onChangeSelected,
 }: WordBankTrayProps) {
   const pool = useMemo(
@@ -77,6 +80,7 @@ export function WordBankTray({
       {/* Answer Assembly Tray */}
       <div
         aria-label="Answer tray"
+        dir={dir}
         style={{
           minHeight: compact ? 54 : 66,
           padding: compact ? '8px 10px' : '11px 14px',
@@ -90,12 +94,15 @@ export function WordBankTray({
         }}
       >
         {selectedTileUids.length === 0 ? (
-          <span style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.88rem', textAlign: 'center' }}>
+          <span
+            dir="ltr"
+            style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.88rem', textAlign: 'center' }}
+          >
             Tap word tiles below in order
           </span>
         ) : (
           <>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+            <div dir={dir} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
               {selectedTileUids.map((uid) => {
                 const tile = byUid.get(uid);
                 if (!tile) return null;
@@ -111,6 +118,7 @@ export function WordBankTray({
                     style={{
                       padding: compact ? '6px 11px' : '8px 14px',
                       fontSize: compact ? '0.9rem' : '0.98rem',
+                      lineHeight: dir === 'rtl' ? 1.5 : 1.25,
                     }}
                     disabled={disabled}
                     onClick={() => removeTile(uid)}
@@ -121,6 +129,7 @@ export function WordBankTray({
               })}
             </div>
             <div
+              dir="ltr"
               style={{
                 fontSize: '0.8rem',
                 fontWeight: 700,
@@ -129,7 +138,18 @@ export function WordBankTray({
                 paddingTop: 4,
               }}
             >
-              Preview: <span style={{ color: 'var(--text-main)', fontWeight: 800 }}>{assembledPreview}</span>
+              Preview:{' '}
+              <span
+                dir={dir}
+                style={{
+                  color: 'var(--text-main)',
+                  fontWeight: 800,
+                  unicodeBidi: 'isolate',
+                  lineHeight: dir === 'rtl' ? 1.5 : 1.25,
+                }}
+              >
+                {assembledPreview}
+              </span>
             </div>
           </>
         )}
@@ -138,6 +158,7 @@ export function WordBankTray({
       {/* Tile Pool */}
       <div
         aria-label="Word bank tiles"
+        dir={dir}
         style={{
           display: 'flex',
           flexWrap: 'wrap',
@@ -155,6 +176,7 @@ export function WordBankTray({
               style={{
                 padding: compact ? '6px 11px' : '8px 14px',
                 fontSize: compact ? '0.9rem' : '0.98rem',
+                lineHeight: dir === 'rtl' ? 1.5 : 1.25,
               }}
               disabled={disabled || isUsed}
               aria-hidden={isUsed}

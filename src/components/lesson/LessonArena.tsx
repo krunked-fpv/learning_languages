@@ -14,13 +14,14 @@ import { MascotStage } from '../characters/MascotStage';
 import { SkyCatcherArcade } from '../arcade/SkyCatcherArcade';
 import { AmbientBackdrop } from '../fx/AmbientBackdrop';
 import { ConfettiBurst, CountUpTicker, FloatingPopToast, type PopToastItem } from '../fx/JuiceEngine';
-import type {
-  AccentCoaching,
-  ArticleCoaching,
-  CharacterPose,
-  LanguageCode,
-  LessonExercise,
-  MapNode,
+import {
+  LANGUAGE_META,
+  type AccentCoaching,
+  type ArticleCoaching,
+  type CharacterPose,
+  type LanguageCode,
+  type LessonExercise,
+  type MapNode,
 } from '../../types/contracts';
 import { BossGauntletView } from './BossGauntletView';
 import { DiscoveryCardView } from './DiscoveryCardView';
@@ -49,6 +50,7 @@ export interface LessonArenaProps {
 export function LessonArena({ node, language, onExit }: LessonArenaProps) {
   const { activeProfile, activeProgress } = useVaultStore();
   const compact = useCompactViewport();
+  const langDir = LANGUAGE_META[language].dir;
 
   const [replayNonce, setReplayNonce] = useState(0);
   const [sessionExercises, setSessionExercises] = useState<LessonExercise[]>(() => {
@@ -589,7 +591,10 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                               language={language}
                               size={32}
                             />
-                            <span style={{ fontWeight: 800, fontSize: '0.82rem', color: 'var(--text-main)' }}>
+                            <span
+                              dir={langDir}
+                              style={{ fontWeight: 800, fontSize: '0.82rem', color: 'var(--text-main)' }}
+                            >
                               {card.foreignWithArticle}
                             </span>
                           </div>
@@ -732,7 +737,10 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                           language={language}
                           size={26}
                         />
-                        <span style={{ fontWeight: 800, fontSize: '0.78rem', color: 'var(--text-main)' }}>
+                        <span
+                          dir={langDir}
+                          style={{ fontWeight: 800, fontSize: '0.78rem', color: 'var(--text-main)' }}
+                        >
                           {card.foreignWithArticle}
                         </span>
                       </div>
@@ -993,12 +1001,18 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
 
                   {feedback.accentCoaching ? (
                     <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--tint-amber-ink)' }}>
-                      Spell with accents: <strong>{feedback.accentCoaching.expected}</strong> (
-                      {feedback.accentCoaching.highlightedChars.join(', ')}) —{' '}
+                      Spell with accents:{' '}
+                      <strong dir={langDir} style={{ unicodeBidi: 'isolate' }}>
+                        {feedback.accentCoaching.expected}
+                      </strong>{' '}
+                      ({feedback.accentCoaching.highlightedChars.join(', ')}) —{' '}
                       {feedback.accentCoaching.friendlyTip}
                     </div>
                   ) : feedback.detail ? (
-                    <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                    <div
+                      dir="auto"
+                      style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-main)' }}
+                    >
                       {feedback.detail}
                     </div>
                   ) : null}
