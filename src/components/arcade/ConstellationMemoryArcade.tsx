@@ -3,15 +3,20 @@ import { motion } from 'framer-motion';
 import { Sparkles, Volume2 } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
-import { vaultActions } from '../../store/useVaultStore';
-import { LANGUAGE_META, type ArcadeLanternItem } from '../../types/contracts';
+import {
+  LANGUAGE_META,
+  type ArcadeLanternItem,
+  type ArcadeProficiencyTier,
+} from '../../types/contracts';
 import { ConstellationMemoryEmblem } from './ArcadeEmblems';
 import {
   ARCADE_SHELL_STYLE,
   ArcadeHeaderBar,
   ArcadeReadyCard,
   ArcadeSummaryCard,
+  computeScaledArcadeRewards,
   getArcadeForeignTextStyle,
+  recordArcadeRunResult,
   useArcadeContainerMetrics,
   useArcadeDeck,
 } from './arcadeShared';
@@ -47,16 +52,21 @@ function buildWaveDeck(lexicon: readonly ArcadeLanternItem[], uidSeed: number): 
 }
 
 export interface ConstellationMemoryArcadeProps {
+  arcadeTier?: ArcadeProficiencyTier;
   onExit: () => void;
 }
 
-export function ConstellationMemoryArcade({ onExit }: ConstellationMemoryArcadeProps) {
-  const { language, lexicon, bestScoreFor } = useArcadeDeck();
+export function ConstellationMemoryArcade({
+  arcadeTier = 'sprout',
+  onExit,
+}: ConstellationMemoryArcadeProps) {
+  const { language, lexicon, bestScoreFor, paceMultiplier } = useArcadeDeck(arcadeTier);
   const { containerRef, isCompact, isNarrow } = useArcadeContainerMetrics();
   const langDir = LANGUAGE_META[language].dir;
+  const roundDuration = Math.round(ROUND_DURATION_SECONDS / Math.pow(paceMultiplier, 0.5));
 
   const [phase, setPhase] = useState<'ready' | 'playing' | 'summary'>('ready');
-  const [timeLeft, setTimeLeft] = useState(ROUND_DURATION_SECONDS);
+  const [timeLeft, setTimeLeft] = useState(roundDuration);
   const [score, setScore] = useState(0);
   const [combo, setCombo] = useState(0);
   const [wave, setWave] = useState(1);
@@ -72,6 +82,7 @@ export function ConstellationMemoryArcade({ onExit }: ConstellationMemoryArcadeP
     score: number;
     heartsWon: number;
     bonusGems: number;
+    xpEarned: number;
     pairsMatched: number;
     wavesCleared: number;
   } | null>(null);
@@ -119,23 +130,31 @@ export function ConstellationMemoryArcade({ onExit }: ConstellationMemoryArcadeP
     const totalPairs = pairsRef.current;
     const wavesCleared = wavesClearedRef.current;
     const heartsWon = Math.min(5, Math.max(1, Math.ceil(totalPairs / 3)));
-    const bonusGems = Math.floor(finalScore / 35) + wavesCleared * 5;
-    vaultActions.recordArcadeGameResult({
+    const baseGems = Math.floor(finalScore / 35) + wavesCleared * 5;
+    const { bonusGems, xpEarned } = computeScaledArcadeRewards({
+      arcadeTier,
+      baseGems,
+      performanceUnits: totalPairs,
+      baseXpBonus: wavesCleared * 3,
+    });
+    recordArcadeRunResult({
       gameId: 'constellation_memory',
       score: finalScore,
       heartsWon,
       bonusGems,
+      xpEarned,
     });
     playSfx('unit_fanfare');
     setSummary({
       score: finalScore,
       heartsWon,
       bonusGems,
+      xpEarned,
       pairsMatched: totalPairs,
       wavesCleared,
     });
     setPhase('summary');
-  }, []);
+  }, [arcadeTier]);
 
   const startRound = useCallback(() => {
     playSfx('button_click');
@@ -150,12 +169,12 @@ export function ConstellationMemoryArcade({ onExit }: ConstellationMemoryArcadeP
     setCombo(0);
     setWave(1);
     setPairsMatched(0);
-    setTimeLeft(ROUND_DURATION_SECONDS);
+    setTimeLeft(roundDuration);
     setToast('Tap any two star cards to connect a Constellation Twin!');
     setSummary(null);
     dealFreshWave();
     setPhase('playing');
-  }, [dealFreshWave]);
+  }, [dealFreshWave, roundDuration]);
 
   useEffect(() => {
     if (phase !== 'playing') return;
@@ -168,7 +187,7 @@ export function ConstellationMemoryArcade({ onExit }: ConstellationMemoryArcadeP
       lastTime = now;
 
       elapsedRef.current += dt;
-      const totalAllowed = ROUND_DURATION_SECONDS + bonusSecondsRef.current;
+      const totalAllowed = roundDuration + bonusSecondsRef.current;
       const rem = Math.max(0, Math.ceil(totalAllowed - elapsedRef.current));
       setTimeLeft((prev) => (prev !== rem ? rem : prev));
 
@@ -182,7 +201,7 @@ export function ConstellationMemoryArcade({ onExit }: ConstellationMemoryArcadeP
 
     rafId = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(rafId);
-  }, [phase, finishRound]);
+  }, [phase, roundDuration, finishRound]);
 
   const handleFlipCard = (index: number) => {
     if (phase !== 'playing' || lockBoardRef.current) return;
@@ -259,7 +278,7 @@ export function ConstellationMemoryArcade({ onExit }: ConstellationMemoryArcadeP
       scheduleTimeout(() => {
         setFlippedIndices([]);
         lockBoardRef.current = false;
-      }, 620);
+      }, Math.round(620 / paceMultiplier));
     }
   };
 
@@ -286,6 +305,7 @@ export function ConstellationMemoryArcade({ onExit }: ConstellationMemoryArcadeP
         bestScore={bestScore}
         timeLeft={timeLeft}
         combo={combo}
+        arcadeTier={arcadeTier}
         isCompact={isCompact}
         onExit={onExit}
       />
@@ -298,6 +318,7 @@ export function ConstellationMemoryArcade({ onExit }: ConstellationMemoryArcadeP
           description="Flip 12 cosmic star-cards to pair illustrated meanings with their foreign phrases, draw glowing constellations, and clear bonus star waves!"
           startLabel="Chart the Stars!"
           bestScore={bestScore}
+          arcadeTier={arcadeTier}
           isCompact={isCompact}
           emblem={<ConstellationMemoryEmblem size={isCompact ? 54 : 68} />}
           buttonClass="tactile-btn-indigo"
@@ -561,6 +582,23 @@ export function ConstellationMemoryArcade({ onExit }: ConstellationMemoryArcadeP
                                 ? `${card.item.romanized} · ${card.item.phonetic}`
                                 : card.item.phonetic}
                             </span>
+                          ) : card.item.romanized ? (
+                            <span
+                              dir="ltr"
+                              style={{
+                                fontSize: '0.56rem',
+                                fontWeight: 800,
+                                lineHeight: 1.15,
+                                color: '#4f46e5',
+                                maxWidth: '100%',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                textAlign: 'center',
+                              }}
+                            >
+                              {card.item.romanized}
+                            </span>
                           ) : null}
                         </>
                       )
@@ -597,6 +635,8 @@ export function ConstellationMemoryArcade({ onExit }: ConstellationMemoryArcadeP
           bestScore={bestScore}
           heartsWon={summary.heartsWon}
           bonusGems={summary.bonusGems}
+          xpEarned={summary.xpEarned}
+          arcadeTier={arcadeTier}
           statLine={`Pairs matched: ${summary.pairsMatched} • Waves cleared: ${summary.wavesCleared}`}
           isCompact={isCompact}
           onPlayAgain={startRound}

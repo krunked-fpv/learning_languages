@@ -2,8 +2,13 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx } from '../../audio';
-import { useVaultStore, vaultActions } from '../../store/useVaultStore';
-import { LANGUAGE_META, type ArcadeLanternItem, type CharacterPose } from '../../types/contracts';
+import { useVaultStore } from '../../store/useVaultStore';
+import {
+  LANGUAGE_META,
+  type ArcadeLanternItem,
+  type ArcadeProficiencyTier,
+  type CharacterPose,
+} from '../../types/contracts';
 import { MascotStage } from '../characters/MascotStage';
 import { SkyCatcherEmblem } from './ArcadeEmblems';
 import {
@@ -13,7 +18,9 @@ import {
   ArcadeSummaryCard,
   SOFT_BTN_STYLE,
   TargetPromptBar,
+  computeScaledArcadeRewards,
   getArcadeForeignTextStyle,
+  recordArcadeRunResult,
   useArcadeContainerMetrics,
   useArcadeDeck,
 } from './arcadeShared';
@@ -31,18 +38,21 @@ interface FallingEntity {
 }
 
 export interface SkyCatcherArcadeProps {
+  arcadeTier?: ArcadeProficiencyTier;
   isHeartRecovery?: boolean;
   onResumeLesson?: () => void;
   onExit?: () => void;
 }
 
 export function SkyCatcherArcade({
+  arcadeTier = 'sprout',
   isHeartRecovery = false,
   onResumeLesson,
   onExit,
 }: SkyCatcherArcadeProps) {
   const { activeProfile } = useVaultStore();
-  const { language, lexicon, targetLexicon, bestScoreFor } = useArcadeDeck();
+  const { language, lexicon, targetLexicon, bestScoreFor, paceMultiplier } =
+    useArcadeDeck(arcadeTier);
   const { containerRef, isCompact } = useArcadeContainerMetrics();
   const langDir = LANGUAGE_META[language].dir;
 
@@ -62,6 +72,7 @@ export function SkyCatcherArcade({
     score: number;
     heartsWon: number;
     bonusGems: number;
+    xpEarned: number;
     catches: number;
   } | null>(null);
 
@@ -122,17 +133,23 @@ export function SkyCatcherArcade({
     const totalCatches = catchesRef.current;
     const finalScore = scoreRef.current;
     const heartsWon = Math.min(5, Math.max(1, Math.ceil(totalCatches / 2)));
-    const bonusGems = totalCatches * 3 + (totalCatches >= 6 ? 10 : 0);
-    vaultActions.recordArcadeGameResult({
+    const baseGems = totalCatches * 3 + (totalCatches >= 6 ? 10 : 0);
+    const { bonusGems, xpEarned } = computeScaledArcadeRewards({
+      arcadeTier,
+      baseGems,
+      performanceUnits: totalCatches,
+    });
+    recordArcadeRunResult({
       gameId: 'sky_catcher',
       score: finalScore,
       heartsWon,
       bonusGems,
+      xpEarned,
     });
     playSfx('unit_fanfare');
-    setSummaryResult({ score: finalScore, heartsWon, bonusGems, catches: totalCatches });
+    setSummaryResult({ score: finalScore, heartsWon, bonusGems, xpEarned, catches: totalCatches });
     setPhase('summary');
-  }, []);
+  }, [arcadeTier]);
 
   const startRound = useCallback(() => {
     playSfx('button_click');
@@ -160,13 +177,13 @@ export function SkyCatcherArcade({
         item: first,
         x: 50,
         y: 8,
-        speed: 22,
+        speed: 22 * paceMultiplier,
         swayOffset: 0,
       },
     ];
     setEntities([...entitiesRef.current]);
     setPhase('playing');
-  }, [pickNextTarget]);
+  }, [pickNextTarget, paceMultiplier]);
 
   useEffect(() => {
     if (isHeartRecovery) {
@@ -222,8 +239,9 @@ export function SkyCatcherArcade({
       }
 
       let nextPipX = pipXRef.current;
-      if (keysRef.current.left) nextPipX -= 68 * dt;
-      if (keysRef.current.right) nextPipX += 68 * dt;
+      const moveSpeed = 68 * Math.max(1, paceMultiplier * 0.95);
+      if (keysRef.current.left) nextPipX -= moveSpeed * dt;
+      if (keysRef.current.right) nextPipX += moveSpeed * dt;
       nextPipX = Math.max(12, Math.min(88, nextPipX));
       if (nextPipX !== pipXRef.current) {
         pipXRef.current = nextPipX;
@@ -231,7 +249,7 @@ export function SkyCatcherArcade({
       }
 
       spawnTimerRef.current += dt;
-      if (spawnTimerRef.current >= 1.1 && entitiesRef.current.length < 6) {
+      if (spawnTimerRef.current >= 1.1 / paceMultiplier && entitiesRef.current.length < 6) {
         spawnTimerRef.current = 0;
         const activeLanternIds = new Set(
           entitiesRef.current
@@ -249,7 +267,7 @@ export function SkyCatcherArcade({
             kind: 'cloud',
             x: 16 + Math.random() * 68,
             y: -8,
-            speed: 23 + Math.random() * 9,
+            speed: (23 + Math.random() * 9) * paceMultiplier,
             swayOffset: Math.random() * Math.PI * 2,
           });
         } else {
@@ -268,7 +286,7 @@ export function SkyCatcherArcade({
               item,
               x: 21 + Math.random() * 58,
               y: -10,
-              speed: 19 + Math.random() * 8,
+              speed: (19 + Math.random() * 8) * paceMultiplier,
               swayOffset: Math.random() * Math.PI * 2,
             });
           }
@@ -340,7 +358,7 @@ export function SkyCatcherArcade({
 
     rafId = window.requestAnimationFrame(step);
     return () => window.cancelAnimationFrame(rafId);
-  }, [phase, lexicon, langDir, finishRound, pickNextTarget, schedulePoseReset]);
+  }, [phase, lexicon, langDir, paceMultiplier, finishRound, pickNextTarget, schedulePoseReset]);
 
   const movePipToClientX = (clientX: number) => {
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -379,6 +397,7 @@ export function SkyCatcherArcade({
         timeLeft={timeLeft}
         combo={combo}
         heartsPreview={heartsPreview}
+        arcadeTier={arcadeTier}
         isCompact={isCompact}
         onExit={onExit}
       />
@@ -391,6 +410,7 @@ export function SkyCatcherArcade({
           description="Drag Pip, tap Left/Right buttons, or press Arrow / A-D keys for 45 seconds to catch lanterns matching the target English meaning!"
           startLabel="Start 45s Fiesta!"
           bestScore={bestScore}
+          arcadeTier={arcadeTier}
           isCompact={isCompact}
           emblem={<SkyCatcherEmblem size={isCompact ? 54 : 68} />}
           onStart={startRound}
@@ -646,6 +666,8 @@ export function SkyCatcherArcade({
           bestScore={bestScore}
           heartsWon={summaryResult.heartsWon}
           bonusGems={summaryResult.bonusGems}
+          xpEarned={summaryResult.xpEarned}
+          arcadeTier={arcadeTier}
           statLine={`Lanterns caught: ${summaryResult.catches}`}
           isCompact={isCompact}
           isHeartRecovery={isHeartRecovery}

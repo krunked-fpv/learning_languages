@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { Gem, Heart, Play, RotateCcw, Star, Volume2, X } from 'lucide-react';
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { Gem, Heart, Play, RotateCcw, Sparkles, Star, Volume2, X } from 'lucide-react';
 import { playSfx, speakPhrase } from '../../audio';
 import { getArcadeLexicon } from '../../curriculum';
-import { useVaultStore } from '../../store/useVaultStore';
+import { useVaultStore, vaultActions } from '../../store/useVaultStore';
 import {
   LANGUAGE_META,
   type ArcadeLanternItem,
+  type ArcadeProficiencyTier,
   type CompanionId,
   type LanguageCode,
+  type ProficiencyTier,
 } from '../../types/contracts';
 import { MascotStage } from '../characters/MascotStage';
 import { ConfettiBurst } from '../fx/JuiceEngine';
@@ -248,36 +250,191 @@ export function getArcadeForeignTextStyle(
   };
 }
 
-export function useArcadeDeck(): {
+export interface ArcadeTierMeta {
+  id: ArcadeProficiencyTier;
+  label: string;
+  cefrLabel: string;
+  paceLabel: string;
+  rewardLabel: string;
+  paceMultiplier: number;
+  rewardMultiplier: number;
+  baseXp: number;
+  accentColor: string;
+  bgColor: string;
+  borderColor: string;
+  textColor: string;
+}
+
+export const ARCADE_TIER_LIST: readonly ArcadeProficiencyTier[] = ['sprout', 'voyager', 'master'];
+
+export const ARCADE_TIER_META: Record<ArcadeProficiencyTier, ArcadeTierMeta> = {
+  sprout: {
+    id: 'sprout',
+    label: 'Sprout',
+    cefrLabel: 'A1–A2',
+    paceLabel: '0.95x',
+    rewardLabel: '1x',
+    paceMultiplier: 0.95,
+    rewardMultiplier: 1,
+    baseXp: 15,
+    accentColor: '#10b981',
+    bgColor: '#ecfdf5',
+    borderColor: '#34d399',
+    textColor: '#065f46',
+  },
+  voyager: {
+    id: 'voyager',
+    label: 'Voyager',
+    cefrLabel: 'B1–B2',
+    paceLabel: '1.12x',
+    rewardLabel: '1.5x',
+    paceMultiplier: 1.12,
+    rewardMultiplier: 1.5,
+    baseXp: 24,
+    accentColor: '#8b5cf6',
+    bgColor: '#ede9fe',
+    borderColor: '#a78bfa',
+    textColor: '#5b21b6',
+  },
+  master: {
+    id: 'master',
+    label: 'Master',
+    cefrLabel: 'C1–C2',
+    paceLabel: '1.28x',
+    rewardLabel: '2x',
+    paceMultiplier: 1.28,
+    rewardMultiplier: 2,
+    baseXp: 32,
+    accentColor: '#ec4899',
+    bgColor: '#fce7f3',
+    borderColor: '#f472b6',
+    textColor: '#9d174d',
+  },
+};
+
+export function computeScaledArcadeRewards(params: {
+  arcadeTier: ArcadeProficiencyTier;
+  baseGems: number;
+  performanceUnits: number;
+  baseXpBonus?: number;
+}): { bonusGems: number; xpEarned: number } {
+  const meta = ARCADE_TIER_META[params.arcadeTier];
+  const safeBaseGems = Number.isFinite(params.baseGems) ? Math.max(0, Math.round(params.baseGems)) : 0;
+  const safePerf = Number.isFinite(params.performanceUnits)
+    ? Math.max(0, Math.round(params.performanceUnits))
+    : 0;
+  const safeXpBonus = params.baseXpBonus && Number.isFinite(params.baseXpBonus)
+    ? Math.max(0, Math.round(params.baseXpBonus))
+    : 0;
+
+  return {
+    bonusGems: Math.max(0, Math.round(safeBaseGems * meta.rewardMultiplier)),
+    xpEarned: Math.max(10, Math.round((meta.baseXp + safePerf * 2 + safeXpBonus) * meta.rewardMultiplier)),
+  };
+}
+
+export function recordArcadeRunResult(params: {
+  gameId: string;
+  score: number;
+  heartsWon: number;
+  bonusGems: number;
+  xpEarned: number;
+}): void {
+  type RecordWithXp = (input: {
+    gameId: string;
+    score: number;
+    heartsWon: number;
+    bonusGems: number;
+    xpEarned?: number;
+  }) => void;
+  (vaultActions.recordArcadeGameResult as RecordWithXp)(params);
+}
+
+function matchesArcadeProficiencyTier(
+  proficiencyTier: ProficiencyTier | undefined,
+  arcadeTier: ArcadeProficiencyTier
+): boolean {
+  if (!proficiencyTier) return false;
+  if (arcadeTier === 'sprout') return proficiencyTier === 'A1' || proficiencyTier === 'A2';
+  if (arcadeTier === 'voyager') return proficiencyTier === 'B1' || proficiencyTier === 'B2';
+  return proficiencyTier === 'C1_C2';
+}
+
+export function useArcadeDeck(arcadeTier: ArcadeProficiencyTier = 'sprout'): {
   language: LanguageCode;
   lexicon: ArcadeLanternItem[];
   targetLexicon: ArcadeLanternItem[];
   bestScoreFor: (gameId: string) => number;
+  arcadeTier: ArcadeProficiencyTier;
+  tierMeta: ArcadeTierMeta;
+  paceMultiplier: number;
+  rewardMultiplier: number;
 } {
   const { activeProfile, activeProgress } = useVaultStore();
   const language = activeProfile.activeLanguage;
+  const tierMeta = ARCADE_TIER_META[arcadeTier];
 
-  const lexicon = useMemo(() => {
+  const rawLexicon = useMemo(() => {
     try {
-      const items = getArcadeLexicon(
+      type GetArcadeLexiconCompat = (
+        lang: LanguageCode,
+        unlockedVocabIds: readonly string[],
+        currentUnitIndex: number,
+        tier?: ArcadeProficiencyTier
+      ) => ArcadeLanternItem[];
+
+      const items = (getArcadeLexicon as GetArcadeLexiconCompat)(
         language,
         activeProgress?.unlockedVocabIds ?? [],
-        activeProgress?.currentUnitIndex ?? 0
+        activeProgress?.currentUnitIndex ?? 0,
+        arcadeTier
       );
       return items.length >= 8 ? items : FALLBACK_ARCADE_LEXICON[language];
     } catch {
       return FALLBACK_ARCADE_LEXICON[language];
     }
-  }, [language, activeProgress?.unlockedVocabIds, activeProgress?.currentUnitIndex]);
+  }, [language, activeProgress?.unlockedVocabIds, activeProgress?.currentUnitIndex, arcadeTier]);
 
-  const targetLexicon = useMemo(() => {
+  const { lexicon, targetLexicon } = useMemo(() => {
+    const hasTierTags = rawLexicon.some((item) => item.proficiencyTier !== undefined);
+    if (hasTierTags) {
+      const matched = rawLexicon.filter((item) =>
+        matchesArcadeProficiencyTier(item.proficiencyTier, arcadeTier)
+      );
+      const rest = rawLexicon.filter(
+        (item) => !matchesArcadeProficiencyTier(item.proficiencyTier, arcadeTier)
+      );
+
+      if (matched.length >= 8) {
+        const paddedLexicon = matched.length >= 12 ? matched : [...matched, ...rest.slice(0, 12 - matched.length)];
+        const unitIdx = activeProgress?.currentUnitIndex ?? 0;
+        const unlockedCount = activeProgress?.unlockedVocabIds?.length ?? 0;
+        const targets =
+          arcadeTier === 'sprout' && unitIdx === 0 && unlockedCount < 13
+            ? matched.slice(0, Math.min(13, matched.length))
+            : matched;
+        return { lexicon: paddedLexicon, targetLexicon: targets };
+      }
+
+      if (matched.length > 0) {
+        const prioritized = [...matched, ...rest];
+        return {
+          lexicon: prioritized,
+          targetLexicon: matched.length >= 4 ? matched : prioritized,
+        };
+      }
+    }
+
     const unitIdx = activeProgress?.currentUnitIndex ?? 0;
     const unlockedCount = activeProgress?.unlockedVocabIds?.length ?? 0;
-    if (unitIdx === 0 && unlockedCount < 13) {
-      return lexicon.slice(0, Math.min(13, lexicon.length));
+    if (arcadeTier === 'sprout' && unitIdx === 0 && unlockedCount < 13) {
+      return {
+        lexicon: rawLexicon,
+        targetLexicon: rawLexicon.slice(0, Math.min(13, rawLexicon.length)),
+      };
     }
-    return lexicon;
-  }, [lexicon, activeProgress?.currentUnitIndex, activeProgress?.unlockedVocabIds?.length]);
+    return { lexicon: rawLexicon, targetLexicon: rawLexicon };
+  }, [rawLexicon, arcadeTier, activeProgress?.currentUnitIndex, activeProgress?.unlockedVocabIds?.length]);
 
   const bestScoreFor = (gameId: string): number => {
     const mapScore = activeProfile.arcadeHighScores?.[gameId] ?? 0;
@@ -287,42 +444,76 @@ export function useArcadeDeck(): {
     return mapScore;
   };
 
-  return { language, lexicon, targetLexicon, bestScoreFor };
+  return {
+    language,
+    lexicon,
+    targetLexicon,
+    bestScoreFor,
+    arcadeTier,
+    tierMeta,
+    paceMultiplier: tierMeta.paceMultiplier,
+    rewardMultiplier: tierMeta.rewardMultiplier,
+  };
 }
 
 export function useArcadeContainerMetrics() {
-  const containerRef = useRef<HTMLElement | null>(null);
+  const [containerEl, setContainerEl] = useState<HTMLElement | null>(null);
   const [size, setSize] = useState<{ width: number; height: number }>(() => ({
     width: typeof window !== 'undefined' ? window.innerWidth : 1024,
     height: typeof window !== 'undefined' ? window.innerHeight : 768,
   }));
 
   useEffect(() => {
-    const el = containerRef.current;
-    if (el && typeof ResizeObserver !== 'undefined') {
-      const obs = new ResizeObserver((entries) => {
+    const updateFromWindow = () => {
+      if (containerEl) {
+        const rect = containerEl.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          setSize({ width: rect.width, height: rect.height });
+          return;
+        }
+      }
+      if (typeof window !== 'undefined') {
+        setSize({ width: window.innerWidth, height: window.innerHeight });
+      }
+    };
+
+    updateFromWindow();
+
+    let obs: ResizeObserver | null = null;
+    if (containerEl && typeof ResizeObserver !== 'undefined') {
+      obs = new ResizeObserver((entries) => {
         const rect = entries[0]?.contentRect;
         if (rect && rect.width > 0 && rect.height > 0) {
           setSize({ width: rect.width, height: rect.height });
         }
       });
-      obs.observe(el);
-      return () => obs.disconnect();
+      obs.observe(containerEl);
     }
 
     if (typeof window !== 'undefined') {
-      const onResize = () => setSize({ width: window.innerWidth, height: window.innerHeight });
-      window.addEventListener('resize', onResize);
-      return () => window.removeEventListener('resize', onResize);
+      window.addEventListener('resize', updateFromWindow);
     }
-    return undefined;
-  }, []);
+
+    return () => {
+      obs?.disconnect();
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', updateFromWindow);
+      }
+    };
+  }, [containerEl]);
 
   const isNarrow = size.width < 720;
   const isShort = size.height < 640;
   const isCompact = isNarrow || isShort;
 
-  return { containerRef, width: size.width, height: size.height, isNarrow, isShort, isCompact };
+  return {
+    containerRef: setContainerEl,
+    width: size.width,
+    height: size.height,
+    isNarrow,
+    isShort,
+    isCompact,
+  };
 }
 
 export function pickDistinctItems(
@@ -387,6 +578,7 @@ export interface ArcadeHeaderBarProps {
   timeLeft: number;
   combo?: number;
   heartsPreview?: number;
+  arcadeTier?: ArcadeProficiencyTier;
   isCompact: boolean;
   onExit?: () => void;
 }
@@ -400,9 +592,11 @@ export function ArcadeHeaderBar({
   timeLeft,
   combo = 0,
   heartsPreview,
+  arcadeTier,
   isCompact,
   onExit,
 }: ArcadeHeaderBarProps) {
+  const tierMeta = arcadeTier ? ARCADE_TIER_META[arcadeTier] : null;
   return (
     <div
       style={{
@@ -472,6 +666,29 @@ export function ArcadeHeaderBar({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        {tierMeta && !isCompact ? (
+          <span
+            style={{
+              padding: '4px 9px',
+              borderRadius: 999,
+              background: tierMeta.bgColor,
+              borderTopWidth: 2,
+              borderRightWidth: 2,
+              borderLeftWidth: 2,
+              borderBottomWidth: 3,
+              borderStyle: 'solid',
+              borderColor: tierMeta.borderColor,
+              color: tierMeta.textColor,
+              fontWeight: 900,
+              fontSize: '0.74rem',
+              fontFamily: 'var(--font-display)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {tierMeta.label} {tierMeta.paceLabel}
+          </span>
+        ) : null}
+
         {heartsPreview !== undefined ? (
           <span
             style={{
@@ -748,6 +965,7 @@ export function ArcadeReadyCard({
   description,
   startLabel,
   bestScore,
+  arcadeTier,
   isCompact,
   emblem,
   buttonClass = 'tactile-btn-primary',
@@ -759,12 +977,14 @@ export function ArcadeReadyCard({
   description: string;
   startLabel: string;
   bestScore: number;
+  arcadeTier?: ArcadeProficiencyTier;
   isCompact: boolean;
   emblem?: ReactNode;
   buttonClass?: string;
   onStart: () => void;
 }) {
   const { activeProfile } = useVaultStore();
+  const tierMeta = arcadeTier ? ARCADE_TIER_META[arcadeTier] : null;
 
   return (
     <div
@@ -838,6 +1058,27 @@ export function ArcadeReadyCard({
         >
           Best Score: {bestScore}
         </span>
+        {tierMeta ? (
+          <span
+            style={{
+              padding: '4px 10px',
+              borderRadius: 999,
+              background: tierMeta.bgColor,
+              borderTopWidth: 2,
+              borderRightWidth: 2,
+              borderLeftWidth: 2,
+              borderBottomWidth: 3,
+              borderStyle: 'solid',
+              borderColor: tierMeta.borderColor,
+              color: tierMeta.textColor,
+              fontSize: '0.78rem',
+              fontWeight: 900,
+              fontFamily: 'var(--font-display)',
+            }}
+          >
+            {tierMeta.label} ({tierMeta.cefrLabel}) · {tierMeta.paceLabel} Pace · {tierMeta.rewardLabel} Rewards
+          </span>
+        ) : null}
       </div>
 
       <button
@@ -860,6 +1101,8 @@ export function ArcadeSummaryCard({
   bestScore,
   heartsWon,
   bonusGems,
+  xpEarned,
+  arcadeTier,
   statLine,
   isCompact,
   isHeartRecovery = false,
@@ -877,6 +1120,8 @@ export function ArcadeSummaryCard({
   bestScore: number;
   heartsWon: number;
   bonusGems: number;
+  xpEarned?: number;
+  arcadeTier?: ArcadeProficiencyTier;
   statLine: string;
   isCompact: boolean;
   isHeartRecovery?: boolean;
@@ -888,6 +1133,7 @@ export function ArcadeSummaryCard({
   exitLabel?: string;
 }) {
   const { activeProfile } = useVaultStore();
+  const tierMeta = arcadeTier ? ARCADE_TIER_META[arcadeTier] : null;
 
   return (
     <div
@@ -947,6 +1193,18 @@ export function ArcadeSummaryCard({
         >
           <Gem size={14} /> +{bonusGems} Gems
         </span>
+        {xpEarned !== undefined ? (
+          <span
+            className="hud-pill hud-pill-static"
+            style={{
+              background: tierMeta?.bgColor ?? '#ecfdf5',
+              borderColor: tierMeta?.borderColor ?? '#34d399',
+              color: tierMeta?.textColor ?? '#065f46',
+            }}
+          >
+            <Sparkles size={14} /> +{xpEarned} XP
+          </span>
+        ) : null}
       </div>
 
       <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-muted, #475569)' }}>

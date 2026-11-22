@@ -2,8 +2,12 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Music2 } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
-import { vaultActions } from '../../store/useVaultStore';
-import { LANGUAGE_META, type ArcadeLanternItem, type CharacterPose } from '../../types/contracts';
+import {
+  LANGUAGE_META,
+  type ArcadeLanternItem,
+  type ArcadeProficiencyTier,
+  type CharacterPose,
+} from '../../types/contracts';
 import { MascotStage } from '../characters/MascotStage';
 import { RhythmChefEmblem } from './ArcadeEmblems';
 import {
@@ -12,8 +16,10 @@ import {
   ArcadeReadyCard,
   ArcadeSummaryCard,
   TargetPromptBar,
+  computeScaledArcadeRewards,
   getArcadeForeignTextStyle,
   pickDistinctItems,
+  recordArcadeRunResult,
   useArcadeContainerMetrics,
   useArcadeDeck,
 } from './arcadeShared';
@@ -34,11 +40,16 @@ interface RhythmRound {
 }
 
 export interface RhythmChefArcadeProps {
+  arcadeTier?: ArcadeProficiencyTier;
   onExit: () => void;
 }
 
-export function RhythmChefArcade({ onExit }: RhythmChefArcadeProps) {
-  const { language, lexicon, targetLexicon, bestScoreFor } = useArcadeDeck();
+export function RhythmChefArcade({
+  arcadeTier = 'sprout',
+  onExit,
+}: RhythmChefArcadeProps) {
+  const { language, lexicon, targetLexicon, bestScoreFor, paceMultiplier } =
+    useArcadeDeck(arcadeTier);
   const { containerRef, isCompact } = useArcadeContainerMetrics();
   const langDir = LANGUAGE_META[language].dir;
 
@@ -65,6 +76,7 @@ export function RhythmChefArcade({ onExit }: RhythmChefArcadeProps) {
     score: number;
     heartsWon: number;
     bonusGems: number;
+    xpEarned: number;
     hits: number;
     perfects: number;
   } | null>(null);
@@ -143,23 +155,31 @@ export function RhythmChefArcade({ onExit }: RhythmChefArcadeProps) {
     const totalPerfects = perfectsRef.current;
     const finalScore = scoreRef.current;
     const heartsWon = Math.min(5, Math.max(1, Math.ceil(totalHits / 3)));
-    const bonusGems = Math.floor(finalScore / 30) + totalPerfects * 2;
-    vaultActions.recordArcadeGameResult({
+    const baseGems = Math.floor(finalScore / 30) + totalPerfects * 2;
+    const { bonusGems, xpEarned } = computeScaledArcadeRewards({
+      arcadeTier,
+      baseGems,
+      performanceUnits: totalHits,
+      baseXpBonus: totalPerfects,
+    });
+    recordArcadeRunResult({
       gameId: 'rhythm_chef',
       score: finalScore,
       heartsWon,
       bonusGems,
+      xpEarned,
     });
     playSfx('unit_fanfare');
     setSummary({
       score: finalScore,
       heartsWon,
       bonusGems,
+      xpEarned,
       hits: totalHits,
       perfects: totalPerfects,
     });
     setPhase('summary');
-  }, []);
+  }, [arcadeTier]);
 
   const startRound = useCallback(() => {
     playSfx('button_click');
@@ -274,7 +294,8 @@ export function RhythmChefArcade({ onExit }: RhythmChefArcadeProps) {
         return;
       }
 
-      const nextBeat = (elapsedRef.current % BEAT_CYCLE_SECONDS) / BEAT_CYCLE_SECONDS;
+      const scaledCycle = BEAT_CYCLE_SECONDS / paceMultiplier;
+      const nextBeat = (elapsedRef.current % scaledCycle) / scaledCycle;
       beatPhaseRef.current = nextBeat;
       setBeatPhase(nextBeat);
       rafId = window.requestAnimationFrame(tick);
@@ -282,7 +303,7 @@ export function RhythmChefArcade({ onExit }: RhythmChefArcadeProps) {
 
     rafId = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(rafId);
-  }, [phase, finishRound]);
+  }, [phase, paceMultiplier, finishRound]);
 
   const inBeatZone = beatPhase >= 0.58 || beatPhase <= 0.14;
   const ringScale = 1 + (1 - beatPhase) * 0.24;
@@ -302,6 +323,7 @@ export function RhythmChefArcade({ onExit }: RhythmChefArcadeProps) {
         bestScore={bestScore}
         timeLeft={timeLeft}
         combo={combo}
+        arcadeTier={arcadeTier}
         isCompact={isCompact}
         onExit={onExit}
       />
@@ -314,6 +336,7 @@ export function RhythmChefArcade({ onExit }: RhythmChefArcadeProps) {
           description="Read or hear Mateo's kitchen order while glowing beat rings contract around the 4 drum pads. Tap the matching word pad inside the golden beat window for PERFECT harmonies!"
           startLabel="Start Kitchen Beat!"
           bestScore={bestScore}
+          arcadeTier={arcadeTier}
           isCompact={isCompact}
           emblem={<RhythmChefEmblem size={isCompact ? 54 : 68} />}
           buttonClass="tactile-btn-amber"
@@ -551,6 +574,8 @@ export function RhythmChefArcade({ onExit }: RhythmChefArcadeProps) {
           bestScore={bestScore}
           heartsWon={summary.heartsWon}
           bonusGems={summary.bonusGems}
+          xpEarned={summary.xpEarned}
+          arcadeTier={arcadeTier}
           statLine={`Beats hit: ${summary.hits} • Golden Perfects: ${summary.perfects}`}
           isCompact={isCompact}
           onPlayAgain={startRound}

@@ -2,8 +2,12 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { TrainFront } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
-import { vaultActions } from '../../store/useVaultStore';
-import { LANGUAGE_META, type ArcadeLanternItem, type CharacterPose } from '../../types/contracts';
+import {
+  LANGUAGE_META,
+  type ArcadeLanternItem,
+  type ArcadeProficiencyTier,
+  type CharacterPose,
+} from '../../types/contracts';
 import { MascotStage } from '../characters/MascotStage';
 import { TrainSwitcherEmblem } from './ArcadeEmblems';
 import {
@@ -12,8 +16,10 @@ import {
   ArcadeReadyCard,
   ArcadeSummaryCard,
   TargetPromptBar,
+  computeScaledArcadeRewards,
   getArcadeForeignTextStyle,
   pickDistinctItems,
+  recordArcadeRunResult,
   useArcadeContainerMetrics,
   useArcadeDeck,
 } from './arcadeShared';
@@ -42,11 +48,16 @@ function getTrainCoords(progress: number, lane: 0 | 1 | 2): { x: number; y: numb
 }
 
 export interface TrainSwitcherArcadeProps {
+  arcadeTier?: ArcadeProficiencyTier;
   onExit: () => void;
 }
 
-export function TrainSwitcherArcade({ onExit }: TrainSwitcherArcadeProps) {
-  const { language, lexicon, targetLexicon, bestScoreFor } = useArcadeDeck();
+export function TrainSwitcherArcade({
+  arcadeTier = 'sprout',
+  onExit,
+}: TrainSwitcherArcadeProps) {
+  const { language, lexicon, targetLexicon, bestScoreFor, paceMultiplier } =
+    useArcadeDeck(arcadeTier);
   const { containerRef, isCompact } = useArcadeContainerMetrics();
   const langDir = LANGUAGE_META[language].dir;
 
@@ -67,6 +78,7 @@ export function TrainSwitcherArcade({ onExit }: TrainSwitcherArcadeProps) {
     score: number;
     heartsWon: number;
     bonusGems: number;
+    xpEarned: number;
     coupled: number;
   } | null>(null);
 
@@ -137,22 +149,29 @@ export function TrainSwitcherArcade({ onExit }: TrainSwitcherArcadeProps) {
     const totalCoupled = coupledRef.current;
     const finalScore = scoreRef.current;
     const heartsWon = Math.min(5, Math.max(1, Math.ceil(totalCoupled / 2)));
-    const bonusGems = Math.floor(finalScore / 30) + (totalCoupled >= 5 ? 5 : 0);
-    vaultActions.recordArcadeGameResult({
+    const baseGems = Math.floor(finalScore / 30) + (totalCoupled >= 5 ? 5 : 0);
+    const { bonusGems, xpEarned } = computeScaledArcadeRewards({
+      arcadeTier,
+      baseGems,
+      performanceUnits: totalCoupled,
+    });
+    recordArcadeRunResult({
       gameId: 'train_switcher',
       score: finalScore,
       heartsWon,
       bonusGems,
+      xpEarned,
     });
     playSfx('unit_fanfare');
     setSummary({
       score: finalScore,
       heartsWon,
       bonusGems,
+      xpEarned,
       coupled: totalCoupled,
     });
     setPhase('summary');
-  }, []);
+  }, [arcadeTier]);
 
   const startRound = useCallback(() => {
     playSfx('button_click');
@@ -261,8 +280,8 @@ export function TrainSwitcherArcade({ onExit }: TrainSwitcherArcadeProps) {
         return;
       }
 
-      const baseSpeed = 0.21 + Math.min(0.14, coupledRef.current * 0.015);
-      const speed = boostRef.current ? 1.85 : baseSpeed;
+      const baseSpeed = (0.21 + Math.min(0.14, coupledRef.current * 0.015)) * paceMultiplier;
+      const speed = boostRef.current ? 1.85 * Math.max(1, paceMultiplier) : baseSpeed;
       const nextProg = trainProgressRef.current + speed * dt;
       if (nextProg >= 1) {
         resolveArrival(selectedLaneRef.current);
@@ -276,7 +295,7 @@ export function TrainSwitcherArcade({ onExit }: TrainSwitcherArcadeProps) {
 
     rafId = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(rafId);
-  }, [phase, finishRound, resolveArrival]);
+  }, [phase, paceMultiplier, finishRound, resolveArrival]);
 
   const trainPos = getTrainCoords(trainProgress, selectedLane);
   const bestScore = bestScoreFor('train_switcher');
@@ -295,6 +314,7 @@ export function TrainSwitcherArcade({ onExit }: TrainSwitcherArcadeProps) {
         bestScore={bestScore}
         timeLeft={timeLeft}
         combo={combo}
+        arcadeTier={arcadeTier}
         isCompact={isCompact}
         onExit={onExit}
       />
@@ -307,6 +327,7 @@ export function TrainSwitcherArcade({ onExit }: TrainSwitcherArcadeProps) {
           description="Benni's Alpine Express speeds toward the 3-way junction. Tap Track 1, 2, or 3 (or press 1/2/3 or Arrow keys) matching the prompt to couple golden carriages!"
           startLabel="Start Express Shift!"
           bestScore={bestScore}
+          arcadeTier={arcadeTier}
           isCompact={isCompact}
           emblem={<TrainSwitcherEmblem size={isCompact ? 54 : 68} />}
           buttonClass="tactile-btn-success"
@@ -590,6 +611,8 @@ export function TrainSwitcherArcade({ onExit }: TrainSwitcherArcadeProps) {
           bestScore={bestScore}
           heartsWon={summary.heartsWon}
           bonusGems={summary.bonusGems}
+          xpEarned={summary.xpEarned}
+          arcadeTier={arcadeTier}
           statLine={`Golden carriages coupled: ${summary.coupled}`}
           isCompact={isCompact}
           onPlayAgain={startRound}
