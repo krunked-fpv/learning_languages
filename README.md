@@ -17,12 +17,16 @@
 
 ## Key Features
 
-- **5-Unit Cultural Progression per Language:** Progressive lesson trails (`lesson`, `story`, `chest`, and `boss` nodes) featuring Discovery Cards, bidirectional Word Banks, Listen & Decode challenges, Pair-Match Rush rounds, interactive Mini-Stories, and Companion Boss Gauntlets.
+- **5-Unit Cultural Progression per Language:** Progressive lesson trails (`lesson`, `story`, `chest`, and `boss` nodes across 140 map nodes) featuring Discovery Cards, bidirectional Word Banks, Listen & Decode challenges, Pair-Match Rush rounds, interactive Mini-Stories, and Companion Boss Gauntlets.
+- **Deep Non-Repeating Level Pool (`levelPool.ts`):** Generates **2,000+ dynamic exercise variations** across the atlas (**23+ unique exercises per lesson node** and **8 turns per boss gauntlet**). Replay remix mode tracks seen exercise IDs in the save vault so replayed lessons and boss encounters deliver fresh, non-repeating challenges.
+- **Double-Juice Toy-Craft Polish:** Celebratory confetti cannons, floating XP/combo pop toasts, staggered victory star slams, snappy spring screen transitions, and warm acoustic Web Audio sound synthesis (`star_pop`, `whoosh_transition`, `bubble_pop`, `secret_fanfare`, and escalating combo harmonics).
 - **Accent-Forgiving & Teachable Grading:** Base ASCII entries (such as `nino`, `garcon`, `fur`, `strasse`, or `caffe`) pass without heart penalties while surfacing a celebratory **Accent Spotlight** explaining exact diacritics (`ñ`, `ç`, `ü`, `ß`, `è`, `à`) and grammatical articles (`el`/`la`, `le`/`la`/`l'`, `der`/`die`/`das`, `il`/`la`/`lo`/`l'`).
 - **Zero-Stall Offline Speech & Web Audio:** Synthesizes warm acoustic-style sound effects via `AudioContext` and falls back to a rhythmic marimba syllable cadence plus phonetic clue banners whenever native OS `speechSynthesis` voices are unavailable.
-- **Sky-Catcher Fiesta Arcade:** 60fps sky-gliding mini-game that helps young explorers practice unlocked vocabulary and recharge hearts mid-adventure.
+- **Sky-Catcher Fiesta & Secret Mini-Game (*Starlight Critter Choir*):**
+  - **Sky-Catcher Fiesta:** 60fps sky-gliding mini-game that helps young explorers practice unlocked vocabulary and recharge hearts mid-adventure.
+  - **Secret Unlockable — *Starlight Critter Choir*:** 45-second musical word-bubble rhythm game featuring all 5 companions (`Pip`, `Mateo`, `Colette`, `Benni`, and `Luca`), pentatonic bubble-pop melodies, Golden Star Notes, and a 5-streak **Starlight Disco Fever** meter. Unlock it by **clearing 3 lessons**, **clearing any Unit Boss**, or **tapping the Golden Starlight Compass 5 times in the top HUD**!
 - **Multi-Kid Save Vault:** Persists isolated progress across profiles (`localStorage` key `wanderling.vault.v1`) with strict schema-validated JSON export and replace/merge import.
-- **Cross-Platform Custom SVG Vector Flags & Art:** All language flags, portraits, and sticker illustrations render as crisp inline SVGs—no platform-dependent Unicode regional flag emojis.
+- **Cross-Platform Custom SVG Vector Flags & Art:** All language flags, portraits, and 60 sticker illustrations render as crisp inline SVGs—no platform-dependent Unicode regional flag emojis.
 - **Offline-First Relative-Subpath PWA:** Built with Vite `base: './'`, zero external CDN hotlinks, pure-Node raster RGBA PNG icons, and a network-first Service Worker (`./sw.js`).
 
 ---
