@@ -10,6 +10,7 @@ import {
   calculateComboMultiplier,
   calculateLessonRewards,
   evaluateUnlockedBadges,
+  getBadgeProgress,
 } from '../src/core';
 import {
   STORAGE_KEY,
@@ -444,5 +445,60 @@ describe('Challenge 3-vault: Progression, Streaks, Badges, Leagues & Multi-Kid V
     window.localStorage.setItem(STORAGE_KEY, '{corrupt');
     const fallback = loadVaultFromStorage();
     expect(fallback.profiles.map((p) => p.name)).toEqual(['Leo', 'Maya']);
+  });
+
+  it('supports getBadgeProgress, 600-entry ring buffer recordSeenExercises, secret arcade vault actions, and legacy save imports', () => {
+    const profile = cloneDefaultLeo();
+    profile.stats.storiesCompleted = 1;
+    profile.languageProgress.es.completedNodeIds = ['es-u1-n5'];
+    profile.languageProgress.fr.xpEarned = 20;
+
+    expect(getBadgeProgress(profile, 'first_hello')).toEqual({
+      current: 1,
+      target: 1,
+      unlocked: true,
+    });
+    expect(getBadgeProgress(profile, 'polyglot_explorer')).toEqual({
+      current: 2,
+      target: 2,
+      unlocked: true,
+    });
+
+    // Ring buffer caps at 600 exercise IDs per language
+    const batch1 = Array.from({ length: 400 }, (_, i) => `ex-${i}`);
+    const batch2 = Array.from({ length: 300 }, (_, i) => `ex-${400 + i}`);
+    vaultActions.recordSeenExercises('es', batch1);
+    vaultActions.recordSeenExercises('es', batch2);
+    const seen = loadVaultFromStorage().profiles[0].languageProgress.es.seenExerciseIds ?? [];
+    expect(seen).toHaveLength(600);
+    expect(seen[0]).toBe('ex-100');
+    expect(seen[599]).toBe('ex-699');
+
+    // unlockSecretArcade awards +15 gems once
+    expect(vaultActions.unlockSecretArcade()).toBe(true);
+    expect(loadVaultFromStorage().profiles[0].gems).toBe(95);
+    expect(vaultActions.unlockSecretArcade()).toBe(false);
+    expect(loadVaultFromStorage().profiles[0].gems).toBe(95);
+
+    // completeSecretArcadeRun updates best score & restores hearts
+    vaultActions.recordAnswerOutcome({ isCorrect: false, comboCount: 0 });
+    vaultActions.completeSecretArcadeRun({ score: 80, heartsWon: 3, bonusGems: 12 });
+    vaultActions.completeSecretArcadeRun({ score: 50, heartsWon: 1, bonusGems: 4 });
+    const afterSecret = loadVaultFromStorage().profiles[0];
+    expect(afterSecret.secretArcadeBestScore).toBe(80);
+    expect(afterSecret.hearts).toBe(5);
+    expect(afterSecret.gems).toBe(111);
+
+    // Legacy v1 save without Wave 2A optional fields imports cleanly
+    const legacy = createDefaultVault() as unknown as Record<string, unknown>;
+    const legacyProfiles = (legacy.profiles as Array<Record<string, unknown>>).map((p) => {
+      const copy = { ...p };
+      delete copy.secretArcadeUnlocked;
+      delete copy.secretArcadeBestScore;
+      return copy;
+    });
+    legacy.profiles = legacyProfiles;
+    const legacyRes = importVaultJson(JSON.stringify(legacy), 'replace');
+    expect(legacyRes.ok).toBe(true);
   });
 });

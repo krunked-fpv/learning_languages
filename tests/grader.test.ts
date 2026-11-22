@@ -186,6 +186,18 @@ describe('Challenge 2: Adversarial Grader (Diacritics, Elisions, Smart Quotes, P
       gradeAnswer({ submitted: "un'amica", expected: "un'amica", language: 'it', expectedArticle: "un'" })
         .articleCoaching?.gender
     ).toBe('feminine');
+
+    const hintRes = gradeAnswer({
+      submitted: 'el nombre',
+      expected: 'el nombre',
+      language: 'es',
+      expectedArticle: 'Use "el" for masculine noun "nombre".',
+    });
+    expect(hintRes.articleCoaching).toEqual({
+      article: 'Grammar Tip',
+      gender: 'invariant',
+      note: 'Use "el" for masculine noun "nombre".',
+    });
   });
 
   it('fails genuinely wrong, empty, and punctuation-only answers with heartPenalty: 1', () => {

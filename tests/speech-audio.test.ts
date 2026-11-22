@@ -309,6 +309,10 @@ describe('Challenge 3-speech: Zero-Stall Speech Fallback, Watchdog & ListenDecod
       'unit_fanfare',
       'button_click',
       'flip_card',
+      'star_pop',
+      'whoosh_transition',
+      'bubble_pop',
+      'secret_fanfare',
     ];
 
     for (let i = 0; i < allSfx.length; i++) {
