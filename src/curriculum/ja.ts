@@ -23,6 +23,11 @@ import {
   japaneseCards6to8,
   japaneseExtraGlossary6to8,
 } from './jaUnits6to8';
+import {
+  buildJapaneseUnits9to16,
+  japaneseCards9to16,
+  japaneseExtraGlossary9to16,
+} from './jaUnits9to16';
 
 const U1 = 'ja-u1';
 const U2 = 'ja-u2';
@@ -1115,7 +1120,7 @@ const u5Cards: VocabCard[] = [
   }),
 ];
 
-const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards, ...japaneseCards6to8];
+const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards, ...japaneseCards6to8, ...japaneseCards9to16];
 
 const extraGlossary: GlossaryMap = {
   私: { translation: 'I / me', phonetic: 'wah-tah-shee', romanized: 'watashi' },
@@ -1315,7 +1320,11 @@ const extraGlossary: GlossaryMap = {
   できましたか: { translation: 'are you ready?', phonetic: 'deh-kee-mahsh-tah kah', romanized: 'dekimashita ka' },
 };
 
-const G = buildGlossaryFromCards(allCards, { ...extraGlossary, ...japaneseExtraGlossary6to8 });
+const G = buildGlossaryFromCards(allCards, {
+  ...extraGlossary,
+  ...japaneseExtraGlossary6to8,
+  ...japaneseExtraGlossary9to16,
+});
 export const japaneseGlossary: GlossaryMap = G;
 
 const units: CourseUnit[] = [
@@ -4108,6 +4117,7 @@ const units: CourseUnit[] = [
     ],
   },
   ...buildJapaneseUnits6to8(G),
+  ...buildJapaneseUnits9to16(G),
 ];
 
 export const japaneseCourse: LanguageCourse = buildCourse('ja', units);

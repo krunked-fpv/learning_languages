@@ -23,6 +23,11 @@ import {
   arabicExtraGlossary6to8,
   buildArabicUnits6to8,
 } from './arUnits6to8';
+import {
+  arabicCards9to16,
+  arabicExtraGlossary9to16,
+  buildArabicUnits9to16,
+} from './arUnits9to16';
 
 const U1 = 'ar-u1';
 const U2 = 'ar-u2';
@@ -1131,7 +1136,15 @@ const u5Cards: VocabCard[] = [
   }),
 ];
 
-const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards, ...arabicCards6to8];
+const allCards = [
+  ...u1Cards,
+  ...u2Cards,
+  ...u3Cards,
+  ...u4Cards,
+  ...u5Cards,
+  ...arabicCards6to8,
+  ...arabicCards9to16,
+];
 
 const extraGlossary: GlossaryMap = {
   بيب: { translation: 'Pip (our starling!)', phonetic: 'peep', romanized: 'Bīb' },
@@ -1585,7 +1598,11 @@ const extraGlossary: GlossaryMap = {
   العالية: { translation: 'the tall (fem.)', phonetic: 'al-AA-li-ya', romanized: 'al-ʿāliya' },
 };
 
-const G = buildGlossaryFromCards(allCards, { ...extraGlossary, ...arabicExtraGlossary6to8 });
+const G = buildGlossaryFromCards(allCards, {
+  ...extraGlossary,
+  ...arabicExtraGlossary6to8,
+  ...arabicExtraGlossary9to16,
+});
 export const arabicGlossary: GlossaryMap = G;
 
 const units: CourseUnit[] = [
@@ -4409,6 +4426,7 @@ const units: CourseUnit[] = [
     ],
   },
   ...buildArabicUnits6to8(G),
+  ...buildArabicUnits9to16(G),
 ];
 
 export const arabicCourse: LanguageCourse = buildCourse('ar', units);

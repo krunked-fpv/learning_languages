@@ -23,6 +23,11 @@ import {
   indonesianCards6to8,
   indonesianExtraGlossary6to8,
 } from './idUnits6to8';
+import {
+  buildIndonesianUnits9to16,
+  indonesianCards9to16,
+  indonesianExtraGlossary9to16,
+} from './idUnits9to16';
 
 const U1 = 'id-u1';
 const U2 = 'id-u2';
@@ -890,7 +895,7 @@ const u5Cards: VocabCard[] = [
   }),
 ];
 
-const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards, ...indonesianCards6to8];
+const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards, ...indonesianCards6to8, ...indonesianCards9to16];
 
 const extraGlossary: GlossaryMap = {
   selamat: { translation: 'safe / good (greeting)', phonetic: 'seh-LAH-maht' },
@@ -1088,7 +1093,11 @@ const extraGlossary: GlossaryMap = {
   menguasai: { translation: 'mastered', phonetic: 'meh-ngoo-AH-sye' },
 };
 
-const G = buildGlossaryFromCards(allCards, { ...extraGlossary, ...indonesianExtraGlossary6to8 });
+const G = buildGlossaryFromCards(allCards, {
+  ...extraGlossary,
+  ...indonesianExtraGlossary6to8,
+  ...indonesianExtraGlossary9to16,
+});
 export const indonesianGlossary: GlossaryMap = G;
 
 const units: CourseUnit[] = [
@@ -3686,6 +3695,7 @@ const units: CourseUnit[] = [
     ],
   },
   ...buildIndonesianUnits6to8(G),
+  ...buildIndonesianUnits9to16(G),
 ];
 
 export const indonesianCourse: LanguageCourse = buildCourse('id', units);

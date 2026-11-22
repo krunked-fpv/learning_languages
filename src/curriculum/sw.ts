@@ -23,6 +23,11 @@ import {
   swahiliCards6to8,
   swahiliExtraGlossary6to8,
 } from './swUnits6to8';
+import {
+  buildSwahiliUnits9to16,
+  swahiliCards9to16,
+  swahiliExtraGlossary9to16,
+} from './swUnits9to16';
 
 const U1 = 'sw-u1';
 const U2 = 'sw-u2';
@@ -890,7 +895,7 @@ const u5Cards: VocabCard[] = [
   }),
 ];
 
-const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards, ...swahiliCards6to8];
+const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards, ...swahiliCards6to8, ...swahiliCards9to16];
 
 const extraGlossary: GlossaryMap = {
   na: { translation: 'and / with', phonetic: 'nah' },
@@ -1115,7 +1120,7 @@ const extraGlossary: GlossaryMap = {
   vyema: { translation: 'well / splendidly', phonetic: 'VYEH-mah' },
 };
 
-const G = buildGlossaryFromCards(allCards, { ...extraGlossary, ...swahiliExtraGlossary6to8 });
+const G = buildGlossaryFromCards(allCards, { ...extraGlossary, ...swahiliExtraGlossary6to8, ...swahiliExtraGlossary9to16 });
 export const swahiliGlossary: GlossaryMap = G;
 
 const units: CourseUnit[] = [
@@ -3690,6 +3695,7 @@ const units: CourseUnit[] = [
     ],
   },
   ...buildSwahiliUnits6to8(G),
+  ...buildSwahiliUnits9to16(G),
 ];
 
 export const swahiliCourse: LanguageCourse = buildCourse('sw', units);

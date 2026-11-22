@@ -23,6 +23,11 @@ import {
   russianCards6to8,
   russianExtraGlossary6to8,
 } from './ruUnits6to8';
+import {
+  buildRussianUnits9to16,
+  russianCards9to16,
+  russianExtraGlossary9to16,
+} from './ruUnits9to16';
 
 const U1 = 'ru-u1';
 const U2 = 'ru-u2';
@@ -1100,7 +1105,7 @@ const u5Cards: VocabCard[] = [
   }),
 ];
 
-const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards, ...russianCards6to8];
+const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards, ...russianCards6to8, ...russianCards9to16];
 
 const extraGlossary: GlossaryMap = {
   и: { translation: 'and', phonetic: 'ee', romanized: 'i' },
@@ -1413,7 +1418,11 @@ const extraGlossary: GlossaryMap = {
   парком: { translation: 'park (inst.)', phonetic: 'PAR-kahm', romanized: 'parkom' },
 };
 
-const G = buildGlossaryFromCards(allCards, { ...extraGlossary, ...russianExtraGlossary6to8 });
+const G = buildGlossaryFromCards(allCards, {
+  ...extraGlossary,
+  ...russianExtraGlossary6to8,
+  ...russianExtraGlossary9to16,
+});
 export const russianGlossary: GlossaryMap = G;
 
 const units: CourseUnit[] = [
@@ -4147,6 +4156,7 @@ const units: CourseUnit[] = [
     ],
   },
   ...buildRussianUnits6to8(G),
+  ...buildRussianUnits9to16(G),
 ];
 
 export const russianCourse: LanguageCourse = buildCourse('ru', units);

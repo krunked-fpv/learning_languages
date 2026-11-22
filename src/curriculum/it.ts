@@ -23,6 +23,11 @@ import {
   italianCards6to8,
   italianExtraGlossary6to8,
 } from './itUnits6to8';
+import {
+  buildItalianUnits9to16,
+  italianCards9to16,
+  italianExtraGlossary9to16,
+} from './itUnits9to16';
 
 const U1 = 'it-u1';
 const U2 = 'it-u2';
@@ -952,7 +957,15 @@ const u5Cards: VocabCard[] = [
   }),
 ];
 
-const allCards = [...u1Cards, ...u2Cards, ...u3Cards, ...u4Cards, ...u5Cards, ...italianCards6to8];
+const allCards = [
+  ...u1Cards,
+  ...u2Cards,
+  ...u3Cards,
+  ...u4Cards,
+  ...u5Cards,
+  ...italianCards6to8,
+  ...italianCards9to16,
+];
 
 const extraGlossary: GlossaryMap = {
   il: { translation: 'the (masculine)', phonetic: 'eel', articleNote: 'Standard masculine article' },
@@ -1151,7 +1164,11 @@ const extraGlossary: GlossaryMap = {
   guida: { translation: 'guides', phonetic: 'GWEE-dah' },
 };
 
-const G = buildGlossaryFromCards(allCards, { ...extraGlossary, ...italianExtraGlossary6to8 });
+const G = buildGlossaryFromCards(allCards, {
+  ...extraGlossary,
+  ...italianExtraGlossary6to8,
+  ...italianExtraGlossary9to16,
+});
 export const italianGlossary: GlossaryMap = G;
 
 const units: CourseUnit[] = [
@@ -3824,6 +3841,7 @@ const units: CourseUnit[] = [
     ],
   },
   ...buildItalianUnits6to8(G),
+  ...buildItalianUnits9to16(G),
 ];
 
 export const italianCourse: LanguageCourse = buildCourse('it', units);
