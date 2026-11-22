@@ -257,6 +257,12 @@ function safeSetParam(
   }
 }
 
+function getSafeCurrentTime(ctx: AudioContext): number {
+  return typeof ctx.currentTime === 'number' && Number.isFinite(ctx.currentTime)
+    ? ctx.currentTime
+    : 0;
+}
+
 function scheduleWarmTone(
   ctx: AudioContext,
   dest: AudioNode,
@@ -264,7 +270,7 @@ function scheduleWarmTone(
   collector?: ScheduledNodeHandle[]
 ): void {
   try {
-    const now = typeof ctx.currentTime === 'number' ? ctx.currentTime : 0;
+    const now = getSafeCurrentTime(ctx);
     const startTime = now + Math.max(0, spec.delay ?? 0);
     const attack = Math.max(0.004, spec.attack ?? 0.008);
     const decay = Math.max(0.03, spec.decay ?? 0.16);
@@ -426,7 +432,7 @@ function scheduleAiryWhooshNoise(ctx: AudioContext, dest: AudioNode): void {
       data[i] = smooth;
     }
 
-    const now = typeof ctx.currentTime === 'number' ? ctx.currentTime : 0;
+    const now = getSafeCurrentTime(ctx);
     const source = ctx.createBufferSource();
     source.buffer = buffer;
 
@@ -1065,30 +1071,50 @@ const SFX_RECIPES: Record<
   },
 };
 
-function parsePhoneticSyllables(phonetic: string): ParsedSyllable[] {
-  const words = phonetic
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
+const PHRASE_PUNCT_SPLIT_RE =
+  /[¡!¿?.,;:"“”()[\]{}«»。？！，、・「」『』（）【】《》〈〉〔〕：；،؟؛।॥/|·•…]+/;
+const CJK_KANA_MORA_RE =
+  /[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF][\u3041\u3043\u3045\u3047\u3049\u3083\u3085\u3087\u308E\u30A1\u30A3\u30A5\u30A7\u30A9\u30E3\u30E5\u30E7\u30EE\u30FC\u3099\u309A\u309D\u309E\u30FD\u30FE]*|[^\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]+/g;
+const INVISIBLE_OR_TATWEEL_RE = /[\u0640\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g;
 
+function splitCjkMorae(segment: string): string[] {
+  const matches = segment.match(CJK_KANA_MORA_RE);
+  return matches ? matches : [segment];
+}
+
+function parsePhoneticSyllables(phonetic: string): ParsedSyllable[] {
+  if (typeof phonetic !== 'string') return [];
+  const words = phonetic.trim().split(/\s+/).filter(Boolean);
   const syllables: ParsedSyllable[] = [];
 
-  for (let w = 0; w < words.length; w += 1) {
-    const cleanedWord = words[w].replace(/^[¡!¿?.,;:"()[\]«»]+|[¡!¿?.,;:"()[\]«»]+$/g, '');
-    if (!cleanedWord) continue;
-    const parts = cleanedWord.split(/[-–—]+/).filter(Boolean);
-    for (let p = 0; p < parts.length; p += 1) {
-      const part = parts[p];
-      const letters = part.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ]/g, '');
-      const hasCaseContrast = letters.length > 0 && letters.toUpperCase() !== letters.toLowerCase();
-      const stressed = hasCaseContrast && letters === letters.toUpperCase();
-      syllables.push({
-        text: part,
-        stressed,
-        wordBreakBefore: w > 0 && p === 0 && syllables.length > 0,
-      });
-      if (syllables.length >= 24) {
-        return syllables;
+  for (const rawWord of words) {
+    const sanitized = rawWord.replace(INVISIBLE_OR_TATWEEL_RE, '');
+    if (!sanitized) continue;
+
+    const clauses = sanitized.split(PHRASE_PUNCT_SPLIT_RE).filter(Boolean);
+    for (const rawClause of clauses) {
+      const clause = rawClause.replace(/^['‘’]+|['‘’]+$/g, '');
+      if (!clause) continue;
+
+      let isWordStart = true;
+      const parts = clause.split(/[-–—]+/).filter(Boolean);
+      for (const part of parts) {
+        for (const seg of splitCjkMorae(part)) {
+          if (!/[\p{L}\p{N}]/u.test(seg)) continue;
+          const letters = seg.replace(/[^\p{L}]/gu, '');
+          const hasCaseContrast =
+            letters.length > 0 && letters.toUpperCase() !== letters.toLowerCase();
+          const stressed = hasCaseContrast && letters === letters.toUpperCase();
+          syllables.push({
+            text: seg,
+            stressed,
+            wordBreakBefore: isWordStart && syllables.length > 0,
+          });
+          isWordStart = false;
+          if (syllables.length >= 24) {
+            return syllables;
+          }
+        }
       }
     }
   }
@@ -1132,7 +1158,7 @@ export function stopPhoneticCadence(): void {
   if (current.timerId !== null) {
     clearTimeout(current.timerId);
   }
-  const now = audioCtx && typeof audioCtx.currentTime === 'number' ? audioCtx.currentTime : 0;
+  const now = audioCtx ? getSafeCurrentTime(audioCtx) : 0;
   for (const node of current.nodes) {
     try {
       safeSetParam(node.env.gain, 'setValueAtTime', 0.0001, now);
@@ -1155,6 +1181,10 @@ const STRESSED_MARIMBA_NOTES = [587.33, 659.25, 783.99, 880.0] as const;
 
 export function playPhoneticCadence(phonetic: string, slow = false): Promise<void> {
   stopPhoneticCadence();
+
+  if (typeof phonetic !== 'string' || !phonetic.trim()) {
+    return Promise.resolve();
+  }
 
   if (preferences.muted || preferences.volume <= 0) {
     return Promise.resolve();
@@ -1180,6 +1210,9 @@ export function playPhoneticCadence(phonetic: string, slow = false): Promise<voi
     const syl = syllables[i];
     if (syl.wordBreakBefore) {
       offsetSec += wordPauseSec;
+    }
+    if (offsetSec >= 3.95) {
+      break;
     }
     const baseFreq = syl.stressed
       ? STRESSED_MARIMBA_NOTES[i % STRESSED_MARIMBA_NOTES.length]
