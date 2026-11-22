@@ -388,29 +388,31 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                   style={{
                     margin: 0,
                     fontFamily: 'var(--font-display)',
-                    fontSize: isNarrow ? '0.84rem' : '1.02rem',
+                    fontSize: isNarrow ? '0.9rem' : '1.02rem',
                     fontWeight: 900,
                     color: 'var(--text-main, #1e1b4b)',
-                    lineHeight: 1.12,
+                    lineHeight: 1.15,
                   }}
                 >
                   {cab.title}
                 </h2>
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: isNarrow ? '0.67rem' : '0.76rem',
-                    fontWeight: 700,
-                    color: 'var(--text-muted, #475569)',
-                    lineHeight: 1.26,
-                    display: '-webkit-box',
-                    WebkitLineClamp: isNarrow ? 1 : 3,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {cab.description}
-                </p>
+                {!isNarrow ? (
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: '0.76rem',
+                      fontWeight: 700,
+                      color: 'var(--text-muted, #475569)',
+                      lineHeight: 1.26,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 3,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {cab.description}
+                  </p>
+                ) : null}
               </div>
 
               {/* Launch Button */}
