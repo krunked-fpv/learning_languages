@@ -1,4 +1,31 @@
-export type LanguageCode = 'es' | 'fr' | 'de' | 'it';
+export type LanguageCode =
+  | 'es'
+  | 'fr'
+  | 'de'
+  | 'it'
+  | 'pt'
+  | 'en'
+  | 'zh'
+  | 'ja'
+  | 'hi'
+  | 'bn'
+  | 'ar'
+  | 'arz'
+  | 'ru'
+  | 'id'
+  | 'vi'
+  | 'sw';
+
+export type TextDirection = 'ltr' | 'rtl';
+
+export type ScriptType =
+  | 'latin'
+  | 'cyrillic'
+  | 'arabic'
+  | 'devanagari'
+  | 'bengali'
+  | 'hanzi'
+  | 'japanese';
 
 export type CompanionId = 'pip' | 'mateo' | 'colette' | 'benni' | 'luca';
 
@@ -6,6 +33,9 @@ export interface LanguageMeta {
   code: LanguageCode;
   name: string;
   nativeName: string;
+  dir: TextDirection;
+  scriptType: ScriptType;
+  usesSpaces: boolean;
   landTitle: string;
   companionId: Exclude<CompanionId, 'pip'>;
   companionName: string;
@@ -21,13 +51,33 @@ export interface LanguageMeta {
   helperAccents: readonly string[];
 }
 
-export const LANGUAGE_LIST: readonly LanguageCode[] = ['es', 'fr', 'de', 'it'] as const;
+export const LANGUAGE_LIST: readonly LanguageCode[] = [
+  'es',
+  'fr',
+  'de',
+  'it',
+  'pt',
+  'en',
+  'zh',
+  'ja',
+  'hi',
+  'bn',
+  'ar',
+  'arz',
+  'ru',
+  'id',
+  'vi',
+  'sw',
+] as const;
 
 export const LANGUAGE_META: Record<LanguageCode, LanguageMeta> = {
   es: {
     code: 'es',
     name: 'Spanish',
     nativeName: 'Español',
+    dir: 'ltr',
+    scriptType: 'latin',
+    usesSpaces: true,
     landTitle: 'El Camino del Sol',
     companionId: 'mateo',
     companionName: 'Mateo',
@@ -46,6 +96,9 @@ export const LANGUAGE_META: Record<LanguageCode, LanguageMeta> = {
     code: 'fr',
     name: 'French',
     nativeName: 'Français',
+    dir: 'ltr',
+    scriptType: 'latin',
+    usesSpaces: true,
     landTitle: 'La Route des Étoiles',
     companionId: 'colette',
     companionName: 'Colette',
@@ -64,6 +117,9 @@ export const LANGUAGE_META: Record<LanguageCode, LanguageMeta> = {
     code: 'de',
     name: 'German',
     nativeName: 'Deutsch',
+    dir: 'ltr',
+    scriptType: 'latin',
+    usesSpaces: true,
     landTitle: 'Der Märchenpfad',
     companionId: 'benni',
     companionName: 'Benni',
@@ -82,6 +138,9 @@ export const LANGUAGE_META: Record<LanguageCode, LanguageMeta> = {
     code: 'it',
     name: 'Italian',
     nativeName: 'Italiano',
+    dir: 'ltr',
+    scriptType: 'latin',
+    usesSpaces: true,
     landTitle: 'La Via del Mare',
     companionId: 'luca',
     companionName: 'Luca',
@@ -95,6 +154,265 @@ export const LANGUAGE_META: Record<LanguageCode, LanguageMeta> = {
       surfaceTint: '#ECFDF5',
     },
     helperAccents: ['à', 'è', 'é', 'ì', 'ò', 'ù'],
+  },
+  pt: {
+    code: 'pt',
+    name: 'Portuguese',
+    nativeName: 'Português',
+    dir: 'ltr',
+    scriptType: 'latin',
+    usesSpaces: true,
+    landTitle: 'A Trilha Tropical',
+    companionId: 'mateo',
+    companionName: 'Mateo',
+    companionRole: 'Carnival Rhythm Guitarist',
+    speechLocales: ['pt-BR', 'pt-PT', 'pt'],
+    accentPalette: {
+      primary: '#0D9488',
+      secondary: '#F59E0B',
+      glow: '#5EEAD4',
+      bevel: '#115E59',
+      surfaceTint: '#F0FDFA',
+    },
+    helperAccents: ['ã', 'õ', 'ç', 'á', 'â', 'à', 'é', 'ê', 'í', 'ó', 'ô', 'ú'],
+  },
+  en: {
+    code: 'en',
+    name: 'English',
+    nativeName: 'English',
+    dir: 'ltr',
+    scriptType: 'latin',
+    usesSpaces: true,
+    landTitle: 'The Starlight Compass Isles',
+    companionId: 'colette',
+    companionName: 'Colette',
+    companionRole: 'Storybook Harbor Guide',
+    speechLocales: ['en-US', 'en-GB', 'en'],
+    accentPalette: {
+      primary: '#1D4ED8',
+      secondary: '#F59E0B',
+      glow: '#93C5FD',
+      bevel: '#1E3A8A',
+      surfaceTint: '#EFF6FF',
+    },
+    helperAccents: ["'", '-', '!', '?'],
+  },
+  zh: {
+    code: 'zh',
+    name: 'Mandarin Chinese',
+    nativeName: '中文',
+    dir: 'ltr',
+    scriptType: 'hanzi',
+    usesSpaces: false,
+    landTitle: 'The Lantern Cloud Peaks',
+    companionId: 'mateo',
+    companionName: 'Mateo',
+    companionRole: 'Moon-Gate Lantern Chef',
+    speechLocales: ['zh-CN', 'cmn-Hans-CN', 'zh-SG', 'zh-TW', 'zh'],
+    accentPalette: {
+      primary: '#DC2626',
+      secondary: '#F59E0B',
+      glow: '#FCA5A5',
+      bevel: '#991B1B',
+      surfaceTint: '#FEF2F2',
+    },
+    helperAccents: [
+      'ā', 'á', 'ǎ', 'à',
+      'ē', 'é', 'ě', 'è',
+      'ī', 'í', 'ǐ', 'ì',
+      'ō', 'ó', 'ǒ', 'ò',
+      'ū', 'ú', 'ǔ', 'ù',
+      'ǖ', 'ǘ', 'ǚ', 'ǜ',
+    ],
+  },
+  ja: {
+    code: 'ja',
+    name: 'Japanese',
+    nativeName: '日本語',
+    dir: 'ltr',
+    scriptType: 'japanese',
+    usesSpaces: false,
+    landTitle: 'Sakura Sky Trail',
+    companionId: 'colette',
+    companionName: 'Colette',
+    companionRole: 'Sakura Origami Fox',
+    speechLocales: ['ja-JP', 'ja'],
+    accentPalette: {
+      primary: '#DB2777',
+      secondary: '#6366F1',
+      glow: '#F9A8D4',
+      bevel: '#9D174D',
+      surfaceTint: '#FDF2F8',
+    },
+    helperAccents: ['ā', 'ī', 'ū', 'ē', 'ō', 'っ', 'ん', 'ー'],
+  },
+  hi: {
+    code: 'hi',
+    name: 'Hindi',
+    nativeName: 'हिन्दी',
+    dir: 'ltr',
+    scriptType: 'devanagari',
+    usesSpaces: true,
+    landTitle: 'The Marigold Palace Trail',
+    companionId: 'mateo',
+    companionName: 'Mateo',
+    companionRole: 'Marigold Spice Musician',
+    speechLocales: ['hi-IN', 'hi'],
+    accentPalette: {
+      primary: '#EA580C',
+      secondary: '#0D9488',
+      glow: '#FDBA74',
+      bevel: '#9A3412',
+      surfaceTint: '#FFF7ED',
+    },
+    helperAccents: ['ा', 'ि', 'ी', 'ु', 'ू', 'े', 'ै', 'ो', 'ौ', 'ं', 'ँ', '्'],
+  },
+  bn: {
+    code: 'bn',
+    name: 'Bengali',
+    nativeName: 'বাংলা',
+    dir: 'ltr',
+    scriptType: 'bengali',
+    usesSpaces: true,
+    landTitle: 'The Lotus River Delta',
+    companionId: 'benni',
+    companionName: 'Benni',
+    companionRole: 'Riverboat Lantern Tinkerer',
+    speechLocales: ['bn-BD', 'bn-IN', 'bn'],
+    accentPalette: {
+      primary: '#047857',
+      secondary: '#F43F5E',
+      glow: '#6EE7B7',
+      bevel: '#064E3B',
+      surfaceTint: '#ECFDF5',
+    },
+    helperAccents: ['া', 'ি', 'ী', 'ু', 'ূ', 'ে', 'ৈ', 'ো', 'ৌ', 'ং', 'ঁ', '্'],
+  },
+  ar: {
+    code: 'ar',
+    name: 'Modern Standard Arabic',
+    nativeName: 'العربية الفصحى',
+    dir: 'rtl',
+    scriptType: 'arabic',
+    usesSpaces: true,
+    landTitle: 'Oasis of Golden Stars',
+    companionId: 'benni',
+    companionName: 'Benni',
+    companionRole: 'Astrolabe Star Navigator',
+    speechLocales: ['ar-SA', 'ar-001', 'ar-AE', 'ar'],
+    accentPalette: {
+      primary: '#059669',
+      secondary: '#D97706',
+      glow: '#6EE7B7',
+      bevel: '#065F46',
+      surfaceTint: '#ECFDF5',
+    },
+    helperAccents: ['أ', 'إ', 'آ', 'ة', 'ى', 'ئ', 'ؤ', 'ء', '؟'],
+  },
+  arz: {
+    code: 'arz',
+    name: 'Egyptian Arabic',
+    nativeName: 'مصري',
+    dir: 'rtl',
+    scriptType: 'arabic',
+    usesSpaces: true,
+    landTitle: 'Nile Felucca Breeze',
+    companionId: 'luca',
+    companionName: 'Luca',
+    companionRole: 'Nile Felucca Captain',
+    speechLocales: ['ar-EG', 'ar'],
+    accentPalette: {
+      primary: '#0284C7',
+      secondary: '#EAB308',
+      glow: '#7DD3FC',
+      bevel: '#075985',
+      surfaceTint: '#F0F9FF',
+    },
+    helperAccents: ['أ', 'إ', 'آ', 'ة', 'ى', 'ئ', 'ؤ', 'ء', '؟'],
+  },
+  ru: {
+    code: 'ru',
+    name: 'Russian',
+    nativeName: 'Русский',
+    dir: 'ltr',
+    scriptType: 'cyrillic',
+    usesSpaces: true,
+    landTitle: 'The Starlight Frost Express',
+    companionId: 'benni',
+    companionName: 'Benni',
+    companionRole: 'Trans-Aurora Train Engineer',
+    speechLocales: ['ru-RU', 'ru'],
+    accentPalette: {
+      primary: '#4F46E5',
+      secondary: '#E11D48',
+      glow: '#A5B4FC',
+      bevel: '#3730A3',
+      surfaceTint: '#EEF2FF',
+    },
+    helperAccents: ['ё', 'й', 'щ', 'ч', 'ш', 'ж', 'ю', 'я', 'ь', 'э'],
+  },
+  id: {
+    code: 'id',
+    name: 'Indonesian',
+    nativeName: 'Bahasa Indonesia',
+    dir: 'ltr',
+    scriptType: 'latin',
+    usesSpaces: true,
+    landTitle: 'Emerald Archipelago Voyage',
+    companionId: 'luca',
+    companionName: 'Luca',
+    companionRole: 'Island Schooner Sea-Otter',
+    speechLocales: ['id-ID', 'in-ID', 'id'],
+    accentPalette: {
+      primary: '#0891B2',
+      secondary: '#F97316',
+      glow: '#67E8F9',
+      bevel: '#155E75',
+      surfaceTint: '#ECFEFF',
+    },
+    helperAccents: ['-', "'", 'é'],
+  },
+  vi: {
+    code: 'vi',
+    name: 'Vietnamese',
+    nativeName: 'Tiếng Việt',
+    dir: 'ltr',
+    scriptType: 'latin',
+    usesSpaces: true,
+    landTitle: 'Lantern Bay & Bamboo Peaks',
+    companionId: 'colette',
+    companionName: 'Colette',
+    companionRole: 'Silk-Lantern Harbor Baker',
+    speechLocales: ['vi-VN', 'vi'],
+    accentPalette: {
+      primary: '#E11D48',
+      secondary: '#10B981',
+      glow: '#FDA4AF',
+      bevel: '#9F1239',
+      surfaceTint: '#FFF1F2',
+    },
+    helperAccents: ['ă', 'â', 'đ', 'ê', 'ô', 'ơ', 'ư', 'á', 'à', 'ả', 'ã', 'ạ'],
+  },
+  sw: {
+    code: 'sw',
+    name: 'Swahili',
+    nativeName: 'Kiswahili',
+    dir: 'ltr',
+    scriptType: 'latin',
+    usesSpaces: true,
+    landTitle: 'Savanna Sun & Dhow Coast',
+    companionId: 'luca',
+    companionName: 'Luca',
+    companionRole: 'Zanzibar Dhow Captain',
+    speechLocales: ['sw-KE', 'sw-TZ', 'sw'],
+    accentPalette: {
+      primary: '#D97706',
+      secondary: '#0EA5E9',
+      glow: '#FCD34D',
+      bevel: '#92400E',
+      surfaceTint: '#FFFBEB',
+    },
+    helperAccents: ["'", '-', '!'],
   },
 };
 
@@ -234,6 +552,7 @@ export interface TapHintToken {
   normalizedId: string;
   translation: string;
   phonetic: string;
+  romanized?: string;
   articleNote?: string;
   accentNote?: string;
   speakText: string;
@@ -257,11 +576,13 @@ export interface VocabCard {
   acceptedEnglish: string[];
   acceptedForeign: string[];
   phonetic: string;
+  romanized?: string;
   accentCallout?: AccentCallout;
   illustrationKey: IllustrationKey;
   exampleForeign: string;
   exampleEnglish: string;
   examplePhonetic: string;
+  exampleRomanized?: string;
 }
 
 export interface DiscoveryCardExercise {
@@ -277,6 +598,7 @@ export interface WordBankExercise {
   direction: 'to_english' | 'to_foreign';
   promptText: string;
   promptPhonetic?: string;
+  promptRomanized?: string;
   promptSpeakText?: string;
   promptTokens: TapHintToken[];
   expectedSentence: string;
@@ -294,6 +616,7 @@ export interface ListenDecodeExercise {
   mode: 'select_meaning' | 'assemble_heard';
   audioText: string;
   phonetic: string;
+  romanized?: string;
   voiceFallbackPhoneticPrompt: string;
   englishMeaning: string;
   choices?: string[];
@@ -309,6 +632,7 @@ export interface PairMatchItem {
   foreign: string;
   english: string;
   phonetic: string;
+  romanized?: string;
   vocabId?: string;
 }
 
@@ -328,6 +652,7 @@ export interface StoryBubble {
   foreignText: string;
   englishText: string;
   phonetic: string;
+  romanized?: string;
   tapHints: TapHintToken[];
 }
 
@@ -359,6 +684,7 @@ export interface BossTurn {
   companionSayForeign: string;
   companionSayEnglish: string;
   companionPhonetic: string;
+  companionRomanized?: string;
   tapHints: TapHintToken[];
   promptEnglish: string;
   mode: 'word_bank' | 'choice';
@@ -368,6 +694,7 @@ export interface BossTurn {
   expectedAnswer: string;
   acceptedAnswers: string[];
   phoneticAnswer: string;
+  romanizedAnswer?: string;
   victoryReplyForeign: string;
   victoryReplyEnglish: string;
 }
@@ -432,6 +759,7 @@ export interface ArcadeLanternItem {
   foreign: string;
   english: string;
   phonetic: string;
+  romanized?: string;
   illustrationKey: IllustrationKey;
 }
 
