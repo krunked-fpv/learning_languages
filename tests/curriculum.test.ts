@@ -13,10 +13,12 @@ import {
   getUnitById,
   getVocabCard,
 } from '../src/curriculum';
+import { segmentSentenceTokens } from '../src/curriculum/helpers';
 import {
   ILLUSTRATION_KEYS,
   LANGUAGE_LIST,
   LANGUAGE_META,
+  type LanguageCode,
   type LessonExercise,
   type TapHintToken,
 } from '../src/types/contracts';
@@ -65,10 +67,11 @@ describe('Challenge 1: Curriculum Symmetry, Integrity, Safety & Art Coverage', (
     }
   });
 
-  it('contains zero Unicode regional indicator flag emojis across src/, public/, index.html, and README.md', () => {
+  it('contains zero Unicode regional indicator flag emojis across src/, public/, tests/, index.html, and README.md', () => {
     const targetFiles = [
       ...walkFiles(resolve(ROOT, 'src'), /\.(ts|tsx|css|js|json|svg)$/i),
       ...walkFiles(resolve(ROOT, 'public'), /\.(js|json|html|svg|txt)$/i),
+      ...walkFiles(resolve(ROOT, 'tests'), /\.(ts|tsx|js|json)$/i),
       resolve(ROOT, 'index.html'),
       resolve(ROOT, 'README.md'),
     ];
@@ -82,25 +85,38 @@ describe('Challenge 1: Curriculum Symmetry, Integrity, Safety & Art Coverage', (
     }
   });
 
-  it('verifies all 4 courses have 8 units (56 nodes/lang = 224 total), >= 100 unique VocabCards each, valid helpers, and symmetrical node structure', () => {
+  it('verifies all 16 courses have 8 units (128 units, 56 nodes/lang = 896 total), >= 100 unique VocabCards each (>= 1,600 total), valid helpers, and symmetrical node structure', () => {
+    expect(LANGUAGE_LIST).toHaveLength(16);
+    expect(Object.keys(COURSES)).toHaveLength(16);
+
+    const NON_LATIN_LANGS = new Set<LanguageCode>(['zh', 'ja', 'hi', 'bn', 'ar', 'arz', 'ru']);
+    const RTL_LANGS = new Set<LanguageCode>(['ar', 'arz']);
+    const SPACELESS_LANGS = new Set<LanguageCode>(['zh', 'ja']);
+
     const validIllustrations = new Set<string>(ILLUSTRATION_KEYS);
     const globalCardIds = new Set<string>();
     const globalUnitIds = new Set<string>();
     const globalNodeIds = new Set<string>();
     const globalExerciseIds = new Set<string>();
+    let totalUnits = 0;
     let totalNodes = 0;
 
     for (const lang of LANGUAGE_LIST) {
       const course = COURSES[lang];
       expect(getCourse(lang)).toBe(course);
       expect(course.language).toBe(lang);
+      expect(course.meta.dir).toBe(RTL_LANGS.has(lang) ? 'rtl' : 'ltr');
+      expect(course.meta.usesSpaces).toBe(!SPACELESS_LANGS.has(lang));
       expect(course.units).toHaveLength(8);
+      totalUnits += course.units.length;
       const courseNodes = course.units.flatMap((u) => u.nodes);
       expect(courseNodes).toHaveLength(56);
       totalNodes += courseNodes.length;
 
       const courseCardIds = new Set<string>();
       const usedIllustrations = new Set<string>();
+      const authoredWordBankKeys = new Set<string>();
+      const authoredListenAudioKeys = new Set<string>();
       let listenMeaningCount = 0;
       let listenAssembleCount = 0;
 
@@ -126,6 +142,10 @@ describe('Challenge 1: Curriculum Symmetry, Integrity, Safety & Art Coverage', (
           expect(card.exampleForeign.trim()).not.toBe('');
           expect(card.exampleEnglish.trim()).not.toBe('');
           expect(card.examplePhonetic.trim()).not.toBe('');
+          if (NON_LATIN_LANGS.has(lang)) {
+            expect(card.romanized?.trim(), `${card.id} missing romanized`).toBeTruthy();
+            expect(card.exampleRomanized?.trim(), `${card.id} missing exampleRomanized`).toBeTruthy();
+          }
           expect(validIllustrations.has(card.illustrationKey), `Invalid illustrationKey "${card.illustrationKey}" on ${card.id}`).toBe(true);
           usedIllustrations.add(card.illustrationKey);
 
@@ -174,11 +194,24 @@ describe('Challenge 1: Curriculum Symmetry, Integrity, Safety & Art Coverage', (
             if (ex.type === 'discovery_card') {
               expect(course.vocabById[ex.vocabId], `${ex.id} unknown vocabId "${ex.vocabId}"`).toBeDefined();
             } else if (ex.type === 'word_bank') {
+              const wbKey = `${ex.promptText.trim().toLowerCase()}||${ex.expectedSentence.trim().toLowerCase()}`;
+              expect(
+                authoredWordBankKeys.has(wbKey),
+                `Duplicate authored WordBank prompt in ${lang}: ${ex.id} -> ${wbKey}`
+              ).toBe(false);
+              authoredWordBankKeys.add(wbKey);
+
               if (ex.direction === 'to_english') {
                 assertValidTapHints(ex.promptTokens, ex.id);
               }
+              if (SPACELESS_LANGS.has(lang) && ex.direction === 'to_foreign') {
+                expect(
+                  ex.targetTokens.length,
+                  `${ex.id}: CJK to_foreign sentence "${ex.expectedSentence}" collapsed into <=1 token`
+                ).toBeGreaterThanOrEqual(2);
+              }
               const assembled = joinWordBankTokens(ex.targetTokens);
-              const gradeLang = ex.direction === 'to_foreign' ? lang : 'es';
+              const gradeLang = ex.direction === 'to_foreign' ? lang : 'en';
               const res = gradeAnswer({
                 submitted: assembled,
                 expected: ex.expectedSentence,
@@ -186,12 +219,26 @@ describe('Challenge 1: Curriculum Symmetry, Integrity, Safety & Art Coverage', (
                 language: gradeLang,
               });
               expect(res.isCorrect, `${ex.id}: assembled targetTokens "${assembled}" failed grader against "${ex.expectedSentence}"`).toBe(true);
+              const arenaRes = gradeAnswer({
+                submitted: assembled,
+                expected: ex.expectedSentence,
+                accepted: ex.acceptedSentences,
+                language: lang,
+              });
+              expect(arenaRes.isCorrect, `${ex.id}: LessonArena-mode grade failed for "${assembled}"`).toBe(true);
 
               expect(
                 BANNED_ALCOHOL_RE.test(`${ex.promptText} ${ex.expectedSentence}`),
                 `Banned alcohol/bar word in ${ex.id}`
               ).toBe(false);
             } else if (ex.type === 'listen_decode') {
+              const audioKey = ex.audioText.trim().toLowerCase();
+              expect(
+                authoredListenAudioKeys.has(audioKey),
+                `Duplicate authored ListenDecode audioText in ${lang}: ${ex.id} -> "${ex.audioText}"`
+              ).toBe(false);
+              authoredListenAudioKeys.add(audioKey);
+
               expect(ex.voiceFallbackPhoneticPrompt.trim(), `${ex.id} empty voiceFallbackPhoneticPrompt`).not.toBe('');
               expect(ex.phonetic.trim(), `${ex.id} empty phonetic`).not.toBe('');
               assertValidTapHints(ex.tapHints, ex.id);
@@ -210,6 +257,12 @@ describe('Challenge 1: Curriculum Symmetry, Integrity, Safety & Art Coverage', (
               } else {
                 listenAssembleCount += 1;
                 expect(ex.targetTokens && ex.targetTokens.length > 0, `${ex.id} assemble_heard needs targetTokens`).toBe(true);
+                if (SPACELESS_LANGS.has(lang)) {
+                  expect(
+                    (ex.targetTokens ?? []).length,
+                    `${ex.id}: CJK listenAssemble "${ex.audioText}" must segment into >=2 tokens`
+                  ).toBeGreaterThanOrEqual(2);
+                }
                 const assembled = joinWordBankTokens(ex.targetTokens ?? []);
                 const res = gradeAnswer({
                   submitted: assembled,
@@ -303,11 +356,109 @@ describe('Challenge 1: Curriculum Symmetry, Integrity, Safety & Art Coverage', (
       expect(Object.keys(course.vocabById).length).toBe(courseCardIds.size);
       expect(listenMeaningCount, `${lang} needs select_meaning exercises`).toBeGreaterThan(0);
       expect(listenAssembleCount, `${lang} needs assemble_heard exercises`).toBeGreaterThan(0);
-      expect(usedIllustrations.size, `${lang} should cover all 72 illustration keys`).toBeGreaterThanOrEqual(70);
+      expect(usedIllustrations.size, `${lang} should cover >= 70 of 72 illustration keys`).toBeGreaterThanOrEqual(70);
     }
 
-    expect(globalCardIds.size).toBeGreaterThanOrEqual(400);
-    expect(totalNodes).toBe(224);
+    expect(totalUnits).toBe(128);
+    expect(totalNodes).toBe(896);
+    expect(globalCardIds.size).toBeGreaterThanOrEqual(1600);
+  });
+
+  it('enforces World Explorer English (en) prompt/clue separation and Egyptian Arabic (arz) vs MSA (ar) lexical divergence (>= 40%)', () => {
+    // 1. English (en) clue separation across all cards, authored exercises, and pooled exercises
+    const enCourse = COURSES.en;
+    for (const unit of enCourse.units) {
+      for (const card of unit.vocabCards) {
+        expect(
+          normalizeAnswer(card.english, { stripAccents: true }),
+          `en card ${card.id}: english clue must differ from bareForeign`
+        ).not.toBe(normalizeAnswer(card.bareForeign, { stripAccents: true }));
+        expect(
+          normalizeAnswer(card.english, { stripAccents: true }),
+          `en card ${card.id}: english clue must differ from foreignWithArticle`
+        ).not.toBe(normalizeAnswer(card.foreignWithArticle, { stripAccents: true }));
+        expect(
+          normalizeAnswer(card.exampleEnglish, { stripAccents: true }),
+          `en card ${card.id}: exampleEnglish clue must differ from exampleForeign`
+        ).not.toBe(normalizeAnswer(card.exampleForeign, { stripAccents: true }));
+      }
+
+      for (const node of unit.nodes) {
+        const exercises = [
+          ...node.exercises,
+          ...(node.nodeType !== 'chest' ? getPlayableNodeExercises('en', node.id, [], false) : []),
+        ];
+        for (const ex of exercises) {
+          if (ex.type === 'word_bank') {
+            expect(
+              normalizeAnswer(ex.promptText, { stripAccents: true }),
+              `en ${ex.id}: promptText must not equal expectedSentence`
+            ).not.toBe(normalizeAnswer(ex.expectedSentence, { stripAccents: true }));
+          } else if (ex.type === 'listen_decode') {
+            expect(
+              normalizeAnswer(ex.audioText, { stripAccents: true }),
+              `en ${ex.id}: audioText must not equal englishMeaning`
+            ).not.toBe(normalizeAnswer(ex.englishMeaning, { stripAccents: true }));
+          } else if (ex.type === 'pair_match_rush') {
+            for (const pair of ex.pairs) {
+              expect(
+                normalizeAnswer(pair.foreign, { stripAccents: true }),
+                `en ${ex.id}:${pair.id}: foreign and english match columns must differ`
+              ).not.toBe(normalizeAnswer(pair.english, { stripAccents: true }));
+            }
+          } else if (ex.type === 'boss_gauntlet') {
+            for (const turn of ex.turns) {
+              expect(
+                normalizeAnswer(turn.promptEnglish, { stripAccents: true }),
+                `en ${ex.id}:${turn.id}: promptEnglish must differ from expectedAnswer`
+              ).not.toBe(normalizeAnswer(turn.expectedAnswer, { stripAccents: true }));
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Egyptian Arabic (arz) vs Modern Standard Arabic (ar) genuine lexical divergence >= 40%
+    const arCards = COURSES.ar.units.flatMap((u) => u.vocabCards);
+    const arzCards = COURSES.arz.units.flatMap((u) => u.vocabCards);
+    expect(arCards.length).toBeGreaterThanOrEqual(100);
+    expect(arzCards.length).toBeGreaterThanOrEqual(100);
+
+    const arBareSet = new Set(arCards.map((c) => normalizeAnswer(c.bareForeign, { stripAccents: true })));
+    const arExampleSet = new Set(
+      arCards.map((c) => normalizeAnswer(c.exampleForeign, { stripAccents: true }))
+    );
+
+    let distinctBareCount = 0;
+    let distinctExampleCount = 0;
+    for (const card of arzCards) {
+      const bareNorm = normalizeAnswer(card.bareForeign, { stripAccents: true });
+      const exNorm = normalizeAnswer(card.exampleForeign, { stripAccents: true });
+      if (!arBareSet.has(bareNorm)) distinctBareCount += 1;
+      if (!arExampleSet.has(exNorm)) distinctExampleCount += 1;
+    }
+
+    const bareDivergenceRatio = distinctBareCount / arzCards.length;
+    const exampleDivergenceRatio = distinctExampleCount / arzCards.length;
+    expect(
+      bareDivergenceRatio,
+      `arz vs ar bareForeign divergence ${(bareDivergenceRatio * 100).toFixed(1)}% < 40%`
+    ).toBeGreaterThanOrEqual(0.4);
+    expect(
+      exampleDivergenceRatio,
+      `arz vs ar exampleForeign divergence ${(exampleDivergenceRatio * 100).toFixed(1)}% < 40%`
+    ).toBeGreaterThanOrEqual(0.4);
+
+    // 3. Multi-script segmentSentenceTokens sanity check on CJK & non-spaced sentences
+    expect(segmentSentenceTokens('').length).toBe(0);
+    for (const lang of ['zh', 'ja'] as const) {
+      const firstLesson = COURSES[lang].units[0].nodes.find((n) => n.nodeType === 'lesson')!;
+      const wb = firstLesson.exercises.find(
+        (ex): ex is Extract<LessonExercise, { type: 'word_bank' }> =>
+          ex.type === 'word_bank' && ex.direction === 'to_english'
+      )!;
+      expect(wb.promptTokens.length, `${lang} promptTokens should have >= 2 segmented tokens`).toBeGreaterThanOrEqual(2);
+    }
   });
 
   it('returns rich unique ArcadeLanternItems from getArcadeLexicon even for fresh profiles', () => {
@@ -328,6 +479,15 @@ describe('Challenge 1: Curriculum Symmetry, Integrity, Safety & Art Coverage', (
         expect(item.english.trim()).not.toBe('');
         expect(item.phonetic.trim()).not.toBe('');
         expect(ILLUSTRATION_KEYS).toContain(item.illustrationKey);
+        if (lang === 'en') {
+          expect(
+            normalizeAnswer(item.foreign, { stripAccents: true }),
+            `en arcade item ${item.id}: foreign must differ from english clue`
+          ).not.toBe(normalizeAnswer(item.english, { stripAccents: true }));
+        }
+        if (['zh', 'ja', 'hi', 'bn', 'ar', 'arz', 'ru'].includes(lang)) {
+          expect(item.romanized?.trim(), `${lang} arcade item ${item.id} missing romanized`).toBeTruthy();
+        }
       }
 
       // Unlocked vocab IDs from Unit 5 should be included when present

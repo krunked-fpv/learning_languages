@@ -221,4 +221,242 @@ describe('Challenge 2: Adversarial Grader (Diacritics, Elisions, Smart Quotes, P
       expect(res.heartPenalty).toBe(1);
     }
   });
+
+  it('strips international punctuation (CJK 。？！，、・「」『』（）, Arabic ،؟؛ + tatweel, Indic danda ।॥)', () => {
+    const cases = [
+      { submitted: '你好，朋友！', expected: '你好朋友', lang: 'zh' as const },
+      { submitted: '「おはよう。」', expected: 'おはよう', lang: 'ja' as const },
+      { submitted: 'مرحباً، يا صديقي؟', expected: 'مرحباً يا صديقي', lang: 'ar' as const },
+      { submitted: 'صبــــاح الفل؛', expected: 'صباح الفل', lang: 'arz' as const },
+      { submitted: 'नमस्ते।', expected: 'नमस्ते', lang: 'hi' as const },
+      { submitted: 'নমস্কার॥', expected: 'নমস্কার', lang: 'bn' as const },
+    ];
+
+    for (const c of cases) {
+      const res = gradeAnswer({
+        submitted: c.submitted,
+        expected: c.expected,
+        language: c.lang,
+      });
+      expect(res.isCorrect, `Intl punctuation failed for ${c.submitted}`).toBe(true);
+      expect(res.exactMatch, `Intl punctuation exactMatch failed for ${c.submitted}`).toBe(true);
+      expect(res.heartPenalty).toBe(0);
+    }
+
+    expect(normalizeAnswer('  「你好、世界！」  ')).toBe('你好、世界');
+    expect(normalizeAnswer('  مرحــــباً،؟؛  ')).toBe('مرحباً');
+    expect(normalizeAnswer('  नमस्ते।॥  ')).toBe('नमस्ते');
+  });
+
+  it('handles Vietnamese đ -> d and stacked diacritics, Portuguese nasal/cedilla/circumflex, and Russian ё -> е (while keeping й distinct)', () => {
+    // Vietnamese exact
+    const viExact = gradeAnswer({
+      submitted: 'Tiếng Việt',
+      expected: 'Tiếng Việt',
+      language: 'vi',
+    });
+    expect(viExact.isCorrect).toBe(true);
+    expect(viExact.exactMatch).toBe(true);
+    expect(viExact.heartPenalty).toBe(0);
+
+    // Vietnamese forgiving: đ -> d and stacked \u1E00-\u1EFF diacritics
+    expect(normalizeAnswer('đường phố', { stripAccents: true })).toBe('duong pho');
+    const viCases = [
+      { submitted: 'tieng viet', expected: 'Tiếng Việt', mustHighlight: ['ế', 'ệ'] },
+      { submitted: 'duong pho', expected: 'đường phố', mustHighlight: ['đ', 'ờ', 'ố'] },
+      { submitted: 'ca phe sua da', expected: 'cà phê sữa đá', mustHighlight: ['à', 'ê', 'ữ', 'đ'] },
+      { submitted: 'banh mi', expected: 'bánh mì', mustHighlight: ['á', 'ì'] },
+      { submitted: 'mot con meo', expected: 'một con mèo', mustHighlight: ['ộ', 'è'] },
+    ];
+    for (const c of viCases) {
+      const res = gradeAnswer({
+        submitted: c.submitted,
+        expected: c.expected,
+        language: 'vi',
+      });
+      expect(res.isCorrect, `vi forgiving failed for ${c.submitted}`).toBe(true);
+      expect(res.exactMatch).toBe(false);
+      expect(res.heartPenalty).toBe(0);
+      expect(res.accentCoaching).toBeDefined();
+      for (const h of c.mustHighlight) {
+        expect(res.accentCoaching!.highlightedChars, `Missing "${h}" for "${c.submitted}"`).toContain(h);
+      }
+    }
+
+    // Portuguese: ã, õ, ç, â, ê, ô
+    const ptCases = [
+      { submitted: 'maca', expected: 'maçã', mustHighlight: ['ç', 'ã'] },
+      { submitted: 'coracoes', expected: 'corações', mustHighlight: ['ç', 'õ'] },
+      { submitted: 'voce', expected: 'você', mustHighlight: ['ê'] },
+      { submitted: 'onibus', expected: 'ônibus', mustHighlight: ['ô'] },
+      { submitted: 'pao', expected: 'pão', mustHighlight: ['ã'] },
+    ];
+    for (const c of ptCases) {
+      const res = gradeAnswer({
+        submitted: c.submitted,
+        expected: c.expected,
+        language: 'pt',
+      });
+      expect(res.isCorrect, `pt forgiving failed for ${c.submitted}`).toBe(true);
+      expect(res.exactMatch).toBe(false);
+      expect(res.heartPenalty).toBe(0);
+      expect(res.accentCoaching).toBeDefined();
+      for (const h of c.mustHighlight) {
+        expect(res.accentCoaching!.highlightedChars).toContain(h);
+      }
+      expect(res.accentCoaching!.friendlyTip.length).toBeGreaterThan(10);
+    }
+
+    // Russian: ё exact vs е forgiving, and й MUST NOT collapse to и
+    const ruExact = gradeAnswer({ submitted: 'звёзды', expected: 'звёзды', language: 'ru' });
+    expect(ruExact.isCorrect).toBe(true);
+    expect(ruExact.exactMatch).toBe(true);
+    expect(ruExact.heartPenalty).toBe(0);
+
+    const ruForgiving = gradeAnswer({ submitted: 'звезды', expected: 'звёзды', language: 'ru' });
+    expect(ruForgiving.isCorrect).toBe(true);
+    expect(ruForgiving.exactMatch).toBe(false);
+    expect(ruForgiving.heartPenalty).toBe(0);
+    expect(ruForgiving.accentCoaching?.highlightedChars).toContain('ё');
+
+    const ruYodMismatch = gradeAnswer({ submitted: 'мои', expected: 'мой', language: 'ru' });
+    expect(ruYodMismatch.isCorrect).toBe(false);
+    expect(ruYodMismatch.heartPenalty).toBe(1);
+  });
+
+  it('handles Arabic optional harakat, alef variants, teh marbuta/alef maksura, spaceless CJK, and romanized/Pinyin/Romaji accepted coaching', () => {
+    // Arabic harakat & alef/teh-marbuta/alef-maksura variants
+    const arExact = gradeAnswer({ submitted: 'مرحباً!', expected: 'مرحباً', language: 'ar' });
+    expect(arExact.isCorrect).toBe(true);
+    expect(arExact.exactMatch).toBe(true);
+
+    const arHarakaForgiving = gradeAnswer({ submitted: 'مرحبا', expected: 'مرحباً', language: 'ar' });
+    expect(arHarakaForgiving.isCorrect).toBe(true);
+    expect(arHarakaForgiving.exactMatch).toBe(false);
+    expect(arHarakaForgiving.heartPenalty).toBe(0);
+    expect(arHarakaForgiving.accentCoaching).toBeDefined();
+
+    const arAlefMaksuraForgiving = gradeAnswer({
+      submitted: 'الي الحديقه',
+      expected: 'إلى الحديقة',
+      language: 'ar',
+    });
+    expect(arAlefMaksuraForgiving.isCorrect).toBe(true);
+    expect(arAlefMaksuraForgiving.exactMatch).toBe(false);
+    expect(arAlefMaksuraForgiving.heartPenalty).toBe(0);
+    expect(arAlefMaksuraForgiving.accentCoaching?.highlightedChars).toEqual(
+      expect.arrayContaining(['إ', 'ى', 'ة'])
+    );
+
+    const arTatweelExact = gradeAnswer({
+      submitted: 'صبــــاح الفل',
+      expected: 'صباح الفل',
+      language: 'arz',
+    });
+    expect(arTatweelExact.isCorrect).toBe(true);
+    expect(arTatweelExact.exactMatch).toBe(true);
+    expect(arTatweelExact.heartPenalty).toBe(0);
+
+    const arzVariant = gradeAnswer({
+      submitted: 'اهلا بيك',
+      expected: 'أهلاً بيك',
+      language: 'arz',
+    });
+    expect(arzVariant.isCorrect).toBe(true);
+    expect(arzVariant.exactMatch).toBe(false);
+    expect(arzVariant.heartPenalty).toBe(0);
+
+    // Spaceless CJK collapse (both zh & ja) while preserving non-CJK word spaces
+    const zhSpaceless = gradeAnswer({
+      submitted: '你好 朋友',
+      expected: '你好，朋友！',
+      language: 'zh',
+    });
+    expect(zhSpaceless.isCorrect).toBe(true);
+    expect(zhSpaceless.exactMatch).toBe(true);
+    expect(zhSpaceless.heartPenalty).toBe(0);
+
+    const jaSpaceless = gradeAnswer({
+      submitted: 'こんにちは ともだち',
+      expected: 'こんにちは、ともだち！',
+      language: 'ja',
+    });
+    expect(jaSpaceless.isCorrect).toBe(true);
+    expect(jaSpaceless.exactMatch).toBe(true);
+    expect(jaSpaceless.heartPenalty).toBe(0);
+
+    const cjkWrong = gradeAnswer({ submitted: '你好 小猫', expected: '你好，朋友！', language: 'zh' });
+    expect(cjkWrong.isCorrect).toBe(false);
+    expect(cjkWrong.heartPenalty).toBe(1);
+
+    const latinSpacePreserved = gradeAnswer({
+      submitted: 'goodmorning',
+      expected: 'good morning',
+      language: 'en',
+    });
+    expect(latinSpacePreserved.isCorrect).toBe(false);
+    expect(latinSpacePreserved.heartPenalty).toBe(1);
+
+    // Pinyin & Romaji accepted answers with tone/macron coaching
+    const pinyinForgiving = gradeAnswer({
+      submitted: 'ni hao',
+      expected: '你好！',
+      accepted: ['Nǐ hǎo'],
+      language: 'zh',
+    });
+    expect(pinyinForgiving.isCorrect).toBe(true);
+    expect(pinyinForgiving.exactMatch).toBe(false);
+    expect(pinyinForgiving.heartPenalty).toBe(0);
+    expect(pinyinForgiving.accentCoaching?.highlightedChars).toEqual(
+      expect.arrayContaining(['ǐ', 'ǎ'])
+    );
+
+    const romajiForgiving = gradeAnswer({
+      submitted: 'ohayo',
+      expected: 'おはよう',
+      accepted: ['Ohayō'],
+      language: 'ja',
+    });
+    expect(romajiForgiving.isCorrect).toBe(true);
+    expect(romajiForgiving.exactMatch).toBe(false);
+    expect(romajiForgiving.heartPenalty).toBe(0);
+    expect(romajiForgiving.accentCoaching?.highlightedChars).toContain('ō');
+
+    expect(joinWordBankTokens(['你好', '，', '朋友', '！'])).toBe('你好，朋友！');
+    expect(joinWordBankTokens(['مرحباً', '،', 'صديقي', '؟'])).toBe('مرحباً، صديقي؟');
+  });
+
+  it('provides language-specific ARTICLE_META coaching across all 16 languages', () => {
+    const samples = [
+      { lang: 'es' as const, article: 'los', gender: 'plural' as const },
+      { lang: 'fr' as const, article: "l'", gender: 'invariant' as const },
+      { lang: 'de' as const, article: 'das', gender: 'neuter' as const },
+      { lang: 'it' as const, article: 'gli', gender: 'plural' as const },
+      { lang: 'pt' as const, article: 'umas', gender: 'plural' as const },
+      { lang: 'en' as const, article: 'an', gender: 'invariant' as const },
+      { lang: 'zh' as const, article: '个', gender: 'invariant' as const },
+      { lang: 'ja' as const, article: 'は', gender: 'invariant' as const },
+      { lang: 'hi' as const, article: 'की', gender: 'feminine' as const },
+      { lang: 'bn' as const, article: 'টা', gender: 'invariant' as const },
+      { lang: 'ar' as const, article: 'هذا', gender: 'masculine' as const },
+      { lang: 'arz' as const, article: 'دي', gender: 'feminine' as const },
+      { lang: 'ru' as const, article: 'моё', gender: 'neuter' as const },
+      { lang: 'id' as const, article: 'seekor', gender: 'invariant' as const },
+      { lang: 'vi' as const, article: 'quả', gender: 'invariant' as const },
+      { lang: 'sw' as const, article: 'wa-', gender: 'plural' as const },
+    ];
+
+    for (const s of samples) {
+      const res = gradeAnswer({
+        submitted: 'ok',
+        expected: 'ok',
+        language: s.lang,
+        expectedArticle: s.article,
+      });
+      expect(res.articleCoaching, `Missing articleCoaching for ${s.lang}:${s.article}`).toBeDefined();
+      expect(res.articleCoaching!.article).toBe(s.article);
+      expect(res.articleCoaching!.gender).toBe(s.gender);
+      expect(res.articleCoaching!.note).not.toContain('introduces this noun in');
+    }
+  });
 });

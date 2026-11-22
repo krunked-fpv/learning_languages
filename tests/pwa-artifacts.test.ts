@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { inflateSync } from 'node:zlib';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { LANGUAGE_LIST, LANGUAGE_META } from '../src/types/contracts';
 
 const ROOT_DIR = resolve(__dirname, '..');
 const DIST_DIR = resolve(ROOT_DIR, 'dist');
@@ -155,13 +156,23 @@ describe('Challenge 5-artifacts: Production PWA Build, Manifest, Service Worker 
     }
   });
 
-  it('verifies built JS/CSS assets contain zero Unicode flag emojis', () => {
+  it('verifies built JS/CSS/HTML/JSON assets contain zero Unicode flag emojis and bundle all 16 language land titles', () => {
     const assetsDir = resolve(DIST_DIR, 'assets');
     expect(existsSync(assetsDir)).toBe(true);
+    let combinedJs = '';
     for (const file of readdirSync(assetsDir)) {
       if (!/\.(js|css|mjs)$/i.test(file)) continue;
       const text = readFileSync(join(assetsDir, file), 'utf8');
       expect(UNICODE_FLAG_RE.test(text), `Flag emoji leaked into dist/assets/${file}`).toBe(false);
+      if (file.endsWith('.js') || file.endsWith('.mjs')) {
+        combinedJs += text;
+      }
+    }
+    for (const lang of LANGUAGE_LIST) {
+      expect(
+        combinedJs.includes(LANGUAGE_META[lang].landTitle),
+        `Missing 16-language landTitle "${LANGUAGE_META[lang].landTitle}" in built dist/assets/*.js`
+      ).toBe(true);
     }
   });
 });

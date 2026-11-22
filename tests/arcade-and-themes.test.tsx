@@ -5,10 +5,11 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { ArcadeHub } from '../src/components/arcade/ArcadeHub';
+import { FALLBACK_ARCADE_LEXICON } from '../src/components/arcade/arcadeShared';
 import { AdventureMap } from '../src/components/map/AdventureMap';
 import { getCourse } from '../src/curriculum';
 import { createDefaultVault, loadVaultFromStorage, vaultActions } from '../src/store/useVaultStore';
-import { LANGUAGE_LIST } from '../src/types/contracts';
+import { LANGUAGE_LIST, LANGUAGE_META } from '../src/types/contracts';
 
 const ROOT_DIR = resolve(__dirname, '..');
 
@@ -49,7 +50,7 @@ describe('Wave 3 Adversarial UI: Zero-Scroll 100dvh Shell, 8-Chapter Map, Cosmic
     }
   });
 
-  it('switches Chapters 1..8 cleanly on AdventureMap across all 4 languages without console errors/warnings', async () => {
+  it('switches Chapters 1..8 cleanly on AdventureMap across all 16 languages without console errors/warnings', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
@@ -68,6 +69,8 @@ describe('Wave 3 Adversarial UI: Zero-Scroll 100dvh Shell, 8-Chapter Map, Cosmic
           onSelectUnit={onSelectUnit}
         />
       );
+
+      expect(document.querySelector(`svg[data-flag="${lang}"]`)).toBeInTheDocument();
 
       const tabList = screen.getByRole('tablist', { name: 'Unit quick-jump tabs' });
       const tabs = within(tabList).getAllByRole('tab');
@@ -107,7 +110,7 @@ describe('Wave 3 Adversarial UI: Zero-Scroll 100dvh Shell, 8-Chapter Map, Cosmic
 
     expect(errSpy, `Unexpected console.error calls: ${JSON.stringify(errSpy.mock.calls)}`).not.toHaveBeenCalled();
     expect(warnSpy, `Unexpected console.warn calls: ${JSON.stringify(warnSpy.mock.calls)}`).not.toHaveBeenCalled();
-  });
+  }, 60_000);
 
   it('unlocks and equips theme_cosmic_galaxy in CompanionShop and switches palettes via TopHud Color palettes popover', () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -257,6 +260,77 @@ describe('Wave 3 Adversarial UI: Zero-Scroll 100dvh Shell, 8-Chapter Map, Cosmic
     act(() => {
       vi.runOnlyPendingTimers();
     });
+
+    expect(errSpy, `Unexpected console.error calls: ${JSON.stringify(errSpy.mock.calls)}`).not.toHaveBeenCalled();
+    expect(warnSpy, `Unexpected console.warn calls: ${JSON.stringify(warnSpy.mock.calls)}`).not.toHaveBeenCalled();
+  });
+
+  it('supports all 16 languages in FALLBACK_ARCADE_LEXICON and renders RTL dir="rtl" and romanized badges in ArcadeHub & mini-games', () => {
+    vi.useFakeTimers();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 1);
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    for (const lang of LANGUAGE_LIST) {
+      const items = FALLBACK_ARCADE_LEXICON[lang];
+      expect(items, `Missing FALLBACK_ARCADE_LEXICON for ${lang}`).toHaveLength(8);
+      for (const item of items) {
+        expect(item.language).toBe(lang);
+        expect(item.foreign.trim()).not.toBe('');
+        expect(item.english.trim()).not.toBe('');
+        expect(item.phonetic.trim()).not.toBe('');
+        if (lang === 'en') {
+          expect(item.foreign.toLowerCase()).not.toBe(item.english.toLowerCase());
+        }
+        if (['zh', 'ja', 'hi', 'bn', 'ar', 'arz', 'ru'].includes(lang)) {
+          expect(item.romanized?.trim(), `Missing romanized in fallback arcade ${lang}:${item.id}`).toBeTruthy();
+        }
+      }
+    }
+
+    const arSet = new Set(FALLBACK_ARCADE_LEXICON.ar.map((i) => i.foreign));
+    const arzDistinct = FALLBACK_ARCADE_LEXICON.arz.filter((i) => !arSet.has(i.foreign)).length;
+    expect(arzDistinct).toBeGreaterThanOrEqual(6);
+
+    vaultActions.unlockSecretArcade();
+
+    // Spot-check RTL (arz, ar), CJK (zh, ja), Indic (hi), and Latin (vi) in ArcadeHub + SkyCatcher + StarlightCritterChoir
+    for (const lang of ['arz', 'ar', 'zh', 'ja', 'hi', 'vi'] as const) {
+      vaultActions.setActiveLanguage(lang);
+      const { container, unmount } = render(<ArcadeHub onExitToMap={vi.fn()} />);
+
+      expect(container.querySelector(`svg[data-flag="${lang}"]`)).toBeInTheDocument();
+      expect(screen.getByText(LANGUAGE_META[lang].nativeName)).toBeInTheDocument();
+
+      // Launch Sky-Catcher Fiesta and verify TargetPromptBar data-language/data-dir + RTL/LTR rendering
+      fireEvent.click(screen.getByRole('button', { name: 'Play Sky-Catcher' }));
+      fireEvent.click(screen.getByRole('button', { name: /Start 45s Fiesta!/i }));
+
+      const promptBar = container.querySelector(`[data-language="${lang}"][data-dir="${LANGUAGE_META[lang].dir}"]`);
+      expect(promptBar, `Missing TargetPromptBar metadata for ${lang}`).toBeInTheDocument();
+      if (LANGUAGE_META[lang].dir === 'rtl') {
+        expect(container.querySelectorAll('[dir="rtl"]').length).toBeGreaterThan(0);
+      }
+
+      fireEvent.click(screen.getByRole('button', { name: /Claim \+\d+ Hearts/i }));
+      fireEvent.click(screen.getByRole('button', { name: 'Back to Atlas Map' }));
+
+      // Launch Starlight Critter Choir and verify RTL Song-Bubbles / exit cleanly
+      fireEvent.click(screen.getByRole('button', { name: /Play Starlight Critter Choir!/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Start Critter Choir!/i }));
+      if (LANGUAGE_META[lang].dir === 'rtl') {
+        expect(container.querySelectorAll('[dir="rtl"]').length).toBeGreaterThan(0);
+      }
+      fireEvent.click(screen.getByRole('button', { name: 'Claim Rewards' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Back to Arcade Hub' }));
+
+      act(() => {
+        vi.runOnlyPendingTimers();
+      });
+      unmount();
+      cleanup();
+    }
 
     expect(errSpy, `Unexpected console.error calls: ${JSON.stringify(errSpy.mock.calls)}`).not.toHaveBeenCalled();
     expect(warnSpy, `Unexpected console.warn calls: ${JSON.stringify(warnSpy.mock.calls)}`).not.toHaveBeenCalled();

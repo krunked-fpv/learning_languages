@@ -3,10 +3,12 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  SPEECH_LOCALE_MAP,
   getSpeechRuntimeState,
   hasNativeVoice,
   playPhoneticCadence,
   playSfx,
+  rankVoiceForLanguage,
   setAudioPreferences,
   speakPhrase,
   stopSpeech,
@@ -15,7 +17,7 @@ import { LessonArena } from '../src/components/lesson/LessonArena';
 import { ListenDecodeView } from '../src/components/lesson/ListenDecodeView';
 import { getCourse } from '../src/curriculum';
 import { vaultActions } from '../src/store/useVaultStore';
-import type { ListenDecodeExercise, MapNode, SoundEffectId } from '../src/types/contracts';
+import { LANGUAGE_LIST, type LanguageCode, type ListenDecodeExercise, type MapNode, type SoundEffectId } from '../src/types/contracts';
 
 interface MockUtterance {
   text: string;
@@ -445,5 +447,166 @@ describe('Challenge 3-speech: Zero-Stall Speech Fallback, Watchdog & ListenDecod
 
     // Victory screen reached cleanly without stalling
     expect(screen.getByText(`${testNode.title} Complete!`)).toBeInTheDocument();
+  });
+
+  it('maps all 16 languages in SPEECH_LOCALE_MAP, matches arz->ar-EG, id->in-ID, zh->cmn-Hans-CN/zh-CN, and degrades all 16 languages seamlessly to marimba cadence when voices are empty', async () => {
+    // 1. SPEECH_LOCALE_MAP completeness across all 16 languages + 'en'
+    for (const lang of LANGUAGE_LIST) {
+      expect(SPEECH_LOCALE_MAP[lang], `Missing SPEECH_LOCALE_MAP entry for ${lang}`).toBeDefined();
+      expect(SPEECH_LOCALE_MAP[lang].length).toBeGreaterThan(0);
+    }
+    expect(SPEECH_LOCALE_MAP.arz).toContain('ar-EG');
+    expect(SPEECH_LOCALE_MAP.id).toContain('in-ID');
+    expect(SPEECH_LOCALE_MAP.zh).toEqual(expect.arrayContaining(['zh-CN', 'cmn-Hans-CN']));
+
+    // 2. Empty voices degrade cleanly to marimba cadence across ALL 16 languages (including CJK, Arabic, Indic, Cyrillic)
+    const { createdMock, oscTypes } = createMockAudioContext();
+    Object.defineProperty(window, 'AudioContext', {
+      configurable: true,
+      writable: true,
+      value: createdMock,
+    });
+
+    const speakSpy = vi.fn();
+    Object.defineProperty(window, 'speechSynthesis', {
+      configurable: true,
+      writable: true,
+      value: {
+        getVoices: () => [],
+        speak: speakSpy,
+        cancel: vi.fn(),
+        speaking: false,
+        pending: false,
+        paused: false,
+        onvoiceschanged: null,
+        addEventListener: vi.fn(),
+      },
+    });
+
+    const samplePhonetics: Record<LanguageCode, { text: string; phonetic: string }> = {
+      es: { text: '¡Hola!', phonetic: 'OH-lah' },
+      fr: { text: 'Bonjour', phonetic: 'bon-ZHOOR' },
+      de: { text: 'Hallo', phonetic: 'HAH-loh' },
+      it: { text: 'Ciao', phonetic: 'CHOW' },
+      pt: { text: 'Olá!', phonetic: 'oh-LAH' },
+      en: { text: 'Hello!', phonetic: 'heh-LOH' },
+      zh: { text: '你好！', phonetic: 'NEE how' },
+      ja: { text: 'こんにちは', phonetic: 'kohn-nee-chee-wah' },
+      hi: { text: 'नमस्ते', phonetic: 'nah-mahs-TEH' },
+      bn: { text: 'নমস্কার', phonetic: 'noh-mohsh-KAR' },
+      ar: { text: 'مرحباً', phonetic: 'mar-HA-ban' },
+      arz: { text: 'إزيك', phonetic: 'ez-ZAY-yak' },
+      ru: { text: 'Привет!', phonetic: 'pree-VYEHT' },
+      id: { text: 'Halo!', phonetic: 'HAH-loh' },
+      vi: { text: 'Xin chào!', phonetic: 'seen CHOW' },
+      sw: { text: 'Jambo!', phonetic: 'JAHM-boh' },
+    };
+
+    vi.useFakeTimers();
+    for (const lang of LANGUAGE_LIST) {
+      expect(hasNativeVoice(lang)).toBe(false);
+      const p = speakPhrase({
+        text: samplePhonetics[lang].text,
+        language: lang,
+        phonetic: samplePhonetics[lang].phonetic,
+      });
+      await vi.advanceTimersByTimeAsync(2000);
+      const outcome = await p;
+      expect(outcome).toEqual({ usedNativeVoice: false, fallbackActive: true });
+      expect(getSpeechRuntimeState().fallbackActive).toBe(true);
+      expect(getSpeechRuntimeState().isSpeaking).toBe(false);
+    }
+    expect(speakSpy).not.toHaveBeenCalled();
+    expect(oscTypes.length).toBeGreaterThan(0);
+    for (const wave of oscTypes) {
+      expect(['sine', 'triangle']).toContain(wave);
+    }
+    vi.useRealTimers();
+
+    // 3. Native voice matching & tier ranking for arz (ar-EG), ar (ar-SA), id (in-ID), zh (cmn-Hans-CN / zh-CN), and all 16 languages
+    const { FakeUtterance, created } = createFakeUtteranceCtor();
+    Object.defineProperty(globalThis, 'SpeechSynthesisUtterance', {
+      configurable: true,
+      writable: true,
+      value: FakeUtterance,
+    });
+
+    const makeVoice = (lang: string, name = `Voice ${lang}`): SpeechSynthesisVoice =>
+      ({
+        name,
+        lang,
+        localService: true,
+        default: false,
+        voiceURI: lang,
+      }) as SpeechSynthesisVoice;
+
+    const arSaVoice = makeVoice('ar-SA', 'Arabic Saudi');
+    const arEgVoice = makeVoice('ar-EG', 'Arabic Egypt');
+    const inIdVoice = makeVoice('in-ID', 'Legacy Indonesian');
+    const idIdVoice = makeVoice('id-ID', 'Indonesian');
+    const cmnVoice = makeVoice('cmn-Hans-CN', 'Mandarin cmn');
+    const zhCnVoice = makeVoice('zh-CN', 'Mandarin zh-CN');
+
+    expect(rankVoiceForLanguage(arEgVoice, 'arz')).toBeGreaterThan(rankVoiceForLanguage(arSaVoice, 'arz'));
+    expect(rankVoiceForLanguage(arSaVoice, 'ar')).toBeGreaterThan(rankVoiceForLanguage(arEgVoice, 'ar'));
+    expect(rankVoiceForLanguage(inIdVoice, 'id')).toBeGreaterThan(0);
+    expect(rankVoiceForLanguage(idIdVoice, 'id')).toBeGreaterThan(rankVoiceForLanguage(inIdVoice, 'id'));
+    expect(rankVoiceForLanguage(cmnVoice, 'zh')).toBeGreaterThan(0);
+    expect(rankVoiceForLanguage(zhCnVoice, 'zh')).toBeGreaterThan(rankVoiceForLanguage(cmnVoice, 'zh'));
+
+    const allNativeVoices: SpeechSynthesisVoice[] = [
+      makeVoice('es-MX'),
+      makeVoice('fr-FR'),
+      makeVoice('de-DE'),
+      makeVoice('it-IT'),
+      makeVoice('pt-BR'),
+      makeVoice('en-US'),
+      cmnVoice,
+      makeVoice('ja-JP'),
+      makeVoice('hi-IN'),
+      makeVoice('bn-BD'),
+      arSaVoice,
+      arEgVoice,
+      makeVoice('ru-RU'),
+      inIdVoice,
+      makeVoice('vi-VN'),
+      makeVoice('sw-KE'),
+    ];
+
+    Object.defineProperty(window, 'speechSynthesis', {
+      configurable: true,
+      writable: true,
+      value: {
+        getVoices: () => allNativeVoices,
+        speak: (utt: MockUtterance) => {
+          queueMicrotask(() => {
+            utt.onend?.(new Event('end'));
+          });
+        },
+        cancel: vi.fn(),
+        speaking: false,
+        pending: false,
+        paused: false,
+        onvoiceschanged: null,
+        addEventListener: vi.fn(),
+      },
+    });
+
+    for (const lang of LANGUAGE_LIST) {
+      expect(hasNativeVoice(lang), `Expected native voice match for ${lang}`).toBe(true);
+    }
+
+    const arzOutcome = await speakPhrase({ text: 'إزيك', language: 'arz', phonetic: 'ez-ZAY-yak' });
+    expect(arzOutcome).toEqual({ usedNativeVoice: true, fallbackActive: false, localeUsed: 'ar-EG' });
+
+    const arOutcome = await speakPhrase({ text: 'مرحباً', language: 'ar', phonetic: 'mar-HA-ban' });
+    expect(arOutcome).toEqual({ usedNativeVoice: true, fallbackActive: false, localeUsed: 'ar-SA' });
+
+    const idOutcome = await speakPhrase({ text: 'Halo!', language: 'id', phonetic: 'HAH-loh' });
+    expect(idOutcome).toEqual({ usedNativeVoice: true, fallbackActive: false, localeUsed: 'in-ID' });
+
+    const zhOutcome = await speakPhrase({ text: '你好', language: 'zh', phonetic: 'NEE how' });
+    expect(zhOutcome).toEqual({ usedNativeVoice: true, fallbackActive: false, localeUsed: 'cmn-Hans-CN' });
+    expect(created.length).toBeGreaterThanOrEqual(4);
   });
 });

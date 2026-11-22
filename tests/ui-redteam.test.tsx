@@ -6,10 +6,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { SkyCatcherArcade } from '../src/components/arcade/SkyCatcherArcade';
 import { BossGauntletView } from '../src/components/lesson/BossGauntletView';
+import { DiscoveryCardView } from '../src/components/lesson/DiscoveryCardView';
 import { LessonArena } from '../src/components/lesson/LessonArena';
+import { ListenDecodeView } from '../src/components/lesson/ListenDecodeView';
 import { MiniStoryView } from '../src/components/lesson/MiniStoryView';
 import { PairMatchRushView } from '../src/components/lesson/PairMatchRushView';
 import { TapHintText } from '../src/components/lesson/TapHintText';
+import { WordBankView } from '../src/components/lesson/WordBankView';
 import { AdventureMap } from '../src/components/map/AdventureMap';
 import { CompanionShop } from '../src/components/meta/CompanionShop';
 import { LeagueAndBadges } from '../src/components/meta/LeagueAndBadges';
@@ -18,13 +21,16 @@ import { ProfileVaultModal } from '../src/components/shell/ProfileVaultModal';
 import { TopHud } from '../src/components/shell/TopHud';
 import { getCourse } from '../src/curriculum';
 import { createDefaultVault, vaultActions } from '../src/store/useVaultStore';
-import type {
-  BossGauntletExercise,
-  MapNode,
-  MiniStoryExercise,
-  PairMatchRushExercise,
-  TapHintToken,
-  WordBankExercise,
+import {
+  LANGUAGE_LIST,
+  LANGUAGE_META,
+  type BossGauntletExercise,
+  type ListenDecodeExercise,
+  type MapNode,
+  type MiniStoryExercise,
+  type PairMatchRushExercise,
+  type TapHintToken,
+  type WordBankExercise,
 } from '../src/types/contracts';
 
 const ROOT_DIR = resolve(__dirname, '..');
@@ -86,6 +92,16 @@ describe('Challenge 6: UI/CSS/Component Static & DOM Red-Team Audit', () => {
     expect(stageBlock).toContain('flex: 1 1 auto');
     expect(stageBlock).toContain('min-height: 0');
     expect(stageBlock).toContain('overflow-y: auto');
+
+    expect(css).toContain('max-height: calc(100dvh - 28px)');
+    expect(css).toContain('max-width: calc(100vw - 16px)');
+    expect(css).toMatch(/\[dir='rtl'\]\s*\{[^}]*line-height:\s*1\.5/s);
+    expect(css).toContain('.console-scroll-pane-x');
+    expect(css).toContain('Noto Sans Arabic');
+    expect(css).toContain('Noto Sans SC');
+    expect(css).toContain('Noto Sans JP');
+    expect(css).toContain('Noto Sans Devanagari');
+    expect(css).toContain('Noto Sans Bengali');
   });
 
   it('renders TopHud with custom SVG flags, switches languages, toggles audio, and shows conditional Install App button', () => {
@@ -484,5 +500,311 @@ describe('Challenge 6: UI/CSS/Component Static & DOM Red-Team Audit', () => {
     // 5. LeagueAndBadges renders all 12 badges and leaderboard
     render(<LeagueAndBadges />);
     expect(screen.getByText(/Expedition Badges \(0 \/ 12\)/i)).toBeInTheDocument();
+  });
+
+  it('renders all 16 SVG flags and bounded pickers in TopHud, PhrasebookVault, and ProfileVaultModal', () => {
+    const onOpenProfile = vi.fn();
+    const onOpenArcade = vi.fn();
+    const onInstall = vi.fn();
+
+    // 1. TopHud 2-col 16-language Expedition Grid switcher
+    const { unmount: unmountHud } = render(
+      <TopHud
+        onOpenProfileModal={onOpenProfile}
+        onOpenArcade={onOpenArcade}
+        canInstallApp={false}
+        onInstallApp={onInstall}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Active language: Spanish/i }));
+    const langDialog = screen.getByRole('dialog', { name: 'Switch Language' });
+    expect(langDialog.querySelector('.console-scroll-pane')).toBeInTheDocument();
+
+    for (const lang of LANGUAGE_LIST) {
+      const flagSvg = langDialog.querySelector(`svg[data-flag="${lang}"]`);
+      expect(flagSvg, `TopHud switcher missing SVG flag for ${lang}`).toBeInTheDocument();
+      expect(within(langDialog).getAllByText(LANGUAGE_META[lang].name).length).toBeGreaterThanOrEqual(1);
+    }
+
+    fireEvent.click(within(langDialog).getByRole('button', { name: /Egyptian Arabic/i }));
+    expect(screen.getByRole('button', { name: /Active language: Egyptian Arabic/i })).toBeInTheDocument();
+    unmountHud();
+
+    // 2. PhrasebookVault horizontal scroll strip with all 16 SVG flags + RTL cards
+    const arCard = getCourse('ar').units[0].vocabCards[0];
+    vaultActions.completeMapNode({
+      language: 'ar',
+      nodeId: 'ar-u1-n1',
+      stars: 3,
+      xpEarned: 25,
+      gemsEarned: 10,
+      unlockedVocabIds: [arCard.id],
+      maxCombo: 2,
+    });
+    vaultActions.setActiveLanguage('ar');
+
+    const { unmount: unmountVault } = render(<PhrasebookVault />);
+    const filterGroup = screen.getByRole('group', { name: 'Filter phrasebook by language' });
+    expect(filterGroup).toHaveClass('console-scroll-pane-x');
+    for (const lang of LANGUAGE_LIST) {
+      expect(
+        filterGroup.querySelector(`svg[data-flag="${lang}"]`),
+        `PhrasebookVault missing SVG flag for ${lang}`
+      ).toBeInTheDocument();
+      expect(within(filterGroup).getByText(LANGUAGE_META[lang].name)).toBeInTheDocument();
+    }
+
+    // Unlocked Arabic card & Show-Off flashcard carry dir="rtl"
+    const rtlForeignEls = document.querySelectorAll('[dir="rtl"]');
+    expect(rtlForeignEls.length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: /Family Show-Off Mode/i }));
+    const showOffModal = screen.getByRole('dialog', { name: 'Family Show-Off Flashcard Spotlight' });
+    expect(showOffModal.querySelector('[dir="rtl"]')).toHaveTextContent(arCard.foreignWithArticle);
+    fireEvent.click(within(showOffModal).getByRole('button', { name: 'Close Family Show-Off Mode' }));
+    unmountVault();
+
+    // 3. ProfileVaultModal 16-language starting-language picker inside bounded .modal-card
+    render(<ProfileVaultModal onClose={vi.fn()} />);
+    const modalCard = document.querySelector('.modal-card') as HTMLElement;
+    expect(modalCard).toBeInTheDocument();
+    expect(modalCard.querySelector('.console-scroll-pane')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /\+ New Kid Explorer/i }));
+    const pickerGroup = screen.getByRole('group', { name: 'Pick Starting Language' });
+    for (const lang of LANGUAGE_LIST) {
+      expect(
+        pickerGroup.querySelector(`svg[data-flag="${lang}"]`),
+        `ProfileVaultModal missing SVG flag for ${lang}`
+      ).toBeInTheDocument();
+    }
+    fireEvent.change(screen.getByLabelText('New explorer name'), { target: { value: 'Zayd' } });
+    fireEvent.click(within(pickerGroup).getByRole('button', { name: /Egyptian Arabic/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create Explorer' }));
+    expect(screen.getByText('Welcome aboard, Zayd!')).toBeInTheDocument();
+  });
+
+  it('enforces RTL dir="rtl" on ar/arz and LTR dir="ltr" on non-RTL scripts across TapHintText and all lesson views', () => {
+    // 1. TapHintText RTL wrapper vs LTR popover
+    const arTokens: TapHintToken[] = [
+      {
+        surface: 'مرحباً',
+        normalizedId: 'marhaban',
+        translation: 'Hello',
+        phonetic: 'mar-HA-ban',
+        romanized: 'marḥaban',
+        speakText: 'مرحباً',
+      },
+    ];
+    const { container: tapRtlContainer, unmount: unmountTapRtl } = render(
+      <TapHintText tokens={arTokens} language="ar" />
+    );
+    expect(tapRtlContainer.querySelector('span[dir="rtl"]')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'مرحباً' }));
+    const hintDialog = screen.getByRole('dialog', { name: 'Word hint for مرحباً' });
+    expect(hintDialog).toHaveAttribute('dir', 'ltr');
+    expect(hintDialog.querySelector('strong[dir="rtl"]')).toHaveTextContent('مرحباً');
+    expect(hintDialog).toHaveTextContent('marḥaban');
+    unmountTapRtl();
+
+    // 2. DiscoveryCardView RTL on arz & LTR on ja
+    const arzCard = getCourse('arz').units[0].vocabCards[0];
+    const { container: discArz, unmount: unmountDiscArz } = render(
+      <DiscoveryCardView
+        exercise={{ type: 'discovery_card', id: 'disc-arz', vocabId: arzCard.id }}
+        language="arz"
+        vocabCard={arzCard}
+        compact={false}
+        onTurtlePlay={vi.fn()}
+      />
+    );
+    expect(discArz.querySelectorAll('[dir="rtl"]').length).toBeGreaterThanOrEqual(2);
+    unmountDiscArz();
+
+    const jaCard = getCourse('ja').units[0].vocabCards[0];
+    const { container: discJa, unmount: unmountDiscJa } = render(
+      <DiscoveryCardView
+        exercise={{ type: 'discovery_card', id: 'disc-ja', vocabId: jaCard.id }}
+        language="ja"
+        vocabCard={jaCard}
+        compact={false}
+        onTurtlePlay={vi.fn()}
+      />
+    );
+    expect(discJa.querySelector('[dir="rtl"]')).toBeNull();
+    unmountDiscJa();
+
+    // 3. WordBankView RTL on ar (both to_english and to_foreign + Type Instead)
+    const arNodes = getCourse('ar').units[0].nodes;
+    const arExercises = arNodes.flatMap((n) => n.exercises);
+    const arToEn = arExercises.find(
+      (ex): ex is WordBankExercise => ex.type === 'word_bank' && ex.direction === 'to_english'
+    )!;
+    const arToFr = arExercises.find(
+      (ex): ex is WordBankExercise => ex.type === 'word_bank' && ex.direction === 'to_foreign'
+    )!;
+
+    const { container: wbEnCont, unmount: unmountWbEn } = render(
+      <WordBankView
+        exercise={arToEn}
+        language="ar"
+        compact={false}
+        locked={false}
+        onTurtlePlay={vi.fn()}
+        onDraftChange={vi.fn()}
+      />
+    );
+    expect(wbEnCont.querySelector('[dir="rtl"]')).toBeInTheDocument();
+    expect(screen.getByLabelText('Word bank tiles')).toHaveAttribute('dir', 'ltr');
+    unmountWbEn();
+
+    const { unmount: unmountWbFr } = render(
+      <WordBankView
+        exercise={arToFr}
+        language="ar"
+        compact={false}
+        locked={false}
+        onTurtlePlay={vi.fn()}
+        onDraftChange={vi.fn()}
+      />
+    );
+    expect(screen.getByLabelText('Answer tray')).toHaveAttribute('dir', 'rtl');
+    expect(screen.getByLabelText('Word bank tiles')).toHaveAttribute('dir', 'rtl');
+    fireEvent.click(screen.getByRole('button', { name: /Type Instead/i }));
+    expect(screen.getByLabelText('Type your translation')).toHaveAttribute('dir', 'rtl');
+    expect(screen.getByLabelText('Accent character bar')).toHaveAttribute('dir', 'rtl');
+    unmountWbFr();
+
+    // 4. ListenDecodeView (assemble_heard) RTL on arz
+    const arzAssemble = getCourse('arz').units[0].nodes
+      .flatMap((n) => n.exercises)
+      .find((ex): ex is ListenDecodeExercise => ex.type === 'listen_decode' && ex.mode === 'assemble_heard')!;
+    const { container: listenCont, unmount: unmountListen } = render(
+      <ListenDecodeView
+        exercise={arzAssemble}
+        language="arz"
+        compact={false}
+        locked={false}
+        revealed
+        onTurtlePlay={vi.fn()}
+        onDraftChange={vi.fn()}
+      />
+    );
+    expect(screen.getByLabelText('Word bank tiles')).toHaveAttribute('dir', 'rtl');
+    expect(listenCont.querySelector('[dir="rtl"]')).toBeInTheDocument();
+    unmountListen();
+
+    // 5. PairMatchRushView, MiniStoryView, BossGauntletView RTL on arz/ar
+    const arzRush = getCourse('arz').units[0].nodes
+      .flatMap((n) => n.exercises)
+      .find((ex): ex is PairMatchRushExercise => ex.type === 'pair_match_rush')!;
+    const { container: rushCont, unmount: unmountRush } = render(
+      <PairMatchRushView exercise={arzRush} language="arz" compact={false} onComplete={vi.fn()} />
+    );
+    expect(rushCont.querySelectorAll('button[dir="rtl"]').length).toBeGreaterThanOrEqual(4);
+    unmountRush();
+
+    const arStory = getCourse('ar').units[0].nodes.find((n) => n.nodeType === 'story')!
+      .exercises[0] as MiniStoryExercise;
+    const { container: storyCont, unmount: unmountStory } = render(
+      <MiniStoryView
+        exercise={arStory}
+        language="ar"
+        compact={false}
+        onTurtlePlay={vi.fn()}
+        onComplete={vi.fn()}
+      />
+    );
+    expect(storyCont.querySelector('[dir="rtl"]')).toBeInTheDocument();
+    unmountStory();
+
+    const arzBoss = getCourse('arz').units[0].nodes.find((n) => n.nodeType === 'boss')!
+      .exercises[0] as BossGauntletExercise;
+    const { container: bossCont } = render(
+      <BossGauntletView
+        exercise={arzBoss}
+        language="arz"
+        compact={false}
+        onTurtlePlay={vi.fn()}
+        onTurnResult={vi.fn()}
+        onComplete={vi.fn()}
+      />
+    );
+    expect(bossCont.querySelector('[dir="rtl"]')).toBeInTheDocument();
+  });
+
+  it('triggers Accent Spotlight coaching via Type Instead for Vietnamese, Portuguese, Russian, Arabic, and Mandarin Pinyin inside LessonArena', () => {
+    const cases = [
+      {
+        lang: 'vi' as const,
+        expected: 'Tiếng Việt',
+        accepted: ['Tiếng Việt'],
+        typed: 'Tieng Viet',
+      },
+      {
+        lang: 'pt' as const,
+        expected: 'maçã',
+        accepted: ['maçã'],
+        typed: 'maca',
+      },
+      {
+        lang: 'ru' as const,
+        expected: 'звёзды',
+        accepted: ['звёзды'],
+        typed: 'звезды',
+      },
+      {
+        lang: 'ar' as const,
+        expected: 'مرحباً',
+        accepted: ['مرحباً'],
+        typed: 'مرحبا',
+      },
+      {
+        lang: 'zh' as const,
+        expected: '你好！',
+        accepted: ['Nǐ hǎo'],
+        typed: 'ni hao',
+      },
+    ];
+
+    for (const c of cases) {
+      vaultActions.resetVaultToDefaults();
+      vaultActions.setActiveLanguage(c.lang);
+      const node: MapNode = {
+        id: `test-accent-${c.lang}`,
+        unitId: `${c.lang}-u1`,
+        order: 1,
+        nodeType: 'lesson',
+        title: `${c.lang} Accent Trial`,
+        subtitle: 'Coaching test',
+        xpReward: 20,
+        gemReward: 5,
+        exercises: [
+          {
+            type: 'word_bank',
+            id: `wb-accent-${c.lang}`,
+            direction: 'to_foreign',
+            promptText: 'Test clue',
+            promptTokens: [],
+            expectedSentence: c.expected,
+            acceptedSentences: c.accepted,
+            targetTokens: [c.expected],
+            distractorTokens: ['extra'],
+            phoneticHint: 'test',
+            vocabIds: [],
+          },
+        ],
+        rewardVocabIds: [],
+      };
+
+      const { unmount } = render(<LessonArena node={node} language={c.lang} onExit={vi.fn()} />);
+      fireEvent.click(screen.getByRole('button', { name: /Type Instead/i }));
+      fireEvent.change(screen.getByLabelText('Type your translation'), { target: { value: c.typed } });
+      fireEvent.click(screen.getByRole('button', { name: 'Check' }));
+      expect(screen.getByText(/Accent Spotlight!/i), `Missing Accent Spotlight for ${c.lang}`).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      expect(screen.getByText(`${node.title} Complete!`)).toBeInTheDocument();
+      unmount();
+      cleanup();
+    }
   });
 });

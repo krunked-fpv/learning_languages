@@ -23,9 +23,11 @@ import {
 } from '../src/store/useVaultStore';
 import {
   ILLUSTRATION_KEYS,
+  LANGUAGE_LIST,
   type BadgeId,
   type CosmeticId,
   type KidProfile,
+  type LanguageCode,
   type LeagueTier,
 } from '../src/types/contracts';
 
@@ -572,5 +574,209 @@ describe('Challenge 3-vault: Progression, Streaks, Badges, Leagues & Multi-Kid V
     expect(reimported.ok).toBe(true);
     const restored = loadVaultFromStorage().profiles[0];
     expect(restored.arcadeHighScores).toEqual(afterGames.arcadeHighScores);
+  });
+
+  it('hydrates legacy 4-language (es, fr, de, it only) wanderling.vault.v1 saves into all 16 LANGUAGE_LIST entries across loadVaultFromStorage() and importVaultJson(replace & merge) without losing progress', () => {
+    const legacyFourLangVault = {
+      schemaVersion: 1,
+      activeProfileId: 'kid-leo',
+      audioSettings: { volume: 0.72, muted: false },
+      profiles: [
+        {
+          id: 'kid-leo',
+          name: 'Leo',
+          avatarId: 'pip_explorer',
+          bannerColor: '#2563EB',
+          activeLanguage: 'es',
+          gems: 145,
+          hearts: 4,
+          maxHearts: 5,
+          streakDays: 6,
+          lastPracticeISO: '2026-11-20',
+          streakShields: 2,
+          equippedCosmetics: { hat: 'hat_explorer_beret', theme: 'theme_cosmic_galaxy' },
+          unlockedCosmetics: ['hat_explorer_beret', 'theme_cosmic_galaxy'],
+          badges: ['first_hello', 'polyglot_explorer', 'streak_spark'],
+          weeklyXp: 190,
+          totalXp: 340,
+          leagueTier: 'silver_compass',
+          secretArcadeUnlocked: true,
+          secretArcadeBestScore: 180,
+          arcadeHighScores: { sky_catcher: 210, starlight_choir: 180 },
+          stats: {
+            lessonsCompleted: 5,
+            storiesCompleted: 1,
+            bossesCleared: 1,
+            arcadeGamesWon: 4,
+            turtlePlaysCount: 7,
+            bestComboStreak: 6,
+            accentSpotlightsSeen: 3,
+          },
+          languageProgress: {
+            es: {
+              completedNodeIds: ['es-u1-n1', 'es-u1-n2'],
+              nodeStars: { 'es-u1-n1': 3, 'es-u1-n2': 2 },
+              unlockedVocabIds: ['es-u1-c1', 'es-u1-c2', 'es-u1-c3'],
+              claimedChestIds: ['es-u1-n6'],
+              currentUnitIndex: 1,
+              xpEarned: 220,
+              seenExerciseIds: ['es-u1-n1-e1', 'es-u1-n1-e2'],
+            },
+            fr: {
+              completedNodeIds: ['fr-u1-n1'],
+              nodeStars: { 'fr-u1-n1': 3 },
+              unlockedVocabIds: ['fr-u1-c1'],
+              claimedChestIds: [],
+              currentUnitIndex: 0,
+              xpEarned: 120,
+              seenExerciseIds: ['fr-u1-n1-e1'],
+            },
+            de: {
+              completedNodeIds: [],
+              nodeStars: {},
+              unlockedVocabIds: [],
+              claimedChestIds: [],
+              currentUnitIndex: 0,
+              xpEarned: 0,
+            },
+            it: {
+              completedNodeIds: [],
+              nodeStars: {},
+              unlockedVocabIds: [],
+              claimedChestIds: [],
+              currentUnitIndex: 0,
+              xpEarned: 0,
+            },
+          },
+        },
+        {
+          id: 'kid-maya',
+          name: 'Maya',
+          avatarId: 'colette_baker',
+          bannerColor: '#EC4899',
+          activeLanguage: 'fr',
+          gems: 95,
+          hearts: 5,
+          maxHearts: 5,
+          streakDays: 2,
+          lastPracticeISO: '2026-11-20',
+          streakShields: 1,
+          equippedCosmetics: {},
+          unlockedCosmetics: [],
+          badges: ['first_hello'],
+          weeklyXp: 60,
+          totalXp: 60,
+          leagueTier: 'bronze_acorn',
+          stats: {
+            lessonsCompleted: 1,
+            storiesCompleted: 0,
+            bossesCleared: 0,
+            arcadeGamesWon: 0,
+            turtlePlaysCount: 1,
+            bestComboStreak: 3,
+            accentSpotlightsSeen: 0,
+          },
+          languageProgress: {
+            es: { completedNodeIds: [], nodeStars: {}, unlockedVocabIds: [], claimedChestIds: [], currentUnitIndex: 0, xpEarned: 0 },
+            fr: {
+              completedNodeIds: ['fr-u1-n1'],
+              nodeStars: { 'fr-u1-n1': 3 },
+              unlockedVocabIds: ['fr-u1-c1', 'fr-u1-c2'],
+              claimedChestIds: [],
+              currentUnitIndex: 0,
+              xpEarned: 60,
+            },
+            de: { completedNodeIds: [], nodeStars: {}, unlockedVocabIds: [], claimedChestIds: [], currentUnitIndex: 0, xpEarned: 0 },
+            it: { completedNodeIds: [], nodeStars: {}, unlockedVocabIds: [], claimedChestIds: [], currentUnitIndex: 0, xpEarned: 0 },
+          },
+        },
+      ],
+    };
+
+    const legacyJson = JSON.stringify(legacyFourLangVault);
+
+    // 1. Direct localStorage hydration via loadVaultFromStorage()
+    window.localStorage.setItem(STORAGE_KEY, legacyJson);
+    const loaded = loadVaultFromStorage();
+    expect(loaded.profiles).toHaveLength(2);
+    for (const profile of loaded.profiles) {
+      expect(Object.keys(profile.languageProgress).sort()).toEqual([...LANGUAGE_LIST].sort());
+      for (const lang of LANGUAGE_LIST) {
+        expect(profile.languageProgress[lang]).toBeDefined();
+        expect(Array.isArray(profile.languageProgress[lang].completedNodeIds)).toBe(true);
+      }
+    }
+    const loadedLeo = loaded.profiles[0];
+    expect(loadedLeo.totalXp).toBe(340);
+    expect(loadedLeo.gems).toBe(145);
+    expect(loadedLeo.streakDays).toBe(6);
+    expect(loadedLeo.hearts).toBe(4);
+    expect(loadedLeo.equippedCosmetics).toEqual({ hat: 'hat_explorer_beret', theme: 'theme_cosmic_galaxy' });
+    expect(loadedLeo.unlockedCosmetics).toEqual(['hat_explorer_beret', 'theme_cosmic_galaxy']);
+    expect(loadedLeo.languageProgress.es.unlockedVocabIds).toEqual(['es-u1-c1', 'es-u1-c2', 'es-u1-c3']);
+    expect(loadedLeo.languageProgress.es.seenExerciseIds).toEqual(['es-u1-n1-e1', 'es-u1-n1-e2']);
+    expect(loadedLeo.languageProgress.ja.xpEarned).toBe(0);
+    expect(loadedLeo.languageProgress.arz.completedNodeIds).toEqual([]);
+
+    // 2. importVaultJson(..., 'replace') hydrates all 16 languages and allows immediate progress on new languages
+    vaultActions.resetVaultToDefaults();
+    const replaceRes = importVaultJson(legacyJson, 'replace');
+    expect(replaceRes.ok).toBe(true);
+    expect(replaceRes.importedProfilesCount).toBe(2);
+
+    vaultActions.setActiveLanguage('arz');
+    vaultActions.completeMapNode({
+      language: 'arz',
+      nodeId: 'arz-u1-n1',
+      stars: 3,
+      xpEarned: 35,
+      gemsEarned: 10,
+      unlockedVocabIds: ['arz-u1-c1'],
+      maxCombo: 4,
+    });
+    const afterArz = loadVaultFromStorage().profiles[0];
+    expect(afterArz.totalXp).toBe(375);
+    expect(afterArz.gems).toBe(155);
+    expect(afterArz.languageProgress.arz.completedNodeIds).toEqual(['arz-u1-n1']);
+    expect(afterArz.languageProgress.es.unlockedVocabIds).toEqual(['es-u1-c1', 'es-u1-c2', 'es-u1-c3']);
+
+    // 3. importVaultJson(..., 'merge') preserves local new-language progress AND merges higher legacy 4-lang stats
+    vaultActions.resetVaultToDefaults();
+    vaultActions.setActiveLanguage('ja');
+    vaultActions.completeMapNode({
+      language: 'ja',
+      nodeId: 'ja-u1-n1',
+      stars: 3,
+      xpEarned: 40,
+      gemsEarned: 15,
+      unlockedVocabIds: ['ja-u1-c1'],
+      maxCombo: 3,
+    });
+    const mergeRes = importVaultJson(legacyJson, 'merge');
+    expect(mergeRes.ok).toBe(true);
+    const mergedLeo = loadVaultFromStorage().profiles.find((p) => p.id === 'kid-leo')!;
+    expect(Object.keys(mergedLeo.languageProgress).sort()).toEqual([...LANGUAGE_LIST].sort());
+    expect(mergedLeo.languageProgress.ja.completedNodeIds).toEqual(['ja-u1-n1']);
+    expect(mergedLeo.languageProgress.ja.unlockedVocabIds).toEqual(['ja-u1-c1']);
+    expect(mergedLeo.languageProgress.es.completedNodeIds).toEqual(['es-u1-n1', 'es-u1-n2']);
+    expect(mergedLeo.languageProgress.es.unlockedVocabIds).toEqual(['es-u1-c1', 'es-u1-c2', 'es-u1-c3']);
+    expect(mergedLeo.gems).toBe(145);
+    expect(mergedLeo.streakDays).toBe(6);
+    expect(mergedLeo.totalXp).toBe(340);
+
+    // 4. Reject empty {} languageProgress and corrupt partial languageProgress
+    const emptyLangProgressSave = structuredClone(legacyFourLangVault);
+    emptyLangProgressSave.profiles[0].languageProgress = {} as typeof legacyFourLangVault.profiles[0]['languageProgress'];
+    expect(importVaultJson(JSON.stringify(emptyLangProgressSave), 'replace').ok).toBe(false);
+
+    const corruptPartialSave = structuredClone(legacyFourLangVault);
+    (corruptPartialSave.profiles[0].languageProgress.es.nodeStars as Record<string, number>)['es-u1-n1'] = 99;
+    expect(importVaultJson(JSON.stringify(corruptPartialSave), 'replace').ok).toBe(false);
+
+    // Confirm createDefaultVault initializes all 16 languages
+    const freshVault = createDefaultVault();
+    for (const lang of LANGUAGE_LIST) {
+      expect(freshVault.profiles[0].languageProgress[lang as LanguageCode]).toBeDefined();
+    }
   });
 });
