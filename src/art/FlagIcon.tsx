@@ -24,6 +24,8 @@ const FLAG_LABELS: Record<LanguageCode, string> = {
   id: 'Indonesian flag',
   vi: 'Vietnamese flag',
   sw: 'Swahili flag',
+  ebonics: 'AAVE / Ebonics emblem',
+  suburban: 'Suburban Vernacular emblem',
 };
 
 function buildStarPoints(
@@ -71,6 +73,15 @@ export function FlagIcon({ language, size = 28, className = '' }: FlagIconProps)
           <stop offset="42%" stopColor="#FFFFFF" stopOpacity="0.08" />
           <stop offset="72%" stopColor="#0F172A" stopOpacity="0" />
           <stop offset="100%" stopColor="#0F172A" stopOpacity="0.18" />
+        </linearGradient>
+        <linearGradient id={`eb-bg-${uid}`} x1="1" y1="1" x2="35" y2="23" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#3B0764" />
+          <stop offset="55%" stopColor="#6D28D9" />
+          <stop offset="100%" stopColor="#4C1D95" />
+        </linearGradient>
+        <linearGradient id={`sb-sky-${uid}`} x1="18" y1="1" x2="18" y2="14" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#0284C7" />
+          <stop offset="100%" stopColor="#7DD3FC" />
         </linearGradient>
       </defs>
 
@@ -326,6 +337,115 @@ export function FlagIcon({ language, size = 28, className = '' }: FlagIconProps)
             <circle cx="7.8" cy="6.8" r="3.6" fill="#064E3B" stroke="#FACC15" strokeWidth="0.7" />
             <path d="M5.8 8.1H9.8L9.1 9.0H6.5Z" fill="#FACC15" />
             <path d="M7.9 4.2L9.6 7.5H6.2Z" fill="#FEF08A" />
+          </>
+        )}
+
+        {language === 'ebonics' && (
+          <>
+            <rect x="1" y="1" width="34" height="22" fill={`url(#eb-bg-${uid})`} />
+            {/* Twilight gold horizon ribbon & starlight dots */}
+            <path d="M1 18.2L35 15V23H1Z" fill="#7C3AED" opacity="0.65" />
+            <line x1="1" y1="18.2" x2="35" y2="15" stroke="#F59E0B" strokeWidth="0.9" strokeOpacity="0.85" />
+            <circle cx="5.2" cy="4.2" r="0.8" fill="#FDE047" />
+            <circle cx="31.8" cy="4.6" r="0.9" fill="#FDE047" />
+            <circle cx="15.2" cy="3.8" r="0.55" fill="#FEF08A" />
+            {/* Gold-labeled Twilight Vinyl Record */}
+            <circle cx="10.2" cy="12" r="7.1" fill="#0F172A" stroke="#F59E0B" strokeWidth="0.65" />
+            <circle cx="10.2" cy="12" r="5.3" stroke="#475569" strokeWidth="0.45" />
+            <circle cx="10.2" cy="12" r="3.9" stroke="#475569" strokeWidth="0.4" />
+            <circle cx="10.2" cy="12" r="2.4" fill="#FACC15" stroke="#92400E" strokeWidth="0.35" />
+            <circle cx="10.2" cy="12" r="0.65" fill="#0F172A" />
+            <path
+              d="M6.3 8.1A5.4 5.4 0 0 1 11.7 6.8"
+              stroke="#FFFFFF"
+              strokeOpacity="0.38"
+              strokeWidth="0.75"
+              strokeLinecap="round"
+            />
+            {/* Gold-Trimmed Retro Boombox */}
+            <path
+              d="M19.8 6.8V4.8C19.8 4.2 20.2 3.8 20.8 3.8H27.2C27.8 3.8 28.2 4.2 28.2 4.8V6.8"
+              stroke="#FACC15"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              fill="none"
+            />
+            <rect
+              x="16.4"
+              y="6.8"
+              width="15.2"
+              height="10.6"
+              rx="1.8"
+              fill="#1E1B4B"
+              stroke="#F59E0B"
+              strokeWidth="0.85"
+            />
+            <rect x="17.3" y="7.6" width="13.4" height="1.7" rx="0.55" fill="#FDE047" />
+            <circle cx="19.7" cy="13.4" r="2.55" fill="#0F172A" stroke="#FBBF24" strokeWidth="0.65" />
+            <circle cx="19.7" cy="13.4" r="1" fill="#F59E0B" />
+            <circle cx="28.3" cy="13.4" r="2.55" fill="#0F172A" stroke="#FBBF24" strokeWidth="0.65" />
+            <circle cx="28.3" cy="13.4" r="1" fill="#F59E0B" />
+            <rect x="22.8" y="11" width="2.4" height="3.8" rx="0.5" fill="#8B5CF6" stroke="#FDE047" strokeWidth="0.38" />
+            <circle cx="24" cy="12.9" r="0.55" fill="#FEF08A" />
+          </>
+        )}
+
+        {language === 'suburban' && (
+          <>
+            {/* Sky-blue patio sky & coral horizon sun */}
+            <rect x="1" y="1" width="34" height="13.2" fill={`url(#sb-sky-${uid})`} />
+            <circle cx="6.8" cy="5.8" r="2.6" fill="#FB923C" />
+            <circle cx="6.8" cy="5.8" r="1.5" fill="#FDE047" />
+            <ellipse cx="14.2" cy="5.2" rx="3.1" ry="1.3" fill="#FFFFFF" opacity="0.85" />
+            <ellipse cx="16.2" cy="4.7" rx="2" ry="1.1" fill="#FFFFFF" opacity="0.85" />
+            {/* Manicured alternating lawn-stripes */}
+            <rect x="1" y="13.5" width="34" height="9.5" fill="#22C55E" />
+            {[1, 9, 17, 25, 33].map((x) => (
+              <polygon
+                key={x}
+                points={`${x},13.5 ${x + 4.2},13.5 ${x + 1.4},23 ${x - 2.8},23`}
+                fill="#16A34A"
+              />
+            ))}
+            <line x1="1" y1="13.5" x2="35" y2="13.5" stroke="#FB923C" strokeWidth="0.9" />
+            {/* Crisp white picket fence along left lawn */}
+            <rect x="1" y="11.2" width="15.5" height="1.1" fill="#FFFFFF" stroke="#94A3B8" strokeWidth="0.2" />
+            {[2.2, 5.4, 8.6, 11.8, 15].map((px) => (
+              <path
+                key={px}
+                d={`M${px} 14V9.4L${px + 0.9} 8.2L${px + 1.8} 9.4V14Z`}
+                fill="#FFFFFF"
+                stroke="#64748B"
+                strokeWidth="0.28"
+              />
+            ))}
+            {/* Coral Kettle Grill & curling smoke wisps */}
+            <path
+              d="M27.2 7.2C26.5 5.6 28 4.4 27.3 2.9M29.1 8.1C28.6 6.7 29.8 5.7 29.2 4.3"
+              stroke="#FFFFFF"
+              strokeOpacity="0.88"
+              strokeWidth="0.85"
+              strokeLinecap="round"
+              fill="none"
+            />
+            <line x1="22.4" y1="17.8" x2="21.4" y2="21.6" stroke="#E2E8F0" strokeWidth="0.95" strokeLinecap="round" />
+            <line x1="26.6" y1="17.8" x2="27.6" y2="21.6" stroke="#E2E8F0" strokeWidth="0.95" strokeLinecap="round" />
+            <line x1="24.5" y1="18.2" x2="24.5" y2="21.8" stroke="#CBD5E1" strokeWidth="0.85" strokeLinecap="round" />
+            <circle cx="21.2" cy="21.5" r="1.05" fill="#1E293B" stroke="#E2E8F0" strokeWidth="0.3" />
+            <path
+              d="M19.8 14.1H29.2C29.2 17.2 27.1 18.8 24.5 18.8C21.9 18.8 19.8 17.2 19.8 14.1Z"
+              fill="#EA580C"
+              stroke="#0F172A"
+              strokeWidth="0.55"
+            />
+            <path
+              d="M19.6 13.8C19.6 10.5 21.8 8.9 24.5 8.9C27.2 8.9 29.4 10.5 29.4 13.8Z"
+              fill="#F97316"
+              stroke="#0F172A"
+              strokeWidth="0.55"
+            />
+            <line x1="19.3" y1="13.9" x2="29.7" y2="13.9" stroke="#F8FAFC" strokeWidth="0.75" />
+            <rect x="23.2" y="7.5" width="2.6" height="1.3" rx="0.5" fill="#FFFFFF" stroke="#0F172A" strokeWidth="0.38" />
           </>
         )}
 

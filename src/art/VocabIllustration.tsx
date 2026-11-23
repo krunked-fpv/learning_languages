@@ -1,5 +1,6 @@
 import { useId } from 'react';
-import type { IllustrationKey, LanguageCode } from '../types/contracts';
+import { isAdultLanguage, type IllustrationKey, type LanguageCode } from '../types/contracts';
+import { resolveAdultSceneRenderer } from './vocab/adultOverrides';
 import type { SceneRenderer } from './vocab/shared';
 import { UNIT1_SCENES } from './vocab/unit1Greetings';
 import { UNIT2_SCENES } from './vocab/unit2Treats';
@@ -48,6 +49,8 @@ const STICKER_BACKGROUNDS: Record<
   id: { top: '#ECFEFF', bottom: '#CFFAFE', ring: '#67E8F9' },
   vi: { top: '#FFF1F2', bottom: '#FFE4E6', ring: '#FDA4AF' },
   sw: { top: '#FFFBEB', bottom: '#E0F2FE', ring: '#FBBF24' },
+  ebonics: { top: '#F5F3FF', bottom: '#FEF3C7', ring: '#8B5CF6' },
+  suburban: { top: '#F0F9FF', bottom: '#FFEDD5', ring: '#0EA5E9' },
   default: { top: '#F0F9FF', bottom: '#E0F2FE', ring: '#BAE6FD' },
 };
 
@@ -61,7 +64,11 @@ export function VocabIllustration({
   const bgId = `vocab-bg-${uid}`;
   const clipId = `vocab-clip-${uid}`;
   const palette = language ? STICKER_BACKGROUNDS[language] : STICKER_BACKGROUNDS.default;
-  const renderScene = VOCAB_ILLUSTRATIONS[illustrationKey];
+  const baseScene = VOCAB_ILLUSTRATIONS[illustrationKey];
+  const renderScene =
+    language && isAdultLanguage(language)
+      ? resolveAdultSceneRenderer(illustrationKey, language, baseScene)
+      : baseScene;
 
   return (
     <svg

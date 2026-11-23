@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useId } from 'react';
 import {
   resolveUnitProficiencyTier,
+  type AdultLanguageCode,
   type LanguageCode,
   type ProficiencyTier,
 } from '../../types/contracts';
@@ -25,6 +26,8 @@ const LANGUAGE_ACCENTS: Record<LanguageCode, { roof: string; glow: string; hill:
   id: { roof: '#0891B2', glow: '#FB923C', hill: '#CFFAFE' },
   vi: { roof: '#E11D48', glow: '#34D399', hill: '#FFE4E6' },
   sw: { roof: '#D97706', glow: '#38BDF8', hill: '#FEF3C7' },
+  ebonics: { roof: '#7C3AED', glow: '#FBBF24', hill: '#EDE9FE' },
+  suburban: { roof: '#0284C7', glow: '#FB923C', hill: '#E0F2FE' },
 };
 
 const SCENERY_SVG_STYLE = {
@@ -467,6 +470,249 @@ function Unit9To16Overlay({
   );
 }
 
+function AdultCulturalDiorama({
+  language,
+  unitOrder,
+  tier,
+  uid,
+}: {
+  language: AdultLanguageCode;
+  unitOrder: number;
+  tier: ProficiencyTier;
+  uid: string;
+}) {
+  const flip = unitOrder % 2 === 0;
+
+  if (language === 'ebonics') {
+    // The Block & Cookout Ave: brownstone stoop, string lights, cookout grill smoke, boombox (Units 1-16)
+    const skyColors =
+      tier === 'C1_C2'
+        ? { top: '#1E1B4B', mid: '#4C1D95', bottom: '#7C3AED' }
+        : tier === 'B2'
+          ? { top: '#312E81', mid: '#5B21B6', bottom: '#C4B5FD' }
+          : tier === 'B1'
+            ? { top: '#4C1D95', mid: '#7C3AED', bottom: '#FDE68A' }
+            : tier === 'A2'
+              ? { top: '#C4B5FD', mid: '#EDE9FE', bottom: '#FDE68A' }
+              : { top: '#DDD6FE', mid: '#F5F3FF', bottom: '#FEF3C7' };
+
+    return (
+      <DioramaSvg
+        unitOrder={unitOrder}
+        skyId={`eb-sky-${uid}`}
+        skyTop={skyColors.top}
+        skyMid={skyColors.mid}
+        skyBottom={skyColors.bottom}
+      >
+        <TierAtmosphereAccents tier={tier} />
+
+        {/* Distant neighborhood brownstone skyline silhouettes */}
+        <path
+          d="M0 296V228H54V242H98V212H156V238H212V222H276V246H334V218H394V240H448V214H512V234H556V220H600V296Z"
+          fill="#4C1D95"
+          opacity="0.22"
+        />
+
+        {/* Sidewalk & Cookout Ave Pavement */}
+        <path d="M0 294H600V420H0Z" fill="#64748B" opacity="0.48" />
+        <path d="M0 326H600V420H0Z" fill="#334155" opacity="0.46" />
+        <line x1="0" y1="326" x2="600" y2="326" stroke="#CBD5E1" strokeWidth="2.5" opacity="0.72" />
+
+        {/* Overhead Draped Block-Party String Lights (placed inside widescreen & mobile safe-zone) */}
+        <path d="M0 86Q150 124 300 88Q450 124 600 86" fill="none" stroke={INK} strokeWidth="2.2" opacity="0.72" />
+        {[
+          [54, 97.3],
+          [150, 105.5],
+          [246, 98.6],
+          [354, 98.6],
+          [450, 105.5],
+          [546, 97.3],
+        ].map(([x, y], idx) => (
+          <g key={x} transform={`translate(${x}, ${y})`}>
+            <rect x="-2.2" y="-1" width="4.4" height="4.2" rx="1" fill={INK} />
+            <circle cx="0" cy="8" r="14" fill="#FDE047" opacity="0.34" />
+            <circle
+              cx="0"
+              cy="8"
+              r="5.5"
+              fill={idx % 2 === 0 ? '#FEF08A' : '#F59E0B'}
+              stroke={INK}
+              strokeWidth="1.4"
+            />
+          </g>
+        ))}
+
+        {/* Brownstone Rowhouse with Stoop Steps & Iron Railings */}
+        <g transform={flip ? 'translate(438, 152)' : 'translate(14, 152)'} opacity="0.94">
+          {/* Facade & Cornice */}
+          <rect x="6" y="18" width="136" height="142" rx="4" fill="#9A3412" stroke={INK} strokeWidth="2" />
+          <rect x="0" y="10" width="148" height="14" rx="3" fill="#78350F" stroke={INK} strokeWidth="2" />
+          {/* Warm glowing apartment windows */}
+          <rect x="20" y="36" width="24" height="30" rx="3" fill="#FEF08A" stroke={INK} strokeWidth="1.8" />
+          <rect x="62" y="36" width="24" height="30" rx="3" fill="#FDE68A" stroke={INK} strokeWidth="1.8" />
+          <rect x="104" y="36" width="24" height="30" rx="3" fill="#FEF08A" stroke={INK} strokeWidth="1.8" />
+          <rect x="20" y="84" width="24" height="32" rx="3" fill="#FEF08A" stroke={INK} strokeWidth="1.8" />
+          <rect x="104" y="84" width="24" height="32" rx="3" fill="#FDE68A" stroke={INK} strokeWidth="1.8" />
+          {/* Arched Front Door */}
+          <path d="M58 122V92C58 80 90 80 90 92V122Z" fill="#4C1D95" stroke={INK} strokeWidth="2" />
+          {/* Carved Stone Stoop Steps */}
+          <rect x="44" y="122" width="60" height="10" rx="2" fill="#E2E8F0" stroke={INK} strokeWidth="1.7" />
+          <rect x="38" y="132" width="72" height="10" rx="2" fill="#CBD5E1" stroke={INK} strokeWidth="1.7" />
+          <rect x="32" y="142" width="84" height="10" rx="2" fill="#94A3B8" stroke={INK} strokeWidth="1.7" />
+          <rect x="26" y="152" width="96" height="10" rx="2" fill="#64748B" stroke={INK} strokeWidth="1.7" />
+          {/* Wrought-iron railings */}
+          <path d="M44 122L26 152M104 122L122 152" stroke={INK} strokeWidth="3.2" strokeLinecap="round" />
+        </g>
+
+        {/* Retro Gold & Purple Boombox + Musical Notes */}
+        <g transform={flip ? 'translate(372, 272)' : 'translate(168, 272)'} opacity="0.95">
+          <path d="M16 14V5C16 3 18 2 20 2H42C44 2 46 3 46 5V14" fill="none" stroke="#FACC15" strokeWidth="3.2" />
+          <rect x="4" y="12" width="54" height="34" rx="6" fill="#1E1B4B" stroke="#F59E0B" strokeWidth="2" />
+          <rect x="9" y="16" width="44" height="5.5" rx="2" fill="#FDE047" />
+          <circle cx="16" cy="32" r="8.5" fill="#0F172A" stroke="#FBBF24" strokeWidth="2" />
+          <circle cx="16" cy="32" r="3" fill="#F59E0B" />
+          <circle cx="46" cy="32" r="8.5" fill="#0F172A" stroke="#FBBF24" strokeWidth="2" />
+          <circle cx="46" cy="32" r="3" fill="#F59E0B" />
+          <rect x="26" y="25" width="10" height="13" rx="2" fill="#7C3AED" stroke="#FEF08A" strokeWidth="1.2" />
+          {/* Floating notes */}
+          <path d="M58 -6V-20L69 -23V-9" stroke="#FACC15" strokeWidth="2.4" strokeLinecap="round" fill="none" />
+          <circle cx="56" cy="-5" r="2.8" fill="#FACC15" />
+          <circle cx="67" cy="-8" r="2.8" fill="#FACC15" />
+        </g>
+
+        {/* Cookout Barrel Grill & Rising Smoke Curls */}
+        <g transform={flip ? 'translate(26, 224)' : 'translate(472, 224)'} opacity="0.95">
+          {/* Aromatic rising smoke curls */}
+          <path d="M32 30C26 18 38 10 31 -4" fill="none" stroke="#FFFFFF" strokeWidth="3.2" strokeLinecap="round" opacity="0.78" />
+          <path d="M50 26C44 14 56 6 49 -8" fill="none" stroke="#EDE9FE" strokeWidth="3.2" strokeLinecap="round" opacity="0.7" />
+          <path d="M68 32C62 20 74 12 67 -2" fill="none" stroke="#FFFFFF" strokeWidth="2.8" strokeLinecap="round" opacity="0.64" />
+          {/* Grill tripod legs & wheel */}
+          <line x1="22" y1="68" x2="14" y2="96" stroke={INK} strokeWidth="3.5" strokeLinecap="round" />
+          <line x1="78" y1="68" x2="86" y2="96" stroke={INK} strokeWidth="3.5" strokeLinecap="round" />
+          <circle cx="14" cy="95" r="5" fill="#0F172A" stroke="#FACC15" strokeWidth="1.4" />
+          {/* Barrel drum & open lid */}
+          <path d="M12 44C14 26 86 26 88 44Z" fill="#334155" stroke={INK} strokeWidth="2" />
+          <rect x="10" y="44" width="80" height="30" rx="11" fill="#1E293B" stroke={INK} strokeWidth="2" />
+          <line x1="14" y1="50" x2="86" y2="50" stroke="#F59E0B" strokeWidth="3.2" strokeLinecap="round" />
+          <circle cx="34" cy="43" r="4.5" fill="#EA580C" stroke={INK} strokeWidth="1.2" />
+          <circle cx="50" cy="42" r="5" fill="#EF4444" stroke={INK} strokeWidth="1.2" />
+          <circle cx="66" cy="43" r="4.5" fill="#F59E0B" stroke={INK} strokeWidth="1.2" />
+        </g>
+      </DioramaSvg>
+    );
+  }
+
+  // Suburban (suburban — The Cul-de-Sac & Craft Patio: striped lawn, pergola, kettle grill, string lights, white-picket fence)
+  const skyColors =
+    tier === 'C1_C2'
+      ? { top: '#1E1B4B', mid: '#075985', bottom: '#38BDF8' }
+      : tier === 'B2'
+        ? { top: '#0284C7', mid: '#FDBA74', bottom: '#E0F2FE' }
+        : tier === 'B1'
+          ? { top: '#7DD3FC', mid: '#FED7AA', bottom: '#D1FAE5' }
+          : tier === 'A2'
+            ? { top: '#BAE6FD', mid: '#FEF3C7', bottom: '#BBF7D0' }
+            : { top: '#E0F2FE', mid: '#BAE6FD', bottom: '#DCFCE7' };
+
+  return (
+    <DioramaSvg
+      unitOrder={unitOrder}
+      skyId={`sb-sky-${uid}`}
+      skyTop={skyColors.top}
+      skyMid={skyColors.mid}
+      skyBottom={skyColors.bottom}
+    >
+      <TierAtmosphereAccents tier={tier} />
+
+      {/* Warm Sun & Fluffy Clouds (placed inside widescreen & mobile safe-zone) */}
+      <circle cx={flip ? 102 : 498} cy="136" r="24" fill="#FDE047" opacity={tier === 'C1_C2' ? 0.3 : 0.78} />
+      <g fill="#FFFFFF" opacity={tier === 'C1_C2' ? 0.25 : 0.8}>
+        <ellipse cx="220" cy="128" rx="34" ry="13" />
+        <ellipse cx="242" cy="122" rx="22" ry="11" />
+        <ellipse cx="388" cy="132" rx="30" ry="12" />
+      </g>
+
+      {/* Rolling Manicured Striped Lawn */}
+      <path d="M0 272Q160 256 320 272T600 268V420H0Z" fill="#4ADE80" opacity="0.88" />
+      {[0, 96, 192, 288, 384, 480, 576].map((sx) => (
+        <polygon
+          key={sx}
+          points={`${sx},266 ${sx + 48},266 ${sx + 16},420 ${sx - 32},420`}
+          fill="#22C55E"
+          opacity="0.52"
+        />
+      ))}
+
+      {/* White-Picket Fence across Lawn Horizon */}
+      <rect x="0" y="254" width="600" height="6" fill="#FFFFFF" stroke="#94A3B8" strokeWidth="1" />
+      <rect x="0" y="272" width="600" height="6" fill="#FFFFFF" stroke="#94A3B8" strokeWidth="1" />
+      {Array.from({ length: 24 }, (_, idx) => idx * 26 + 4).map((px) => (
+        <path
+          key={px}
+          d={`M${px} 288V244L${px + 7} 235L${px + 14} 244V288Z`}
+          fill="#FFFFFF"
+          stroke="#64748B"
+          strokeWidth="1.2"
+        />
+      ))}
+
+      {/* Overhead Edison Patio String Lights */}
+      <path d="M0 86Q150 124 300 88Q450 124 600 86" fill="none" stroke="#78350F" strokeWidth="2.1" opacity="0.7" />
+      {[
+        [54, 97.3],
+        [150, 105.5],
+        [246, 98.6],
+        [354, 98.6],
+        [450, 105.5],
+        [546, 97.3],
+      ].map(([x, y]) => (
+        <g key={x} transform={`translate(${x}, ${y})`}>
+          <rect x="-2" y="-1" width="4" height="4" rx="1" fill="#78350F" />
+          <circle cx="0" cy="7.5" r="13" fill="#FDE047" opacity="0.34" />
+          <circle cx="0" cy="7.5" r="5" fill="#FEF08A" stroke={INK} strokeWidth="1.4" />
+        </g>
+      ))}
+
+      {/* Craft Timber Pergola & Cozy Patio */}
+      <g transform={flip ? 'translate(436, 158)' : 'translate(16, 158)'} opacity="0.94">
+        {/* Stone Patio Deck */}
+        <rect x="4" y="138" width="144" height="22" rx="5" fill="#E2E8F0" stroke={INK} strokeWidth="1.8" />
+        {/* Timber Columns & Slatted Pergola Roof */}
+        <rect x="18" y="34" width="12" height="106" fill="#92400E" stroke={INK} strokeWidth="1.8" />
+        <rect x="122" y="34" width="12" height="106" fill="#92400E" stroke={INK} strokeWidth="1.8" />
+        <rect x="2" y="22" width="148" height="14" rx="4" fill="#B45309" stroke={INK} strokeWidth="2" />
+        {[26, 48, 70, 92, 114].map((rx) => (
+          <rect key={rx} x={rx} y="14" width="10" height="10" rx="2" fill="#D97706" stroke={INK} strokeWidth="1.4" />
+        ))}
+        {/* Pergola String Lights */}
+        <path d="M24 38Q76 56 128 38" fill="none" stroke={INK} strokeWidth="1.6" />
+        {[46, 76, 106].map((lx) => (
+          <circle key={lx} cx={lx} cy={47} r="4.5" fill="#FDE047" stroke={INK} strokeWidth="1.2" />
+        ))}
+        {/* Adirondack Patio Chair */}
+        <path d="M46 96L54 128H92L100 96" fill="#0284C7" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+        <rect x="42" y="120" width="62" height="10" rx="3" fill="#38BDF8" stroke={INK} strokeWidth="1.6" />
+        <line x1="50" y1="130" x2="48" y2="142" stroke={INK} strokeWidth="2.5" strokeLinecap="round" />
+        <line x1="96" y1="130" x2="98" y2="142" stroke={INK} strokeWidth="2.5" strokeLinecap="round" />
+      </g>
+
+      {/* Coral-Red Kettle Grill & Curling Charcoal Smoke */}
+      <g transform={flip ? 'translate(34, 218)' : 'translate(474, 218)'} opacity="0.95">
+        <path d="M52 24C46 14 58 6 51 -4" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" opacity="0.82" />
+        <path d="M66 28C60 18 72 10 65 0" fill="none" stroke="#E0F2FE" strokeWidth="2.6" strokeLinecap="round" opacity="0.7" />
+        <line x1="34" y1="74" x2="24" y2="104" stroke="#64748B" strokeWidth="3.2" strokeLinecap="round" />
+        <line x1="62" y1="74" x2="72" y2="104" stroke="#64748B" strokeWidth="3.2" strokeLinecap="round" />
+        <line x1="48" y1="76" x2="48" y2="104" stroke="#94A3B8" strokeWidth="2.8" strokeLinecap="round" />
+        <circle cx="24" cy="102" r="5" fill="#1E293B" stroke="#E2E8F0" strokeWidth="1.4" />
+        <path d="M22 56H74C74 71 62 79 48 79C34 79 22 71 22 56Z" fill="#EA580C" stroke={INK} strokeWidth="2" />
+        <path d="M20 54C20 39 32 32 48 32C64 32 76 39 76 54Z" fill="#F97316" stroke={INK} strokeWidth="2" />
+        <line x1="18" y1="55" x2="78" y2="55" stroke="#F8FAFC" strokeWidth="2.2" strokeLinecap="round" />
+        <rect x="41" y="25" width="14" height="7" rx="2.5" fill="#FFFFFF" stroke={INK} strokeWidth="1.6" />
+      </g>
+    </DioramaSvg>
+  );
+}
+
 export function RegionalScenery({
   language,
   unitOrder,
@@ -478,6 +724,17 @@ export function RegionalScenery({
 }) {
   const uid = useId().replace(/:/g, '');
   const resolvedTier = proficiencyTier ?? resolveUnitProficiencyTier(unitOrder);
+
+  if (language === 'ebonics' || language === 'suburban') {
+    return (
+      <AdultCulturalDiorama
+        language={language}
+        unitOrder={unitOrder}
+        tier={resolvedTier}
+        uid={uid}
+      />
+    );
+  }
 
   if (unitOrder >= 9) {
     return (
