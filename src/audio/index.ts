@@ -1,8 +1,11 @@
 export {
   getAudioPreferences,
+  playHintMisplacedNudge,
+  playHintStepChime,
   playPhoneticCadence,
   playSfx,
   setAudioPreferences,
+  stopHintChimes,
   stopPhoneticCadence,
 } from './synthEngine';
 export type { AudioPreferences } from './synthEngine';

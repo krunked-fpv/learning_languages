@@ -23,6 +23,7 @@ export interface MascotStageProps {
   size?: number;
   badgeText?: string;
   className?: string;
+  hintPulseNonce?: number;
 }
 
 const COMPANION_LABELS: Record<CompanionId, string> = {
@@ -116,11 +117,22 @@ export function MascotStage({
   size = 180,
   badgeText,
   className = '',
+  hintPulseNonce = 0,
 }: MascotStageProps) {
   const uid = useId().replace(/:/g, '');
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [isBlinking, setIsBlinking] = useState(false);
   const [localPointer, setLocalPointer] = useState<{ x: number; y: number } | null>(null);
+  const [isHintReacting, setIsHintReacting] = useState(false);
+
+  useEffect(() => {
+    if (!hintPulseNonce) return;
+    setIsHintReacting(true);
+    const id = window.setTimeout(() => {
+      setIsHintReacting(false);
+    }, 950);
+    return () => window.clearTimeout(id);
+  }, [hintPulseNonce]);
 
   // Natural organic blinking timer with occasional playful double-blink
   useEffect(() => {
@@ -231,6 +243,7 @@ export function MascotStage({
       data-companion={companionId}
       data-pose={pose}
       data-combo={comboCount}
+      data-mascot-hint-active={isHintReacting ? 'true' : undefined}
       data-equipped-cosmetics={equippedList || undefined}
       onPointerMove={
         pointerTarget === undefined
@@ -269,6 +282,22 @@ export function MascotStage({
 
         {/* Soft themed stage backdrop aura */}
         <circle cx="110" cy="116" r="88" fill={`url(#stage-halo-${uid})`} />
+
+        {/* Subtle brightening emblem ring when Starlight Hint is triggered */}
+        {isHintReacting && (
+          <motion.circle
+            cx="110"
+            cy="116"
+            r="84"
+            fill="none"
+            stroke="#a78bfa"
+            strokeWidth="3.2"
+            initial={{ opacity: 0.2, scale: 0.94 }}
+            animate={{ opacity: [0.35, 0.95, 0], scale: [0.96, 1.06, 1.1] }}
+            transition={{ duration: 0.85, ease: 'easeOut' }}
+            style={{ originX: '110px', originY: '116px' }}
+          />
+        )}
 
         {/* Subtle orbiting nebula sparkles for Cosmic Galaxy / Aurora / Royal Velvet palettes */}
         {palette.nebula && (
@@ -365,16 +394,18 @@ export function MascotStage({
           {/* Layer 4 & 5: Head Group (micro-springs toward pointerTarget + joyful pose nod) + Face Cosmetics */}
           <motion.g
             animate={{
-              rotate: headTiltDeg,
-              x: normalizedLook.x * 2.6,
+              rotate: headTiltDeg + (isHintReacting ? 4 : 0),
+              x: normalizedLook.x * 2.6 + (isHintReacting ? 2.2 : 0),
               y:
                 normalizedLook.y * 1.9 +
-                (pose === 'happy' || pose === 'victory_dance'
-                  ? -1.5
-                  : pose === 'sympathetic'
-                    ? 1.5
-                    : 0),
-              scale: pose === 'happy' || pose === 'victory_dance' ? 1.025 : 1,
+                (isHintReacting
+                  ? -4.2
+                  : pose === 'happy' || pose === 'victory_dance'
+                    ? -1.5
+                    : pose === 'sympathetic'
+                      ? 1.5
+                      : 0),
+              scale: isHintReacting ? 1.04 : pose === 'happy' || pose === 'victory_dance' ? 1.025 : 1,
             }}
             transition={{ type: 'spring', stiffness: 235, damping: 15, mass: 0.85 }}
             style={{ originX: '110px', originY: '124px' }}
@@ -459,6 +490,34 @@ export function MascotStage({
             <circle cx="169" cy="59" r="4" fill="#8B5CF6" stroke={MASCOT_INK} strokeWidth="1.4" />
             <circle cx="183" cy="55" r="4" fill="#8B5CF6" stroke={MASCOT_INK} strokeWidth="1.4" />
           </motion.g>
+        )}
+
+        {/* Layer 6b: Tiny Starlight Hint Particles Drifting Toward the Exercise Board */}
+        {isHintReacting && (
+          <g data-mascot-hint-particles="true" aria-hidden="true">
+            {[
+              { x: 164, y: 74, r: 6.5, color: '#fde047', dx: 26, dy: -14, delay: 0 },
+              { x: 174, y: 92, r: 5.2, color: '#67e8f9', dx: 34, dy: -6, delay: 0.08 },
+              { x: 158, y: 58, r: 4.8, color: '#c4b5fd', dx: 22, dy: -20, delay: 0.14 },
+            ].map((p, idx) => (
+              <motion.path
+                key={idx}
+                d={`M${p.x} ${p.y - p.r} L${p.x + p.r * 0.34} ${p.y - p.r * 0.34} L${p.x + p.r} ${p.y} L${p.x + p.r * 0.34} ${p.y + p.r * 0.34} L${p.x} ${p.y + p.r} L${p.x - p.r * 0.34} ${p.y + p.r * 0.34} L${p.x - p.r} ${p.y} L${p.x - p.r * 0.34} ${p.y - p.r * 0.34} Z`}
+                fill={p.color}
+                stroke={MASCOT_INK}
+                strokeWidth="1"
+                initial={{ opacity: 0, x: 0, y: 0, scale: 0.5 }}
+                animate={{
+                  opacity: [0, 1, 0],
+                  x: [0, p.dx],
+                  y: [0, p.dy],
+                  scale: [0.6, 1.15, 0.45],
+                }}
+                transition={{ duration: 0.8, delay: p.delay, ease: 'easeOut' }}
+                style={{ originX: `${p.x}px`, originY: `${p.y}px` }}
+              />
+            ))}
+          </g>
         )}
 
         {/* Layer 6: Celebratory Star / Sparkle Burst when comboCount >= 3 or streak_fire / victory_dance */}

@@ -11,6 +11,8 @@ import {
   type CompanionId,
 } from '../../types/contracts';
 import { MascotStage } from '../characters/MascotStage';
+import { StarlightHintButton } from '../lesson/StarlightHintButton';
+import { useHintEngine } from '../lesson/useHintEngine';
 import { CafeOrderRushEmblem } from './ArcadeEmblems';
 import {
   ARCADE_SHELL_STYLE,
@@ -79,6 +81,7 @@ export function CafeOrderRushArcade({
   const [guestEnter, setGuestEnter] = useState(1);
   const [guestPose, setGuestPose] = useState<CharacterPose>('happy');
   const [flashIdx, setFlashIdx] = useState<number | null>(null);
+  const [cafeHintNonce, setCafeHintNonce] = useState(0);
   const [round, setRound] = useState<CafeOrderRound>(() => ({
     uid: 1,
     guest: 'colette',
@@ -91,6 +94,27 @@ export function CafeOrderRushArcade({
       lexicon[3] ?? targetLexicon[0],
     ],
   }));
+  const hint = useHintEngine({
+    promptKey: `cafe::${round.uid}`,
+    mode: 'multiple_choice',
+    canHint: phase === 'playing',
+    choiceConfig: {
+      choices: round.platters.map((p) => p.id),
+      expected: round.target.id,
+      accepted: [round.target.id],
+      language,
+      seed: String(round.uid),
+    },
+    onHintTriggered: () => {
+      setCafeHintNonce((n) => n + 1);
+    },
+  });
+  const { cancelHint } = hint;
+  useEffect(() => {
+    if (phase !== 'playing') {
+      cancelHint({ clearAssists: true });
+    }
+  }, [phase, cancelHint]);
   const plainResult = useMemo(
     () =>
       plainOpen && showPlainButton
@@ -264,6 +288,7 @@ export function CafeOrderRushArcade({
     (idx: 0 | 1 | 2 | 3) => {
       if (phase !== 'playing') return;
       const chosen = roundRef.current.platters[idx];
+      cancelHint({ clearAssists: chosen.id === roundRef.current.target.id });
       setFlashIdx(idx);
       scheduleTimeout(() => setFlashIdx(null), 170);
 
@@ -603,6 +628,7 @@ export function CafeOrderRushArcade({
                   companionId={round.guest}
                   pose={guestPose}
                   size={isCompact ? 48 : 64}
+                  hintPulseNonce={cafeHintNonce}
                 />
               </div>
 
@@ -764,6 +790,14 @@ export function CafeOrderRushArcade({
                       onToggle={(nextOpen) => setPlainOpen(nextOpen)}
                     />
                   ) : null}
+                  <StarlightHintButton
+                    size="xs"
+                    hintTier={hint.hintTier}
+                    hintsUsed={hint.hintsUsed}
+                    isAnimating={hint.isAnimating}
+                    canHint={hint.canHint}
+                    onTrigger={hint.triggerHint}
+                  />
                 </div>
 
                 {plainResult ? (
@@ -827,6 +861,8 @@ export function CafeOrderRushArcade({
                 const platterIdx = idx as 0 | 1 | 2 | 3;
                 const accent = PLATTER_ACCENTS[platterIdx];
                 const isFlashed = flashIdx === platterIdx;
+                const isDimmed = hint.dimmedUids.has(item.id);
+                const isSpotlight = hint.spotlightZone === 'choice' && hint.spotlightUid === item.id;
                 const showForeignOnPlatter = round.direction === 'english_to_foreign';
 
                 return (
@@ -834,6 +870,11 @@ export function CafeOrderRushArcade({
                     key={`${round.uid}-${item.id}-${platterIdx}`}
                     type="button"
                     dir="ltr"
+                    data-hint-dimmed={isDimmed ? 'true' : undefined}
+                    data-hint-spotlight={isSpotlight ? 'true' : undefined}
+                    className={`tactile-btn starlight-choice-tile ${
+                      isDimmed ? 'is-starlight-dimmed' : ''
+                    } ${isSpotlight ? 'is-starlight-spotlight' : ''}`}
                     onClick={() => handleServePlatter(platterIdx)}
                     style={{
                       position: 'relative',
@@ -849,7 +890,7 @@ export function CafeOrderRushArcade({
                       borderLeftWidth: 2.5,
                       borderBottomWidth: 5,
                       borderStyle: 'solid',
-                      borderColor: accent.border,
+                      borderColor: isSpotlight ? '#a78bfa' : accent.border,
                       color: '#1e1b4b',
                       display: 'flex',
                       flexDirection: 'column',
@@ -857,10 +898,13 @@ export function CafeOrderRushArcade({
                       justifyContent: 'center',
                       gap: isCompact ? 2 : 6,
                       cursor: 'pointer',
+                      opacity: isDimmed ? 0.38 : 1,
                       transform: isFlashed ? 'scale(0.95)' : 'scale(1)',
-                      transition: 'transform 90ms ease',
-                      boxShadow: '0 8px 18px rgba(154, 52, 18, 0.12)',
-                      overflow: 'hidden',
+                      transition: 'transform 90ms ease, opacity 220ms ease',
+                      boxShadow: isSpotlight
+                        ? '0 0 0 2px var(--starlight-glow-a), 0 0 18px 2px var(--starlight-glow-b), 0 8px 18px rgba(154, 52, 18, 0.12)'
+                        : '0 8px 18px rgba(154, 52, 18, 0.12)',
+                      overflow: 'visible',
                     }}
                   >
                     <span

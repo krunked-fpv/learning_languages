@@ -1270,7 +1270,8 @@ export function buildTierCheckpointNode(
 function selectChallengesWithoutRepeats<T extends { id: string }>(
   pool: readonly T[],
   seenExerciseIds: readonly string[],
-  count: number
+  count: number,
+  hintAssistedCounts?: Readonly<Record<string, number>>
 ): T[] {
   const seenSet = new Set(seenExerciseIds);
   const seenOrder = new Map<string, number>();
@@ -1285,7 +1286,12 @@ function selectChallengesWithoutRepeats<T extends { id: string }>(
 
   const seenSortedOldestFirst = pool
     .filter((item) => seenSet.has(item.id))
-    .sort((a, b) => (seenOrder.get(a.id) ?? 0) - (seenOrder.get(b.id) ?? 0));
+    .sort((a, b) => {
+      const hintWeightDiff =
+        (hintAssistedCounts?.[b.id] ?? 0) - (hintAssistedCounts?.[a.id] ?? 0);
+      if (hintWeightDiff !== 0) return hintWeightDiff;
+      return (seenOrder.get(a.id) ?? 0) - (seenOrder.get(b.id) ?? 0);
+    });
 
   return [...unseen, ...seenSortedOldestFirst].slice(0, count);
 }
@@ -1313,7 +1319,8 @@ export function getPlayableNodeExercises(
   lang: LanguageCode,
   nodeId: string,
   seenExerciseIds: readonly string[] = [],
-  isReplay = false
+  isReplay = false,
+  hintAssistedCounts?: Readonly<Record<string, number>>
 ): LessonExercise[] {
   const entry = getOrBuildPool(lang, nodeId);
   if (!entry) return [];
@@ -1328,7 +1335,8 @@ export function getPlayableNodeExercises(
       return selectChallengesWithoutRepeats(
         entry.challenges,
         seenExerciseIds,
-        Math.min(TARGET_EXERCISES, entry.challenges.length)
+        Math.min(TARGET_EXERCISES, entry.challenges.length),
+        hintAssistedCounts
       );
     }
 
@@ -1338,7 +1346,8 @@ export function getPlayableNodeExercises(
     const pickedChallenges = selectChallengesWithoutRepeats(
       entry.challenges,
       seenExerciseIds,
-      remainingSlots
+      remainingSlots,
+      hintAssistedCounts
     );
     return [...unseenDiscoveries, ...pickedChallenges];
   }
@@ -1359,7 +1368,12 @@ export function getPlayableNodeExercises(
         ];
       }
     } else {
-      chosenTurns = selectChallengesWithoutRepeats(entry.turnsPool, seenExerciseIds, TURN_TARGET);
+      chosenTurns = selectChallengesWithoutRepeats(
+        entry.turnsPool,
+        seenExerciseIds,
+        TURN_TARGET,
+        hintAssistedCounts
+      );
     }
 
     return [
@@ -1398,6 +1412,11 @@ export function getPlayableNodeExercises(
     return [storyOut];
   }
 
-  const bonus = selectChallengesWithoutRepeats(entry.bonusChallenges, seenExerciseIds, 1);
+  const bonus = selectChallengesWithoutRepeats(
+    entry.bonusChallenges,
+    seenExerciseIds,
+    1,
+    hintAssistedCounts
+  );
   return [storyOut, ...bonus];
 }

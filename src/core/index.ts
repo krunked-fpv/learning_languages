@@ -1,3 +1,22 @@
+export {
+  computeFreeRecallHintedBonus,
+  resolveChoiceHint,
+  resolveFreeRecallHint,
+  resolvePairMatchHint,
+  resolveTileSequenceHint,
+  type ChoiceHintInput,
+  type ChoiceHintPlan,
+  type FreeRecallBonusTierInfo,
+  type FreeRecallHintInput,
+  type FreeRecallHintPlan,
+  type FreeRecallHintSlot,
+  type FreeRecallSlotState,
+  type HintPoolTile,
+  type PairMatchHintInput,
+  type PairMatchHintPlan,
+  type TileSequenceHintInput,
+  type TileSequenceHintPlan,
+} from './hintEngine';
 export { gradeAnswer, normalizeAnswer, type NormalizeOptions } from './grader';
 export {
   decodeToNormalEnglish,

@@ -9,6 +9,8 @@ import {
   type ArcadeLanternItem,
   type ArcadeProficiencyTier,
 } from '../../types/contracts';
+import { StarlightHintButton } from '../lesson/StarlightHintButton';
+import { useHintEngine } from '../lesson/useHintEngine';
 import { ConstellationMemoryEmblem } from './ArcadeEmblems';
 import {
   ARCADE_SHELL_STYLE,
@@ -109,6 +111,28 @@ export function ConstellationMemoryArcade({
     [plainOpen, showPlainButton, activePlainItem, plainAvoidTerms]
   );
   const [matchedPairIds, setMatchedPairIds] = useState<string[]>([]);
+  const wavePairIds = useMemo(
+    () => Array.from(new Set(cards.map((c) => c.pairId))),
+    [cards]
+  );
+  const flippedCard = flippedIndices.length === 1 ? cards[flippedIndices[0]] : undefined;
+  const hint = useHintEngine({
+    promptKey: `memory::${wave}::${cards[0]?.uid ?? 0}`,
+    mode: 'pair_match',
+    canHint: phase === 'playing' && matchedPairIds.length < wavePairIds.length,
+    pairConfig: {
+      leftIds: wavePairIds,
+      matchedIds: matchedPairIds,
+      selectedLeftId: flippedCard?.side === 'picture' ? flippedCard.pairId : null,
+      selectedRightId: flippedCard?.side === 'phrase' ? flippedCard.pairId : null,
+    },
+  });
+  const { cancelHint } = hint;
+  useEffect(() => {
+    if (phase !== 'playing') {
+      cancelHint({ clearAssists: true });
+    }
+  }, [phase, cancelHint]);
   const [constellationLinks, setConstellationLinks] = useState<
     Array<{ id: string; aIdx: number; bIdx: number }>
   >([]);
@@ -243,6 +267,7 @@ export function ConstellationMemoryArcade({
     const card = cards[index];
     if (!card) return;
     if (flippedIndices.includes(index) || matchedPairIds.includes(card.pairId)) return;
+    cancelHint();
 
     playSfx('flip_card');
     if (card.side === 'phrase') {
@@ -263,6 +288,7 @@ export function ConstellationMemoryArcade({
     const secondCard = cards[secondIdx];
 
     if (firstCard.pairId === secondCard.pairId) {
+      cancelHint({ clearAssists: true });
       comboRef.current += 1;
       pairsRef.current += 1;
       const pts = 30 + (comboRef.current - 1) * 10;
@@ -432,6 +458,15 @@ export function ConstellationMemoryArcade({
                   />
                 ) : null}
 
+                <StarlightHintButton
+                  size="xs"
+                  hintTier={hint.hintTier}
+                  hintsUsed={hint.hintsUsed}
+                  isAnimating={hint.isAnimating}
+                  canHint={hint.canHint}
+                  onTrigger={hint.triggerHint}
+                />
+
                 <button
                   type="button"
                   className="tactile-btn tactile-btn-success"
@@ -530,12 +565,21 @@ export function ConstellationMemoryArcade({
                 const isMatched = matchedPairIds.includes(card.pairId);
                 const isFlipped = flippedIndices.includes(idx);
                 const revealed = isMatched || isFlipped;
+                const isPairPulsing =
+                  !isMatched &&
+                  (hint.activeFlashUids.has(card.pairId) ||
+                    (hint.spotlightZone === 'pair' && hint.spotlightUid === card.pairId));
+                const isDimmed =
+                  !isMatched && !isFlipped && hint.dimmedUids.has(card.pairId);
 
                 return (
                   <motion.button
                     key={card.uid}
                     type="button"
                     dir={revealed && card.side === 'phrase' ? langDir : 'ltr'}
+                    data-pair-id={card.pairId}
+                    data-hint-pair-pulse={isPairPulsing ? 'true' : undefined}
+                    data-hint-dimmed={isDimmed ? 'true' : undefined}
                     aria-label={
                       revealed
                         ? card.side === 'picture'
@@ -546,7 +590,7 @@ export function ConstellationMemoryArcade({
                     onClick={() => handleFlipCard(idx)}
                     animate={{
                       rotateY: revealed ? 0 : 180,
-                      scale: isMatched ? 0.96 : 1,
+                      scale: isMatched ? 0.96 : isPairPulsing ? 1.04 : 1,
                     }}
                     transition={{ type: 'spring', stiffness: 320, damping: 24 }}
                     whileTap={revealed ? undefined : { scale: 0.94 }}
@@ -564,15 +608,18 @@ export function ConstellationMemoryArcade({
                       borderStyle: 'solid',
                       borderColor: isMatched
                         ? '#38bdf8'
-                        : revealed
-                          ? '#f59e0b'
-                          : '#818cf8',
+                        : isPairPulsing
+                          ? '#67e8f9'
+                          : revealed
+                            ? '#f59e0b'
+                            : '#818cf8',
                       background: isMatched
                         ? 'linear-gradient(180deg, #ecfeff 0%, #cffafe 100%)'
                         : revealed
                           ? '#ffffff'
                           : 'linear-gradient(165deg, #4338ca 0%, #312e81 100%)',
                       color: revealed ? '#1e1b4b' : '#fde047',
+                      opacity: isDimmed ? 0.42 : 1,
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
@@ -581,7 +628,9 @@ export function ConstellationMemoryArcade({
                       cursor: revealed ? 'default' : 'pointer',
                       boxShadow: isMatched
                         ? '0 0 18px rgba(56, 189, 248, 0.5)'
-                        : '0 6px 14px rgba(2, 6, 23, 0.35)',
+                        : isPairPulsing
+                          ? '0 0 0 2px rgba(167, 139, 250, 0.72), 0 0 20px 3px rgba(103, 232, 249, 0.72)'
+                          : '0 6px 14px rgba(2, 6, 23, 0.35)',
                       overflow: 'hidden',
                     }}
                   >

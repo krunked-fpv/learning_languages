@@ -1415,6 +1415,7 @@ export interface LanguageProgressState {
   xpEarned: number;
   seenExerciseIds?: string[];
   unlockedTiers?: ProficiencyTier[];
+  hintAssistedCounts?: Record<string, number>;
 }
 
 export type LanguageProgressMap = Record<BaseLanguageCode, LanguageProgressState> &
@@ -1459,6 +1460,7 @@ export interface KidProfile {
     fluentPlaysCount?: number;
     checkpointsPassed?: number;
     clozeSolved?: number;
+    hintsUsedCount?: number;
   };
   languageProgress: LanguageProgressMap;
 }
@@ -1541,4 +1543,29 @@ export interface SpeechRuntimeState {
   activeSpeed: SpeechSpeed | null;
   fallbackActive: boolean;
   voicesReady: boolean;
+}
+
+// ==========================================
+// Starlight Sequence Hint System Contracts
+// ==========================================
+
+export type HintTier = 0 | 1 | 2 | 3;
+
+export type HintPresentationMode =
+  | 'word_bank_tiles'
+  | 'free_recall'
+  | 'multiple_choice'
+  | 'pair_match'
+  | 'listen_assemble'
+  | 'listen_meaning'
+  | 'story_bubble'
+  | 'arcade_target'
+  | 'none';
+
+export interface HintControllerState {
+  hintTier: HintTier;
+  hintsUsed: number;
+  isAnimating: boolean;
+  canHint: boolean;
+  targetSequence: readonly string[];
 }

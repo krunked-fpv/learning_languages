@@ -27,6 +27,7 @@ interface ExtendedVaultActions {
   recordFluentPlay?: () => void;
   recordFreeRecallSolve?: () => void;
   recordClozeSolve?: () => void;
+  recordHintUsed?: () => void;
   unlockProficiencyTier?: (params: {
     language: LanguageCode;
     targetTier: Exclude<ProficiencyTier, 'A1'>;
@@ -69,6 +70,9 @@ export const safeVaultActions = {
   },
   recordClozeSolve(): void {
     extVault.recordClozeSolve?.();
+  },
+  recordHintUsed(): void {
+    extVault.recordHintUsed?.();
   },
   unlockProficiencyTier(params: {
     language: LanguageCode;

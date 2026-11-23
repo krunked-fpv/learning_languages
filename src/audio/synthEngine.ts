@@ -55,6 +55,7 @@ let masterGain: GainNode | null = null;
 let unlockListenersAttached = false;
 let cadenceTokenCounter = 0;
 let activeCadence: ActiveCadenceHandle | null = null;
+let activeHintNodes: ScheduledNodeHandle[] = [];
 let preferences: AudioPreferences = readInitialPreferences();
 
 attachUnlockListeners();
@@ -1636,6 +1637,7 @@ export function setAudioPreferences(settings: { volume: number; muted: boolean }
   syncMasterGain();
   if (preferences.muted) {
     stopPhoneticCadence();
+    stopHintChimes();
   }
 }
 
@@ -1811,4 +1813,102 @@ export function playPhoneticCadence(
       nodes,
     };
   });
+}
+
+// Celestial D-major Lydian/pentatonic shimmer pitches for Starlight Sequence hint chimes
+const STARLIGHT_HINT_SCALE = [
+  587.33, 659.25, 739.99, 880.0, 987.77, 1174.66, 1318.51, 1479.98,
+] as const;
+
+export function stopHintChimes(): void {
+  if (activeHintNodes.length === 0) return;
+  const current = activeHintNodes;
+  activeHintNodes = [];
+  const now = audioCtx ? getSafeCurrentTime(audioCtx) : 0;
+  for (const node of current) {
+    try {
+      safeSetParam(node.env.gain, 'setValueAtTime', 0.0001, now);
+      for (const osc of node.oscs) {
+        try {
+          osc.stop(now + 0.008);
+        } catch {
+          // Ignore oscillators already stopped.
+        }
+      }
+    } catch {
+      // Ignore cleanup errors.
+    }
+  }
+}
+
+export function playHintStepChime(
+  stepIndex: number,
+  totalSteps: number,
+  tier: 1 | 2 | 3 = 1,
+  skipIfBusy = false
+): void {
+  if (preferences.muted || preferences.volume <= 0) return;
+  if (skipIfBusy || activeCadence !== null) return;
+  const audio = ensureAudioContext();
+  if (!audio) return;
+
+  const safeIdx = Math.max(0, Math.floor(stepIndex));
+  const scaleIdx = safeIdx % STARLIGHT_HINT_SCALE.length;
+  const octaveBoost = safeIdx >= STARLIGHT_HINT_SCALE.length ? 1.12246 : 1;
+  const freq = STARLIGHT_HINT_SCALE[scaleIdx] * octaveBoost;
+  const isFinal = totalSteps > 0 && safeIdx + 1 >= totalSteps;
+
+  if (activeHintNodes.length > 24) {
+    activeHintNodes = activeHintNodes.slice(-12);
+  }
+
+  scheduleWarmTone(
+    audio.ctx,
+    audio.master,
+    {
+      freq,
+      delay: 0,
+      wave: 'sine',
+      harmonicGain: 0.14,
+      attack: 0.01,
+      decay: isFinal ? 0.28 : 0.18,
+      gain: tier === 1 ? 0.095 : 0.115,
+      filterCutoff: 2400,
+      filterEndCutoff: 1100,
+    },
+    activeHintNodes
+  );
+}
+
+export function playHintMisplacedNudge(skipIfBusy = false): void {
+  if (preferences.muted || preferences.volume <= 0) return;
+  if (skipIfBusy || activeCadence !== null) return;
+  const audio = ensureAudioContext();
+  if (!audio) return;
+
+  const specs: readonly ToneSpec[] = [
+    {
+      freq: 392.0,
+      delay: 0,
+      wave: 'sine',
+      attack: 0.01,
+      decay: 0.14,
+      gain: 0.085,
+      filterCutoff: 1100,
+      filterEndCutoff: 580,
+    },
+    {
+      freq: 440.0,
+      delay: 0.09,
+      wave: 'sine',
+      attack: 0.01,
+      decay: 0.14,
+      gain: 0.085,
+      filterCutoff: 1100,
+      filterEndCutoff: 580,
+    },
+  ];
+  for (const spec of specs) {
+    scheduleWarmTone(audio.ctx, audio.master, spec, activeHintNodes);
+  }
 }

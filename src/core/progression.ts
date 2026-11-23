@@ -8,12 +8,14 @@ import {
   type AvatarId,
   type BadgeDefinition,
   type BadgeId,
+  type HintTier,
   type KidProfile,
   type LanguageCode,
   type LanguageProgressState,
   type LeagueEntry,
   type LeagueTier,
 } from '../types/contracts';
+import { computeFreeRecallHintedBonus } from './hintEngine';
 
 const MS_PER_DAY = 86_400_000;
 
@@ -36,6 +38,8 @@ export function calculateLessonRewards(params: {
   maxCombo: number;
   mistakesCount: number;
   freeRecallCount?: number;
+  freeRecallHintTiers?: readonly HintTier[];
+  maxHintTierUsed?: HintTier;
 }): { xpEarned: number; gemsEarned: number; stars: 1 | 2 | 3 } {
   const baseXp = Math.max(0, Math.round(params.baseXp));
   const baseGems = Math.max(0, Math.round(params.baseGems));
@@ -43,15 +47,29 @@ export function calculateLessonRewards(params: {
   const stars: 1 | 2 | 3 = mistakes === 0 ? 3 : mistakes <= 2 ? 2 : 1;
 
   const combo = calculateComboMultiplier(params.maxCombo);
-  const starXpBonus = baseXp > 0 ? (stars === 3 ? 5 : stars === 2 ? 2 : 0) : 0;
+  const maxHintTierUsed = params.maxHintTierUsed ?? 0;
+  let starXpBonus = baseXp > 0 ? (stars === 3 ? 5 : stars === 2 ? 2 : 0) : 0;
+  if (stars === 3 && baseXp > 0 && maxHintTierUsed >= 2) {
+    starXpBonus = maxHintTierUsed >= 3 ? 3 : 4;
+  }
   const starGemBonus = baseGems > 0 && stars === 3 ? 2 : 0;
 
-  const freeRecallSolves =
-    typeof params.freeRecallCount === 'number' && Number.isFinite(params.freeRecallCount)
-      ? Math.max(0, Math.floor(params.freeRecallCount))
-      : 0;
-  const freeRecallXpBonus = freeRecallSolves * FREE_RECALL_BONUS_XP;
-  const freeRecallGemBonus = freeRecallSolves * FREE_RECALL_BONUS_GEMS;
+  let freeRecallXpBonus = 0;
+  let freeRecallGemBonus = 0;
+  if (params.freeRecallHintTiers && params.freeRecallHintTiers.length > 0) {
+    for (const tier of params.freeRecallHintTiers) {
+      const bonus = computeFreeRecallHintedBonus(tier);
+      freeRecallXpBonus += bonus.xp;
+      freeRecallGemBonus += bonus.gems;
+    }
+  } else {
+    const freeRecallSolves =
+      typeof params.freeRecallCount === 'number' && Number.isFinite(params.freeRecallCount)
+        ? Math.max(0, Math.floor(params.freeRecallCount))
+        : 0;
+    freeRecallXpBonus = freeRecallSolves * FREE_RECALL_BONUS_XP;
+    freeRecallGemBonus = freeRecallSolves * FREE_RECALL_BONUS_GEMS;
+  }
 
   return {
     xpEarned: Math.round(baseXp * combo.multiplier) + starXpBonus + freeRecallXpBonus,

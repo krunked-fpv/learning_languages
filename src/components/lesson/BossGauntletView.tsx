@@ -11,7 +11,7 @@ import {
   Volume2,
   Zap,
 } from 'lucide-react';
-import { gradeAnswer } from '../../core';
+import { gradeAnswer, computeFreeRecallHintedBonus } from '../../core';
 import { playSfx, speakPhrase } from '../../audio';
 import { MascotStage } from '../characters/MascotStage';
 import {
@@ -20,13 +20,18 @@ import {
   LANGUAGE_META,
   type BossGauntletExercise,
   type CharacterPose,
+  type HintPresentationMode,
+  type HintTier,
   type LanguageCode,
   type ProficiencyTier,
 } from '../../types/contracts';
+import { FreeRecallHintBar } from './FreeRecallHintBar';
 import { TapHintText } from './TapHintText';
 import { SayItNormallyButton } from './SayItNormallyButton';
+import { StarlightHintButton } from './StarlightHintButton';
 import { WordBankTray, buildWordBankPool, getAssembledText } from './WordBankTray';
 import { REGISTER_TAG_META } from './lessonHelpers';
+import { useHintEngine } from './useHintEngine';
 
 export interface BossGauntletViewProps {
   exercise: BossGauntletExercise;
@@ -42,8 +47,11 @@ export interface BossGauntletViewProps {
     isCorrect: boolean;
     usedAccentCoaching?: boolean;
     usedFreeRecall?: boolean;
+    hintTierUsed?: HintTier;
+    hintsUsedCount?: number;
   }) => void;
   onComplete: (bonusGems: number) => void;
+  onHintUsed?: (info: { exerciseId: string; tier: 1 | 2 | 3; hintsUsed: number }) => void;
 }
 
 export function BossGauntletView({
@@ -58,6 +66,7 @@ export function BossGauntletView({
   onFluentPlay,
   onTurnResult,
   onComplete,
+  onHintUsed,
 }: BossGauntletViewProps) {
   const [turnIndex, setTurnIndex] = useState(initialTurnIndex);
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
@@ -72,6 +81,7 @@ export function BossGauntletView({
     nuanceNote?: string;
   } | null>(null);
   const [bossCleared, setBossCleared] = useState(false);
+  const [bossHintNonce, setBossHintNonce] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -83,6 +93,7 @@ export function BossGauntletView({
     setPeekPhonetics(false);
     setTurnOutcome(null);
     setBossCleared(false);
+    setBossHintNonce(0);
   }, [exercise.id, initialTurnIndex]);
 
   const langMeta = LANGUAGE_META[language];
@@ -110,6 +121,69 @@ export function BossGauntletView({
     if (inputMode === 'type') return typedText.trim();
     return getAssembledText(pool, selectedTileUids);
   }, [currentTurn, selectedChoice, inputMode, typedText, pool, selectedTileUids]);
+
+  const bossPromptKey = currentTurn
+    ? `${exercise.id}::${currentTurn.id}::${currentTurn.mode === 'word_bank' ? inputMode : 'choice'}`
+    : `${exercise.id}::done`;
+  const bossHintMode: HintPresentationMode =
+    !currentTurn || bossCleared
+      ? 'none'
+      : currentTurn.mode === 'choice'
+        ? 'multiple_choice'
+        : inputMode === 'type'
+          ? 'free_recall'
+          : 'word_bank_tiles';
+
+  const hint = useHintEngine({
+    promptKey: bossPromptKey,
+    mode: bossHintMode,
+    canHint: Boolean(currentTurn) && !bossCleared && turnOutcome?.kind !== 'ok',
+    tileConfig:
+      currentTurn?.mode === 'word_bank' && inputMode === 'tiles'
+        ? {
+            pool,
+            targetTokens: currentTurn.targetTokens ?? [],
+            expectedSentence: currentTurn.expectedAnswer,
+            acceptedSentences: currentTurn.acceptedAnswers,
+            selectedTileUids,
+            language,
+            seed: `${exercise.id}:${currentTurn.id}`,
+          }
+        : undefined,
+    freeRecallConfig:
+      currentTurn?.mode === 'word_bank' && inputMode === 'type'
+        ? {
+            typedText,
+            expected: currentTurn.expectedAnswer,
+            accepted: currentTurn.acceptedAnswers,
+            targetTokens: currentTurn.targetTokens,
+            language,
+          }
+        : undefined,
+    choiceConfig:
+      currentTurn?.mode === 'choice'
+        ? {
+            choices: currentTurn.choices ?? [],
+            expected: currentTurn.expectedAnswer,
+            accepted: currentTurn.acceptedAnswers,
+            language,
+            seed: `${exercise.id}:${currentTurn.id}`,
+            selectedChoice,
+          }
+        : undefined,
+    onHintTriggered: (info) => {
+      setBossHintNonce((n) => n + 1);
+      onHintUsed?.({ exerciseId: exercise.id, tier: info.tier, hintsUsed: info.hintsUsed });
+    },
+  });
+
+  const { cancelHint } = hint;
+
+  useEffect(() => {
+    if (bossCleared || turnOutcome?.kind === 'ok') {
+      cancelHint({ clearAssists: true });
+    }
+  }, [bossCleared, turnOutcome?.kind, cancelHint]);
 
   if (bossCleared || !currentTurn) {
     return (
@@ -177,8 +251,11 @@ export function BossGauntletView({
           ? 'boss_intro'
           : 'listening';
 
+  const bossFreeRecallBonus = computeFreeRecallHintedBonus(hint.hintTier);
+
   const insertAccentChar = (ch: string) => {
     if (turnOutcome?.kind === 'ok') return;
+    cancelHint();
     playSfx('tile_tap');
     const el = inputRef.current;
     if (!el) {
@@ -198,6 +275,7 @@ export function BossGauntletView({
 
   const handleCheckTurn = () => {
     if (!submittedValue) return;
+    cancelHint({ clearAssists: true });
     const res = gradeAnswer({
       submitted: submittedValue,
       expected: currentTurn.expectedAnswer,
@@ -222,6 +300,8 @@ export function BossGauntletView({
         isCorrect: true,
         usedAccentCoaching: Boolean(res.accentCoaching),
         usedFreeRecall: isFreeRecall,
+        hintTierUsed: hint.hintTier,
+        hintsUsedCount: hint.hintsUsed,
       });
       setTurnOutcome({
         kind: 'ok',
@@ -245,6 +325,7 @@ export function BossGauntletView({
   };
 
   const handleNextTurn = () => {
+    cancelHint({ clearAssists: true });
     playSfx('button_click');
     setSelectedChoice(null);
     setSelectedTileUids([]);
@@ -278,6 +359,7 @@ export function BossGauntletView({
           companionId={exercise.companionId}
           pose={companionPose}
           size={compact ? 70 : 102}
+          hintPulseNonce={bossHintNonce}
         />
 
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -475,35 +557,46 @@ export function BossGauntletView({
           Your reply: {currentTurn.promptEnglish}
         </div>
 
-        {currentTurn.mode === 'word_bank' ? (
-          <button
-            type="button"
-            disabled={turnOutcome?.kind === 'ok'}
-            className={`tactile-btn ${
-              inputMode === 'tiles' && highlightFreeRecall ? 'tactile-btn-amber' : 'tactile-btn-soft'
-            }`}
-            style={{ padding: '4px 9px', fontSize: '0.74rem', borderRadius: 11 }}
-            onClick={() => {
-              playSfx('button_click');
-              setInputMode((m) => (m === 'tiles' ? 'type' : 'tiles'));
-              setTurnOutcome(null);
-            }}
-          >
-            {inputMode === 'tiles' ? (
-              <>
-                {highlightFreeRecall ? <Sparkles size={13} /> : <Keyboard size={13} />}
-                <span>
-                  Keyboard Free-Recall (+{FREE_RECALL_BONUS_XP} XP / +{FREE_RECALL_BONUS_GEMS} Gems)
-                </span>
-              </>
-            ) : (
-              <>
-                <Grid size={13} />
-                <span>Use Word Tiles</span>
-              </>
-            )}
-          </button>
-        ) : null}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <StarlightHintButton
+            size="sm"
+            hintTier={hint.hintTier}
+            hintsUsed={hint.hintsUsed}
+            isAnimating={hint.isAnimating}
+            canHint={hint.canHint}
+            onTrigger={hint.triggerHint}
+          />
+          {currentTurn.mode === 'word_bank' ? (
+            <button
+              type="button"
+              disabled={turnOutcome?.kind === 'ok'}
+              className={`tactile-btn ${
+                inputMode === 'tiles' && highlightFreeRecall ? 'tactile-btn-amber' : 'tactile-btn-soft'
+              }`}
+              style={{ padding: '4px 9px', fontSize: '0.74rem', borderRadius: 11 }}
+              onClick={() => {
+                cancelHint({ clearAssists: true });
+                playSfx('button_click');
+                setInputMode((m) => (m === 'tiles' ? 'type' : 'tiles'));
+                setTurnOutcome(null);
+              }}
+            >
+              {inputMode === 'tiles' ? (
+                <>
+                  {highlightFreeRecall ? <Sparkles size={13} /> : <Keyboard size={13} />}
+                  <span>
+                    Keyboard Free-Recall (+{FREE_RECALL_BONUS_XP} XP / +{FREE_RECALL_BONUS_GEMS} Gems)
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Grid size={13} />
+                  <span>Use Word Tiles</span>
+                </>
+              )}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {/* Turn Choice, Word Bank, or Keyboard Free-Recall */}
@@ -517,13 +610,19 @@ export function BossGauntletView({
         >
           {(currentTurn.choices ?? []).map((choice) => {
             const isSelected = selectedChoice === choice;
+            const isDimmed = hint.dimmedUids.has(choice);
+            const isSpotlight = hint.spotlightZone === 'choice' && hint.spotlightUid === choice;
             return (
               <button
                 key={choice}
                 type="button"
                 disabled={turnOutcome?.kind === 'ok'}
                 dir={langDir}
-                className="tactile-btn"
+                data-hint-dimmed={isDimmed ? 'true' : undefined}
+                data-hint-spotlight={isSpotlight ? 'true' : undefined}
+                className={`tactile-btn starlight-choice-tile ${
+                  isDimmed ? 'is-starlight-dimmed' : ''
+                } ${isSpotlight ? 'is-starlight-spotlight' : ''}`}
                 style={{
                   minWidth: 0,
                   justifyContent: 'space-between',
@@ -535,6 +634,7 @@ export function BossGauntletView({
                   lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
                 }}
                 onClick={() => {
+                  cancelHint();
                   playSfx('tile_tap');
                   setSelectedChoice(choice);
                   setTurnOutcome(null);
@@ -555,6 +655,8 @@ export function BossGauntletView({
           disabled={turnOutcome?.kind === 'ok'}
           compact={compact || (currentTurn.targetTokens?.length ?? 0) >= 9}
           dir={langDir}
+          hintOverlay={hint}
+          onTileInteract={() => cancelHint()}
           onChangeSelected={(next) => {
             setSelectedTileUids(next);
             setTurnOutcome(null);
@@ -562,6 +664,16 @@ export function BossGauntletView({
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          {hint.freeRecallPlan && hint.hintTier > 0 ? (
+            <FreeRecallHintBar
+              plan={hint.freeRecallPlan}
+              hintTier={hint.hintTier}
+              ghostFaded={hint.ghostFaded}
+              isAnimating={hint.isAnimating}
+              answerDir={langDir}
+              compact={compact}
+            />
+          ) : null}
           <input
             ref={inputRef}
             type="text"
@@ -573,6 +685,7 @@ export function BossGauntletView({
             value={typedText}
             disabled={turnOutcome?.kind === 'ok'}
             onChange={(e) => {
+              cancelHint();
               setTypedText(e.target.value);
               setTurnOutcome(null);
             }}
@@ -582,7 +695,7 @@ export function BossGauntletView({
                 handleCheckTurn();
               }
             }}
-            placeholder={`Type your reply in ${langMeta.dialectA ?? langMeta.name} (+${FREE_RECALL_BONUS_XP} XP bonus)...`}
+            placeholder={`Type your reply in ${langMeta.dialectA ?? langMeta.name} (+${bossFreeRecallBonus.xp} XP bonus)...`}
             aria-label="Type your boss reply"
             style={{
               width: '100%',

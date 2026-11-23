@@ -1,19 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Eye, EyeOff, Grid, Keyboard, Sparkles, Turtle, Volume2, Zap } from 'lucide-react';
 import { playSfx, speakPhrase } from '../../audio';
+import { computeFreeRecallHintedBonus } from '../../core';
 import {
   FREE_RECALL_BONUS_GEMS,
   FREE_RECALL_BONUS_XP,
   LANGUAGE_META,
+  type HintTier,
   type LanguageCode,
   type ProficiencyTier,
   type RegisterNuanceTag,
   type WordBankExercise,
 } from '../../types/contracts';
+import { FreeRecallHintBar } from './FreeRecallHintBar';
 import { TapHintText } from './TapHintText';
 import { SayItNormallyButton } from './SayItNormallyButton';
+import { StarlightHintButton } from './StarlightHintButton';
 import { WordBankTray, buildWordBankPool, getAssembledText } from './WordBankTray';
 import { REGISTER_TAG_META } from './lessonHelpers';
+import { useHintEngine } from './useHintEngine';
 
 export interface ExerciseDraftPayload {
   submitted: string;
@@ -25,6 +30,8 @@ export interface ExerciseDraftPayload {
   isFreeRecall?: boolean;
   nuanceNote?: string;
   registerTag?: RegisterNuanceTag;
+  hintTierUsed?: HintTier;
+  hintsUsedCount?: number;
 }
 
 export interface WordBankViewProps {
@@ -38,6 +45,7 @@ export interface WordBankViewProps {
   onFluentPlay?: () => void;
   onDraftChange: (draft: ExerciseDraftPayload | null) => void;
   onSubmitShortcut?: () => void;
+  onHintUsed?: (info: { exerciseId: string; tier: 1 | 2 | 3; hintsUsed: number }) => void;
 }
 
 export function WordBankView({
@@ -51,6 +59,7 @@ export function WordBankView({
   onFluentPlay,
   onDraftChange,
   onSubmitShortcut,
+  onHintUsed,
 }: WordBankViewProps) {
   const [inputMode, setInputMode] = useState<'tiles' | 'type'>('tiles');
   const [selectedTileUids, setSelectedTileUids] = useState<string[]>([]);
@@ -78,6 +87,48 @@ export function WordBankView({
     return getAssembledText(pool, selectedTileUids);
   }, [effectiveInputMode, typedText, pool, selectedTileUids]);
 
+  const hintAnswerLanguage: LanguageCode =
+    exercise.direction === 'to_english' ? 'en' : language;
+
+  const hint = useHintEngine({
+    promptKey: `${exercise.id}::${effectiveInputMode}`,
+    mode: effectiveInputMode === 'type' ? 'free_recall' : 'word_bank_tiles',
+    canHint: !locked,
+    tileConfig:
+      effectiveInputMode === 'tiles'
+        ? {
+            pool,
+            targetTokens: exercise.targetTokens,
+            expectedSentence: exercise.expectedSentence,
+            acceptedSentences: exercise.acceptedSentences,
+            selectedTileUids,
+            language: hintAnswerLanguage,
+            seed: exercise.id,
+          }
+        : undefined,
+    freeRecallConfig:
+      effectiveInputMode === 'type'
+        ? {
+            typedText,
+            expected: exercise.expectedSentence,
+            accepted: exercise.acceptedSentences,
+            targetTokens: exercise.targetTokens,
+            language: hintAnswerLanguage,
+          }
+        : undefined,
+    onHintTriggered: (info) => {
+      onHintUsed?.({ exerciseId: exercise.id, tier: info.tier, hintsUsed: info.hintsUsed });
+    },
+  });
+
+  const { cancelHint } = hint;
+
+  useEffect(() => {
+    if (locked) {
+      cancelHint({ clearAssists: true });
+    }
+  }, [locked, cancelHint]);
+
   useEffect(() => {
     if (!submittedValue) {
       onDraftChange(null);
@@ -96,8 +147,17 @@ export function WordBankView({
       isFreeRecall: effectiveInputMode === 'type',
       nuanceNote: exercise.nuanceNote,
       registerTag: exercise.registerTag,
+      hintTierUsed: hint.hintTier,
+      hintsUsedCount: hint.hintsUsed,
     });
-  }, [submittedValue, exercise, effectiveInputMode, onDraftChange]);
+  }, [
+    submittedValue,
+    exercise,
+    effectiveInputMode,
+    hint.hintTier,
+    hint.hintsUsed,
+    onDraftChange,
+  ]);
 
   const langMeta = LANGUAGE_META[language];
   const promptDir = exercise.direction === 'to_english' ? langMeta.dir : 'ltr';
@@ -115,8 +175,11 @@ export function WordBankView({
   const isNonLatinCourse = ['zh', 'ja', 'hi', 'bn', 'ar', 'arz', 'ru'].includes(language);
   const registerBadge = exercise.registerTag ? REGISTER_TAG_META[exercise.registerTag] : null;
 
+  const freeRecallBonus = computeFreeRecallHintedBonus(hint.hintTier);
+
   const insertAccentChar = (ch: string) => {
     if (locked) return;
+    cancelHint();
     playSfx('tile_tap');
     const el = inputRef.current;
     if (!el) {
@@ -196,6 +259,14 @@ export function WordBankView({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <StarlightHintButton
+            size="sm"
+            hintTier={hint.hintTier}
+            hintsUsed={hint.hintsUsed}
+            isAnimating={hint.isAnimating}
+            canHint={hint.canHint}
+            onTrigger={hint.triggerHint}
+          />
           {!isGuided && hasPromptSupport ? (
             <button
               type="button"
@@ -220,6 +291,7 @@ export function WordBankView({
               style={{ padding: '5px 10px', fontSize: '0.76rem', borderRadius: 12 }}
               disabled={locked}
               onClick={() => {
+                cancelHint({ clearAssists: true });
                 playSfx('button_click');
                 setInputMode((m) => (m === 'tiles' ? 'type' : 'tiles'));
               }}
@@ -404,6 +476,8 @@ export function WordBankView({
           disabled={locked}
           compact={compact}
           dir={answerDir}
+          hintOverlay={hint}
+          onTileInteract={() => cancelHint()}
           onChangeSelected={setSelectedTileUids}
         />
       ) : (
@@ -428,9 +502,20 @@ export function WordBankView({
               <Sparkles size={13} /> Keyboard Free-Recall Active!
             </span>
             <span>
-              +{FREE_RECALL_BONUS_XP} XP · +{FREE_RECALL_BONUS_GEMS} Gems
+              +{freeRecallBonus.xp} XP · +{freeRecallBonus.gems} Gems
             </span>
           </div>
+
+          {hint.freeRecallPlan && hint.hintTier > 0 ? (
+            <FreeRecallHintBar
+              plan={hint.freeRecallPlan}
+              hintTier={hint.hintTier}
+              ghostFaded={hint.ghostFaded}
+              isAnimating={hint.isAnimating}
+              answerDir={answerDir}
+              compact={compact}
+            />
+          ) : null}
 
           <input
             ref={inputRef}
@@ -442,7 +527,10 @@ export function WordBankView({
             }
             value={typedText}
             disabled={locked}
-            onChange={(e) => setTypedText(e.target.value)}
+            onChange={(e) => {
+              cancelHint();
+              setTypedText(e.target.value);
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && submittedValue && !locked) {
                 e.preventDefault();

@@ -254,6 +254,7 @@ function makeFreshProfile(params: {
       fluentPlaysCount: 0,
       checkpointsPassed: 0,
       clozeSolved: 0,
+      hintsUsedCount: 0,
     },
     languageProgress: buildLanguageProgressMap(undefined, adultModeUnlocked, false),
   };
@@ -299,6 +300,8 @@ function isStringArray(value: unknown): value is string[] {
 }
 
 function cloneLangProgress(lp: LanguageProgressState): LanguageProgressState {
+  const hintCounts = lp.hintAssistedCounts;
+  const hasHintCounts = Boolean(hintCounts && Object.keys(hintCounts).length > 0);
   return {
     completedNodeIds: [...lp.completedNodeIds],
     nodeStars: { ...lp.nodeStars },
@@ -308,6 +311,7 @@ function cloneLangProgress(lp: LanguageProgressState): LanguageProgressState {
     xpEarned: lp.xpEarned,
     seenExerciseIds: lp.seenExerciseIds ? [...lp.seenExerciseIds] : [],
     unlockedTiers: lp.unlockedTiers ? [...lp.unlockedTiers] : [],
+    ...(hasHintCounts ? { hintAssistedCounts: { ...hintCounts } } : {}),
   };
 }
 
@@ -353,6 +357,7 @@ function cloneProfile(profile: KidProfile): KidProfile {
       fluentPlaysCount: profile.stats.fluentPlaysCount ?? 0,
       checkpointsPassed: profile.stats.checkpointsPassed ?? 0,
       clozeSolved: profile.stats.clozeSolved ?? 0,
+      hintsUsedCount: profile.stats.hintsUsedCount ?? 0,
     },
     languageProgress,
   };
@@ -409,6 +414,24 @@ function validateLangProgress(
     }
     unlockedTiers = Array.from(new Set(raw.unlockedTiers as ProficiencyTier[]));
   }
+  const hintAssistedCounts: Record<string, number> = {};
+  if (raw.hintAssistedCounts !== undefined) {
+    if (!isPlainObject(raw.hintAssistedCounts)) {
+      return { ok: false, error: `${label}.hintAssistedCounts must be an object.` };
+    }
+    for (const [exId, countVal] of Object.entries(raw.hintAssistedCounts)) {
+      if (exId.trim().length === 0 || !isNonNegNumber(countVal)) {
+        return {
+          ok: false,
+          error: `${label}.hintAssistedCounts["${exId}"] must be a non-negative number.`,
+        };
+      }
+      const floored = Math.floor(countVal);
+      if (floored > 0) {
+        hintAssistedCounts[exId] = floored;
+      }
+    }
+  }
 
   return {
     ok: true,
@@ -421,6 +444,7 @@ function validateLangProgress(
       xpEarned: Math.round(raw.xpEarned),
       seenExerciseIds,
       unlockedTiers,
+      ...(Object.keys(hintAssistedCounts).length > 0 ? { hintAssistedCounts } : {}),
     },
   };
 }
@@ -598,6 +622,7 @@ function validateKidProfile(
     'fluentPlaysCount',
     'checkpointsPassed',
     'clozeSolved',
+    'hintsUsedCount',
   ] as const;
   for (const key of optionalStatKeys) {
     if (raw.stats[key] !== undefined && !isNonNegNumber(raw.stats[key])) {
@@ -739,6 +764,10 @@ function validateKidProfile(
             : 0,
         clozeSolved:
           raw.stats.clozeSolved !== undefined ? Math.floor(raw.stats.clozeSolved as number) : 0,
+        hintsUsedCount:
+          raw.stats.hintsUsedCount !== undefined
+            ? Math.floor(raw.stats.hintsUsedCount as number)
+            : 0,
       },
       languageProgress: validatedLangProgress,
     },
@@ -918,6 +947,13 @@ function mergeTwoProfiles(existing: KidProfile, incoming: KidProfile): KidProfil
       mergedStars[nodeId] = Math.max(prev, star) as 1 | 2 | 3;
     }
 
+    const mergedHintCounts: Record<string, number> = { ...(a.hintAssistedCounts ?? {}) };
+    for (const [exId, count] of Object.entries(b.hintAssistedCounts ?? {})) {
+      if (count > 0) {
+        mergedHintCounts[exId] = Math.max(mergedHintCounts[exId] ?? 0, count);
+      }
+    }
+
     mergedLanguageProgress[lang] = {
       completedNodeIds: Array.from(new Set([...a.completedNodeIds, ...b.completedNodeIds])),
       nodeStars: mergedStars,
@@ -931,6 +967,7 @@ function mergeTwoProfiles(existing: KidProfile, incoming: KidProfile): KidProfil
       unlockedTiers: Array.from(
         new Set([...(a.unlockedTiers ?? []), ...(b.unlockedTiers ?? [])])
       ),
+      ...(Object.keys(mergedHintCounts).length > 0 ? { hintAssistedCounts: mergedHintCounts } : {}),
     };
   }
 
@@ -1019,6 +1056,10 @@ function mergeTwoProfiles(existing: KidProfile, incoming: KidProfile): KidProfil
         incoming.stats.checkpointsPassed ?? 0
       ),
       clozeSolved: Math.max(existing.stats.clozeSolved ?? 0, incoming.stats.clozeSolved ?? 0),
+      hintsUsedCount: Math.max(
+        existing.stats.hintsUsedCount ?? 0,
+        incoming.stats.hintsUsedCount ?? 0
+      ),
     },
     languageProgress: mergedLanguageProgress,
   };
@@ -1183,7 +1224,7 @@ function applyTierUnlockToLangProgress(
 }
 
 function bumpProfileStat(
-  key: 'turtlePlaysCount' | 'fluentPlaysCount' | 'freeRecallSolved' | 'clozeSolved'
+  key: 'turtlePlaysCount' | 'fluentPlaysCount' | 'freeRecallSolved' | 'clozeSolved' | 'hintsUsedCount'
 ): void {
   updateActiveProfile((profile) => {
     const updated: KidProfile = {
@@ -1563,6 +1604,10 @@ export const vaultActions = {
     bumpProfileStat('clozeSolved');
   },
 
+  recordHintUsed(): void {
+    bumpProfileStat('hintsUsedCount');
+  },
+
   unlockProficiencyTier(params: {
     language: LanguageCode;
     targetTier: Exclude<ProficiencyTier, 'A1'>;
@@ -1706,31 +1751,98 @@ export const vaultActions = {
     });
   },
 
-  recordSeenExercises(lang: LanguageCode, exerciseIds: readonly string[]): void {
+  recordSeenExercises(
+    lang: LanguageCode,
+    exerciseIds: readonly string[],
+    hintAssistedMap?: Readonly<Record<string, number>>
+  ): void {
     if (!VALID_ALL_LANGUAGES.has(lang) || exerciseIds.length === 0) return;
     updateActiveProfile((profile) => {
       if (isAdultLanguage(lang) && !canUseAdultMode(profile)) return profile;
       const langProg = profile.languageProgress[lang] ?? emptyLangProgress();
       const existing = langProg.seenExerciseIds ?? [];
-      const seenSet = new Set(existing);
-      const toAppend: string[] = [];
+      const prevHintCounts = langProg.hintAssistedCounts ?? {};
+      const hasIncomingHints = Boolean(
+        hintAssistedMap && Object.values(hintAssistedMap).some((v) => v > 0)
+      );
+      const hasExistingHints = Object.keys(prevHintCounts).length > 0;
 
+      if (!hasIncomingHints && !hasExistingHints) {
+        const seenSet = new Set(existing);
+        const toAppend: string[] = [];
+
+        for (const rawId of exerciseIds) {
+          if (typeof rawId === 'string' && rawId.length > 0 && !seenSet.has(rawId)) {
+            seenSet.add(rawId);
+            toAppend.push(rawId);
+          }
+        }
+
+        if (toAppend.length === 0) return profile;
+
+        const nextSeen = [...existing, ...toAppend].slice(-MAX_SEEN_EXERCISES);
+        return {
+          ...profile,
+          languageProgress: withUpdatedLanguageProgress(profile, lang, {
+            ...langProg,
+            seenExerciseIds: nextSeen,
+          }),
+        };
+      }
+
+      // SRS-aware update: elevate hint-assisted exercises toward the front of seenExerciseIds
+      // so they resurface sooner, while graduating items solved unassisted.
+      const nextHintCounts: Record<string, number> = { ...prevHintCounts };
       for (const rawId of exerciseIds) {
-        if (typeof rawId === 'string' && rawId.length > 0 && !seenSet.has(rawId)) {
-          seenSet.add(rawId);
-          toAppend.push(rawId);
+        if (typeof rawId !== 'string' || rawId.length === 0) continue;
+        const used = hintAssistedMap?.[rawId] ?? 0;
+        if (used > 0) {
+          nextHintCounts[rawId] = (nextHintCounts[rawId] ?? 0) + Math.floor(used);
+        } else if (hintAssistedMap && nextHintCounts[rawId] !== undefined) {
+          if (nextHintCounts[rawId] > 1) {
+            nextHintCounts[rawId] -= 1;
+          } else {
+            delete nextHintCounts[rawId];
+          }
         }
       }
 
-      if (toAppend.length === 0) return profile;
+      const uniqueIds: string[] = [];
+      const seenSet = new Set<string>();
+      for (const id of existing) {
+        if (id && !seenSet.has(id)) {
+          seenSet.add(id);
+          uniqueIds.push(id);
+        }
+      }
+      for (const id of exerciseIds) {
+        if (typeof id === 'string' && id.length > 0 && !seenSet.has(id)) {
+          seenSet.add(id);
+          uniqueIds.push(id);
+        }
+      }
 
-      const nextSeen = [...existing, ...toAppend].slice(-MAX_SEEN_EXERCISES);
+      const assisted = uniqueIds
+        .filter((id) => (nextHintCounts[id] ?? 0) > 0)
+        .sort((a, b) => (nextHintCounts[b] ?? 0) - (nextHintCounts[a] ?? 0));
+      const unassisted = uniqueIds.filter((id) => (nextHintCounts[id] ?? 0) <= 0);
+      const keepAssisted = assisted.slice(0, MAX_SEEN_EXERCISES);
+      const remainingCap = Math.max(0, MAX_SEEN_EXERCISES - keepAssisted.length);
+      const nextSeen = [...keepAssisted, ...unassisted.slice(Math.max(0, unassisted.length - remainingCap))];
+
+      const nextLangProg: LanguageProgressState = {
+        ...langProg,
+        seenExerciseIds: nextSeen,
+      };
+      if (Object.keys(nextHintCounts).length > 0) {
+        nextLangProg.hintAssistedCounts = nextHintCounts;
+      } else {
+        delete nextLangProg.hintAssistedCounts;
+      }
+
       return {
         ...profile,
-        languageProgress: withUpdatedLanguageProgress(profile, lang, {
-          ...langProg,
-          seenExerciseIds: nextSeen,
-        }),
+        languageProgress: withUpdatedLanguageProgress(profile, lang, nextLangProg),
       };
     });
   },

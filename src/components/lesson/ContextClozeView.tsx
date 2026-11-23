@@ -10,12 +10,14 @@ import {
 } from '../../types/contracts';
 import { TapHintText } from './TapHintText';
 import { SayItNormallyButton } from './SayItNormallyButton';
+import { StarlightHintButton } from './StarlightHintButton';
 import {
   NO_SPACE_AFTER_RE,
   REGISTER_TAG_META,
   cleanClozeCompareChars,
   splitTapHintsAroundBlank,
 } from './lessonHelpers';
+import { useHintEngine } from './useHintEngine';
 import type { ExerciseDraftPayload } from './WordBankView';
 
 export interface ContextClozeViewProps {
@@ -28,6 +30,7 @@ export interface ContextClozeViewProps {
   onTurtlePlay: () => void;
   onFluentPlay?: () => void;
   onDraftChange: (draft: ExerciseDraftPayload | null) => void;
+  onHintUsed?: (info: { exerciseId: string; tier: 1 | 2 | 3; hintsUsed: number }) => void;
 }
 
 function tokensCoverText(tokens: readonly TapHintToken[], rawText: string): boolean {
@@ -68,6 +71,7 @@ export function ContextClozeView({
   onTurtlePlay,
   onFluentPlay,
   onDraftChange,
+  onHintUsed,
 }: ContextClozeViewProps) {
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [peekPhonetics, setPeekPhonetics] = useState(false);
@@ -84,6 +88,32 @@ export function ContextClozeView({
     [exercise]
   );
 
+  const hint = useHintEngine({
+    promptKey: exercise.id,
+    mode: 'multiple_choice',
+    canHint: !locked && !revealed,
+    choiceConfig: {
+      choices: exercise.choices,
+      expected: exercise.expectedBlank,
+      accepted:
+        exercise.acceptedBlanks.length > 0 ? exercise.acceptedBlanks : [exercise.expectedBlank],
+      language,
+      seed: exercise.id,
+      selectedChoice,
+    },
+    onHintTriggered: (info) => {
+      onHintUsed?.({ exerciseId: exercise.id, tier: info.tier, hintsUsed: info.hintsUsed });
+    },
+  });
+
+  const { cancelHint } = hint;
+
+  useEffect(() => {
+    if (locked || revealed) {
+      cancelHint({ clearAssists: true });
+    }
+  }, [locked, revealed, cancelHint]);
+
   useEffect(() => {
     if (!selectedChoice) {
       onDraftChange(null);
@@ -97,8 +127,17 @@ export function ContextClozeView({
       phoneticHint: exercise.phonetic,
       nuanceNote: exercise.nuanceNote,
       registerTag: exercise.registerTag,
+      hintTierUsed: hint.hintTier,
+      hintsUsedCount: hint.hintsUsed,
     });
-  }, [selectedChoice, exercise, audioSentence, onDraftChange]);
+  }, [
+    selectedChoice,
+    exercise,
+    audioSentence,
+    hint.hintTier,
+    hint.hintsUsed,
+    onDraftChange,
+  ]);
 
   const langDir = LANGUAGE_META[language].dir;
   const isGuided = scaffoldingMode === 'guided';
@@ -196,20 +235,30 @@ export function ContextClozeView({
           ) : null}
         </div>
 
-        {!isGuided && (exercise.phonetic || exercise.romanized) ? (
-          <button
-            type="button"
-            className={`tactile-btn ${peekPhonetics ? 'tactile-btn-amber' : 'tactile-btn-soft'}`}
-            style={{ padding: '4px 9px', fontSize: '0.74rem', borderRadius: 12 }}
-            onClick={() => {
-              playSfx('tile_tap');
-              setPeekPhonetics((v) => !v);
-            }}
-          >
-            {peekPhonetics ? <EyeOff size={13} /> : <Eye size={13} />}
-            <span>{peekPhonetics ? 'Hide Phonetic / Romanized' : 'Peek Phonetic / Romanized'}</span>
-          </button>
-        ) : null}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <StarlightHintButton
+            size="sm"
+            hintTier={hint.hintTier}
+            hintsUsed={hint.hintsUsed}
+            isAnimating={hint.isAnimating}
+            canHint={hint.canHint}
+            onTrigger={hint.triggerHint}
+          />
+          {!isGuided && (exercise.phonetic || exercise.romanized) ? (
+            <button
+              type="button"
+              className={`tactile-btn ${peekPhonetics ? 'tactile-btn-amber' : 'tactile-btn-soft'}`}
+              style={{ padding: '4px 9px', fontSize: '0.74rem', borderRadius: 12 }}
+              onClick={() => {
+                playSfx('tile_tap');
+                setPeekPhonetics((v) => !v);
+              }}
+            >
+              {peekPhonetics ? <EyeOff size={13} /> : <Eye size={13} />}
+              <span>{peekPhonetics ? 'Hide Phonetic / Romanized' : 'Peek Phonetic / Romanized'}</span>
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {/* Sentence Prompt with Interactive Blank & Tap-Hints */}
@@ -403,8 +452,37 @@ export function ContextClozeView({
           gap: compact ? 7 : 10,
         }}
       >
+        {hint.hintTier > 0 ? (
+          <div
+            data-testid="choice-hint-whisper"
+            style={{
+              gridColumn: '1 / -1',
+              padding: '5px 10px',
+              borderRadius: 12,
+              background: 'var(--starlight-recall-bg)',
+              border: '1px solid var(--starlight-border)',
+              color: 'var(--starlight-ink)',
+              fontSize: '0.74rem',
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+            }}
+          >
+            <span>
+              {registerMeta
+                ? `Starlight Clue: Match ${registerMeta.label} tone (${hint.dimmedUids.size} distractor${hint.dimmedUids.size === 1 ? '' : 's'} softened)`
+                : hint.hintTier >= 3
+                  ? 'Starlight Spotlight: Best-fit choice highlighted'
+                  : `Starlight Whisper: ${hint.dimmedUids.size} unlikely option${hint.dimmedUids.size === 1 ? '' : 's'} softened`}
+            </span>
+          </div>
+        ) : null}
         {exercise.choices.map((choice) => {
           const isSelected = selectedChoice === choice;
+          const isDimmed = hint.dimmedUids.has(choice);
+          const isSpotlight = hint.spotlightZone === 'choice' && hint.spotlightUid === choice;
           return (
             <button
               key={choice}
@@ -413,7 +491,11 @@ export function ContextClozeView({
               aria-checked={isSelected}
               disabled={locked}
               dir={langDir}
-              className="tactile-btn"
+              data-hint-dimmed={isDimmed ? 'true' : undefined}
+              data-hint-spotlight={isSpotlight ? 'true' : undefined}
+              className={`tactile-btn starlight-choice-tile ${isDimmed ? 'is-starlight-dimmed' : ''} ${
+                isSpotlight ? 'is-starlight-spotlight' : ''
+              }`}
               style={{
                 minWidth: 0,
                 justifyContent: 'space-between',
@@ -426,6 +508,7 @@ export function ContextClozeView({
                 textAlign: langDir === 'rtl' ? 'right' : 'left',
               }}
               onClick={() => {
+                cancelHint();
                 playSfx('tile_tap');
                 setSelectedChoice(choice);
               }}

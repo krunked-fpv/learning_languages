@@ -11,6 +11,8 @@ import {
   type LanguageCode,
 } from '../../types/contracts';
 import { MascotStage } from '../characters/MascotStage';
+import { StarlightHintButton } from '../lesson/StarlightHintButton';
+import { useHintEngine } from '../lesson/useHintEngine';
 import { StarlightBridgeEmblem } from './ArcadeEmblems';
 import {
   ARCADE_SHELL_STYLE,
@@ -201,6 +203,32 @@ export function StarlightBridgeArcade({
   const [plainOpen, setPlainOpen] = useState(false);
 
   const [round, setRound] = useState<BridgeRound>(() => makeRound(1));
+  const [bridgeHintNonce, setBridgeHintNonce] = useState(0);
+
+  const hint = useHintEngine({
+    promptKey: `bridge::${round.uid}`,
+    mode: 'multiple_choice',
+    canHint: phase === 'playing' && !plankLocked,
+    choiceConfig: {
+      choices: round.choices.map((c) => c.id),
+      expected: round.target.id,
+      accepted: [round.target.id],
+      language,
+      seed: String(round.uid),
+    },
+    onHintTriggered: () => {
+      setBridgeHintNonce((n) => n + 1);
+    },
+  });
+
+  const { cancelHint } = hint;
+
+  useEffect(() => {
+    if (phase !== 'playing' || plankLocked) {
+      cancelHint({ clearAssists: true });
+    }
+  }, [phase, plankLocked, cancelHint]);
+
   const plainResult = useMemo(
     () =>
       plainOpen && showPlainButton
@@ -333,6 +361,7 @@ export function StarlightBridgeArcade({
       if (phase !== 'playing' || plankLockedRef.current) return;
       const choice = roundRef.current.choices[choiceIdx];
       if (!choice) return;
+      cancelHint({ clearAssists: choice.id === roundRef.current.target.id });
 
       if (choice.id === roundRef.current.target.id) {
         const isSpeedCrossing = pipXRef.current < GAP_EDGE_X - 1;
@@ -780,6 +809,14 @@ export function StarlightBridgeArcade({
                       onToggle={(nextOpen) => setPlainOpen(nextOpen)}
                     />
                   ) : null}
+                  <StarlightHintButton
+                    size="xs"
+                    hintTier={hint.hintTier}
+                    hintsUsed={hint.hintsUsed}
+                    isAnimating={hint.isAnimating}
+                    canHint={hint.canHint}
+                    onTrigger={hint.triggerHint}
+                  />
                 </div>
               </div>
 
@@ -925,6 +962,7 @@ export function StarlightBridgeArcade({
                   pose={pipPose}
                   equippedCosmetics={activeProfile.equippedCosmetics}
                   size={isCompact ? 46 : 74}
+                  hintPulseNonce={bridgeHintNonce}
                 />
               </div>
             </div>
@@ -946,6 +984,9 @@ export function StarlightBridgeArcade({
                 const isLastOdd = isCompact && round.choices.length === 3 && idx === 2;
                 const isWrong = wrongChoiceIdx === idx;
                 const isTargetLocked = plankLocked && item.id === round.target.id;
+                const isDimmed = !plankLocked && hint.dimmedUids.has(item.id);
+                const isSpotlight =
+                  !plankLocked && hint.spotlightZone === 'choice' && hint.spotlightUid === item.id;
                 const plankText =
                   item.id === round.target.id ? round.correctPlankText : item.foreign;
 
@@ -955,6 +996,11 @@ export function StarlightBridgeArcade({
                     type="button"
                     dir="ltr"
                     disabled={plankLocked}
+                    data-hint-dimmed={isDimmed ? 'true' : undefined}
+                    data-hint-spotlight={isSpotlight ? 'true' : undefined}
+                    className={`tactile-btn starlight-choice-tile ${
+                      isDimmed ? 'is-starlight-dimmed' : ''
+                    } ${isSpotlight ? 'is-starlight-spotlight' : ''}`}
                     onClick={() => handleSelectPlank(idx)}
                     style={{
                       gridColumn: isLastOdd ? '1 / -1' : undefined,
@@ -975,7 +1021,9 @@ export function StarlightBridgeArcade({
                         ? '#10b981'
                         : isWrong
                           ? '#f43f5e'
-                          : '#38bdf8',
+                          : isSpotlight
+                            ? '#a78bfa'
+                            : '#38bdf8',
                       color: '#1e1b4b',
                       display: 'flex',
                       flexDirection: 'column',
@@ -983,9 +1031,12 @@ export function StarlightBridgeArcade({
                       justifyContent: 'center',
                       gap: 2,
                       minWidth: 0,
-                      overflow: 'hidden',
+                      overflow: 'visible',
+                      opacity: isDimmed ? 0.38 : 1,
                       cursor: plankLocked ? 'default' : 'pointer',
-                      boxShadow: '0 6px 16px rgba(2, 6, 23, 0.28)',
+                      boxShadow: isSpotlight
+                        ? '0 0 0 2px var(--starlight-glow-a), 0 0 18px 2px var(--starlight-glow-b), 0 6px 16px rgba(2, 6, 23, 0.28)'
+                        : '0 6px 16px rgba(2, 6, 23, 0.28)',
                     }}
                   >
                     <span

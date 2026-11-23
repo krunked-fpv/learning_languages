@@ -4,13 +4,16 @@ import { CheckCircle2, Clock, Sparkles, Volume2 } from 'lucide-react';
 import { playSfx, speakPhrase } from '../../audio';
 import { LANGUAGE_META, type LanguageCode, type PairMatchRushExercise } from '../../types/contracts';
 import { SayItNormallyButton } from './SayItNormallyButton';
+import { StarlightHintButton } from './StarlightHintButton';
 import { deterministicShuffle } from './lessonHelpers';
+import { useHintEngine } from './useHintEngine';
 
 export interface PairMatchRushViewProps {
   exercise: PairMatchRushExercise;
   language: LanguageCode;
   compact: boolean;
   onComplete: (result: { bonusEarned: boolean; maxRushCombo: number }) => void;
+  onHintUsed?: (info: { exerciseId: string; tier: 1 | 2 | 3; hintsUsed: number }) => void;
 }
 
 export function PairMatchRushView({
@@ -18,6 +21,7 @@ export function PairMatchRushView({
   language,
   compact,
   onComplete,
+  onHintUsed,
 }: PairMatchRushViewProps) {
   const totalMs = Math.max(10, exercise.timeBonusSeconds) * 1000;
   const [timeLeftMs, setTimeLeftMs] = useState(totalMs);
@@ -59,6 +63,29 @@ export function PairMatchRushView({
 
   const matchedSet = useMemo(() => new Set(matchedIds), [matchedIds]);
 
+  const hint = useHintEngine({
+    promptKey: exercise.id,
+    mode: 'pair_match',
+    canHint: !allMatched,
+    pairConfig: {
+      leftIds: exercise.pairs.map((p) => p.id),
+      matchedIds,
+      selectedLeftId,
+      selectedRightId,
+    },
+    onHintTriggered: (info) => {
+      onHintUsed?.({ exerciseId: exercise.id, tier: info.tier, hintsUsed: info.hintsUsed });
+    },
+  });
+
+  const { cancelHint } = hint;
+
+  useEffect(() => {
+    if (allMatched) {
+      cancelHint({ clearAssists: true });
+    }
+  }, [allMatched, cancelHint]);
+
   const evaluatePair = (leftId: string | null, rightId: string | null) => {
     if (!leftId || !rightId) return;
     if (leftId === rightId) {
@@ -68,6 +95,7 @@ export function PairMatchRushView({
       setMatchedIds((prev) => (prev.includes(leftId) ? prev : [...prev, leftId]));
       setSelectedLeftId(null);
       setSelectedRightId(null);
+      cancelHint({ clearAssists: true });
 
       if (nextCombo >= 4) playSfx('combo_5x', nextCombo);
       else if (nextCombo >= 2) playSfx('combo_3x', nextCombo);
@@ -86,6 +114,7 @@ export function PairMatchRushView({
 
   const handleSelectLeft = (id: string) => {
     if (matchedSet.has(id) || mismatchPair) return;
+    cancelHint();
     playSfx('tile_tap');
     const nextLeft = selectedLeftId === id ? null : id;
     setSelectedLeftId(nextLeft);
@@ -96,6 +125,7 @@ export function PairMatchRushView({
 
   const handleSelectRight = (id: string) => {
     if (matchedSet.has(id) || mismatchPair) return;
+    cancelHint();
     playSfx('tile_tap');
     const nextRight = selectedRightId === id ? null : id;
     setSelectedRightId(nextRight);
@@ -146,22 +176,32 @@ export function PairMatchRushView({
           </div>
         </div>
 
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '5px 11px',
-            borderRadius: 999,
-            background: timeLeftMs > 0 ? 'var(--tint-indigo-bg)' : 'var(--tint-amber-bg)',
-            border: `2px solid ${timeLeftMs > 0 ? 'var(--tint-indigo-border)' : 'var(--tint-amber-border)'}`,
-            color: timeLeftMs > 0 ? 'var(--tint-indigo-ink)' : 'var(--tint-amber-ink)',
-            fontWeight: 900,
-            fontSize: '0.84rem',
-          }}
-        >
-          <Clock size={15} />
-          <span>{timeLeftMs > 0 ? `${secondsDisplay}s Bonus` : 'Steady Mode'}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <StarlightHintButton
+            size="sm"
+            hintTier={hint.hintTier}
+            hintsUsed={hint.hintsUsed}
+            isAnimating={hint.isAnimating}
+            canHint={hint.canHint}
+            onTrigger={hint.triggerHint}
+          />
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '5px 11px',
+              borderRadius: 999,
+              background: timeLeftMs > 0 ? 'var(--tint-indigo-bg)' : 'var(--tint-amber-bg)',
+              border: `2px solid ${timeLeftMs > 0 ? 'var(--tint-indigo-border)' : 'var(--tint-amber-border)'}`,
+              color: timeLeftMs > 0 ? 'var(--tint-indigo-ink)' : 'var(--tint-amber-ink)',
+              fontWeight: 900,
+              fontSize: '0.84rem',
+            }}
+          >
+            <Clock size={15} />
+            <span>{timeLeftMs > 0 ? `${secondsDisplay}s Bonus` : 'Steady Mode'}</span>
+          </div>
         </div>
       </div>
 
@@ -219,6 +259,11 @@ export function PairMatchRushView({
             const isMatched = matchedSet.has(item.id);
             const isSelected = selectedLeftId === item.id;
             const isShaking = mismatchPair?.left === item.id;
+            const isPairPulsing =
+              !isMatched &&
+              (hint.activeFlashUids.has(item.id) ||
+                (hint.spotlightZone === 'pair' && hint.spotlightUid === item.id));
+            const isDimmed = !isMatched && hint.dimmedUids.has(item.id);
 
             return (
               <motion.div
@@ -232,8 +277,13 @@ export function PairMatchRushView({
                     type="button"
                     disabled={isMatched}
                     dir={langDir}
+                    data-pair-id={item.id}
+                    data-hint-pair-pulse={isPairPulsing ? 'true' : undefined}
+                    data-hint-dimmed={isDimmed ? 'true' : undefined}
                     onClick={() => handleSelectLeft(item.id)}
-                    className="tactile-btn"
+                    className={`tactile-btn starlight-choice-tile ${
+                      isPairPulsing ? 'is-starlight-pair-pulse' : ''
+                    } ${isDimmed ? 'is-starlight-dimmed' : ''}`}
                     style={{
                       flex: 1,
                       minWidth: 0,
@@ -260,7 +310,7 @@ export function PairMatchRushView({
                         : isSelected
                           ? 'var(--tile-selected-ink)'
                           : 'var(--text-main)',
-                      opacity: isMatched ? 0.72 : 1,
+                      opacity: isMatched ? 0.72 : isDimmed ? 0.38 : 1,
                     }}
                   >
                     <span
@@ -313,6 +363,11 @@ export function PairMatchRushView({
             const isMatched = matchedSet.has(item.id);
             const isSelected = selectedRightId === item.id;
             const isShaking = mismatchPair?.right === item.id;
+            const isPairPulsing =
+              !isMatched &&
+              (hint.activeFlashUids.has(item.id) ||
+                (hint.spotlightZone === 'pair' && hint.spotlightUid === item.id));
+            const isDimmed = !isMatched && hint.dimmedUids.has(item.id);
 
             return (
               <motion.button
@@ -321,8 +376,13 @@ export function PairMatchRushView({
                 disabled={isMatched}
                 animate={isShaking ? { x: [-6, 6, -4, 4, 0] } : { x: 0 }}
                 transition={{ duration: 0.35 }}
+                data-pair-id={item.id}
+                data-hint-pair-pulse={isPairPulsing ? 'true' : undefined}
+                data-hint-dimmed={isDimmed ? 'true' : undefined}
                 onClick={() => handleSelectRight(item.id)}
-                className="tactile-btn"
+                className={`tactile-btn starlight-choice-tile ${
+                  isPairPulsing ? 'is-starlight-pair-pulse' : ''
+                } ${isDimmed ? 'is-starlight-dimmed' : ''}`}
                 style={{
                   minWidth: 0,
                   padding: compact ? '8px 10px' : '10px 12px',
@@ -348,7 +408,7 @@ export function PairMatchRushView({
                     : isSelected
                       ? 'var(--tile-selected-ink)'
                       : 'var(--text-main)',
-                  opacity: isMatched ? 0.72 : 1,
+                  opacity: isMatched ? 0.72 : isDimmed ? 0.38 : 1,
                   textAlign: 'left',
                 }}
               >

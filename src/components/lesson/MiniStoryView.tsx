@@ -5,6 +5,8 @@ import { playSfx, speakPhrase } from '../../audio';
 import { LANGUAGE_META, type LanguageCode, type MiniStoryExercise } from '../../types/contracts';
 import { TapHintText } from './TapHintText';
 import { SayItNormallyButton } from './SayItNormallyButton';
+import { StarlightHintButton } from './StarlightHintButton';
+import { useHintEngine } from './useHintEngine';
 
 export interface MiniStoryViewProps {
   exercise: MiniStoryExercise;
@@ -14,6 +16,7 @@ export interface MiniStoryViewProps {
   onTurtlePlay: () => void;
   onFluentPlay?: () => void;
   onComplete: () => void;
+  onHintUsed?: (info: { exerciseId: string; tier: 1 | 2 | 3; hintsUsed: number }) => void;
 }
 
 export function MiniStoryView({
@@ -24,6 +27,7 @@ export function MiniStoryView({
   onTurtlePlay,
   onFluentPlay,
   onComplete,
+  onHintUsed,
 }: MiniStoryViewProps) {
   const [visibleCount, setVisibleCount] = useState(1);
   const [resolvedDecisionIdx, setResolvedDecisionIdx] = useState<number[]>([]);
@@ -63,6 +67,49 @@ export function MiniStoryView({
   const translationLabel = langMeta.translationLanguageLabel ?? 'English';
   const isGuided = scaffoldingMode === 'guided';
   const showPhoneticSupport = isGuided || peekPhonetics;
+  const latestVisibleBubble =
+    exercise.bubbles[Math.min(Math.max(0, currentLastBubbleIndex), exercise.bubbles.length - 1)];
+
+  const hint = useHintEngine({
+    promptKey: activeDecision
+      ? `${exercise.id}::decision::${activeDecision.afterBubbleIndex}`
+      : `${exercise.id}::bubble::${currentLastBubbleIndex}`,
+    mode: activeDecision ? 'multiple_choice' : 'story_bubble',
+    canHint: Boolean(activeDecision || latestVisibleBubble),
+    choiceConfig: activeDecision
+      ? {
+          choices: activeDecision.options.map((o) => o.id),
+          expected: activeDecision.options.find((o) => o.isCorrect)?.id ?? '',
+          accepted: activeDecision.options.filter((o) => o.isCorrect).map((o) => o.id),
+          language,
+          seed: `${exercise.id}:${activeDecision.afterBubbleIndex}`,
+        }
+      : undefined,
+    onCustomTrigger: (tier) => {
+      if (!activeDecision && latestVisibleBubble) {
+        setEnglishRevealedIds((prev) =>
+          prev.includes(latestVisibleBubble.id) ? prev : [...prev, latestVisibleBubble.id]
+        );
+        if (tier >= 2) {
+          void speakPhrase({
+            text: latestVisibleBubble.foreignText,
+            language,
+            phonetic: latestVisibleBubble.phonetic,
+            slow: true,
+            speed: 'slow',
+          });
+        }
+        if (tier >= 3) {
+          setPeekPhonetics(true);
+        }
+      }
+    },
+    onHintTriggered: (info) => {
+      onHintUsed?.({ exerciseId: exercise.id, tier: info.tier, hintsUsed: info.hintsUsed });
+    },
+  });
+
+  const { cancelHint } = hint;
 
   const toggleEnglish = (bubbleId: string) => {
     playSfx('tile_tap');
@@ -72,6 +119,7 @@ export function MiniStoryView({
   };
 
   const handleAdvance = () => {
+    cancelHint({ clearAssists: true });
     playSfx('button_click');
     setDecisionNote(null);
     if (!allBubblesRevealed) {
@@ -125,6 +173,14 @@ export function MiniStoryView({
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <StarlightHintButton
+            size="xs"
+            hintTier={hint.hintTier}
+            hintsUsed={hint.hintsUsed}
+            isAnimating={hint.isAnimating}
+            canHint={hint.canHint}
+            onTrigger={hint.triggerHint}
+          />
           {!isGuided ? (
             <button
               type="button"
@@ -339,44 +395,53 @@ export function MiniStoryView({
               <span>Story Choice: {activeDecision.questionEnglish}</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {activeDecision.options.map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  className="tactile-btn"
-                  style={{
-                    justifyContent: 'flex-start',
-                    textAlign: 'left',
-                    padding: '9px 12px',
-                    fontSize: '0.9rem',
-                  }}
-                  onClick={() => {
-                    if (opt.isCorrect) {
-                      playSfx('correct_chime');
-                      setResolvedDecisionIdx((prev) => [...prev, activeDecision.afterBubbleIndex]);
-                      setDecisionNote({
-                        ok: true,
-                        english: opt.reactionEnglish,
-                        foreign: opt.reactionForeign,
-                      });
-                    } else {
-                      playSfx('gentle_nudge');
-                      setDecisionNote({
-                        ok: false,
-                        english: opt.reactionEnglish,
-                        foreign: opt.reactionForeign,
-                      });
-                    }
-                  }}
-                >
-                  <div>
-                    <div dir="auto">{opt.label}</div>
-                    {opt.phonetic ? (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{opt.phonetic}</div>
-                    ) : null}
-                  </div>
-                </button>
-              ))}
+              {activeDecision.options.map((opt) => {
+                const isDimmed = hint.dimmedUids.has(opt.id);
+                const isSpotlight = hint.spotlightZone === 'choice' && hint.spotlightUid === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    data-hint-dimmed={isDimmed ? 'true' : undefined}
+                    data-hint-spotlight={isSpotlight ? 'true' : undefined}
+                    className={`tactile-btn starlight-choice-tile ${
+                      isDimmed ? 'is-starlight-dimmed' : ''
+                    } ${isSpotlight ? 'is-starlight-spotlight' : ''}`}
+                    style={{
+                      justifyContent: 'flex-start',
+                      textAlign: 'left',
+                      padding: '9px 12px',
+                      fontSize: '0.9rem',
+                    }}
+                    onClick={() => {
+                      cancelHint({ clearAssists: opt.isCorrect });
+                      if (opt.isCorrect) {
+                        playSfx('correct_chime');
+                        setResolvedDecisionIdx((prev) => [...prev, activeDecision.afterBubbleIndex]);
+                        setDecisionNote({
+                          ok: true,
+                          english: opt.reactionEnglish,
+                          foreign: opt.reactionForeign,
+                        });
+                      } else {
+                        playSfx('gentle_nudge');
+                        setDecisionNote({
+                          ok: false,
+                          english: opt.reactionEnglish,
+                          foreign: opt.reactionForeign,
+                        });
+                      }
+                    }}
+                  >
+                    <div>
+                      <div dir="auto">{opt.label}</div>
+                      {opt.phonetic ? (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{opt.phonetic}</div>
+                      ) : null}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </motion.div>
         ) : null}

@@ -9,8 +9,10 @@ import {
 } from '../../types/contracts';
 import { TapHintText } from './TapHintText';
 import { SayItNormallyButton } from './SayItNormallyButton';
+import { StarlightHintButton } from './StarlightHintButton';
 import { splitPhoneticSyllables } from './lessonHelpers';
 import { WordBankTray, buildWordBankPool, getAssembledText } from './WordBankTray';
+import { useHintEngine } from './useHintEngine';
 import type { ExerciseDraftPayload } from './WordBankView';
 
 export interface ListenDecodeViewProps {
@@ -23,6 +25,7 @@ export interface ListenDecodeViewProps {
   onTurtlePlay: () => void;
   onFluentPlay?: () => void;
   onDraftChange: (draft: ExerciseDraftPayload | null) => void;
+  onHintUsed?: (info: { exerciseId: string; tier: 1 | 2 | 3; hintsUsed: number }) => void;
 }
 
 export function ListenDecodeView({
@@ -35,6 +38,7 @@ export function ListenDecodeView({
   onTurtlePlay,
   onFluentPlay,
   onDraftChange,
+  onHintUsed,
 }: ListenDecodeViewProps) {
   const speechState = useSpeechRuntimeState();
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
@@ -64,6 +68,58 @@ export function ListenDecodeView({
     return getAssembledText(pool, selectedTileUids);
   }, [exercise.mode, selectedChoice, pool, selectedTileUids]);
 
+  const hint = useHintEngine({
+    promptKey: `${exercise.id}::${exercise.mode}`,
+    mode: exercise.mode === 'select_meaning' ? 'listen_meaning' : 'listen_assemble',
+    canHint: !locked && !revealed,
+    tileConfig:
+      exercise.mode === 'assemble_heard'
+        ? {
+            pool,
+            targetTokens: exercise.targetTokens ?? [],
+            expectedSentence: exercise.audioText,
+            acceptedSentences: exercise.acceptedAnswers,
+            selectedTileUids,
+            language,
+            seed: exercise.id,
+          }
+        : undefined,
+    choiceConfig:
+      exercise.mode === 'select_meaning'
+        ? {
+            choices: exercise.choices ?? [],
+            expected: exercise.englishMeaning,
+            accepted: exercise.acceptedAnswers,
+            language: 'en',
+            seed: exercise.id,
+            selectedChoice,
+          }
+        : undefined,
+    onCustomTrigger: (tier) => {
+      if (tier >= 2) {
+        onTurtlePlay();
+        void speakPhrase({
+          text: exercise.audioText,
+          language,
+          phonetic: exercise.phonetic,
+          slow: true,
+          speed: 'slow',
+        });
+      }
+    },
+    onHintTriggered: (info) => {
+      onHintUsed?.({ exerciseId: exercise.id, tier: info.tier, hintsUsed: info.hintsUsed });
+    },
+  });
+
+  const { cancelHint } = hint;
+
+  useEffect(() => {
+    if (locked || revealed) {
+      cancelHint({ clearAssists: true });
+    }
+  }, [locked, revealed, cancelHint]);
+
   useEffect(() => {
     if (!submittedValue) {
       onDraftChange(null);
@@ -77,14 +133,17 @@ export function ListenDecodeView({
       accepted: exercise.acceptedAnswers,
       speakOnResult: exercise.audioText,
       phoneticHint: exercise.phonetic,
+      hintTierUsed: hint.hintTier,
+      hintsUsedCount: hint.hintsUsed,
     });
-  }, [submittedValue, exercise, onDraftChange]);
+  }, [submittedValue, exercise, hint.hintTier, hint.hintsUsed, onDraftChange]);
 
   const langDir = LANGUAGE_META[language].dir;
   const isGuided = scaffoldingMode === 'guided';
-  const showPhoneticBanner = isGuided
-    ? !hasNativeVoice(language) || speechState.fallbackActive || manualPhoneticOpen
-    : manualPhoneticOpen;
+  const showPhoneticBanner =
+    (isGuided
+      ? !hasNativeVoice(language) || speechState.fallbackActive || manualPhoneticOpen
+      : manualPhoneticOpen) || hint.hintTier >= 2;
   const syllables = useMemo(() => splitPhoneticSyllables(exercise.phonetic), [exercise.phonetic]);
 
   const triggerSpeak = (speed: SpeechSpeed) => {
@@ -129,31 +188,41 @@ export function ListenDecodeView({
             : 'Listen & Build What You Heard'}
         </span>
 
-        {!isGuided ? (
-          <button
-            type="button"
-            className={`tactile-btn ${manualPhoneticOpen ? 'tactile-btn-amber' : 'tactile-btn-soft'}`}
-            style={{ padding: '4px 10px', fontSize: '0.76rem', borderRadius: 12 }}
-            onClick={() => {
-              playSfx('tile_tap');
-              setManualPhoneticOpen((v) => !v);
-            }}
-          >
-            {manualPhoneticOpen ? <EyeOff size={13} /> : <Eye size={13} />}
-            <span>
-              {manualPhoneticOpen ? 'Hide Phonetic / Romanized' : 'Peek Phonetic / Romanized'}
-            </span>
-          </button>
-        ) : hasNativeVoice(language) && !speechState.fallbackActive ? (
-          <button
-            type="button"
-            className="tactile-btn tactile-btn-soft"
-            style={{ padding: '4px 10px', fontSize: '0.76rem', borderRadius: 12 }}
-            onClick={() => setManualPhoneticOpen((v) => !v)}
-          >
-            {manualPhoneticOpen ? 'Hide Phonetic Clue' : 'Show Phonetic Clue'}
-          </button>
-        ) : null}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <StarlightHintButton
+            size="sm"
+            hintTier={hint.hintTier}
+            hintsUsed={hint.hintsUsed}
+            isAnimating={hint.isAnimating}
+            canHint={hint.canHint}
+            onTrigger={hint.triggerHint}
+          />
+          {!isGuided ? (
+            <button
+              type="button"
+              className={`tactile-btn ${manualPhoneticOpen ? 'tactile-btn-amber' : 'tactile-btn-soft'}`}
+              style={{ padding: '4px 10px', fontSize: '0.76rem', borderRadius: 12 }}
+              onClick={() => {
+                playSfx('tile_tap');
+                setManualPhoneticOpen((v) => !v);
+              }}
+            >
+              {manualPhoneticOpen ? <EyeOff size={13} /> : <Eye size={13} />}
+              <span>
+                {manualPhoneticOpen ? 'Hide Phonetic / Romanized' : 'Peek Phonetic / Romanized'}
+              </span>
+            </button>
+          ) : hasNativeVoice(language) && !speechState.fallbackActive ? (
+            <button
+              type="button"
+              className="tactile-btn tactile-btn-soft"
+              style={{ padding: '4px 10px', fontSize: '0.76rem', borderRadius: 12 }}
+              onClick={() => setManualPhoneticOpen((v) => !v)}
+            >
+              {manualPhoneticOpen ? 'Hide Phonetic Clue' : 'Show Phonetic Clue'}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {/* 1.0x Normal + 0.65x Slow + 1.12x Fluent Speaker Buttons */}
@@ -298,6 +367,8 @@ export function ListenDecodeView({
         >
           {(exercise.choices ?? []).map((choice) => {
             const isSelected = selectedChoice === choice;
+            const isDimmed = hint.dimmedUids.has(choice);
+            const isSpotlight = hint.spotlightZone === 'choice' && hint.spotlightUid === choice;
             return (
               <button
                 key={choice}
@@ -305,7 +376,11 @@ export function ListenDecodeView({
                 role="radio"
                 aria-checked={isSelected}
                 disabled={locked}
-                className="tactile-btn"
+                data-hint-dimmed={isDimmed ? 'true' : undefined}
+                data-hint-spotlight={isSpotlight ? 'true' : undefined}
+                className={`tactile-btn starlight-choice-tile ${
+                  isDimmed ? 'is-starlight-dimmed' : ''
+                } ${isSpotlight ? 'is-starlight-spotlight' : ''}`}
                 style={{
                   minWidth: 0,
                   justifyContent: 'space-between',
@@ -316,6 +391,7 @@ export function ListenDecodeView({
                   textAlign: 'left',
                 }}
                 onClick={() => {
+                  cancelHint();
                   playSfx('tile_tap');
                   setSelectedChoice(choice);
                 }}
@@ -335,6 +411,8 @@ export function ListenDecodeView({
           disabled={locked}
           compact={compact || (exercise.targetTokens?.length ?? 0) >= 9}
           dir={langDir}
+          hintOverlay={hint}
+          onTileInteract={() => cancelHint()}
           onChangeSelected={setSelectedTileUids}
         />
       )}

@@ -5,6 +5,7 @@ import { VocabIllustration } from '../../art/VocabIllustration';
 import {
   calculateComboMultiplier,
   calculateLessonRewards,
+  computeFreeRecallHintedBonus,
   gradeAnswer,
 } from '../../core';
 import { getCourse, getPlayableNodeExercises, getUnitById, getVocabCard } from '../../curriculum';
@@ -16,8 +17,6 @@ import { AmbientBackdrop } from '../fx/AmbientBackdrop';
 import { ConfettiBurst, CountUpTicker, FloatingPopToast, type PopToastItem } from '../fx/JuiceEngine';
 import { safeVaultActions } from '../shell/vaultSafeActions';
 import {
-  FREE_RECALL_BONUS_GEMS,
-  FREE_RECALL_BONUS_XP,
   HEART_ELIXIR_COST_GEMS,
   LANGUAGE_META,
   PROFICIENCY_TIER_META,
@@ -25,6 +24,7 @@ import {
   type AccentCoaching,
   type ArticleCoaching,
   type CharacterPose,
+  type HintTier,
   type LanguageCode,
   type LessonExercise,
   type MapNode,
@@ -76,7 +76,8 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
       language,
       node.id,
       activeProgress.seenExerciseIds,
-      false
+      false,
+      activeProgress.hintAssistedCounts
     );
     return pooled.length > 0 ? pooled : node.exercises;
   });
@@ -91,6 +92,9 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
   const [mistakesCount, setMistakesCount] = useState(0);
   const [extraGems, setExtraGems] = useState(0);
   const [freeRecallCount, setFreeRecallCount] = useState(0);
+  const [freeRecallHintTiers, setFreeRecallHintTiers] = useState<HintTier[]>([]);
+  const [maxHintTierUsed, setMaxHintTierUsed] = useState<HintTier>(0);
+  const [hintPulseNonce, setHintPulseNonce] = useState(0);
   const [boosterAppliedAtWin, setBoosterAppliedAtWin] = useState(false);
   const [draft, setDraft] = useState<ExerciseDraftPayload | null>(null);
   const [feedback, setFeedback] = useState<FeedbackBannerState | null>(null);
@@ -105,10 +109,15 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
   const savedNodeRef = useRef(false);
   const toastCounterRef = useRef(0);
   const seenAtStartRef = useRef<readonly string[] | undefined>(activeProgress.seenExerciseIds);
+  const hintAssistedAtStartRef = useRef<Record<string, number> | undefined>(
+    activeProgress.hintAssistedCounts
+  );
   const claimedAtStartRef = useRef<readonly string[]>(activeProgress.claimedChestIds);
   const boosterChargesRef = useRef<number>(activeProfile.xpBoosterCharges ?? 0);
+  const exerciseHintsRef = useRef<Record<string, number>>({});
 
   seenAtStartRef.current = activeProgress.seenExerciseIds;
+  hintAssistedAtStartRef.current = activeProgress.hintAssistedCounts;
   claimedAtStartRef.current = activeProgress.claimedChestIds;
   boosterChargesRef.current = activeProfile.xpBoosterCharges ?? 0;
 
@@ -127,7 +136,8 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
       language,
       node.id,
       seenAtStartRef.current,
-      isReplay
+      isReplay,
+      hintAssistedAtStartRef.current
     );
     setSessionExercises(pooled.length > 0 ? pooled : node.exercises);
     setChestWasAlreadyClaimed(claimedAtStartRef.current.includes(node.id));
@@ -138,6 +148,9 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
     setMistakesCount(0);
     setExtraGems(0);
     setFreeRecallCount(0);
+    setFreeRecallHintTiers([]);
+    setMaxHintTierUsed(0);
+    setHintPulseNonce(0);
     setBoosterAppliedAtWin(false);
     setDraft(null);
     setFeedback(null);
@@ -147,6 +160,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
     setBurstActive(false);
     setRevealedStars(0);
     savedNodeRef.current = false;
+    exerciseHintsRef.current = {};
   }, [node.id, node.exercises, language, replayNonce]);
 
   const pushPopToast = useCallback((label: string, tone: PopToastItem['tone']) => {
@@ -177,6 +191,8 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
       maxCombo,
       mistakesCount,
       ...(freeRecallCount > 0 ? { freeRecallCount } : {}),
+      ...(freeRecallHintTiers.length > 0 ? { freeRecallHintTiers } : {}),
+      ...(maxHintTierUsed > 0 ? { maxHintTierUsed } : {}),
     } as Parameters<typeof calculateLessonRewards>[0]);
     const hasBoost = lessonWon ? boosterAppliedAtWin : (activeProfile.xpBoosterCharges ?? 0) > 0;
     return {
@@ -191,6 +207,8 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
     maxCombo,
     mistakesCount,
     freeRecallCount,
+    freeRecallHintTiers,
+    maxHintTierUsed,
     lessonWon,
     boosterAppliedAtWin,
     activeProfile.xpBoosterCharges,
@@ -221,22 +239,29 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
       finalMaxCombo: number,
       finalMistakes: number,
       bonusGems: number,
-      finalFreeRecallCount: number
+      finalFreeRecallCount: number,
+      finalFreeRecallHintTiers?: HintTier[],
+      finalMaxHintTier?: HintTier
     ) => {
       if (!savedNodeRef.current) {
         savedNodeRef.current = true;
         const hadBooster = boosterChargesRef.current > 0;
         setBoosterAppliedAtWin(hadBooster);
+        const usedRecallTiers = finalFreeRecallHintTiers ?? freeRecallHintTiers;
+        const usedMaxHintTier = finalMaxHintTier ?? maxHintTierUsed;
         const rewards = calculateLessonRewards({
           baseXp: node.xpReward,
           baseGems: node.gemReward + bonusGems,
           maxCombo: finalMaxCombo,
           mistakesCount: finalMistakes,
           ...(finalFreeRecallCount > 0 ? { freeRecallCount: finalFreeRecallCount } : {}),
+          ...(usedRecallTiers.length > 0 ? { freeRecallHintTiers: usedRecallTiers } : {}),
+          ...(usedMaxHintTier > 0 ? { maxHintTierUsed: usedMaxHintTier } : {}),
         } as Parameters<typeof calculateLessonRewards>[0]);
         vaultActions.recordSeenExercises(
           language,
-          exercises.map((ex) => ex.id)
+          exercises.map((ex) => ex.id),
+          exerciseHintsRef.current
         );
         vaultActions.completeMapNode({
           language,
@@ -277,7 +302,17 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
       }
       setLessonWon(true);
     },
-    [language, node, exercises, isUnit16Boss]
+    [language, node, exercises, isUnit16Boss, freeRecallHintTiers, maxHintTierUsed]
+  );
+
+  const handleExerciseHintUsed = useCallback(
+    ({ exerciseId, tier }: { exerciseId: string; tier: 1 | 2 | 3; hintsUsed: number }) => {
+      setHintPulseNonce((n) => n + 1);
+      setMaxHintTierUsed((prev) => (tier > prev ? tier : prev));
+      exerciseHintsRef.current[exerciseId] = (exerciseHintsRef.current[exerciseId] ?? 0) + 1;
+      safeVaultActions.recordHintUsed();
+    },
+    []
   );
 
   const advanceExercise = useCallback(
@@ -285,7 +320,9 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
       overrideMaxCombo?: number,
       overrideMistakes?: number,
       overrideExtraGems?: number,
-      overrideFreeRecall?: number
+      overrideFreeRecall?: number,
+      overrideFreeRecallHintTiers?: HintTier[],
+      overrideMaxHintTier?: HintTier
     ) => {
       setDraft(null);
       setFeedback(null);
@@ -295,7 +332,9 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
           overrideMaxCombo ?? maxCombo,
           overrideMistakes ?? mistakesCount,
           overrideExtraGems ?? extraGems,
-          overrideFreeRecall ?? freeRecallCount
+          overrideFreeRecall ?? freeRecallCount,
+          overrideFreeRecallHintTiers,
+          overrideMaxHintTier
         );
       } else {
         setExerciseIndex((i) => i + 1);
@@ -354,13 +393,16 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
       if (draft.isFreeRecall) {
         safeVaultActions.recordFreeRecallSolve();
         setFreeRecallCount((c) => c + 1);
+        setFreeRecallHintTiers((prev) => [...prev, draft.hintTierUsed ?? 0]);
       }
+
+      const recallBonus = computeFreeRecallHintedBonus(draft.hintTierUsed ?? 0);
 
       if (result.accentCoaching) {
         if (draft.isFreeRecall) {
           playSfx('free_recall_ace');
           pushPopToast(
-            `Free-Recall + Accent! +${FREE_RECALL_BONUS_XP} XP +${FREE_RECALL_BONUS_GEMS} Gems`,
+            `Free-Recall + Accent! +${recallBonus.xp} XP +${recallBonus.gems} Gems`,
             'accent'
           );
         } else {
@@ -383,7 +425,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
         if (draft.isFreeRecall) {
           playSfx('free_recall_ace');
           pushPopToast(
-            `Free-Recall Ace! +${FREE_RECALL_BONUS_XP} XP +${FREE_RECALL_BONUS_GEMS} Gems`,
+            `Free-Recall Ace! +${recallBonus.xp} XP +${recallBonus.gems} Gems`,
             'bonus'
           );
           triggerMiniConfetti();
@@ -406,7 +448,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
         setFeedback({
           kind: 'correct',
           headline: draft.isFreeRecall
-            ? `Free-Recall Ace! (+${FREE_RECALL_BONUS_XP} XP / +${FREE_RECALL_BONUS_GEMS} Gems)`
+            ? `Free-Recall Ace! (+${recallBonus.xp} XP / +${recallBonus.gems} Gems)`
             : comboMeta.label
               ? `${comboMeta.label} Great job!`
               : 'Nicely done!',
@@ -980,6 +1022,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                     pointerTarget={pointerTarget}
                     comboCount={comboCount}
                     size={132}
+                    hintPulseNonce={hintPulseNonce}
                   />
                 </div>
               ) : null}
@@ -1026,6 +1069,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                       onFluentPlay={() => safeVaultActions.recordFluentPlay()}
                       onDraftChange={setDraft}
                       onSubmitShortcut={handleCheck}
+                      onHintUsed={handleExerciseHintUsed}
                     />
                   ) : null}
 
@@ -1040,6 +1084,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                       onTurtlePlay={() => vaultActions.recordTurtlePlay()}
                       onFluentPlay={() => safeVaultActions.recordFluentPlay()}
                       onDraftChange={setDraft}
+                      onHintUsed={handleExerciseHintUsed}
                     />
                   ) : null}
 
@@ -1054,6 +1099,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                       onTurtlePlay={() => vaultActions.recordTurtlePlay()}
                       onFluentPlay={() => safeVaultActions.recordFluentPlay()}
                       onDraftChange={setDraft}
+                      onHintUsed={handleExerciseHintUsed}
                     />
                   ) : null}
 
@@ -1062,6 +1108,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                       exercise={currentExercise}
                       language={language}
                       compact={compact}
+                      onHintUsed={handleExerciseHintUsed}
                       onComplete={({ bonusEarned, maxRushCombo }) => {
                         const nextMax = Math.max(maxCombo, maxRushCombo);
                         const bonus = bonusEarned ? 5 : 0;
@@ -1080,6 +1127,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                       scaffoldingMode={scaffoldingMode}
                       onTurtlePlay={() => vaultActions.recordTurtlePlay()}
                       onFluentPlay={() => safeVaultActions.recordFluentPlay()}
+                      onHintUsed={handleExerciseHintUsed}
                       onComplete={() => advanceExercise()}
                     />
                   ) : null}
@@ -1095,7 +1143,13 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                       onTurnIndexChange={setBossTurnIndex}
                       onTurtlePlay={() => vaultActions.recordTurtlePlay()}
                       onFluentPlay={() => safeVaultActions.recordFluentPlay()}
-                      onTurnResult={({ isCorrect, usedAccentCoaching, usedFreeRecall }) => {
+                      onHintUsed={handleExerciseHintUsed}
+                      onTurnResult={({
+                        isCorrect,
+                        usedAccentCoaching,
+                        usedFreeRecall,
+                        hintTierUsed,
+                      }) => {
                         if (isCorrect) {
                           const nextCombo = comboCount + 1;
                           setComboCount(nextCombo);
@@ -1103,8 +1157,11 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                           if (usedFreeRecall) {
                             safeVaultActions.recordFreeRecallSolve();
                             setFreeRecallCount((c) => c + 1);
+                            const recallTier: HintTier = hintTierUsed ?? 0;
+                            const recallBonus = computeFreeRecallHintedBonus(recallTier);
+                            setFreeRecallHintTiers((prev) => [...prev, recallTier]);
                             pushPopToast(
-                              `Free-Recall Ace! +${FREE_RECALL_BONUS_XP} XP +${FREE_RECALL_BONUS_GEMS} Gems`,
+                              `Free-Recall Ace! +${recallBonus.xp} XP +${recallBonus.gems} Gems`,
                               'bonus'
                             );
                           } else {

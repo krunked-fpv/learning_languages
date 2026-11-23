@@ -19,6 +19,8 @@ import {
 } from '../../types/contracts';
 import { MascotStage } from '../characters/MascotStage';
 import { ConfettiBurst } from '../fx/JuiceEngine';
+import { StarlightHintButton } from '../lesson/StarlightHintButton';
+import { useHintEngine } from '../lesson/useHintEngine';
 
 export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> = {
   es: [
@@ -1846,6 +1848,23 @@ export function TargetPromptBar({
   const showPlainButton = isAdultArcadeActive(language, activeProfile);
   const [plainOpen, setPlainOpen] = useState(false);
 
+  const targetHint = useHintEngine({
+    promptKey: `${language}::${targetItem.id}::${targetItem.foreign}`,
+    mode: 'arcade_target',
+    canHint: Boolean(targetItem.foreign),
+    onCustomTrigger: (tier) => {
+      if (tier >= 2) {
+        void speakPhrase({
+          text: targetItem.foreign,
+          language,
+          phonetic: targetItem.phonetic,
+          slow: tier === 2,
+          speed: tier === 2 ? 'slow' : 'normal',
+        });
+      }
+    },
+  });
+
   const plainResult = useMemo(
     () =>
       plainOpen && showPlainButton
@@ -2015,6 +2034,14 @@ export function TargetPromptBar({
               onToggle={(nextOpen) => setPlainOpen(nextOpen)}
             />
           ) : null}
+          <StarlightHintButton
+            size="xs"
+            hintTier={targetHint.hintTier}
+            hintsUsed={targetHint.hintsUsed}
+            isAnimating={targetHint.isAnimating}
+            canHint={targetHint.canHint}
+            onTrigger={targetHint.triggerHint}
+          />
         </div>
 
         {rightContent ? (
@@ -2031,6 +2058,45 @@ export function TargetPromptBar({
           </div>
         ) : null}
       </div>
+
+      {targetHint.hintTier > 0 ? (
+        <div
+          data-testid="arcade-target-hint"
+          dir="ltr"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            flexWrap: 'wrap',
+            padding: isCompact ? '3px 8px' : '4px 10px',
+            borderRadius: 10,
+            background: 'var(--starlight-recall-bg, rgba(23, 18, 58, 0.84))',
+            border: '1px solid var(--starlight-border, #a78bfa)',
+            color: 'var(--starlight-ink, #e0e7ff)',
+            fontSize: isCompact ? '0.68rem' : '0.75rem',
+            fontWeight: 800,
+          }}
+        >
+          {targetHint.hintTier === 1 ? (
+            <span>
+              Starlight Whisper: Starts with “{Array.from(targetItem.foreign).slice(0, 2).join('')}…”
+              ({targetItem.foreign.trim().split(/\s+/).length}{' '}
+              {targetItem.foreign.trim().split(/\s+/).length === 1 ? 'word' : 'words'})
+            </span>
+          ) : targetHint.hintTier === 2 ? (
+            <span>
+              Sound Cadence: {targetItem.phonetic || targetItem.romanized || targetItem.foreign}
+            </span>
+          ) : (
+            <span>
+              Target Anchor:{' '}
+              <bdi dir={langMeta.dir} style={{ fontWeight: 900 }}>
+                {targetItem.foreign}
+              </bdi>
+            </span>
+          )}
+        </div>
+      ) : null}
 
       {plainResult ? (
         <ArcadePlainEnglishCallout
