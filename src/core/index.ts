@@ -1,5 +1,10 @@
 export { gradeAnswer, normalizeAnswer, type NormalizeOptions } from './grader';
 export {
+  decodeToNormalEnglish,
+  type PlainEnglishRequest,
+  type PlainEnglishResult,
+} from './plainEnglish';
+export {
   BADGE_CATALOG,
   LEAGUE_TIER_META,
   TIER_ORDER,
