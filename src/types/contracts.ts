@@ -16,7 +16,16 @@ export type BaseLanguageCode =
   | 'vi'
   | 'sw';
 
-export type AdultLanguageCode = 'ebonics' | 'suburban';
+export type ClassicAdultLanguageCode = 'ebonics' | 'suburban';
+
+export type AdultMashupLanguageCode =
+  | 'corp_trades'
+  | 'midwest_northeast'
+  | 'south_genz'
+  | 'cali_country'
+  | 'stoner_tactical';
+
+export type AdultLanguageCode = ClassicAdultLanguageCode | AdultMashupLanguageCode;
 
 export type LanguageCode = BaseLanguageCode | AdultLanguageCode;
 
@@ -54,6 +63,9 @@ export interface LanguageMeta {
   };
   helperAccents: readonly string[];
   isAdultOnly?: boolean;
+  isMashup?: boolean;
+  dialectA?: string;
+  dialectB?: string;
   translationLanguageLabel?: string;
   pairDirectionBadge?: string;
 }
@@ -79,9 +91,22 @@ export const VISIBLE_BASE_LANGUAGES: readonly BaseLanguageCode[] = [
 
 export const LANGUAGE_LIST: readonly BaseLanguageCode[] = VISIBLE_BASE_LANGUAGES;
 
-export const ADULT_EASTER_EGG_LANGUAGES: readonly AdultLanguageCode[] = [
+export const CLASSIC_ADULT_LANGUAGES: readonly ClassicAdultLanguageCode[] = [
   'ebonics',
   'suburban',
+] as const;
+
+export const ADULT_MASHUP_LANGUAGES: readonly AdultMashupLanguageCode[] = [
+  'corp_trades',
+  'midwest_northeast',
+  'south_genz',
+  'cali_country',
+  'stoner_tactical',
+] as const;
+
+export const ADULT_EASTER_EGG_LANGUAGES: readonly AdultLanguageCode[] = [
+  ...CLASSIC_ADULT_LANGUAGES,
+  ...ADULT_MASHUP_LANGUAGES,
 ] as const;
 
 export const ALL_LANGUAGE_LIST: readonly LanguageCode[] = [
@@ -93,8 +118,15 @@ export const DEFAULT_KID_PROFILE_IDS: readonly string[] = ['kid-leo', 'kid-maya'
 export const ADULT_EASTER_EGG_CODES = ['AFTERHOURS', 'COOKOUT'] as const;
 export const ADULT_EASTER_EGG_TAP_COUNT = 7;
 
+const ADULT_LANGUAGE_SET: ReadonlySet<string> = new Set<string>(ADULT_EASTER_EGG_LANGUAGES);
+const ADULT_MASHUP_SET: ReadonlySet<string> = new Set<string>(ADULT_MASHUP_LANGUAGES);
+
 export function isAdultLanguage(code: string): code is AdultLanguageCode {
-  return code === 'ebonics' || code === 'suburban';
+  return ADULT_LANGUAGE_SET.has(code);
+}
+
+export function isAdultMashupLanguage(code: string): code is AdultMashupLanguageCode {
+  return ADULT_MASHUP_SET.has(code);
 }
 
 export function isDefaultKidProfileId(profileId: string): boolean {
@@ -492,6 +524,141 @@ export const LANGUAGE_META: Record<LanguageCode, LanguageMeta> = {
     isAdultOnly: true,
     translationLanguageLabel: 'AAVE / Ebonics',
     pairDirectionBadge: 'Suburban ("White Boy") → AAVE',
+  },
+  corp_trades: {
+    code: 'corp_trades',
+    name: 'Corporate <-> Trades',
+    nativeName: 'LinkedIn <-> Jobsite',
+    dir: 'ltr',
+    scriptType: 'latin',
+    usesSpaces: true,
+    landTitle: 'The Synergy Cubicle & Drywall Frontier',
+    companionId: 'benni',
+    companionName: 'Benni',
+    companionRole: 'VP of Drywall & Synergy Ops',
+    speechLocales: ['en-US', 'en'],
+    accentPalette: {
+      primary: '#0F766E',
+      secondary: '#F59E0B',
+      glow: '#5EEAD4',
+      bevel: '#115E59',
+      surfaceTint: '#F0FDFA',
+    },
+    helperAccents: ["'", '-', '!', '?'],
+    isAdultOnly: true,
+    isMashup: true,
+    dialectA: 'Corporate LinkedIn',
+    dialectB: 'Blue-Collar Trades',
+    translationLanguageLabel: 'Blue-Collar Trades',
+    pairDirectionBadge: 'Corporate LinkedIn <-> Blue-Collar Trades',
+  },
+  midwest_northeast: {
+    code: 'midwest_northeast',
+    name: 'Midwest <-> Northeast',
+    nativeName: 'Ope Nice <-> East Coast',
+    dir: 'ltr',
+    scriptType: 'latin',
+    usesSpaces: true,
+    landTitle: 'The Ope-to-Fuggedaboutit Turnpike',
+    companionId: 'colette',
+    companionName: 'Colette',
+    companionRole: 'Casserole & Bodega Diplomat',
+    speechLocales: ['en-US', 'en'],
+    accentPalette: {
+      primary: '#B91C1C',
+      secondary: '#0284C7',
+      glow: '#FCA5A5',
+      bevel: '#7F1D1D',
+      surfaceTint: '#FEF2F2',
+    },
+    helperAccents: ["'", '-', '!', '?'],
+    isAdultOnly: true,
+    isMashup: true,
+    dialectA: 'Midwest Nice',
+    dialectB: 'Northeast Direct',
+    translationLanguageLabel: 'Northeast Direct',
+    pairDirectionBadge: 'Midwest Nice <-> Northeast Direct',
+  },
+  south_genz: {
+    code: 'south_genz',
+    name: 'Deep South <-> Gen-Z',
+    nativeName: 'Sweet Tea <-> Brainrot',
+    dir: 'ltr',
+    scriptType: 'latin',
+    usesSpaces: true,
+    landTitle: 'Front Porch Sweet Tea & The For-You Swamp',
+    companionId: 'mateo',
+    companionName: 'Mateo',
+    companionRole: 'Porch Gossip & Algorithm Bard',
+    speechLocales: ['en-US', 'en'],
+    accentPalette: {
+      primary: '#C026D3',
+      secondary: '#D97706',
+      glow: '#F0ABFC',
+      bevel: '#86198F',
+      surfaceTint: '#FDF4FF',
+    },
+    helperAccents: ["'", '-', '!', '?'],
+    isAdultOnly: true,
+    isMashup: true,
+    dialectA: 'Southern Polite-Shade',
+    dialectB: 'Gen-Z Brainrot',
+    translationLanguageLabel: 'Gen-Z Brainrot',
+    pairDirectionBadge: 'Southern Polite-Shade <-> Gen-Z Brainrot',
+  },
+  cali_country: {
+    code: 'cali_country',
+    name: 'Cali Wellness <-> Country',
+    nativeName: 'Biohacker <-> Holler',
+    dir: 'ltr',
+    scriptType: 'latin',
+    usesSpaces: true,
+    landTitle: 'The Erewhon Juice Bar & Holler Creek',
+    companionId: 'luca',
+    companionName: 'Luca',
+    companionRole: 'Cold-Plunge & Tailgate Guide',
+    speechLocales: ['en-US', 'en'],
+    accentPalette: {
+      primary: '#059669',
+      secondary: '#EA580C',
+      glow: '#6EE7B7',
+      bevel: '#065F46',
+      surfaceTint: '#ECFDF5',
+    },
+    helperAccents: ["'", '-', '!', '?'],
+    isAdultOnly: true,
+    isMashup: true,
+    dialectA: 'Cali Woo-Woo Wellness',
+    dialectB: 'Appalachian Country',
+    translationLanguageLabel: 'Appalachian Country',
+    pairDirectionBadge: 'Cali Wellness <-> Appalachian Country',
+  },
+  stoner_tactical: {
+    code: 'stoner_tactical',
+    name: 'Skater Chill <-> Tactical Dad',
+    nativeName: 'Couch Vibe <-> Lawn-Ops',
+    dir: 'ltr',
+    scriptType: 'latin',
+    usesSpaces: true,
+    landTitle: 'The Half-Pipe Hotbox & Perimeter Cul-de-Sac',
+    companionId: 'benni',
+    companionName: 'Benni',
+    companionRole: 'Half-Pipe & Perimeter Commander',
+    speechLocales: ['en-US', 'en'],
+    accentPalette: {
+      primary: '#4D7C0F',
+      secondary: '#6366F1',
+      glow: '#BEF264',
+      bevel: '#365314',
+      surfaceTint: '#F7FEE7',
+    },
+    helperAccents: ["'", '-', '!', '?'],
+    isAdultOnly: true,
+    isMashup: true,
+    dialectA: 'Stoner / Skater Chill',
+    dialectB: 'Tactical Lawn-Ops Dad',
+    translationLanguageLabel: 'Tactical Lawn-Ops Dad',
+    pairDirectionBadge: 'Skater Chill <-> Tactical Lawn-Ops',
   },
 };
 
