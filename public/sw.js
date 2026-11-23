@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'wanderling-cache-v6';
+const CACHE_VERSION = 'wanderling-cache-v7';
 
 const PRECACHE_URLS = [
   './',
@@ -63,14 +63,18 @@ self.addEventListener('fetch', (event) => {
         return networkResponse;
       })
       .catch(async () => {
-        const cached = await caches.match(req);
+        const activeCache = await caches.open(CACHE_VERSION);
+        const cached = (await activeCache.match(req)) || (await caches.match(req));
         if (cached) {
           return cached;
         }
-        if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
-          const fallback = await caches.match('./index.html');
+        const acceptHeader = req.headers ? req.headers.get('accept') || '' : '';
+        if (req.mode === 'navigate' || acceptHeader.includes('text/html')) {
+          const fallback =
+            (await activeCache.match('./index.html')) || (await caches.match('./index.html'));
           if (fallback) return fallback;
-          const rootFallback = await caches.match('./');
+          const rootFallback =
+            (await activeCache.match('./')) || (await caches.match('./'));
           if (rootFallback) return rootFallback;
         }
         return new Response('Offline — resource not cached yet.', {

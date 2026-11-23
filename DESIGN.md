@@ -1,29 +1,88 @@
-# WANDERLING: THE GRAND ATLAS OF LIVING TONGUES
+# WANDERLING 2.0: THE GRAND ATLAS OF LIVING TONGUES (A1–C2)
 
 ## 1. World Premise & Creative Aesthetic
-**Wanderling** blends *Nintendo tactile toy-craft* with *Pixar storybook illustration*. Players captain the **Starlight Compass** expedition alongside **Pip the Polyglot Starling** (a round, expressive cobalt-and-gold songbird explorer wearing an oversized brass compass medallion) to awaken the **Living Phrasebook** by mastering real-world languages.
+**Wanderling 2.0** blends *Nintendo tactile toy-craft* with *Pixar storybook illustration*. Young explorers captain the **Starlight Compass** expedition alongside **Pip the Polyglot Starling** (a round, expressive cobalt-and-gold songbird explorer wearing an oversized brass compass medallion) to awaken the **Living Phrasebook** by mastering **16 living languages** from **Beginner (`A1`) to Fluent Mastery (`C1–C2`)** across Latin, Arabic, Cyrillic, Devanagari, Bengali, Simplified Chinese, and Japanese scripts—across **256 themed cultural units**, **1,792+ adventure map nodes** (plus dynamic Tier Placement Checkpoints), and **2,400+ Living Phrasebook stickers**.
 
-### Four Symmetrical Cultural Lands
-1. **Spanish (`es` — `es-MX` / `es-ES`) — *El Camino del Sol***
-   - **Regional Companion:** **Mateo the Axolotl Chef & Guitarist**
-   - **Setting & Palette:** Terracotta sun plazas, papel picado banners, warm churro carts, Pyrenees mountain passes (`#EA580C`, `#FBBF24`, `#0EA5E9`).
-2. **French (`fr` — `fr-FR`) — *La Route des Étoiles***
-   - **Regional Companion:** **Colette the Boulangerie Fox**
-   - **Setting & Palette:** Montmartre rooftops, warm streetlamps, lavender Provence hillsides, cozy pastry bakeries (`#2563EB`, `#F43F5E`, `#8B5CF6`).
-3. **German (`de` — `de-DE`) — *Der Märchenpfad***
-   - **Regional Companion:** **Benni the Clockwork Badger Tinkerer**
-   - **Setting & Palette:** Half-timbered Black Forest gables, alpine cable cars, pretzel bakeries, brass cuckoo-clock towers (`#D97706`, `#15803D`, `#334155`).
-4. **Italian (`it` — `it-IT`) — *La Via del Mare***
-   - **Regional Companion:** **Luca the Gondolier Sea-Otter**
-   - **Setting & Palette:** Sunlit Venetian canals, artisan gelato carts, Roman stone piazzas, coastal lemon groves (`#059669`, `#DC2626`, `#0284C7`).
+### Sixteen Symmetrical Cultural Lands (`A1`–`C2`)
+1. **Spanish (`es` — `es-MX` / `es-ES` / `es`) — *El Camino del Sol*** (`latin`, `LTR`)
+   - **Regional Companion:** **Mateo — Axolotl Chef & Guitarist**
+   - **Setting & Palette:** Terracotta sun plazas, churro carts, Pyrenees mountain passes (`#EA580C`, `#FBBF24`).
+2. **French (`fr` — `fr-FR` / `fr-CA` / `fr`) — *La Route des Étoiles*** (`latin`, `LTR`)
+   - **Regional Companion:** **Colette — Boulangerie Fox**
+   - **Setting & Palette:** Montmartre rooftops, warm streetlamps, lavender Provence hillsides, cozy pastry bakeries (`#2563EB`, `#F43F5E`).
+3. **German (`de` — `de-DE` / `de-AT` / `de`) — *Der Märchenpfad*** (`latin`, `LTR`)
+   - **Regional Companion:** **Benni — Clockwork Badger Tinkerer**
+   - **Setting & Palette:** Half-timbered Black Forest gables, alpine cable cars, pretzel bakeries, brass cuckoo-clock towers (`#D97706`, `#15803D`).
+4. **Italian (`it` — `it-IT` / `it`) — *La Via del Mare*** (`latin`, `LTR`)
+   - **Regional Companion:** **Luca — Gondolier Sea-Otter**
+   - **Setting & Palette:** Sunlit Venetian canals, artisan gelato carts, Roman stone piazzas, coastal lemon groves (`#059669`, `#0284C7`).
+5. **Portuguese (`pt` — `pt-BR` / `pt-PT` / `pt`) — *A Trilha Tropical*** (`latin`, `LTR`)
+   - **Regional Companion:** **Mateo — Carnival Rhythm Guitarist**
+   - **Setting & Palette:** Tropical Sugarloaf bay, palm hills, carnival rhythm plazas (`#0D9488`, `#F59E0B`).
+6. **English (`en` — `en-US` / `en-GB` / `en`) — *The Starlight Compass Isles*** (`latin`, `LTR`)
+   - **Regional Companion:** **Colette — Storybook Harbor Guide**
+   - **Setting & Palette:** Coastal lighthouse harbor, storybook piers, clocktower quay (`#1D4ED8`, `#F59E0B`).
+7. **Mandarin Chinese (`zh` — `zh-CN` / `cmn-Hans-CN` / `zh-SG` / `zh-TW` / `zh`) — *The Lantern Cloud Peaks*** (`hanzi`, `LTR`, spaceless)
+   - **Regional Companion:** **Mateo — Moon-Gate Lantern Chef**
+   - **Setting & Palette:** Misty karst peaks, moon-gate pavilions, glowing red lanterns (`#DC2626`, `#F59E0B`).
+8. **Japanese (`ja` — `ja-JP` / `ja`) — *Sakura Sky Trail*** (`japanese`, `LTR`, spaceless)
+   - **Regional Companion:** **Colette — Sakura Origami Fox**
+   - **Setting & Palette:** Vermilion torii gates, sakura blossoms, snow-capped Mt. Fuji (`#DB2777`, `#6366F1`).
+9. **Hindi (`hi` — `hi-IN` / `hi`) — *The Marigold Palace Trail*** (`devanagari`, `LTR`)
+   - **Regional Companion:** **Mateo — Marigold Spice Musician**
+   - **Setting & Palette:** Marigold garland arches, spice markets, sandstone domes (`#EA580C`, `#0D9488`).
+10. **Bengali (`bn` — `bn-BD` / `bn-IN` / `bn`) — *The Lotus River Delta*** (`bengali`, `LTR`)
+    - **Regional Companion:** **Benni — Riverboat Lantern Tinkerer**
+    - **Setting & Palette:** Lotus-dotted river delta, wooden country boats, emerald banks (`#047857`, `#F43F5E`).
+11. **Modern Standard Arabic (`ar` — `ar-SA` / `ar-001` / `ar-AE` / `ar`) — *Oasis of Golden Stars*** (`arabic`, `RTL`)
+    - **Regional Companion:** **Benni — Astrolabe Star Navigator**
+    - **Setting & Palette:** Starlit desert oasis palms, astrolabe arches, golden dunes (`#059669`, `#D97706`).
+12. **Egyptian Arabic (`arz` — `ar-EG` / `ar`) — *Nile Felucca Breeze*** (`arabic`, `RTL`)
+    - **Regional Companion:** **Luca — Nile Felucca Captain**
+    - **Setting & Palette:** Golden Nile pyramids, white-sailed feluccas, Cairo river breezes (`#0284C7`, `#EAB308`).
+13. **Russian (`ru` — `ru-RU` / `ru`) — *The Starlight Frost Express*** (`cyrillic`, `LTR`)
+    - **Regional Companion:** **Benni — Trans-Aurora Train Engineer**
+    - **Setting & Palette:** Colorful onion domes, snowy northern pines, aurora railway (`#4F46E5`, `#E11D48`).
+14. **Indonesian (`id` — `id-ID` / `in-ID` / `id`) — *Emerald Archipelago Voyage*** (`latin`, `LTR`)
+    - **Regional Companion:** **Luca — Island Schooner Sea-Otter**
+    - **Setting & Palette:** Emerald volcanic archipelago peaks, island coves, outrigger prahu (`#0891B2`, `#F97316`).
+15. **Vietnamese (`vi` — `vi-VN` / `vi`) — *Lantern Bay & Bamboo Peaks*** (`latin`, `LTR`)
+    - **Regional Companion:** **Colette — Silk-Lantern Harbor Baker**
+    - **Setting & Palette:** Emerald karst bay, bamboo peaks, floating silk lanterns (`#E11D48`, `#10B981`).
+16. **Swahili (`sw` — `sw-KE` / `sw-TZ` / `sw`) — *Savanna Sun & Dhow Coast*** (`latin`, `LTR`)
+    - **Regional Companion:** **Luca — Zanzibar Dhow Captain**
+    - **Setting & Palette:** Golden savanna acacias, Kilimanjaro vista, Zanzibar coastal dhows (`#D97706`, `#0EA5E9`).
+
+### 5-Tier CEFR Scaffolding (`A1`–`C2`)
+- **`A1` — Sprout (Units 1–4, `guided`):** Always-visible phonetic/romanized clues and tap-hint glosses covering greetings, cafe treats, animals, family, and survival phrases.
+- **`A2` — Trailblazer (Units 5–8, `guided`):** Expeditions, music & hobbies, cozy home & clothes, and everyday conversations.
+- **`B1` — Storyweaver (Units 9–11, `bridge`):** Native-script-first presentation with 1-tap phonetic/romanized peeks across past stories, future dreams, and empathy connectors.
+- **`B2` — Wayfinder Diplomat (Units 12–14, `bridge`):** Science curiosity, festivals, folklore, register contrasts, and Context Cloze nuance spotlights.
+- **`C1+` (`C1_C2`) — Polyglot Laureate (Units 15–16, `fluent`):** Compact multi-clause word banks, native idioms & proverbs, Keyboard Free-Recall typing, and on-demand **Tier Placement Checkpoints** (`A2` through `C1+`).
 
 ---
 
 ## 2. Core UX, Craft & Platform Mandates
-- **Cross-Platform Custom Vector Flags:** Windows renders Unicode country-flag emojis as plain two-letter text (`ES`, `FR`, `DE`, `IT`). Every language flag in the top HUD, profile cards, and Phrasebook MUST be rendered via crisp inline SVG (`FlagIcon.tsx`), with zero regional-indicator Unicode characters anywhere in code, data, or documentation.
-- **Tactile 3D-Bevel Toy-Craft Physics:** Interactive cards, word-bank tiles, and primary action buttons use chunky `border-bottom-width: 4px` (or `5px` for primary CTAs) with spring `translateY(2px)` press feedback and joyful color elevation.
-- **Strict `100dvh` Full-Viewport Lesson Arena:** Active lessons frame cleanly inside `100dvh` across Desktop (`1440x900`, `1024x768`), Tablet (`768x1024`), and Mobile (`390x844`, `375x667`) with zero awkward mid-lesson page scrolling (`document.documentElement.scrollHeight <= window.innerHeight`).
-- **Kid-Safe Warm Hospitality:** Every café, bakery, and travel dialogue celebrates kid-loved treats (hot chocolate, croissants, churros, pretzels, orange juice, mango gelato, fresh apples)—never alcohol or adult bar themes, and never harsh red buzzers.
-- **Accent-Forgiving + Teachable Grading:** Kids typing or selecting base ASCII letters (`nino`, `garcon`, `fur`, `strasse`, `caffe`) pass with **zero heart penalty** while triggering a celebratory golden **Accent Spotlight!** callout teaching the exact diacritic (`ñ`, `ç`, `ü`, `ß`, `è/à`).
-- **Zero-Stall Offline Speech & Audio:** All sound effects synthesize natively via Web Audio (`AudioContext`), and when OS Web Speech voices for a language are absent on stripped tablets or headless browsers, Wanderling plays a rhythmic marimba syllable cadence matched to hyphenated phonetics and automatically displays phonetic-assisted clues in *Listen & Decode* so lessons never stall.
-- **Offline-Installable GitHub Pages PWA:** Relative `./` routing (`base: './'`), pure-Node anti-aliased RGBA PNG icons (`192x192`, `512x512`, maskable & apple-touch variants), network-first Service Worker (`./sw.js`), and multi-kid local vault with 1-click JSON export/import.
+- **Cross-Platform Custom Vector Flags:** Windows renders Unicode country-flag emojis as plain two-letter text (`ES`, `FR`, `DE`, `IT`, `PT`, `EN`, `ZH`, `JA`, `HI`, `BN`, `AR`, `ARZ`, `RU`, `ID`, `VI`, `SW`). Every language flag across the 16 base languages and all 7 After-Hours split-emblem crests in the top HUD, profile cards, and Phrasebook MUST be rendered via crisp inline SVG (`FlagIcon.tsx`), with zero regional-indicator Unicode characters (`U+1F1E6–U+1F1FF`) anywhere in code, data, or documentation.
+- **Tactile 3D-Bevel Toy-Craft Physics & 15 Color Palettes:** Interactive cards, word-bank tiles, and primary action buttons use chunky `border-bottom-width: 4px` (or `5px` for primary CTAs) with spring `translateY(2px)` press feedback, 50 cosmetics across 7 slots (`hat`, `glasses`, `cape`, `aura`, `prop`, `pet`, `theme`), 10 avatars, and 15 palettes (Default *Storybook Parchment* plus 14 unlockable light and dark themes) maintaining readable ink contrast across light/dark surfaces.
+- **Strict `100dvh` Full-Viewport Game Console:** Active lessons and the 9-cabinet proficiency-scaled Arcade (*Sky-Catcher Fiesta*, *Cosmic Meteor Blaster*, *Gelato & Pastry Tower*, *Constellation Memory Twins*, *Alpine Express Switcher*, *Beat Kitchen Rhythm*, *Polyglot Café Order Rush*, *Starlight Bridge Cloze Builder*, and secret *Starlight Critter Choir*) frame cleanly inside `100dvh` across Desktop (`1440x900`, `1024x768`), Tablet (`768x1024`), and Mobile (`390x844`, `375x667`) with zero mid-lesson outer page scrolling (`document.documentElement.scrollHeight <= window.innerHeight`).
+- **Kid-Safe Warm Hospitality & Quarantine:** Every base café, bakery, and travel dialogue celebrates kid-loved treats (hot chocolate, croissants, churros, pretzels, orange juice, mango gelato, fresh apples)—never alcohol or adult bar themes, and never harsh red buzzers. Default kid explorers (**Leo** `kid-leo` and **Maya** `kid-maya`) are permanently quarantined to the 16 base languages.
+- **Multi-Script Accent-Forgiving + Teachable Grading:** Learners typing or selecting base ASCII letters (`nino`, `garcon`, `fur`, `strasse`, `caffe`, stripped Vietnamese tones, unvocalized Arabic, Devanagari/Bengali base forms, or Pinyin/Romaji romanizations) pass with **zero heart penalty** while triggering a celebratory golden **Accent Spotlight!** callout teaching the exact diacritics (`ñ`, `ç`, `ü`, `ß`, `è/à`, tone marks, or script nuancing).
+- **Zero-Stall Offline Speech & Audio:** Synthesizes 24 acoustic effects natively via Web Audio (`AudioContext`), supports `0.95x` Normal / `0.65x` Slow Turtle / `1.12x` Fluent Web Speech across 16 base locales (`en-US`/`en` for After-Hours) with a `4500ms` hung-utterance watchdog, and plays a rhythmic marimba syllable cadence (`playPhoneticCadence`) matched to hyphenated phonetics when OS voices are absent so lessons never stall.
+- **Offline-Installable GitHub Pages PWA:** Strictly relative `./` routing (`base: './'`), pure-Node anti-aliased RGBA PNG icons (`192x192`, `512x512`, maskable variants, and `180x180` Apple touch icon), self-hosted `.woff2` fonts (`@fontsource-variable/fredoka` and `@fontsource-variable/nunito`, zero external CDNs), network-first Service Worker (`./sw.js`, `wanderling-cache-v7`) with `caches.delete` stale-cache purging and subpath offline fallback, and multi-kid local vault (`wanderling.vault.v1`) with schema-validated JSON export/import and legacy save migration.
+
+---
+
+## 3. Hidden 18+ Bonus Mode: After-Hours Atlas (Vol. 1 & Vol. 2)
+Hidden behind explicit opt-in inside **Profile Vault** (`7` footer badge taps or secret codes `AFTERHOURS` / `COOKOUT`) is **After-Hours Atlas**, an optional 18+ American subculture vernacular & comedy mode completely invisible in Kid Mode and strictly quarantined away from `kid-leo`, `kid-maya`, and default profiles:
+
+- **Vol. 1 Classic Pair (`adult-atlas` chunk):**
+  1. `ebonics`: `AAVE -> Suburban ("White Boy")` — *The Block & Cookout Ave* (**Mateo** — *Block Party DJ & Grillmaster*)
+  2. `suburban`: `Suburban ("White Boy") -> AAVE` — *The Cul-de-Sac & Craft Patio* (**Benni** — *Cul-de-Sac Lawn & Patio Captain*)
+- **Vol. 2 Great American Culture Clash (5 lazy `adult-mashup-*.js` chunks, zero eager `modulepreload`):**
+  3. `corp_trades`: `Corporate LinkedIn <-> Blue-Collar Trades` — *The Synergy Cubicle & Drywall Frontier* (**Benni** — *VP of Drywall & Synergy Ops*)
+  4. `midwest_northeast`: `Midwest Nice <-> Northeast Direct` — *The Ope-to-Fuggedaboutit Turnpike* (**Colette** — *Casserole & Bodega Diplomat*)
+  5. `south_genz`: `Southern Polite-Shade <-> Gen-Z Brainrot` — *Front Porch Sweet Tea & The For-You Swamp* (**Mateo** — *Porch Gossip & Algorithm Bard*)
+  6. `cali_country`: `Cali Woo-Woo Wellness <-> Appalachian Country` — *The Erewhon Juice Bar & Holler Creek* (**Luca** — *Cold-Plunge & Tailgate Guide*)
+  7. `stoner_tactical`: `Stoner / Skater Chill <-> Tactical Lawn-Ops Dad` — *The Half-Pipe Hotbox & Perimeter Cul-de-Sac* (**Benni** — *Half-Pipe & Perimeter Commander*)
+- **Study-Break Quick-Bounce & Deadpan Decoder:** Remembers `lastBaseLanguage` for 1-tap return to the kid atlas (`Return to Kid Atlas` / `Back to <Language>`), renders **"Say It Normally in English"** deadpan decodings + `en` audio (`SayItNormallyButton`), and recovers cleanly with offline retry/exit controls if lazy chunks are uncached offline.
