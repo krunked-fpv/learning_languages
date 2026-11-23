@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Wanderling: The Grand Atlas of Living Tongues — 4-language interactive learning adventure & offline PWA.",
+  "description": "Wanderling: The Grand Atlas of Living Tongues — 16-language interactive learning adventure & offline PWA.",
   "scripts": {
     "generate:icons": "node scripts/generate-pwa-icons.mjs",
     "prebuild": "npm run generate:icons",
