@@ -18,6 +18,7 @@ import {
   ArcadeSummaryCard,
   SOFT_BTN_STYLE,
   computeScaledArcadeRewards,
+  getArcadeClueTextStyle,
   getArcadeForeignTextStyle,
   pickDistinctItems,
   recordArcadeRunResult,
@@ -592,9 +593,13 @@ export function CafeOrderRushArcade({
                       borderRadius: 999,
                       background: round.direction === 'foreign_to_english' ? '#eef2ff' : '#ecfdf5',
                       color: round.direction === 'foreign_to_english' ? '#3730a3' : '#065f46',
-                      fontSize: '0.66rem',
+                      fontSize: isCompact ? 'clamp(0.56rem, 1.8vw, 0.64rem)' : '0.66rem',
                       fontWeight: 900,
+                      lineHeight: 1.2,
                       textTransform: 'uppercase',
+                      maxWidth: '100%',
+                      whiteSpace: 'normal',
+                      overflowWrap: 'anywhere',
                     }}
                   >
                     {language === 'en'
@@ -628,41 +633,36 @@ export function CafeOrderRushArcade({
                   ) : null}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: isCompact ? 5 : 8, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: isCompact ? 5 : 8, flexWrap: 'wrap', minWidth: 0 }}>
                   {round.direction === 'foreign_to_english' ? (
                     <strong
                       dir={langDir}
-                      style={{
-                        ...getArcadeForeignTextStyle(language, target.foreign, {
-                          isCompact,
-                          density: isCompact && target.foreign.length > 20 ? 'normal' : 'large',
-                          color: '#1e1b4b',
-                          textAlign: 'start',
-                        }),
-                      }}
+                      style={getArcadeForeignTextStyle(language, target.foreign, {
+                        isCompact,
+                        density: isCompact
+                          ? target.foreign.length > 26
+                            ? 'tight'
+                            : target.foreign.length > 16
+                              ? 'normal'
+                              : 'large'
+                          : target.foreign.length > 34
+                            ? 'normal'
+                            : 'large',
+                        color: '#1e1b4b',
+                        textAlign: 'start',
+                      })}
                     >
                       {target.foreign}
                     </strong>
                   ) : (
                     <strong
                       dir="ltr"
-                      style={{
-                        fontFamily: 'var(--font-display)',
-                        fontSize: isCompact
-                          ? target.english.length > 28
-                            ? '0.78rem'
-                            : target.english.length > 18
-                              ? '0.86rem'
-                              : '0.95rem'
-                          : target.english.length > 28
-                            ? '1rem'
-                            : '1.16rem',
-                        fontWeight: 900,
+                      style={getArcadeClueTextStyle(target.english, {
+                        isCompact,
+                        variant: 'prompt',
                         color: '#1e1b4b',
-                        lineHeight: 1.22,
-                        maxWidth: '100%',
-                        overflowWrap: 'break-word',
-                      }}
+                        textAlign: 'start',
+                      })}
                     >
                       {target.english}
                     </strong>
@@ -677,10 +677,11 @@ export function CafeOrderRushArcade({
                         background: '#eef2ff',
                         border: '1px solid #c7d2fe',
                         color: '#3730a3',
-                        fontSize: isCompact ? '0.66rem' : '0.74rem',
+                        fontSize: isCompact ? 'clamp(0.58rem, 1.7vw, 0.66rem)' : '0.74rem',
                         fontWeight: 800,
+                        lineHeight: 1.25,
                         maxWidth: '100%',
-                        overflowWrap: 'break-word',
+                        overflowWrap: 'anywhere',
                       }}
                     >
                       {target.romanized}
@@ -694,10 +695,15 @@ export function CafeOrderRushArcade({
                       borderRadius: 999,
                       background: '#fef3c7',
                       color: '#78350f',
-                      fontSize: isCompact ? '0.64rem' : '0.74rem',
+                      fontSize: isCompact
+                        ? target.phonetic.length > 26
+                          ? 'clamp(0.55rem, 1.6vw, 0.62rem)'
+                          : 'clamp(0.6rem, 1.75vw, 0.66rem)'
+                        : '0.72rem',
                       fontWeight: 800,
+                      lineHeight: 1.22,
                       maxWidth: '100%',
-                      overflowWrap: 'break-word',
+                      overflowWrap: 'anywhere',
                     }}
                   >
                     {target.phonetic}
@@ -835,7 +841,13 @@ export function CafeOrderRushArcade({
                       <VocabIllustration
                         illustrationKey={item.illustrationKey}
                         language={language}
-                        size={isCompact ? 23 : 44}
+                        size={
+                          isCompact
+                            ? (showForeignOnPlatter ? item.foreign.length : item.english.length) > 24
+                              ? 19
+                              : 23
+                            : 44
+                        }
                       />
                     </span>
 
@@ -843,15 +855,20 @@ export function CafeOrderRushArcade({
                       <>
                         <span
                           dir={langDir}
-                          style={getArcadeForeignTextStyle(language, item.foreign, {
-                            isCompact,
-                            density: isCompact
-                              ? item.foreign.length > 18
-                                ? 'tight'
-                                : 'normal'
-                              : 'large',
-                            color: '#1e1b4b',
-                          })}
+                          style={{
+                            ...getArcadeForeignTextStyle(language, item.foreign, {
+                              isCompact,
+                              density: isCompact
+                                ? item.foreign.length > 18
+                                  ? 'tight'
+                                  : 'normal'
+                                : item.foreign.length > 28
+                                  ? 'normal'
+                                  : 'large',
+                              color: '#1e1b4b',
+                            }),
+                            width: '100%',
+                          }}
                         >
                           {item.foreign}
                         </span>
@@ -864,7 +881,7 @@ export function CafeOrderRushArcade({
                               color: '#4f46e5',
                               lineHeight: 1.2,
                               maxWidth: '100%',
-                              overflowWrap: 'break-word',
+                              overflowWrap: 'anywhere',
                             }}
                           >
                             {item.romanized}
@@ -875,26 +892,12 @@ export function CafeOrderRushArcade({
                       <span
                         dir="ltr"
                         style={{
-                          fontFamily: 'var(--font-display)',
-                          fontWeight: 900,
-                          fontSize: isCompact
-                            ? item.english.length > 30
-                              ? '0.6rem'
-                              : item.english.length > 22
-                                ? '0.68rem'
-                                : item.english.length > 16
-                                  ? '0.76rem'
-                                  : '0.86rem'
-                            : item.english.length > 32
-                              ? '0.78rem'
-                              : item.english.length > 22
-                                ? '0.9rem'
-                                : '1.02rem',
-                          lineHeight: isCompact && item.english.length > 18 ? 1.16 : 1.24,
-                          color: '#1e1b4b',
-                          textAlign: 'center',
-                          maxWidth: '100%',
-                          overflowWrap: 'break-word',
+                          ...getArcadeClueTextStyle(item.english, {
+                            isCompact,
+                            variant: 'tile',
+                            color: '#1e1b4b',
+                          }),
+                          width: '100%',
                         }}
                       >
                         {item.english}

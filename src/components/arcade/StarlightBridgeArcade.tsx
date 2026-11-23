@@ -19,6 +19,7 @@ import {
   ArcadeSummaryCard,
   SOFT_BTN_STYLE,
   computeScaledArcadeRewards,
+  getArcadeClueTextStyle,
   getArcadeForeignTextStyle,
   pickDistinctItems,
   recordArcadeRunResult,
@@ -590,7 +591,7 @@ export function StarlightBridgeArcade({
                 <VocabIllustration
                   illustrationKey={round.target.illustrationKey}
                   language={language}
-                  size={isCompact ? 28 : 46}
+                  size={isCompact ? (clozeSentenceLen > 42 ? 22 : 28) : 46}
                 />
               </span>
 
@@ -610,23 +611,19 @@ export function StarlightBridgeArcade({
                   <div
                     dir={langDir}
                     style={{
+                      ...getArcadeClueTextStyle(
+                        `${cloze.beforeBlank}${cloze.blankLabel}${cloze.afterBlank}`,
+                        {
+                          isCompact,
+                          variant: 'cloze',
+                          color: '#1e1b4b',
+                          textAlign: 'start',
+                        }
+                      ),
                       display: 'flex',
                       alignItems: 'center',
                       flexWrap: 'wrap',
                       gap: isCompact ? 4 : 5,
-                      fontFamily: 'var(--font-display)',
-                      fontSize: isCompact
-                        ? clozeSentenceLen > 38
-                          ? '0.74rem'
-                          : clozeSentenceLen > 24
-                            ? '0.8rem'
-                            : '0.86rem'
-                        : clozeSentenceLen > 40
-                          ? '0.96rem'
-                          : '1.08rem',
-                      fontWeight: 900,
-                      color: '#1e1b4b',
-                      lineHeight: isCompact ? 1.26 : 1.38,
                     }}
                   >
                     {cloze.beforeBlank ? <span>{cloze.beforeBlank}</span> : null}
@@ -642,7 +639,7 @@ export function StarlightBridgeArcade({
                         minWidth: 54,
                         maxWidth: '100%',
                         textAlign: 'center',
-                        overflowWrap: 'break-word',
+                        overflowWrap: 'anywhere',
                         justifyContent: 'center',
                       }}
                     >
@@ -651,21 +648,15 @@ export function StarlightBridgeArcade({
                     {cloze.afterBlank ? <span>{cloze.afterBlank}</span> : null}
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
                     <span
                       dir="ltr"
-                      style={{
-                        fontFamily: 'var(--font-display)',
-                        fontSize: isCompact
-                          ? cloze.englishClue.length > 26
-                            ? '0.78rem'
-                            : '0.88rem'
-                          : '1.08rem',
-                        fontWeight: 900,
+                      style={getArcadeClueTextStyle(cloze.englishClue, {
+                        isCompact,
+                        variant: 'cloze',
                         color: '#1e1b4b',
-                        maxWidth: '100%',
-                        overflowWrap: 'break-word',
-                      }}
+                        textAlign: 'start',
+                      })}
                     >
                       {cloze.englishClue}
                     </span>
@@ -678,10 +669,10 @@ export function StarlightBridgeArcade({
                         border: `2px dashed ${plankLocked ? '#10b981' : '#f59e0b'}`,
                         color: plankLocked ? '#065f46' : '#b45309',
                         fontFamily: 'var(--font-display)',
-                        fontSize: isCompact ? '0.8rem' : '0.96rem',
+                        fontSize: isCompact ? 'clamp(0.72rem, 2.1vw, 0.8rem)' : '0.96rem',
                         fontWeight: 900,
                         maxWidth: '100%',
-                        overflowWrap: 'break-word',
+                        overflowWrap: 'anywhere',
                       }}
                     >
                       {plankLocked ? cloze.blankLabel : '____'}
@@ -689,17 +680,21 @@ export function StarlightBridgeArcade({
                   </div>
                 )}
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', minWidth: 0 }}>
                   {cloze.mode === 'sentence_cloze' ? (
                     <span
                       dir="ltr"
                       style={{
-                        fontSize: isCompact ? '0.68rem' : '0.8rem',
+                        fontSize: isCompact
+                          ? cloze.englishClue.length > 36
+                            ? 'clamp(0.6rem, 1.75vw, 0.66rem)'
+                            : '0.68rem'
+                          : '0.8rem',
                         fontWeight: 800,
                         lineHeight: 1.2,
                         color: '#475569',
                         maxWidth: '100%',
-                        overflowWrap: 'break-word',
+                        overflowWrap: 'anywhere',
                       }}
                     >
                       {cloze.englishClue}
@@ -717,7 +712,7 @@ export function StarlightBridgeArcade({
                         fontSize: isCompact ? '0.62rem' : '0.74rem',
                         fontWeight: 800,
                         maxWidth: '100%',
-                        overflowWrap: 'break-word',
+                        overflowWrap: 'anywhere',
                       }}
                     >
                       {cloze.romanizedHint}
@@ -730,11 +725,15 @@ export function StarlightBridgeArcade({
                       borderRadius: 999,
                       background: '#f1f5f9',
                       color: '#475569',
-                      fontSize: isCompact ? '0.62rem' : '0.74rem',
+                      fontSize: isCompact
+                        ? cloze.phoneticHint.length > 34
+                          ? 'clamp(0.55rem, 1.6vw, 0.61rem)'
+                          : '0.62rem'
+                        : '0.74rem',
                       fontWeight: 800,
                       lineHeight: 1.2,
                       maxWidth: '100%',
-                      overflowWrap: 'break-word',
+                      overflowWrap: 'anywhere',
                     }}
                   >
                     {cloze.phoneticHint}
@@ -771,7 +770,7 @@ export function StarlightBridgeArcade({
               style={{
                 position: 'relative',
                 flex: 1,
-                minHeight: isCompact ? 74 : 112,
+                minHeight: isCompact ? 58 : 104,
                 width: '100%',
               }}
             >
@@ -829,6 +828,9 @@ export function StarlightBridgeArcade({
                   left: '53%',
                   bottom: '28%',
                   transform: 'translateX(-50%)',
+                  maxWidth: '88%',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                   padding: '2px 9px',
                   borderRadius: 999,
                   background: plankLocked
@@ -906,7 +908,7 @@ export function StarlightBridgeArcade({
                     style={{
                       gridColumn: isLastOdd ? '1 / -1' : undefined,
                       position: 'relative',
-                      padding: isCompact ? '6px 8px' : '11px 12px',
+                      padding: isCompact ? '5px 6px' : '10px 12px',
                       borderRadius: 16,
                       background: isTargetLocked
                         ? '#d1fae5'
@@ -953,9 +955,16 @@ export function StarlightBridgeArcade({
                       style={{
                         ...getArcadeForeignTextStyle(language, plankText, {
                           isCompact,
-                          density: isCompact && plankText.length > 18 ? 'tight' : 'normal',
+                          density: isCompact
+                            ? plankText.length > 14
+                              ? 'tight'
+                              : 'normal'
+                            : round.choices.length >= 4 && plankText.length > 22
+                              ? 'tight'
+                              : 'normal',
                           color: '#1e1b4b',
                         }),
+                        width: '100%',
                         marginTop: isCompact ? 7 : 6,
                       }}
                     >
@@ -971,7 +980,7 @@ export function StarlightBridgeArcade({
                           color: '#4f46e5',
                           lineHeight: 1.2,
                           maxWidth: '100%',
-                          overflowWrap: 'break-word',
+                          overflowWrap: 'anywhere',
                         }}
                       >
                         {item.romanized}

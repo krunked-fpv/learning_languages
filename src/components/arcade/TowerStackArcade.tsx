@@ -529,9 +529,12 @@ export function TowerStackArcade({
                       ? '0 0 18px rgba(245, 158, 11, 0.55)'
                       : '0 6px 14px rgba(15, 23, 42, 0.16)',
                     display: 'flex',
+                    flexDirection:
+                      isCompact && s.item.foreign.length > 16 ? 'column' : 'row',
                     alignItems: 'center',
-                    gap: 5,
-                    maxWidth: isCompact ? '40%' : '240px',
+                    justifyContent: 'center',
+                    gap: isCompact && s.item.foreign.length > 16 ? 2 : 5,
+                    maxWidth: isCompact ? '42%' : '250px',
                     minWidth: 0,
                     overflow: 'hidden',
                     pointerEvents: 'none',
@@ -542,7 +545,7 @@ export function TowerStackArcade({
                     <VocabIllustration
                       illustrationKey={s.item.illustrationKey}
                       language={language}
-                      size={isCompact ? 20 : 28}
+                      size={isCompact ? (s.item.foreign.length > 16 ? 18 : 20) : 26}
                     />
                   </span>
                   <span
@@ -550,10 +553,11 @@ export function TowerStackArcade({
                     style={{
                       ...getArcadeForeignTextStyle(language, s.item.foreign, {
                         isCompact,
-                        density: 'normal',
+                        density: s.item.foreign.length > 20 ? 'tight' : 'normal',
                         color: '#1e1b4b',
                       }),
                       flex: '0 1 auto',
+                      width: isCompact && s.item.foreign.length > 16 ? '100%' : undefined,
                     }}
                   >
                     {s.item.foreign}
@@ -610,7 +614,9 @@ export function TowerStackArcade({
                     display: 'flex',
                     alignItems: 'center',
                     gap: 4,
-                    maxWidth: isCompact ? '68%' : '260px',
+                    maxWidth: isCompact ? '78%' : '300px',
+                    minWidth: 0,
+                    overflow: 'hidden',
                     boxShadow: scoop.perfect ? '0 0 12px rgba(251, 191, 36, 0.7)' : '0 3px 8px rgba(0,0,0,0.14)',
                   }}
                 >
@@ -629,6 +635,7 @@ export function TowerStackArcade({
                         density: 'tight',
                         color: '#ffffff',
                       }),
+                      flex: '0 1 auto',
                       textShadow: '0 1px 2px rgba(0,0,0,0.35)',
                     }}
                   >

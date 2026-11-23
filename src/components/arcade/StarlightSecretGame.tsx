@@ -753,9 +753,12 @@ export function StarlightSecretGame({
                     borderColor: pal.border,
                     color: pal.text,
                     display: 'flex',
+                    flexDirection:
+                      isCompact && b.item.foreign.length > 16 ? 'column' : 'row',
                     alignItems: 'center',
-                    gap: 5,
-                    maxWidth: isCompact ? '40%' : '250px',
+                    justifyContent: 'center',
+                    gap: isCompact ? 3 : 5,
+                    maxWidth: isCompact ? '42%' : '260px',
                     minWidth: 0,
                     overflow: 'hidden',
                     cursor: 'pointer',
@@ -767,7 +770,7 @@ export function StarlightSecretGame({
                     <VocabIllustration
                       illustrationKey={b.item.illustrationKey}
                       language={language}
-                      size={isCompact ? 20 : 26}
+                      size={isCompact ? (b.item.foreign.length > 16 ? 18 : 20) : 26}
                     />
                   </span>
                   <span
@@ -775,10 +778,15 @@ export function StarlightSecretGame({
                     style={{
                       ...getArcadeForeignTextStyle(language, b.item.foreign, {
                         isCompact,
-                        density: 'normal',
+                        density:
+                          (isCompact && b.item.foreign.length > 16) ||
+                          b.item.foreign.length > 28
+                            ? 'tight'
+                            : 'normal',
                         color: pal.text,
                       }),
                       flex: '0 1 auto',
+                      width: isCompact && b.item.foreign.length > 16 ? '100%' : undefined,
                     }}
                   >
                     {b.item.foreign}

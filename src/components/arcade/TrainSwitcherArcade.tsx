@@ -543,7 +543,7 @@ export function TrainSwitcherArcade({
                     dir="ltr"
                     onClick={() => selectTrack(lane)}
                     style={{
-                      padding: isCompact ? '5px 4px' : '8px 10px',
+                      padding: isCompact ? '4px 4px' : '8px 10px',
                       borderRadius: 16,
                       background: isSelected ? '#fef3c7' : '#ffffff',
                       borderTopWidth: 2.5,
@@ -572,7 +572,7 @@ export function TrainSwitcherArcade({
                         borderRadius: 999,
                         background: isSelected ? '#d97706' : '#ecfdf5',
                         color: isSelected ? '#ffffff' : '#065f46',
-                        fontSize: '0.66rem',
+                        fontSize: isCompact ? '0.6rem' : '0.66rem',
                         fontWeight: 900,
                       }}
                     >
@@ -582,16 +582,19 @@ export function TrainSwitcherArcade({
                       <VocabIllustration
                         illustrationKey={item.illustrationKey}
                         language={language}
-                        size={isCompact ? 24 : 36}
+                        size={isCompact ? (item.foreign.length > 20 ? 18 : 22) : 36}
                       />
                     </span>
                     <span
                       dir={langDir}
-                      style={getArcadeForeignTextStyle(language, item.foreign, {
-                        isCompact,
-                        density: 'tight',
-                        color: '#1e1b4b',
-                      })}
+                      style={{
+                        ...getArcadeForeignTextStyle(language, item.foreign, {
+                          isCompact,
+                          density: 'tight',
+                          color: '#1e1b4b',
+                        }),
+                        width: '100%',
+                      }}
                     >
                       {item.foreign}
                     </span>

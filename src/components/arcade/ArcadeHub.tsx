@@ -177,7 +177,8 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
   }
   const showAdultDirectionBadge =
     Boolean(courseMeta.isAdultOnly && courseMeta.pairDirectionBadge) &&
-    activeProfile.adultModeActive !== false &&
+    Boolean(activeProfile.adultModeUnlocked) &&
+    Boolean(activeProfile.adultModeActive) &&
     !isDefaultKidProfileId(activeProfile.id);
   const [mode, setMode] = useState<ArcadeGameMode>(initialMode);
   const [page, setPage] = useState<0 | 1 | 2>(0);
@@ -314,14 +315,18 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                     background: 'var(--card-soft-bg, #f8fafc)',
                     border: '1px solid var(--card-border, #cbd5e1)',
                     color: 'var(--text-main, #1e1b4b)',
-                    fontSize: isCompact ? '0.66rem' : '0.72rem',
+                    fontSize: isCompact ? 'clamp(0.58rem, 1.9vw, 0.66rem)' : '0.72rem',
                     fontWeight: 800,
-                    lineHeight: 1.35,
+                    lineHeight: 1.3,
                     maxWidth: '100%',
+                    minWidth: 0,
                   }}
                 >
                   <FlagIcon language={language} size={isCompact ? 14 : 17} />
-                  <span dir={courseMeta.dir} style={{ lineHeight: 1.35 }}>
+                  <span
+                    dir={courseMeta.dir}
+                    style={{ lineHeight: 1.28, whiteSpace: 'normal', overflowWrap: 'anywhere' }}
+                  >
                     {courseMeta.nativeName}
                   </span>
                 </span>
@@ -346,13 +351,13 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                       background: 'var(--tint-indigo-bg, #eef2ff)',
                       border: '1px solid var(--lang-primary, #7c3aed)',
                       color: 'var(--tint-indigo-ink, #312e81)',
-                      fontSize: isCompact ? '0.64rem' : '0.7rem',
+                      fontSize: isCompact ? 'clamp(0.56rem, 1.85vw, 0.64rem)' : 'clamp(0.66rem, 1.1vw, 0.72rem)',
                       fontWeight: 900,
-                      lineHeight: 1.3,
+                      lineHeight: 1.24,
                       maxWidth: '100%',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
+                      minWidth: 0,
+                      whiteSpace: 'normal',
+                      overflowWrap: 'anywhere',
                     }}
                   >
                     {courseMeta.pairDirectionBadge}

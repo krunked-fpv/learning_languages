@@ -15,6 +15,7 @@ import {
   ArcadeReadyCard,
   ArcadeSummaryCard,
   computeScaledArcadeRewards,
+  getArcadeClueTextStyle,
   getArcadeForeignTextStyle,
   recordArcadeRunResult,
   useArcadeContainerMetrics,
@@ -526,29 +527,26 @@ export function ConstellationMemoryArcade({
                             <VocabIllustration
                               illustrationKey={card.item.illustrationKey}
                               language={language}
-                              size={isCompact ? (card.item.english.length > 22 ? 24 : 28) : 46}
+                              size={
+                                isCompact
+                                  ? card.item.english.length > 26
+                                    ? 20
+                                    : card.item.english.length > 18
+                                      ? 24
+                                      : 28
+                                  : 46
+                              }
                             />
                           </span>
                           <span
                             dir="ltr"
                             style={{
-                              fontWeight: 900,
-                              fontSize: isCompact
-                                ? card.item.english.length > 28
-                                  ? '0.54rem'
-                                  : card.item.english.length > 20
-                                    ? '0.59rem'
-                                    : '0.67rem'
-                                : card.item.english.length > 30
-                                  ? '0.65rem'
-                                  : card.item.english.length > 20
-                                    ? '0.72rem'
-                                    : '0.8rem',
-                              lineHeight: card.item.english.length > 20 ? 1.16 : 1.24,
-                              color: '#1e1b4b',
-                              textAlign: 'center',
-                              maxWidth: '100%',
-                              overflowWrap: 'break-word',
+                              ...getArcadeClueTextStyle(card.item.english, {
+                                isCompact,
+                                variant: 'card',
+                                color: '#1e1b4b',
+                              }),
+                              width: '100%',
                             }}
                           >
                             {card.item.english}
@@ -557,15 +555,18 @@ export function ConstellationMemoryArcade({
                       ) : (
                         <>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 3, color: '#4f46e5', flexShrink: 0 }}>
-                            <Volume2 size={isCompact ? 12 : 14} />
+                            <Volume2 size={isCompact ? 11 : 14} />
                           </div>
                           <span
                             dir={langDir}
-                            style={getArcadeForeignTextStyle(language, card.item.foreign, {
-                              isCompact,
-                              density: 'tight',
-                              color: '#1e1b4b',
-                            })}
+                            style={{
+                              ...getArcadeForeignTextStyle(language, card.item.foreign, {
+                                isCompact,
+                                density: 'tight',
+                                color: '#1e1b4b',
+                              }),
+                              width: '100%',
+                            }}
                           >
                             {card.item.foreign}
                           </span>
@@ -573,12 +574,16 @@ export function ConstellationMemoryArcade({
                             <span
                               dir="ltr"
                               style={{
-                                fontSize: '0.66rem',
+                                fontSize:
+                                  card.item.phonetic.length > 28
+                                    ? 'clamp(0.54rem, 0.82vw, 0.62rem)'
+                                    : '0.66rem',
                                 fontWeight: 700,
-                                lineHeight: 1.25,
+                                lineHeight: 1.18,
                                 color: '#64748b',
+                                width: '100%',
                                 maxWidth: '100%',
-                                overflowWrap: 'break-word',
+                                overflowWrap: 'anywhere',
                                 textAlign: 'center',
                               }}
                             >

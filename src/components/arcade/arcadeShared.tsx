@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
 import { Gem, Heart, Play, RotateCcw, Sparkles, Star, Volume2, X } from 'lucide-react';
 import { playSfx, speakPhrase } from '../../audio';
+import * as curriculum from '../../curriculum';
 import { getArcadeLexicon } from '../../curriculum';
 import { useVaultStore, vaultActions } from '../../store/useVaultStore';
 import {
   LANGUAGE_META,
   isAdultLanguage,
   isDefaultKidProfileId,
+  type AdultLanguageCode,
   type ArcadeLanternItem,
   type ArcadeProficiencyTier,
   type CompanionId,
@@ -357,7 +359,552 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       examplePhonetic: 'noh WUR-eez at AWL sport, HAP-enz too thuh best',
     },
   ],
+  corp_trades: [
+    {
+      id: 'fb-ct-1',
+      language: 'corp_trades',
+      foreign: "Let's circle back",
+      english: "We ain't touchin' that today",
+      phonetic: 'lets SER-kul bak',
+      illustrationKey: 'compass_map',
+      exampleForeign: "Let's circle back after lunch on this trench.",
+      exampleEnglish: "We ain't touchin' that ditch before noon, boss.",
+      examplePhonetic: 'lets SER-kul bak AF-ter lunch on this trench',
+    },
+    {
+      id: 'fb-ct-2',
+      language: 'corp_trades',
+      foreign: 'Bandwidth is tight',
+      english: "My crew's already slammed",
+      phonetic: 'BAND-with iz tyt',
+      illustrationKey: 'calendar_milestone',
+      exampleForeign: 'Honestly, my bandwidth is tight till Friday afternoon.',
+      exampleEnglish: "Honestly, my crew's slammed till Friday quittin' time.",
+      examplePhonetic: 'AH-nest-lee, my BAND-with iz tyt til FRY-day',
+    },
+    {
+      id: 'fb-ct-3',
+      language: 'corp_trades',
+      foreign: 'Synergize cross-functionally',
+      english: 'Help the sparkies haul wire',
+      phonetic: 'SIN-er-jyz kross-FUNK-shun-uh-lee',
+      illustrationKey: 'helping_hands',
+      exampleForeign: 'Can we synergize cross-functionally by the breaker box?',
+      exampleEnglish: "Can y'all help the electricians pull wire today?",
+      examplePhonetic: 'kan wee SIN-er-jyz by thuh BRAY-ker boks',
+    },
+    {
+      id: 'fb-ct-4',
+      language: 'corp_trades',
+      foreign: 'Quick EOD touchpoint',
+      english: 'Four-forty-five tailgate gripe',
+      phonetic: 'kwik ee-oh-dee TUCH-poynt',
+      illustrationKey: 'lightning_wit',
+      exampleForeign: 'Sending a quick EOD touchpoint before you pack tools.',
+      exampleEnglish: 'Gonna corner ya by the truck before shift ends.',
+      examplePhonetic: 'SEND-ing uh kwik ee-oh-dee TUCH-poynt',
+    },
+    {
+      id: 'fb-ct-5',
+      language: 'corp_trades',
+      foreign: 'Suboptimal deliverable',
+      english: 'This drywall looks crooked',
+      phonetic: 'sub-AHP-tuh-mul dih-LIV-er-uh-bul',
+      illustrationKey: 'architect_blueprint',
+      exampleForeign: 'Folks, this wall feels like a suboptimal deliverable.',
+      exampleEnglish: "Boys, this sheetrock's wavy as a country road.",
+      examplePhonetic: 'fawks, this wawl iz uh sub-AHP-tuh-mul dih-LIV-er-uh-bul',
+    },
+    {
+      id: 'fb-ct-6',
+      language: 'corp_trades',
+      foreign: 'Unpack the core ask',
+      english: 'Just tell me what broke',
+      phonetic: 'un-PAK thuh kor ask',
+      illustrationKey: 'magnifying_discovery',
+      exampleForeign: "Let's unpack the core ask before we order lumber.",
+      exampleEnglish: 'Quit the riddle and say which pipe busted.',
+      examplePhonetic: 'lets un-PAK thuh kor ask bih-FOR lum-ber',
+    },
+    {
+      id: 'fb-ct-7',
+      language: 'corp_trades',
+      foreign: 'Retention pizza morale',
+      english: 'Cold pepperoni instead of overtime',
+      phonetic: 'rih-TEN-shun PEET-zuh mor-AL',
+      illustrationKey: 'golden_cheese',
+      exampleForeign: "HR approved retention pizza morale for Saturday's pour.",
+      exampleEnglish: 'Front office bought two pies instead of raise money.',
+      examplePhonetic: 'aych-ahr uh-PROOVD rih-TEN-shun PEET-zuh mor-AL',
+    },
+    {
+      id: 'fb-ct-8',
+      language: 'corp_trades',
+      foreign: 'Take this offline',
+      english: 'Meet me by the toolbox',
+      phonetic: 'tayk this AWF-lyn',
+      illustrationKey: 'debate_podium',
+      exampleForeign: "Great pushback, let's take this offline near loading bay.",
+      exampleEnglish: "Cool speech, come talk by the trailer where it's quiet.",
+      examplePhonetic: 'grayt PUSH-bak, lets tayk this AWF-lyn',
+    },
+  ],
+  midwest_northeast: [
+    {
+      id: 'fb-mn-1',
+      language: 'midwest_northeast',
+      foreign: 'Ope, sneak right past ya',
+      english: 'Move it or lose it, pal!',
+      phonetic: 'ohp, sneek ryt past yuh',
+      illustrationKey: 'direction_left_right',
+      exampleForeign: 'Ope, sneak right past ya for the last bagel!',
+      exampleEnglish: "Yo, out the way—I'm grabbin' that everything bagel!",
+      examplePhonetic: 'ohp, sneek ryt past yuh for thuh last BAY-gul',
+    },
+    {
+      id: 'fb-mn-2',
+      language: 'midwest_northeast',
+      foreign: 'Welp, interesting parking job',
+      english: 'Who taught ya, a pigeon?',
+      phonetic: 'welp, IN-tres-ting PAR-king jahb',
+      illustrationKey: 'express_train',
+      exampleForeign: 'Welp, interesting parking job across two whole spaces!',
+      exampleEnglish: "Are you kiddin' me across the crosswalk? Fuggedaboutit!",
+      examplePhonetic: 'welp, IN-tres-ting PAR-king jahb uh-KROSS too spay-sez',
+    },
+    {
+      id: 'fb-mn-3',
+      language: 'midwest_northeast',
+      foreign: 'Slap knees and say welp',
+      english: "I'm walkin' out the door now",
+      phonetic: 'slap neez and say welp',
+      illustrationKey: 'explorer_boots',
+      exampleForeign: 'Time to slap knees and say welp before midnight.',
+      exampleEnglish: "Alright, I'm out—catch ya on the avenue!",
+      examplePhonetic: 'tym too slap neez and say welp bih-FOR MID-nyt',
+    },
+    {
+      id: 'fb-mn-4',
+      language: 'midwest_northeast',
+      foreign: "That's different",
+      english: 'Fuggedaboutit, total garbage',
+      phonetic: 'thats DIF-er-ent',
+      illustrationKey: 'gentle_no',
+      exampleForeign: "Your lukewarm soup? Well, that's different for sure!",
+      exampleEnglish: 'This lukewarm soup is dead to me, fuggedaboutit!',
+      examplePhonetic: 'wel, thats DIF-er-ent for shur',
+    },
+    {
+      id: 'fb-mn-5',
+      language: 'midwest_northeast',
+      foreign: 'You betcha, no trouble!',
+      english: "Done deal, stop yappin'!",
+      phonetic: 'yoo BECH-uh, noh TRUB-ul',
+      illustrationKey: 'friendly_handshake',
+      exampleForeign: 'You betcha, no trouble hauling three coolers up!',
+      exampleEnglish: "Consider it done, quit sayin' thank you already!",
+      examplePhonetic: 'yoo BECH-uh, noh TRUB-ul HAW-ling three KOO-lerz',
+    },
+    {
+      id: 'fb-mn-6',
+      language: 'midwest_northeast',
+      foreign: 'No, you go ahead first',
+      english: "Hit the gas or I'm honkin'!",
+      phonetic: 'noh, yoo goh uh-HED ferst',
+      illustrationKey: 'city_park',
+      exampleForeign: 'At this four-way stop, no, you go ahead first!',
+      exampleEnglish: "It's your right-of-way, pal—step on the pedal!",
+      examplePhonetic: 'at this four-way stahp, noh yoo goh uh-HED ferst',
+    },
+    {
+      id: 'fb-mn-7',
+      language: 'midwest_northeast',
+      foreign: 'Brought ya some hotdish',
+      english: 'Grabbed bagels and schmear',
+      phonetic: 'brawt yuh sum HAHT-dish',
+      illustrationKey: 'warm_bread',
+      exampleForeign: 'Popped over and brought ya some hotdish in foil!',
+      exampleEnglish: 'Stopped by the deli and grabbed bagels and schmear!',
+      examplePhonetic: 'pahpt OH-ver and brawt yuh sum HAHT-dish',
+    },
+    {
+      id: 'fb-mn-8',
+      language: 'midwest_northeast',
+      foreign: "Oh, it's just a breeze",
+      english: "Freezin' my face off on 8th",
+      phonetic: 'oh, its just uh breez',
+      illustrationKey: 'winter_coat',
+      exampleForeign: "Wind off Lake Superior? Oh, it's just a breeze!",
+      exampleEnglish: "Ten degrees on the corner—my ears are fallin' off!",
+      examplePhonetic: 'wind awf layk soo-PEER-ee-er? oh, its just uh breez',
+    },
+  ],
+  south_genz: [
+    {
+      id: 'fb-sg-1',
+      language: 'south_genz',
+      foreign: 'Well bless his heart',
+      english: 'Bro is cooked, zero aura',
+      phonetic: 'wel bles hiz hart',
+      illustrationKey: 'theater_comedy_masks',
+      exampleForeign: 'Well bless his heart, he tried parallel parking again.',
+      exampleEnglish: 'Bro lost a thousand aura points on that curb, no cap.',
+      examplePhonetic: 'wel bles hiz hart, hee tryd PAR-uh-lel PAR-king',
+    },
+    {
+      id: 'fb-sg-2',
+      language: 'south_genz',
+      foreign: "Ain't that just precious",
+      english: 'Lowkey cringe NPC behavior',
+      phonetic: 'aynt that just PRESH-us',
+      illustrationKey: 'clever_fox_lantern',
+      exampleForeign: "Livestreaming in line? Ain't that just precious, sugar!",
+      exampleEnglish: 'Doing TikTok dances in the aisle is straight NPC behavior!',
+      examplePhonetic: 'aynt that just PRESH-us, SHUG-er',
+    },
+    {
+      id: 'fb-sg-3',
+      language: 'south_genz',
+      foreign: 'Sweet as sugar pie',
+      english: 'Main-character energy, respectfully',
+      phonetic: 'sweet az SHUG-er py',
+      illustrationKey: 'ceremonial_tea_set',
+      exampleForeign: "Bring that pitcher, you're sweet as sugar pie today!",
+      exampleEnglish: "Respectfully, you're eating with that sweet tea drip!",
+      examplePhonetic: 'yur sweet az SHUG-er py tuh-DAY',
+    },
+    {
+      id: 'fb-sg-4',
+      language: 'south_genz',
+      foreign: 'Hold my sweet tea',
+      english: 'Watch me cook, no cap',
+      phonetic: 'hohld my sweet tee',
+      illustrationKey: 'lightning_wit',
+      exampleForeign: 'Hold my sweet tea while I settle this casserole!',
+      exampleEnglish: 'Wait, let me cook real quick, respectfully!',
+      examplePhonetic: 'hohld my sweet tee wyl eye SET-ul this',
+    },
+    {
+      id: 'fb-sg-5',
+      language: 'south_genz',
+      foreign: "That dog won't hunt",
+      english: "Chat, that's straight delulu",
+      phonetic: 'that dawg wohnt hunt',
+      illustrationKey: 'playful_dog',
+      exampleForeign: "Lukewarm biscuits? Honey, that dog won't hunt!",
+      exampleEnglish: 'Chat, that take is straight delulu and ratioed!',
+      examplePhonetic: 'HUN-ee, that dawg wohnt hunt',
+    },
+    {
+      id: 'fb-sg-6',
+      language: 'south_genz',
+      foreign: "Y'all come sit a spell",
+      english: 'Hop in the group-chat lobby',
+      phonetic: 'yawl kum sit uh spel',
+      illustrationKey: 'cozy_home',
+      exampleForeign: "Porch swings are open—y'all come sit a spell!",
+      exampleEnglish: 'Hop in the voice call and chill for a sec!',
+      examplePhonetic: 'porch swingz ar OH-pen—yawl kum sit uh spel',
+    },
+    {
+      id: 'fb-sg-7',
+      language: 'south_genz',
+      foreign: "Fixin' to go yonder",
+      english: 'Finna lock in and dip',
+      phonetic: 'FIK-sin too goh YAHN-der',
+      illustrationKey: 'see_you_soon',
+      exampleForeign: "Grab your sunhat, we're fixin' to go yonder!",
+      exampleEnglish: "Bet, we're finna dip to the other spot!",
+      examplePhonetic: 'weer FIK-sin too goh YAHN-der',
+    },
+    {
+      id: 'fb-sg-8',
+      language: 'south_genz',
+      foreign: "I'll pray for ya",
+      english: "Sending thoughts, you're cooked",
+      phonetic: 'yl pray for yuh',
+      illustrationKey: 'warm_teacup',
+      exampleForeign: "White sneakers in red clay? I'll pray for ya!",
+      exampleEnglish: "Zero survival instincts on the timeline, it's over!",
+      examplePhonetic: 'wyt SNEE-kerz in red klay? yl pray for yuh',
+    },
+  ],
+  cali_country: [
+    {
+      id: 'fb-cc-1',
+      language: 'cali_country',
+      foreign: 'My cortisol is spiked',
+      english: "I'm plumb tuckered out",
+      phonetic: 'my KOR-tih-zawl iz spykt',
+      illustrationKey: 'feelings_weather',
+      exampleForeign: 'Skipping my oat latte means my cortisol is spiked!',
+      exampleEnglish: "Haulin' firewood since dawn got me plumb tuckered out!",
+      examplePhonetic: 'my KOR-tih-zawl iz spykt',
+    },
+    {
+      id: 'fb-cc-2',
+      language: 'cali_country',
+      foreign: 'Adaptogenic cold-plunge',
+      english: "Jumpin' in the icy creek",
+      phonetic: 'uh-dap-tuh-JEN-ik kohld-plunj',
+      illustrationKey: 'water_carafe',
+      exampleForeign: 'Dawn starts with an adaptogenic cold-plunge in Malibu.',
+      exampleEnglish: "Wrecked my shins hoppin' in the creek at sunrise!",
+      examplePhonetic: 'uh-dap-tuh-JEN-ik kohld-plunj in MAL-uh-boo',
+    },
+    {
+      id: 'fb-cc-3',
+      language: 'cali_country',
+      foreign: 'Protect my sacred bandwidth',
+      english: 'Leave me alone on the porch',
+      phonetic: 'pruh-TEKT my SAY-kred BAND-with',
+      illustrationKey: 'calm_lotus',
+      exampleForeign: 'Please protect my sacred bandwidth until noon breathwork.',
+      exampleEnglish: "Don't holler at me till I finish my porch coffee!",
+      examplePhonetic: 'pleez pruh-TEKT my SAY-kred BAND-with',
+    },
+    {
+      id: 'fb-cc-4',
+      language: 'cali_country',
+      foreign: 'Holding space for vibes',
+      english: "Waitin' on the smoker ribs",
+      phonetic: 'HOHL-ding spays for vybz',
+      illustrationKey: 'campfire_story',
+      exampleForeign: 'We are holding space for vibes by the canyon fire.',
+      exampleEnglish: "Just watchin' hickory smoke curl over the tailgate!",
+      examplePhonetic: 'wee ar HOHL-ding spays for vybz',
+    },
+    {
+      id: 'fb-cc-5',
+      language: 'cali_country',
+      foreign: 'Raw-water biohack',
+      english: "Drinkin' straight from the spring",
+      phonetic: 'raw WAW-ter BY-oh-hak',
+      illustrationKey: 'crystal_beaker',
+      exampleForeign: 'Paid nineteen bucks for a raw-water biohack bottle!',
+      exampleEnglish: "Boy, that's just holler spring water in fancy glass!",
+      examplePhonetic: 'payd nyn-teen buks for uh raw WAW-ter BY-oh-hak',
+    },
+    {
+      id: 'fb-cc-6',
+      language: 'cali_country',
+      foreign: 'Realign your root chakra',
+      english: 'Hit it with duct tape',
+      phonetic: 'ree-uh-LYN yor root SHAH-kruh',
+      illustrationKey: 'sprouting_seedling',
+      exampleForeign: 'A sound-bath gong will realign your root chakra fast.',
+      exampleEnglish: 'Slap some silver duct tape on that fender and ride!',
+      examplePhonetic: 'uh sownd-bath gawng wil ree-uh-LYN yor root SHAH-kruh',
+    },
+    {
+      id: 'fb-cc-7',
+      language: 'cali_country',
+      foreign: 'Organic sourdough starter',
+      english: "Granny's skillet cornbread",
+      phonetic: 'or-GAN-ik SOW-er-doh STAR-ter',
+      illustrationKey: 'warm_bread',
+      exampleForeign: 'I named my organic sourdough starter after my aura.',
+      exampleEnglish: "Nothing beats Granny's cast-iron cornbread with butter!",
+      examplePhonetic: 'eye naymd my or-GAN-ik SOW-er-doh STAR-ter',
+    },
+    {
+      id: 'fb-cc-8',
+      language: 'cali_country',
+      foreign: 'Silent Malibu sound-bath',
+      english: 'Listening to creek bullfrogs',
+      phonetic: 'SY-lent MAL-uh-boo SOWND-bath',
+      illustrationKey: 'sunny_mountain',
+      exampleForeign: 'Booked a silent Malibu sound-bath for deep grounding.',
+      exampleEnglish: 'We got free bullfrog concerts down by the holler!',
+      examplePhonetic: 'bookt uh SY-lent MAL-uh-boo SOWND-bath',
+    },
+  ],
+  stoner_tactical: [
+    {
+      id: 'fb-st-1',
+      language: 'stoner_tactical',
+      foreign: "Yo, it's all chill",
+      english: 'Copy that, perimeter secure',
+      phonetic: 'yoh, its awl chil',
+      illustrationKey: 'thumbs_yes',
+      exampleForeign: "Dropped your deck? Yo, it's all chill, bro!",
+      exampleEnglish: 'Copy that, lawn sector alpha is locked and level!',
+      examplePhonetic: 'yoh, its awl chil, broh',
+    },
+    {
+      id: 'fb-st-2',
+      language: 'stoner_tactical',
+      foreign: 'Late-night taco drive-thru',
+      english: 'Execute covert snack extraction',
+      phonetic: 'layt-nyt TAH-koh dryv-throo',
+      illustrationKey: 'crispy_treat',
+      exampleForeign: "Dude, who's down for a late-night taco drive-thru?",
+      exampleEnglish: 'Deploy for covert snack extraction at 0-dark-thirty!',
+      examplePhonetic: 'dood, hooz down for uh layt-nyt TAH-koh dryv-throo',
+    },
+    {
+      id: 'fb-st-3',
+      language: 'stoner_tactical',
+      foreign: 'Clouds are sky pillows',
+      english: 'Zero-ceiling tactical overcast',
+      phonetic: 'klowdz ar sky PIL-ohz',
+      illustrationKey: 'crescent_moon',
+      exampleForeign: 'Whoa man, clouds are sky pillows floating overhead.',
+      exampleEnglish: 'Tactical weather briefing: forty percent cloud cover!',
+      examplePhonetic: 'woh man, klowdz ar sky PIL-ohz',
+    },
+    {
+      id: 'fb-st-4',
+      language: 'stoner_tactical',
+      foreign: 'Shred the gnarly half-pipe',
+      english: 'Precision-edge the cul-de-sac turf',
+      phonetic: 'shred thuh NAR-lee haf-pyp',
+      illustrationKey: 'bicycle_ride',
+      exampleForeign: 'Grab your wax and shred the gnarly half-pipe today!',
+      exampleEnglish: 'Calibrate the trimmer and edge the driveway perimeter!',
+      examplePhonetic: 'grab yor waks and shred thuh NAR-lee haf-pyp',
+    },
+    {
+      id: 'fb-st-5',
+      language: 'stoner_tactical',
+      foreign: 'Dude, totally spaced out',
+      english: 'Radio silence at 0-dark-thirty',
+      phonetic: 'dood, TOH-tul-ee spayst owt',
+      illustrationKey: 'night_stars',
+      exampleForeign: 'My bad bro, dude, totally spaced out on the curb!',
+      exampleEnglish: 'Comms check failed—unit went dark at 0-dark-thirty!',
+      examplePhonetic: 'dood, TOH-tul-ee spayst owt',
+    },
+    {
+      id: 'fb-st-6',
+      language: 'stoner_tactical',
+      foreign: 'Kickflip over the sprinkler',
+      english: 'Breach laser-measured Bermuda grass',
+      phonetic: 'KIK-flip OH-ver thuh SPRINK-ler',
+      illustrationKey: 'horizon_telescope',
+      exampleForeign: 'Watch me land a kickflip over the sprinkler head!',
+      exampleEnglish: 'Alert! Bogey breaching the laser-measured perimeter!',
+      examplePhonetic: 'wach mee land uh KIK-flip OH-ver thuh SPRINK-ler',
+    },
+    {
+      id: 'fb-st-7',
+      language: 'stoner_tactical',
+      foreign: 'Cosmic couch-lock zone',
+      english: 'Standby recovery on the recliner',
+      phonetic: 'KAHZ-mik kowch-lahk zohn',
+      illustrationKey: 'cozy_bed',
+      exampleForeign: 'Three cheesy burritos triggered cosmic couch-lock zone.',
+      exampleEnglish: 'Commander entering tactical recovery mode on recliner!',
+      examplePhonetic: 'three CHEE-zee bur-EE-tohz TRIG-erd KAHZ-mik kowch-lahk zohn',
+    },
+    {
+      id: 'fb-st-8',
+      language: 'stoner_tactical',
+      foreign: 'Good vibes only, dude',
+      english: 'Maintain neighborhood morale green',
+      phonetic: 'good vybz OHN-lee, dood',
+      illustrationKey: 'happy_smile',
+      exampleForeign: 'No HOA stress here—good vibes only, dude!',
+      exampleEnglish: 'Hold formation and keep cul-de-sac morale green!',
+      examplePhonetic: 'noh aych-oh-ay stres heer—good vybz OHN-lee, dood',
+    },
+  ],
 };
+
+interface LengthFontBucket {
+  maxLen: number;
+  compact: string;
+  regular: string;
+}
+
+const FOREIGN_FONT_BUCKETS: Record<'tight' | 'normal' | 'large', readonly LengthFontBucket[]> = {
+  tight: [
+    { maxLen: 8, compact: 'clamp(0.68rem, 2.1vw, 0.75rem)', regular: 'clamp(0.8rem, 1.15vw, 0.9rem)' },
+    { maxLen: 14, compact: 'clamp(0.62rem, 1.9vw, 0.69rem)', regular: 'clamp(0.74rem, 1.05vw, 0.84rem)' },
+    { maxLen: 22, compact: 'clamp(0.58rem, 1.7vw, 0.64rem)', regular: 'clamp(0.68rem, 0.96vw, 0.76rem)' },
+    { maxLen: 32, compact: 'clamp(0.54rem, 1.55vw, 0.59rem)', regular: 'clamp(0.62rem, 0.88vw, 0.7rem)' },
+    { maxLen: 44, compact: 'clamp(0.51rem, 1.45vw, 0.56rem)', regular: 'clamp(0.58rem, 0.82vw, 0.65rem)' },
+    { maxLen: Infinity, compact: 'clamp(0.49rem, 1.35vw, 0.53rem)', regular: 'clamp(0.55rem, 0.78vw, 0.61rem)' },
+  ],
+  normal: [
+    { maxLen: 10, compact: 'clamp(0.72rem, 2.2vw, 0.8rem)', regular: 'clamp(0.82rem, 1.2vw, 0.9rem)' },
+    { maxLen: 18, compact: 'clamp(0.66rem, 1.95vw, 0.73rem)', regular: 'clamp(0.75rem, 1.1vw, 0.84rem)' },
+    { maxLen: 26, compact: 'clamp(0.6rem, 1.75vw, 0.67rem)', regular: 'clamp(0.69rem, 1vw, 0.76rem)' },
+    { maxLen: 38, compact: 'clamp(0.55rem, 1.6vw, 0.61rem)', regular: 'clamp(0.63rem, 0.92vw, 0.7rem)' },
+    { maxLen: Infinity, compact: 'clamp(0.52rem, 1.5vw, 0.57rem)', regular: 'clamp(0.59rem, 0.85vw, 0.65rem)' },
+  ],
+  large: [
+    { maxLen: 10, compact: 'clamp(0.8rem, 2.4vw, 0.92rem)', regular: 'clamp(0.95rem, 1.4vw, 1.08rem)' },
+    { maxLen: 18, compact: 'clamp(0.72rem, 2.15vw, 0.82rem)', regular: 'clamp(0.86rem, 1.25vw, 0.98rem)' },
+    { maxLen: 26, compact: 'clamp(0.65rem, 1.9vw, 0.73rem)', regular: 'clamp(0.76rem, 1.1vw, 0.87rem)' },
+    { maxLen: 36, compact: 'clamp(0.59rem, 1.7vw, 0.67rem)', regular: 'clamp(0.68rem, 1vw, 0.78rem)' },
+    { maxLen: Infinity, compact: 'clamp(0.54rem, 1.55vw, 0.61rem)', regular: 'clamp(0.63rem, 0.92vw, 0.72rem)' },
+  ],
+};
+
+const CLUE_FONT_BUCKETS: Record<'prompt' | 'tile' | 'card' | 'cloze', readonly LengthFontBucket[]> = {
+  prompt: [
+    { maxLen: 18, compact: 'clamp(0.84rem, 2.5vw, 0.96rem)', regular: 'clamp(0.98rem, 1.45vw, 1.14rem)' },
+    { maxLen: 28, compact: 'clamp(0.76rem, 2.25vw, 0.86rem)', regular: 'clamp(0.88rem, 1.3vw, 1.02rem)' },
+    { maxLen: 40, compact: 'clamp(0.7rem, 2.05vw, 0.78rem)', regular: 'clamp(0.8rem, 1.15vw, 0.92rem)' },
+    { maxLen: Infinity, compact: 'clamp(0.64rem, 1.85vw, 0.72rem)', regular: 'clamp(0.74rem, 1.05vw, 0.84rem)' },
+  ],
+  tile: [
+    { maxLen: 16, compact: 'clamp(0.74rem, 2.3vw, 0.86rem)', regular: 'clamp(0.9rem, 1.35vw, 1.04rem)' },
+    { maxLen: 24, compact: 'clamp(0.68rem, 2vw, 0.76rem)', regular: 'clamp(0.8rem, 1.18vw, 0.92rem)' },
+    { maxLen: 34, compact: 'clamp(0.61rem, 1.8vw, 0.69rem)', regular: 'clamp(0.72rem, 1.05vw, 0.82rem)' },
+    { maxLen: 46, compact: 'clamp(0.56rem, 1.65vw, 0.63rem)', regular: 'clamp(0.66rem, 0.96vw, 0.76rem)' },
+    { maxLen: Infinity, compact: 'clamp(0.52rem, 1.5vw, 0.58rem)', regular: 'clamp(0.62rem, 0.9vw, 0.71rem)' },
+  ],
+  card: [
+    { maxLen: 18, compact: 'clamp(0.6rem, 1.85vw, 0.68rem)', regular: 'clamp(0.74rem, 1.05vw, 0.82rem)' },
+    { maxLen: 28, compact: 'clamp(0.55rem, 1.65vw, 0.61rem)', regular: 'clamp(0.66rem, 0.95vw, 0.74rem)' },
+    { maxLen: 40, compact: 'clamp(0.51rem, 1.5vw, 0.56rem)', regular: 'clamp(0.6rem, 0.86vw, 0.68rem)' },
+    { maxLen: Infinity, compact: 'clamp(0.48rem, 1.4vw, 0.52rem)', regular: 'clamp(0.56rem, 0.8vw, 0.62rem)' },
+  ],
+  cloze: [
+    { maxLen: 24, compact: 'clamp(0.78rem, 2.3vw, 0.88rem)', regular: 'clamp(0.96rem, 1.4vw, 1.1rem)' },
+    { maxLen: 38, compact: 'clamp(0.72rem, 2.05vw, 0.8rem)', regular: 'clamp(0.88rem, 1.28vw, 1rem)' },
+    { maxLen: 54, compact: 'clamp(0.66rem, 1.85vw, 0.74rem)', regular: 'clamp(0.8rem, 1.15vw, 0.92rem)' },
+    { maxLen: Infinity, compact: 'clamp(0.61rem, 1.7vw, 0.68rem)', regular: 'clamp(0.74rem, 1.05vw, 0.85rem)' },
+  ],
+};
+
+function pickBucketFontSize(
+  buckets: readonly LengthFontBucket[],
+  length: number,
+  isCompact: boolean
+): string {
+  const matched = buckets.find((b) => length <= b.maxLen) ?? buckets[buckets.length - 1];
+  return isCompact ? matched.compact : matched.regular;
+}
+
+export function getArcadeClueTextStyle(
+  text: string,
+  options: {
+    isCompact?: boolean;
+    variant?: 'prompt' | 'tile' | 'card' | 'cloze';
+    color?: string;
+    textAlign?: 'center' | 'start';
+  } = {}
+): CSSProperties {
+  const { isCompact = false, variant = 'tile', color, textAlign = 'center' } = options;
+  const fontSize = pickBucketFontSize(CLUE_FONT_BUCKETS[variant], text.length, isCompact);
+
+  return {
+    fontFamily: 'var(--font-display)',
+    fontWeight: 900,
+    fontSize,
+    lineHeight: text.length > 26 ? 1.16 : 1.24,
+    color,
+    textAlign,
+    maxWidth: '100%',
+    minWidth: 0,
+    whiteSpace: 'normal',
+    overflowWrap: 'anywhere',
+    wordBreak: 'normal',
+  };
+}
 
 export function getArcadeForeignTextStyle(
   language: LanguageCode,
@@ -381,48 +928,14 @@ export function getArcadeForeignTextStyle(
   const widthFactor = isCjk ? 1.65 : meta.scriptType === 'cyrillic' ? 1.15 : isTallScript ? 1.1 : 1;
   const effectiveLen = text.length * widthFactor;
 
-  let fontSize: string;
-  if (density === 'tight') {
-    if (isCompact) {
-      if (effectiveLen <= 8) fontSize = isTallScript ? '0.78rem' : '0.74rem';
-      else if (effectiveLen <= 14) fontSize = '0.68rem';
-      else if (effectiveLen <= 22) fontSize = '0.62rem';
-      else if (effectiveLen <= 30) fontSize = '0.57rem';
-      else fontSize = '0.53rem';
+  let fontSize = pickBucketFontSize(FOREIGN_FONT_BUCKETS[density], effectiveLen, isCompact);
+  if (isTallScript && effectiveLen <= 10) {
+    if (density === 'tight') {
+      fontSize = isCompact ? 'clamp(0.72rem, 2.2vw, 0.78rem)' : 'clamp(0.86rem, 1.25vw, 0.96rem)';
+    } else if (density === 'large') {
+      fontSize = isCompact ? 'clamp(0.88rem, 2.6vw, 1rem)' : 'clamp(1.04rem, 1.5vw, 1.18rem)';
     } else {
-      if (effectiveLen <= 10) fontSize = isTallScript ? '0.96rem' : '0.9rem';
-      else if (effectiveLen <= 16) fontSize = '0.82rem';
-      else if (effectiveLen <= 24) fontSize = '0.74rem';
-      else if (effectiveLen <= 34) fontSize = '0.67rem';
-      else fontSize = '0.61rem';
-    }
-  } else if (density === 'large') {
-    if (isCompact) {
-      if (effectiveLen <= 10) fontSize = isTallScript ? '1rem' : '0.92rem';
-      else if (effectiveLen <= 18) fontSize = '0.82rem';
-      else if (effectiveLen <= 26) fontSize = '0.72rem';
-      else if (effectiveLen <= 34) fontSize = '0.66rem';
-      else fontSize = '0.6rem';
-    } else {
-      if (effectiveLen <= 12) fontSize = isTallScript ? '1.18rem' : '1.08rem';
-      else if (effectiveLen <= 20) fontSize = '0.96rem';
-      else if (effectiveLen <= 28) fontSize = '0.85rem';
-      else if (effectiveLen <= 38) fontSize = '0.76rem';
-      else fontSize = '0.7rem';
-    }
-  } else {
-    if (isCompact) {
-      if (effectiveLen <= 10) fontSize = isTallScript ? '0.84rem' : '0.78rem';
-      else if (effectiveLen <= 18) fontSize = '0.72rem';
-      else if (effectiveLen <= 26) fontSize = '0.65rem';
-      else if (effectiveLen <= 34) fontSize = '0.6rem';
-      else fontSize = '0.55rem';
-    } else {
-      if (effectiveLen <= 12) fontSize = isTallScript ? '0.94rem' : '0.88rem';
-      else if (effectiveLen <= 20) fontSize = '0.8rem';
-      else if (effectiveLen <= 28) fontSize = '0.73rem';
-      else if (effectiveLen <= 38) fontSize = '0.67rem';
-      else fontSize = '0.62rem';
+      fontSize = isCompact ? 'clamp(0.76rem, 2.3vw, 0.85rem)' : 'clamp(0.88rem, 1.3vw, 0.96rem)';
     }
   }
 
@@ -433,13 +946,13 @@ export function getArcadeForeignTextStyle(
     fontFamily: 'var(--font-display)',
     fontWeight: 900,
     fontSize,
-    lineHeight: isMultiLineLatin ? 1.22 : 1.35,
+    lineHeight: isMultiLineLatin ? (effectiveLen > 32 ? 1.14 : 1.2) : 1.35,
     color,
     textAlign,
     maxWidth: '100%',
     minWidth: 0,
     whiteSpace: 'normal',
-    overflowWrap: isCjk ? 'anywhere' : 'break-word',
+    overflowWrap: 'anywhere',
     wordBreak: 'normal',
     paddingBlock: 2,
   };
@@ -557,6 +1070,16 @@ function matchesArcadeProficiencyTier(
   return proficiencyTier === 'C1_C2';
 }
 
+interface CurriculumAdultLazyHelpers {
+  ensureAdultCourseLoaded?: (lang: AdultLanguageCode) => Promise<unknown>;
+  isAdultTrackLoaded?: (lang: AdultLanguageCode) => boolean;
+  subscribeAdultRegistry?: (listener: () => void) => () => void;
+  getAdultRegistryVersion?: () => number;
+}
+
+const subscribeRegistryNoop = () => () => {};
+const getRegistryVersionFallback = () => 0;
+
 export function useArcadeDeck(arcadeTier: ArcadeProficiencyTier = 'sprout'): {
   language: LanguageCode;
   lexicon: ArcadeLanternItem[];
@@ -568,15 +1091,31 @@ export function useArcadeDeck(arcadeTier: ArcadeProficiencyTier = 'sprout'): {
   rewardMultiplier: number;
 } {
   const { activeProfile, activeProgress } = useVaultStore();
+  const lazyCurriculum = curriculum as typeof curriculum & CurriculumAdultLazyHelpers;
+  const registryVersion = useSyncExternalStore(
+    lazyCurriculum.subscribeAdultRegistry ?? subscribeRegistryNoop,
+    lazyCurriculum.getAdultRegistryVersion ?? getRegistryVersionFallback,
+    lazyCurriculum.getAdultRegistryVersion ?? getRegistryVersionFallback
+  );
+
   const rawLang = activeProfile.activeLanguage;
   const isBlockedAdultAccess =
     isAdultLanguage(rawLang) &&
-    (isDefaultKidProfileId(activeProfile.id) || activeProfile.adultModeUnlocked === false);
+    (isDefaultKidProfileId(activeProfile.id) ||
+      !activeProfile.adultModeUnlocked ||
+      !activeProfile.adultModeActive);
   const language: LanguageCode = isBlockedAdultAccess
     ? activeProfile.lastBaseLanguage ?? 'es'
     : rawLang;
   const progressForLanguage = activeProfile.languageProgress?.[language] ?? activeProgress;
   const tierMeta = ARCADE_TIER_META[arcadeTier];
+
+  // Hydrate lazy After-Hours mashup chunks only when Adult Mode is explicitly unlocked & active
+  useEffect(() => {
+    if (isBlockedAdultAccess || !isAdultLanguage(language)) return;
+    if (lazyCurriculum.isAdultTrackLoaded?.(language)) return;
+    void lazyCurriculum.ensureAdultCourseLoaded?.(language);
+  }, [language, isBlockedAdultAccess, lazyCurriculum]);
 
   const rawLexicon = useMemo(() => {
     const fallbackItems = FALLBACK_ARCADE_LEXICON[language] ?? FALLBACK_ARCADE_LEXICON.es;
@@ -603,7 +1142,13 @@ export function useArcadeDeck(arcadeTier: ArcadeProficiencyTier = 'sprout'): {
     } catch {
       return fallbackItems;
     }
-  }, [language, progressForLanguage?.unlockedVocabIds, progressForLanguage?.currentUnitIndex, arcadeTier]);
+  }, [
+    language,
+    progressForLanguage?.unlockedVocabIds,
+    progressForLanguage?.currentUnitIndex,
+    arcadeTier,
+    registryVersion,
+  ]);
 
   const { lexicon, targetLexicon } = useMemo(() => {
     const hasTierTags = rawLexicon.some((item) => item.proficiencyTier !== undefined);
@@ -1055,24 +1600,12 @@ export function TargetPromptBar({
         </span>
         <strong
           dir="ltr"
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: isCompact
-              ? targetItem.english.length > 32
-                ? '0.78rem'
-                : targetItem.english.length > 22
-                  ? '0.85rem'
-                  : '0.94rem'
-              : targetItem.english.length > 34
-                ? '0.95rem'
-                : targetItem.english.length > 24
-                  ? '1.02rem'
-                  : '1.1rem',
-            lineHeight: 1.22,
+          style={getArcadeClueTextStyle(targetItem.english, {
+            isCompact,
+            variant: 'prompt',
             color: 'var(--text-main, #1e1b4b)',
-            maxWidth: '100%',
-            overflowWrap: 'break-word',
-          }}
+            textAlign: 'start',
+          })}
         >
           {targetItem.english}
         </strong>
@@ -1085,11 +1618,11 @@ export function TargetPromptBar({
               background: 'var(--tint-indigo-bg, #eef2ff)',
               border: '1px solid var(--tint-indigo-border, #c7d2fe)',
               color: 'var(--tint-indigo-ink, #3730a3)',
-              fontSize: isCompact ? '0.68rem' : '0.76rem',
+              fontSize: isCompact ? 'clamp(0.6rem, 1.8vw, 0.68rem)' : '0.76rem',
               fontWeight: 800,
-              lineHeight: 1.35,
+              lineHeight: 1.3,
               maxWidth: '100%',
-              overflowWrap: 'break-word',
+              overflowWrap: 'anywhere',
             }}
           >
             {targetItem.romanized}
@@ -1108,11 +1641,17 @@ export function TargetPromptBar({
             borderStyle: 'solid',
             borderColor: 'var(--card-border, #cbd5e1)',
             color: 'var(--text-muted, #475569)',
-            fontSize: isCompact ? '0.68rem' : '0.76rem',
+            fontSize: isCompact
+              ? targetItem.phonetic.length > 26
+                ? 'clamp(0.56rem, 1.65vw, 0.64rem)'
+                : 'clamp(0.62rem, 1.85vw, 0.68rem)'
+              : targetItem.phonetic.length > 32
+                ? '0.7rem'
+                : '0.76rem',
             fontWeight: 800,
-            lineHeight: 1.35,
+            lineHeight: 1.25,
             maxWidth: '100%',
-            overflowWrap: 'break-word',
+            overflowWrap: 'anywhere',
           }}
         >
           {targetItem.phonetic}
@@ -1125,10 +1664,11 @@ export function TargetPromptBar({
             background: 'var(--card-soft-bg, #eff6ff)',
             border: '1px solid var(--card-border, #cbd5e1)',
             color: 'var(--text-muted, #475569)',
-            fontSize: isCompact ? '0.64rem' : '0.7rem',
+            fontSize: isCompact ? 'clamp(0.58rem, 1.7vw, 0.64rem)' : '0.7rem',
             fontWeight: 800,
-            lineHeight: 1.35,
-            flexShrink: 0,
+            lineHeight: 1.3,
+            maxWidth: '100%',
+            overflowWrap: 'anywhere',
           }}
         >
           {langMeta.nativeName}
