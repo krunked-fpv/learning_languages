@@ -12,42 +12,51 @@ import {
   type VocabCard,
 } from '../types/contracts';
 import { getAdultCourse } from './adultRegistry';
-import { arabicCourse } from './ar';
 import { buildArcadeLexicon } from './arcadeLexicon';
-import { egyptianArabicCourse } from './arz';
-import { bengaliCourse } from './bn';
-import { germanCourse } from './de';
-import { englishCourse } from './en';
-import { spanishCourse } from './es';
-import { frenchCourse } from './fr';
-import { hindiCourse } from './hi';
-import { indonesianCourse } from './id';
-import { italianCourse } from './it';
-import { japaneseCourse } from './ja';
-import { portugueseCourse } from './pt';
-import { russianCourse } from './ru';
-import { swahiliCourse } from './sw';
-import { vietnameseCourse } from './vi';
-import { mandarinCourse } from './zh';
+import { getBaseCourse } from './baseRegistry';
 
-export const COURSES: Record<BaseLanguageCode, LanguageCourse> = {
-  es: spanishCourse,
-  fr: frenchCourse,
-  de: germanCourse,
-  it: italianCourse,
-  pt: portugueseCourse,
-  en: englishCourse,
-  zh: mandarinCourse,
-  ja: japaneseCourse,
-  hi: hindiCourse,
-  bn: bengaliCourse,
-  ar: arabicCourse,
-  arz: egyptianArabicCourse,
-  ru: russianCourse,
-  id: indonesianCourse,
-  vi: vietnameseCourse,
-  sw: swahiliCourse,
-};
+const BASE_LANGUAGE_SET: ReadonlySet<string> = new Set<string>(VISIBLE_BASE_LANGUAGES);
+
+function isBaseLanguageKey(prop: string | symbol): prop is BaseLanguageCode {
+  return typeof prop === 'string' && BASE_LANGUAGE_SET.has(prop);
+}
+
+/**
+ * Lazy-backed Proxy delegating property reads to `getBaseCourse(lang)` so Vite
+ * production builds split non-Spanish base courses into separate chunks while
+ * preserving synchronous `Record<BaseLanguageCode, LanguageCourse>` ergonomics.
+ */
+export const COURSES: Record<BaseLanguageCode, LanguageCourse> = new Proxy(
+  {} as Record<BaseLanguageCode, LanguageCourse>,
+  {
+    get(target, prop) {
+      if (isBaseLanguageKey(prop)) {
+        return getBaseCourse(prop);
+      }
+      return Reflect.get(target, prop);
+    },
+    has(target, prop) {
+      if (isBaseLanguageKey(prop)) {
+        return true;
+      }
+      return Reflect.has(target, prop);
+    },
+    ownKeys() {
+      return [...VISIBLE_BASE_LANGUAGES];
+    },
+    getOwnPropertyDescriptor(target, prop) {
+      if (isBaseLanguageKey(prop)) {
+        return {
+          enumerable: true,
+          configurable: true,
+          writable: true,
+          value: getBaseCourse(prop),
+        };
+      }
+      return Reflect.getOwnPropertyDescriptor(target, prop);
+    },
+  }
+);
 
 /**
  * Returns the language codes visible in UI pickers for the current Adult Mode state.
@@ -57,7 +66,7 @@ export function getVisibleLanguageCodes(adultModeActive: boolean): readonly Lang
 }
 
 export function getCourse(lang: LanguageCode): LanguageCourse {
-  return isAdultLanguage(lang) ? getAdultCourse(lang) : COURSES[lang];
+  return isAdultLanguage(lang) ? getAdultCourse(lang) : getBaseCourse(lang);
 }
 
 export function getUnitById(lang: LanguageCode, unitId: string): CourseUnit | undefined {
@@ -98,6 +107,20 @@ export {
 } from './adultRegistry';
 
 export {
+  ensureAllBaseCoursesLoaded,
+  ensureBaseCourseLoaded,
+  getBaseCourse,
+  getBaseGlossary,
+  getBaseLoadState,
+  getBaseRegistryVersion,
+  isBaseCurriculumLoaded,
+  isBaseTrackLoaded,
+  registerBaseCourses,
+  subscribeBaseRegistry,
+} from './baseRegistry';
+
+export {
+  buildSrsReviewQuestNode,
   buildTierCheckpointNode,
   getCourseGlossary,
   getNodePoolSize,
