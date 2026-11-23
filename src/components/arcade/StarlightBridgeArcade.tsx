@@ -488,11 +488,216 @@ export function StarlightBridgeArcade({
   const clozeSentenceLen =
     cloze.beforeBlank.length + cloze.blankLabel.length + cloze.afterBlank.length;
 
+  const clozeHeaderLabel = (
+    <span
+      style={{
+        fontSize: isCompact ? '0.58rem' : '0.68rem',
+        fontWeight: 900,
+        letterSpacing: '0.04em',
+        color: '#4f46e5',
+        textTransform: 'uppercase',
+        lineHeight: 1.15,
+      }}
+    >
+      {cloze.mode === 'sentence_cloze' ? 'Complete the Bridge Sentence' : 'Bridge Cloze Clue'}
+    </span>
+  );
+
+  const clozePromptNode =
+    cloze.mode === 'sentence_cloze' ? (
+      <div
+        dir={langDir}
+        style={{
+          ...getArcadeClueTextStyle(
+            `${cloze.beforeBlank}${cloze.blankLabel}${cloze.afterBlank}`,
+            {
+              isCompact,
+              variant: 'cloze',
+              color: '#1e1b4b',
+              textAlign: 'start',
+            }
+          ),
+          display: 'flex',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: isCompact ? 3 : 5,
+        }}
+      >
+        {cloze.beforeBlank ? <span>{cloze.beforeBlank}</span> : null}
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: isCompact ? '0px 7px' : '1px 10px',
+            borderRadius: isCompact ? 8 : 10,
+            background: plankLocked ? '#d1fae5' : '#fef3c7',
+            border: `2px dashed ${plankLocked ? '#10b981' : '#f59e0b'}`,
+            color: plankLocked ? '#065f46' : '#b45309',
+            minWidth: isCompact ? 42 : 54,
+            maxWidth: '100%',
+            textAlign: 'center',
+            overflowWrap: 'anywhere',
+            justifyContent: 'center',
+          }}
+        >
+          {plankLocked ? cloze.blankLabel : '____'}
+        </span>
+        {cloze.afterBlank ? <span>{cloze.afterBlank}</span> : null}
+      </div>
+    ) : (
+      <div style={{ display: 'flex', alignItems: 'center', gap: isCompact ? 4 : 6, flexWrap: 'wrap', minWidth: 0 }}>
+        <span
+          dir="ltr"
+          style={getArcadeClueTextStyle(cloze.englishClue, {
+            isCompact,
+            variant: 'cloze',
+            color: '#1e1b4b',
+            textAlign: 'start',
+          })}
+        >
+          {cloze.englishClue}
+        </span>
+        <span
+          dir={langDir}
+          style={{
+            padding: isCompact ? '0px 7px' : '1px 9px',
+            borderRadius: isCompact ? 8 : 10,
+            background: plankLocked ? '#d1fae5' : '#fef3c7',
+            border: `2px dashed ${plankLocked ? '#10b981' : '#f59e0b'}`,
+            color: plankLocked ? '#065f46' : '#b45309',
+            fontFamily: 'var(--font-display)',
+            fontSize: isCompact ? 'clamp(0.72rem, 2.1vw, 0.8rem)' : '0.96rem',
+            fontWeight: 900,
+            maxWidth: '100%',
+            overflowWrap: 'anywhere',
+          }}
+        >
+          {plankLocked ? cloze.blankLabel : '____'}
+        </span>
+      </div>
+    );
+
+  const hintButtonNode = (
+    <StarlightHintButton
+      size="xs"
+      hintTier={hint.hintTier}
+      hintsUsed={hint.hintsUsed}
+      isAnimating={hint.isAnimating}
+      canHint={hint.canHint}
+      onTrigger={hint.triggerHint}
+    />
+  );
+
+  const hearButtonNode = (
+    <button
+      type="button"
+      className="tactile-btn"
+      aria-label={`Hear ${round.target.foreign}`}
+      style={{
+        ...SOFT_BTN_STYLE,
+        padding: isCompact ? '3px 7px' : '6px 10px',
+        fontSize: isCompact ? '0.68rem' : '0.76rem',
+        borderRadius: isCompact ? 10 : 12,
+        borderBottomWidth: isCompact ? 3 : 4,
+        flexShrink: 0,
+      }}
+      onClick={() => {
+        void speakPhrase({
+          text: cloze.speakText,
+          language,
+          phonetic: cloze.phoneticHint,
+        });
+      }}
+    >
+      <Volume2 size={isCompact ? 13 : 14} />
+      {!isCompact ? <span>Hear</span> : null}
+    </button>
+  );
+
+  const clozeMetaRow = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: isCompact ? 3 : 5, flexWrap: 'wrap', minWidth: 0 }}>
+      {cloze.mode === 'sentence_cloze' ? (
+        <span
+          dir="ltr"
+          style={{
+            fontSize: isCompact
+              ? cloze.englishClue.length > 36
+                ? 'clamp(0.6rem, 1.75vw, 0.65rem)'
+                : '0.67rem'
+              : '0.8rem',
+            fontWeight: 800,
+            lineHeight: isCompact ? 1.16 : 1.2,
+            color: '#475569',
+            maxWidth: '100%',
+            overflowWrap: 'anywhere',
+          }}
+        >
+          {cloze.englishClue}
+        </span>
+      ) : null}
+      {cloze.romanizedHint ? (
+        <span
+          dir="ltr"
+          style={{
+            padding: isCompact ? '1px 6px' : '1px 7px',
+            borderRadius: 999,
+            background: '#eef2ff',
+            border: '1px solid #c7d2fe',
+            color: '#3730a3',
+            fontSize: isCompact ? '0.58rem' : '0.74rem',
+            fontWeight: 800,
+            lineHeight: isCompact ? 1.16 : 1.25,
+            maxWidth: '100%',
+            overflowWrap: 'anywhere',
+          }}
+        >
+          {cloze.romanizedHint}
+        </span>
+      ) : null}
+      <span
+        dir="ltr"
+        style={{
+          padding: isCompact ? '1px 6px' : '1px 7px',
+          borderRadius: 999,
+          background: '#f1f5f9',
+          color: '#475569',
+          fontSize: isCompact
+            ? cloze.phoneticHint.length > 34
+              ? 'clamp(0.54rem, 1.55vw, 0.59rem)'
+              : '0.59rem'
+            : '0.74rem',
+          fontWeight: 800,
+          lineHeight: isCompact ? 1.16 : 1.2,
+          maxWidth: '100%',
+          overflowWrap: 'anywhere',
+        }}
+      >
+        {cloze.phoneticHint}
+      </span>
+      {showPlainButton ? (
+        <ArcadeSayItNormallyButton
+          item={round.target}
+          language={language}
+          isCompact={isCompact}
+          open={plainOpen}
+          dialectAText={cloze.speakText}
+          dialectBText={cloze.englishClue}
+          avoidTerms={[round.correctPlankText, round.target.foreign]}
+          onToggle={(nextOpen) => setPlainOpen(nextOpen)}
+        />
+      ) : null}
+      {!isCompact ? hintButtonNode : null}
+    </div>
+  );
+
   return (
     <section
       ref={containerRef}
       aria-label="Starlight Bridge Cloze Builder Arcade"
-      style={ARCADE_SHELL_STYLE}
+      style={{
+        ...ARCADE_SHELL_STYLE,
+        gap: isCompact ? 5 : 8,
+      }}
     >
       <ArcadeHeaderBar
         icon={<Compass size={isCompact ? 17 : 20} color="#38bdf8" />}
@@ -534,54 +739,61 @@ export function StarlightBridgeArcade({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              gap: 8,
-              padding: isCompact ? '5px 10px' : '7px 14px',
-              borderRadius: 16,
+              flexWrap: isCompact ? 'wrap' : 'nowrap',
+              gap: isCompact ? '3px 8px' : 8,
+              padding: isCompact ? '4px 9px' : '7px 14px',
+              borderRadius: isCompact ? 14 : 16,
               background: 'var(--card-bg, #ffffff)',
               borderTopWidth: 2,
               borderRightWidth: 2,
               borderLeftWidth: 2,
-              borderBottomWidth: 4,
+              borderBottomWidth: isCompact ? 3 : 4,
               borderStyle: 'solid',
               borderColor: '#38bdf8',
               color: 'var(--text-main, #1e1b4b)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, flex: 1 }}>
-              <span
-                style={{
-                  padding: '2px 8px',
-                  borderRadius: 999,
-                  background: '#e0f2fe',
-                  color: '#0369a1',
-                  fontSize: isCompact ? '0.7rem' : '0.78rem',
-                  fontWeight: 900,
-                  fontFamily: 'var(--font-display)',
-                  flexShrink: 0,
-                }}
-              >
-                Bridges: {bridgesCrossed} • Turbo: {speedCrossings}
-              </span>
-              <span
-                style={{
-                  fontSize: isCompact ? '0.72rem' : '0.82rem',
-                  fontWeight: 800,
-                  color: 'var(--text-muted, #475569)',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {toast}
-              </span>
-            </div>
+            <span
+              style={{
+                order: 1,
+                padding: isCompact ? '2px 7px' : '2px 8px',
+                borderRadius: 999,
+                background: '#e0f2fe',
+                color: '#0369a1',
+                fontSize: isCompact ? '0.68rem' : '0.78rem',
+                fontWeight: 900,
+                fontFamily: 'var(--font-display)',
+                flexShrink: 0,
+              }}
+            >
+              Bridges: {bridgesCrossed} • Turbo: {speedCrossings}
+            </span>
+
+            <span
+              style={{
+                order: isCompact ? 3 : 2,
+                flex: isCompact ? '1 0 100%' : '1 1 0',
+                minWidth: 0,
+                fontSize: isCompact ? '0.67rem' : '0.82rem',
+                fontWeight: 800,
+                lineHeight: isCompact ? 1.18 : 1.25,
+                color: 'var(--text-muted, #475569)',
+                whiteSpace: isCompact ? 'normal' : 'nowrap',
+                overflow: isCompact ? 'visible' : 'hidden',
+                textOverflow: isCompact ? 'clip' : 'ellipsis',
+              }}
+            >
+              {toast}
+            </span>
 
             <button
               type="button"
               className="tactile-btn tactile-btn-success"
               style={{
-                padding: isCompact ? '4px 9px' : '5px 11px',
-                fontSize: '0.76rem',
+                order: isCompact ? 2 : 3,
+                marginLeft: isCompact ? 'auto' : undefined,
+                padding: isCompact ? '3px 9px' : '5px 11px',
+                fontSize: isCompact ? '0.72rem' : '0.76rem',
                 borderRadius: 10,
                 flexShrink: 0,
               }}
@@ -598,19 +810,19 @@ export function StarlightBridgeArcade({
               flex: 1,
               minHeight: 0,
               width: '100%',
-              padding: isCompact ? 7 : 14,
-              borderRadius: 22,
+              padding: isCompact ? 6 : 14,
+              borderRadius: isCompact ? 18 : 22,
               borderTopWidth: 3,
               borderRightWidth: 3,
               borderLeftWidth: 3,
-              borderBottomWidth: 5,
+              borderBottomWidth: isCompact ? 4 : 5,
               borderStyle: 'solid',
               borderColor: waitingAtGap ? '#fbbf24' : '#38bdf8',
               background: 'radial-gradient(circle at 50% 25%, #312e81 0%, #1e1b4b 56%, #090d26 100%)',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              gap: isCompact ? 5 : 10,
+              gap: isCompact ? 4 : 10,
               overflow: 'hidden',
               userSelect: 'none',
             }}
@@ -620,229 +832,87 @@ export function StarlightBridgeArcade({
               style={{
                 position: 'relative',
                 zIndex: 6,
-                flexShrink: 0,
-                padding: isCompact ? '6px 9px' : '10px 16px',
-                borderRadius: 18,
+                flex: isCompact ? '0 1 auto' : '0 0 auto',
+                minHeight: 0,
+                maxHeight: isCompact ? '43%' : undefined,
+                overflowY: isCompact ? 'auto' : 'visible',
+                overscrollBehavior: isCompact ? 'contain' : undefined,
+                padding: isCompact ? '5px 8px' : '10px 16px',
+                borderRadius: isCompact ? 15 : 18,
                 background: 'rgba(255, 255, 255, 0.95)',
                 borderTopWidth: 2,
                 borderRightWidth: 2,
                 borderLeftWidth: 2,
-                borderBottomWidth: 4,
+                borderBottomWidth: isCompact ? 3 : 4,
                 borderStyle: 'solid',
                 borderColor: plankLocked ? '#10b981' : '#818cf8',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: isCompact ? 4 : 6,
+                gap: isCompact ? 3 : 6,
                 boxShadow: '0 8px 22px rgba(2, 6, 23, 0.35)',
               }}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: isCompact ? 6 : 12,
-                  width: '100%',
-                  minWidth: 0,
-                }}
-              >
-              <span style={{ flexShrink: 0, display: 'inline-flex' }}>
-                <VocabIllustration
-                  illustrationKey={round.target.illustrationKey}
-                  language={language}
-                  size={isCompact ? (clozeSentenceLen > 42 ? 22 : 28) : 46}
-                />
-              </span>
-
-              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: isCompact ? 2 : 3 }}>
-                <span
-                  style={{
-                    fontSize: isCompact ? '0.6rem' : '0.68rem',
-                    fontWeight: 900,
-                    letterSpacing: '0.04em',
-                    color: '#4f46e5',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {cloze.mode === 'sentence_cloze' ? 'Complete the Bridge Sentence' : 'Bridge Cloze Clue'}
-                </span>
-                {cloze.mode === 'sentence_cloze' ? (
+              {isCompact ? (
+                <>
                   <div
-                    dir={langDir}
                     style={{
-                      ...getArcadeClueTextStyle(
-                        `${cloze.beforeBlank}${cloze.blankLabel}${cloze.afterBlank}`,
-                        {
-                          isCompact,
-                          variant: 'cloze',
-                          color: '#1e1b4b',
-                          textAlign: 'start',
-                        }
-                      ),
                       display: 'flex',
                       alignItems: 'center',
-                      flexWrap: 'wrap',
-                      gap: isCompact ? 4 : 5,
+                      justifyContent: 'space-between',
+                      gap: 6,
+                      width: '100%',
+                      minWidth: 0,
                     }}
                   >
-                    {cloze.beforeBlank ? <span>{cloze.beforeBlank}</span> : null}
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        padding: '1px 10px',
-                        borderRadius: 10,
-                        background: plankLocked ? '#d1fae5' : '#fef3c7',
-                        border: `2px dashed ${plankLocked ? '#10b981' : '#f59e0b'}`,
-                        color: plankLocked ? '#065f46' : '#b45309',
-                        minWidth: 54,
-                        maxWidth: '100%',
-                        textAlign: 'center',
-                        overflowWrap: 'anywhere',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      {plankLocked ? cloze.blankLabel : '____'}
-                    </span>
-                    {cloze.afterBlank ? <span>{cloze.afterBlank}</span> : null}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                      <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                        <VocabIllustration
+                          illustrationKey={round.target.illustrationKey}
+                          language={language}
+                          size={clozeSentenceLen > 42 ? 18 : 20}
+                        />
+                      </span>
+                      {clozeHeaderLabel}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                      {hintButtonNode}
+                      {hearButtonNode}
+                    </div>
                   </div>
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
-                    <span
-                      dir="ltr"
-                      style={getArcadeClueTextStyle(cloze.englishClue, {
-                        isCompact,
-                        variant: 'cloze',
-                        color: '#1e1b4b',
-                        textAlign: 'start',
-                      })}
-                    >
-                      {cloze.englishClue}
-                    </span>
-                    <span
-                      dir={langDir}
-                      style={{
-                        padding: '1px 9px',
-                        borderRadius: 10,
-                        background: plankLocked ? '#d1fae5' : '#fef3c7',
-                        border: `2px dashed ${plankLocked ? '#10b981' : '#f59e0b'}`,
-                        color: plankLocked ? '#065f46' : '#b45309',
-                        fontFamily: 'var(--font-display)',
-                        fontSize: isCompact ? 'clamp(0.72rem, 2.1vw, 0.8rem)' : '0.96rem',
-                        fontWeight: 900,
-                        maxWidth: '100%',
-                        overflowWrap: 'anywhere',
-                      }}
-                    >
-                      {plankLocked ? cloze.blankLabel : '____'}
-                    </span>
-                  </div>
-                )}
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', minWidth: 0 }}>
-                  {cloze.mode === 'sentence_cloze' ? (
-                    <span
-                      dir="ltr"
-                      style={{
-                        fontSize: isCompact
-                          ? cloze.englishClue.length > 36
-                            ? 'clamp(0.6rem, 1.75vw, 0.66rem)'
-                            : '0.68rem'
-                          : '0.8rem',
-                        fontWeight: 800,
-                        lineHeight: 1.2,
-                        color: '#475569',
-                        maxWidth: '100%',
-                        overflowWrap: 'anywhere',
-                      }}
-                    >
-                      {cloze.englishClue}
-                    </span>
-                  ) : null}
-                  {cloze.romanizedHint ? (
-                    <span
-                      dir="ltr"
-                      style={{
-                        padding: '1px 7px',
-                        borderRadius: 999,
-                        background: '#eef2ff',
-                        border: '1px solid #c7d2fe',
-                        color: '#3730a3',
-                        fontSize: isCompact ? '0.62rem' : '0.74rem',
-                        fontWeight: 800,
-                        maxWidth: '100%',
-                        overflowWrap: 'anywhere',
-                      }}
-                    >
-                      {cloze.romanizedHint}
-                    </span>
-                  ) : null}
-                  <span
-                    dir="ltr"
-                    style={{
-                      padding: '1px 7px',
-                      borderRadius: 999,
-                      background: '#f1f5f9',
-                      color: '#475569',
-                      fontSize: isCompact
-                        ? cloze.phoneticHint.length > 34
-                          ? 'clamp(0.55rem, 1.6vw, 0.61rem)'
-                          : '0.62rem'
-                        : '0.74rem',
-                      fontWeight: 800,
-                      lineHeight: 1.2,
-                      maxWidth: '100%',
-                      overflowWrap: 'anywhere',
-                    }}
-                  >
-                    {cloze.phoneticHint}
-                  </span>
-                  {showPlainButton ? (
-                    <ArcadeSayItNormallyButton
-                      item={round.target}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%', minWidth: 0 }}>
+                    {clozePromptNode}
+                    {clozeMetaRow}
+                  </div>
+                </>
+              ) : (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    width: '100%',
+                    minWidth: 0,
+                  }}
+                >
+                  <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                    <VocabIllustration
+                      illustrationKey={round.target.illustrationKey}
                       language={language}
-                      isCompact={isCompact}
-                      open={plainOpen}
-                      dialectAText={cloze.speakText}
-                      dialectBText={cloze.englishClue}
-                      avoidTerms={[round.correctPlankText, round.target.foreign]}
-                      onToggle={(nextOpen) => setPlainOpen(nextOpen)}
+                      size={46}
                     />
-                  ) : null}
-                  <StarlightHintButton
-                    size="xs"
-                    hintTier={hint.hintTier}
-                    hintsUsed={hint.hintsUsed}
-                    isAnimating={hint.isAnimating}
-                    canHint={hint.canHint}
-                    onTrigger={hint.triggerHint}
-                  />
-                </div>
-              </div>
+                  </span>
 
-              <button
-                type="button"
-                className="tactile-btn"
-                aria-label={`Hear ${round.target.foreign}`}
-                style={{
-                  ...SOFT_BTN_STYLE,
-                  padding: isCompact ? '5px 8px' : '6px 10px',
-                  fontSize: isCompact ? '0.7rem' : '0.76rem',
-                  borderRadius: 12,
-                  flexShrink: 0,
-                }}
-                onClick={() => {
-                  void speakPhrase({
-                    text: cloze.speakText,
-                    language,
-                    phonetic: cloze.phoneticHint,
-                  });
-                }}
-              >
-                <Volume2 size={14} />
-                {!isCompact ? <span>Hear</span> : null}
-              </button>
-              </div>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {clozeHeaderLabel}
+                    {clozePromptNode}
+                    {clozeMetaRow}
+                  </div>
+
+                  {hearButtonNode}
+                </div>
+              )}
 
               {plainResult ? (
                 <ArcadePlainEnglishCallout
@@ -857,8 +927,8 @@ export function StarlightBridgeArcade({
             <div
               style={{
                 position: 'relative',
-                flex: 1,
-                minHeight: isCompact ? 58 : 104,
+                flex: isCompact ? '1 1 42px' : 1,
+                minHeight: isCompact ? 42 : 104,
                 width: '100%',
               }}
             >
@@ -914,12 +984,12 @@ export function StarlightBridgeArcade({
                 style={{
                   position: 'absolute',
                   left: '53%',
-                  bottom: '28%',
+                  bottom: isCompact ? '14%' : '28%',
                   transform: 'translateX(-50%)',
                   maxWidth: '88%',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  padding: '2px 9px',
+                  padding: isCompact ? '1px 7px' : '2px 9px',
                   borderRadius: 999,
                   background: plankLocked
                     ? '#10b981'
@@ -928,7 +998,7 @@ export function StarlightBridgeArcade({
                       : 'rgba(15, 23, 42, 0.78)',
                   color: '#ffffff',
                   fontFamily: 'var(--font-display)',
-                  fontSize: isCompact ? '0.64rem' : '0.74rem',
+                  fontSize: isCompact ? '0.6rem' : '0.74rem',
                   fontWeight: 900,
                   whiteSpace: 'nowrap',
                   pointerEvents: 'none',
@@ -950,7 +1020,7 @@ export function StarlightBridgeArcade({
                 style={{
                   position: 'absolute',
                   left: `${pipX}%`,
-                  bottom: '33%',
+                  bottom: isCompact ? '18%' : '33%',
                   transform: `translate(-50%, ${pipBobY.toFixed(1)}px)`,
                   willChange: 'left, transform',
                   pointerEvents: 'none',
@@ -961,7 +1031,7 @@ export function StarlightBridgeArcade({
                   companionId="pip"
                   pose={pipPose}
                   equippedCosmetics={activeProfile.equippedCosmetics}
-                  size={isCompact ? 46 : 74}
+                  size={isCompact ? 36 : 74}
                   hintPulseNonce={bridgeHintNonce}
                 />
               </div>
@@ -976,7 +1046,7 @@ export function StarlightBridgeArcade({
                   isCompact
                     ? 'repeat(2, minmax(0, 1fr))'
                     : `repeat(${round.choices.length}, minmax(0, 1fr))`,
-                gap: isCompact ? 7 : 10,
+                gap: isCompact ? 5 : 10,
                 zIndex: 6,
               }}
             >
@@ -989,6 +1059,17 @@ export function StarlightBridgeArcade({
                   !plankLocked && hint.spotlightZone === 'choice' && hint.spotlightUid === item.id;
                 const plankText =
                   item.id === round.target.id ? round.correctPlankText : item.foreign;
+                const foreignStyle = getArcadeForeignTextStyle(language, plankText, {
+                  isCompact,
+                  density: isCompact
+                    ? plankText.length > 14
+                      ? 'tight'
+                      : 'normal'
+                    : round.choices.length >= 4 && plankText.length > 22
+                      ? 'tight'
+                      : 'normal',
+                  color: '#1e1b4b',
+                });
 
                 return (
                   <button
@@ -1005,17 +1086,17 @@ export function StarlightBridgeArcade({
                     style={{
                       gridColumn: isLastOdd ? '1 / -1' : undefined,
                       position: 'relative',
-                      padding: isCompact ? '5px 6px' : '10px 12px',
-                      borderRadius: 16,
+                      padding: isCompact ? '4px 6px' : '10px 12px',
+                      borderRadius: isCompact ? 13 : 16,
                       background: isTargetLocked
                         ? '#d1fae5'
                         : isWrong
                           ? '#ffe4e6'
                           : '#ffffff',
-                      borderTopWidth: 2.5,
-                      borderRightWidth: 2.5,
-                      borderLeftWidth: 2.5,
-                      borderBottomWidth: 5,
+                      borderTopWidth: isCompact ? 2 : 2.5,
+                      borderRightWidth: isCompact ? 2 : 2.5,
+                      borderLeftWidth: isCompact ? 2 : 2.5,
+                      borderBottomWidth: isCompact ? 3.5 : 5,
                       borderStyle: 'solid',
                       borderColor: isTargetLocked
                         ? '#10b981'
@@ -1029,7 +1110,7 @@ export function StarlightBridgeArcade({
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: 2,
+                      gap: isCompact ? 1 : 2,
                       minWidth: 0,
                       overflow: 'visible',
                       opacity: isDimmed ? 0.38 : 1,
@@ -1042,9 +1123,10 @@ export function StarlightBridgeArcade({
                     <span
                       style={{
                         position: 'absolute',
-                        top: isCompact ? 3 : 4,
-                        left: 7,
-                        fontSize: isCompact ? '0.58rem' : '0.62rem',
+                        top: isCompact ? 2 : 4,
+                        left: isCompact ? 6 : 7,
+                        fontSize: isCompact ? '0.54rem' : '0.62rem',
+                        lineHeight: 1,
                         fontWeight: 900,
                         color: '#0369a1',
                       }}
@@ -1055,19 +1137,15 @@ export function StarlightBridgeArcade({
                     <span
                       dir={langDir}
                       style={{
-                        ...getArcadeForeignTextStyle(language, plankText, {
-                          isCompact,
-                          density: isCompact
-                            ? plankText.length > 14
-                              ? 'tight'
-                              : 'normal'
-                            : round.choices.length >= 4 && plankText.length > 22
-                              ? 'tight'
-                              : 'normal',
-                          color: '#1e1b4b',
-                        }),
+                        ...foreignStyle,
+                        paddingBlock: isCompact ? 0 : foreignStyle.paddingBlock,
+                        lineHeight: isCompact
+                          ? langDir === 'rtl'
+                            ? 1.32
+                            : 1.2
+                          : foreignStyle.lineHeight,
                         width: '100%',
-                        marginTop: isCompact ? 7 : 6,
+                        marginTop: isCompact ? 5 : 6,
                       }}
                     >
                       {plankText}
@@ -1077,10 +1155,10 @@ export function StarlightBridgeArcade({
                       <span
                         dir="ltr"
                         style={{
-                          fontSize: isCompact ? '0.6rem' : '0.7rem',
+                          fontSize: isCompact ? '0.58rem' : '0.7rem',
                           fontWeight: 800,
                           color: '#4f46e5',
-                          lineHeight: 1.2,
+                          lineHeight: isCompact ? 1.15 : 1.2,
                           maxWidth: '100%',
                           overflowWrap: 'anywhere',
                         }}

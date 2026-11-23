@@ -27,11 +27,15 @@ import {
 
 const ROUND_DURATION_SECONDS = 45;
 const SCOOP_COLORS = ['#fb7185', '#34d399', '#60a5fa', '#fbbf24', '#c084fc'] as const;
+const SCOOP_RAIL_TOPS = [23, 38] as const;
+const SCOOP_PHASE_OFFSET = Math.PI * 0.65;
 
 interface GlidingScoop {
   uid: number;
   item: ArcadeLanternItem;
-  x: number; // 12..88 %
+  x: number; // 21..79 %
+  topPct: number;
+  phaseOffset: number;
   color: string;
 }
 
@@ -128,15 +132,31 @@ export function TowerStackArcade({
       const colorA = SCOOP_COLORS[nextUidRef.current % SCOOP_COLORS.length];
       const colorB = SCOOP_COLORS[(nextUidRef.current + 2) % SCOOP_COLORS.length];
 
-      // Position matching scoop near 38-62% or start cleanly oscillating
+      // Assign non-symmetric phases and distinct horizontal lanes so scoops never collide dead center
       const flipOrder = Math.random() < 0.5;
       phaseAngleRef.current = flipOrder ? Math.PI * 0.15 : Math.PI * 0.85;
-      const xA = 50 + Math.sin(phaseAngleRef.current) * 29;
-      const xB = 50 + Math.sin(phaseAngleRef.current + Math.PI) * 29;
+      const targetPhase = flipOrder ? 0 : SCOOP_PHASE_OFFSET;
+      const distractorPhase = flipOrder ? SCOOP_PHASE_OFFSET : 0;
+      const targetTop = flipOrder ? SCOOP_RAIL_TOPS[0] : SCOOP_RAIL_TOPS[1];
+      const distractorTop = flipOrder ? SCOOP_RAIL_TOPS[1] : SCOOP_RAIL_TOPS[0];
 
       const pair: GlidingScoop[] = [
-        { uid: nextUidRef.current++, item: chosen, x: xA, color: colorA },
-        { uid: nextUidRef.current++, item: distractor, x: xB, color: colorB },
+        {
+          uid: nextUidRef.current++,
+          item: chosen,
+          x: 50 + Math.sin(phaseAngleRef.current + targetPhase) * 29,
+          topPct: targetTop,
+          phaseOffset: targetPhase,
+          color: colorA,
+        },
+        {
+          uid: nextUidRef.current++,
+          item: distractor,
+          x: 50 + Math.sin(phaseAngleRef.current + distractorPhase) * 29,
+          topPct: distractorTop,
+          phaseOffset: distractorPhase,
+          color: colorB,
+        },
       ];
       scoopsRef.current = pair;
       setGlidingScoops(pair);
@@ -201,13 +221,12 @@ export function TowerStackArcade({
   const handleDropScoop = useCallback(() => {
     if (phase !== 'playing' || scoopsRef.current.length === 0) return;
 
-    const sorted = [...scoopsRef.current].sort(
-      (a, b) => Math.abs(a.x - 50) - Math.abs(b.x - 50)
+    const targetScoop = scoopsRef.current.find(
+      (s) => s.item.id === targetRef.current.id
     );
-    const closest = sorted[0];
-    const dist = Math.abs(closest.x - 50);
+    const dist = targetScoop ? Math.abs(targetScoop.x - 50) : Infinity;
 
-    if (closest.item.id === targetRef.current.id && dist <= 22) {
+    if (targetScoop && dist <= 22) {
       const isPerfect = dist <= 9;
       comboRef.current += 1;
       stackCountRef.current += 1;
@@ -220,7 +239,7 @@ export function TowerStackArcade({
       setScore(scoreRef.current);
       setChefPose(isPerfect ? 'victory_dance' : 'happy');
 
-      const hitForeign = closest.item.foreign;
+      const hitForeign = targetScoop.item.foreign;
       if (isPerfect) {
         setPerfectFlash(true);
         scheduleTimeout(() => setPerfectFlash(false), 600);
@@ -241,33 +260,36 @@ export function TowerStackArcade({
       }
 
       void speakPhrase({
-        text: closest.item.foreign,
+        text: targetScoop.item.foreign,
         language,
-        phonetic: closest.item.phonetic,
+        phonetic: targetScoop.item.phonetic,
       });
 
-      const signedOffset = Math.max(-14, Math.min(14, closest.x - 50));
+      const signedOffset = Math.max(-14, Math.min(14, targetScoop.x - 50));
       setStackedScoops((prev) => [
         ...prev,
         {
-          uid: closest.uid,
-          item: closest.item,
+          uid: targetScoop.uid,
+          item: targetScoop.item,
           offsetX: isPerfect ? 0 : signedOffset,
-          color: closest.color,
+          color: targetScoop.color,
           perfect: isPerfect,
         },
       ]);
 
       scheduleTimeout(() => setChefPose('idle'), 650);
-      spawnRoundScoops(closest.item.id);
+      spawnRoundScoops(targetScoop.item.id);
     } else {
       comboRef.current = 0;
       setCombo(0);
       setChefPose('sympathetic');
       playSfx('gentle_nudge');
       const expectedForeign = targetRef.current.foreign;
+      const distractorInZone = scoopsRef.current.some(
+        (s) => s.item.id !== targetRef.current.id && Math.abs(s.x - 50) <= 22
+      );
       setToast(
-        closest.item.id !== targetRef.current.id ? (
+        distractorInZone ? (
           <>
             Oops! Wait for “<bdi dir={langDir}>{expectedForeign}</bdi>” over the cone!
           </>
@@ -316,9 +338,9 @@ export function TowerStackArcade({
       const speed = (1.65 + Math.min(0.9, stackCountRef.current * 0.08)) * paceMultiplier;
       phaseAngleRef.current += speed * dt;
 
-      const updated = scoopsRef.current.map((s, idx) => ({
+      const updated = scoopsRef.current.map((s) => ({
         ...s,
-        x: 50 + Math.sin(phaseAngleRef.current + idx * Math.PI) * 29,
+        x: 50 + Math.sin(phaseAngleRef.current + s.phaseOffset) * 29,
       }));
       scoopsRef.current = updated;
       setGlidingScoops(updated);
@@ -469,21 +491,24 @@ export function TowerStackArcade({
               {toast}
             </div>
 
-            {/* Brass Rail & Target Drop Crosshair */}
-            <div
-              aria-hidden="true"
-              style={{
-                position: 'absolute',
-                top: '28%',
-                left: '8%',
-                right: '8%',
-                height: 6,
-                borderRadius: 999,
-                background: '#d97706',
-                opacity: 0.45,
-                pointerEvents: 'none',
-              }}
-            />
+            {/* Dual Brass Rails & Target Drop Crosshair */}
+            {SCOOP_RAIL_TOPS.map((railTop) => (
+              <div
+                key={railTop}
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  top: `${railTop}%`,
+                  left: '8%',
+                  right: '8%',
+                  height: 5,
+                  borderRadius: 999,
+                  background: '#d97706',
+                  opacity: 0.4,
+                  pointerEvents: 'none',
+                }}
+              />
+            ))}
             <div
               aria-hidden="true"
               style={{
@@ -513,7 +538,7 @@ export function TowerStackArcade({
                   style={{
                     position: 'absolute',
                     left: `${s.x}%`,
-                    top: '28%',
+                    top: `${s.topPct}%`,
                     transform: 'translate(-50%, -50%)',
                     willChange: 'left',
                     padding: isCompact ? '5px 8px' : '7px 12px',

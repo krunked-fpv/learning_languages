@@ -1848,6 +1848,10 @@ export function TargetPromptBar({
   const showPlainButton = isAdultArcadeActive(language, activeProfile);
   const [plainOpen, setPlainOpen] = useState(false);
 
+  useEffect(() => {
+    setPlainOpen(false);
+  }, [targetItem.id, language]);
+
   const targetHint = useHintEngine({
     promptKey: `${language}::${targetItem.id}::${targetItem.foreign}`,
     mode: 'arcade_target',
