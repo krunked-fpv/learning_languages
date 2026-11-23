@@ -32,6 +32,7 @@ import { gradeAnswer } from '../src/core';
 import {
   COURSES,
   buildTierCheckpointNode,
+  ensureAllAdultCoursesLoaded,
   getAdultCourse,
   getArcadeLexicon,
   getCourse,
@@ -52,7 +53,9 @@ import {
   ADULT_EASTER_EGG_CODES,
   ADULT_EASTER_EGG_LANGUAGES,
   ADULT_EASTER_EGG_TAP_COUNT,
+  ADULT_MASHUP_LANGUAGES,
   ALL_LANGUAGE_LIST,
+  CLASSIC_ADULT_LANGUAGES,
   DEFAULT_KID_PROFILE_IDS,
   ILLUSTRATION_KEYS,
   LANGUAGE_LIST,
@@ -60,6 +63,7 @@ import {
   PROFICIENCY_TIERS,
   VISIBLE_BASE_LANGUAGES,
   isAdultLanguage,
+  isAdultMashupLanguage,
   isDefaultKidProfileId,
   resolveUnitProficiencyTier,
   type KidProfile,
@@ -294,11 +298,20 @@ describe('After-Hours Atlas: Adult Mode Easter Egg, Kid Quarantine & Bidirection
   it('a) preserves zero base-game regressions: 16 courses, 256 units, 1,792 nodes, 112 illustrations, alcohol safety & hygiene', () => {
     expect(VISIBLE_BASE_LANGUAGES).toHaveLength(16);
     expect(LANGUAGE_LIST).toEqual(VISIBLE_BASE_LANGUAGES);
-    expect(ADULT_EASTER_EGG_LANGUAGES).toEqual(['ebonics', 'suburban']);
-    expect(ALL_LANGUAGE_LIST).toHaveLength(18);
+    expect(CLASSIC_ADULT_LANGUAGES).toEqual(['ebonics', 'suburban']);
+    expect(ADULT_MASHUP_LANGUAGES).toEqual([
+      'corp_trades',
+      'midwest_northeast',
+      'south_genz',
+      'cali_country',
+      'stoner_tactical',
+    ]);
+    expect(ADULT_EASTER_EGG_LANGUAGES).toHaveLength(7);
+    expect(ALL_LANGUAGE_LIST).toHaveLength(23);
     expect(Object.keys(COURSES)).toHaveLength(16);
-    expect(Object.keys(COURSES)).not.toContain('ebonics');
-    expect(Object.keys(COURSES)).not.toContain('suburban');
+    for (const adultCode of ADULT_EASTER_EGG_LANGUAGES) {
+      expect(Object.keys(COURSES)).not.toContain(adultCode);
+    }
     expect(getVisibleLanguageCodes(false)).toEqual(VISIBLE_BASE_LANGUAGES);
     expect(getVisibleLanguageCodes(true)).toEqual(ALL_LANGUAGE_LIST);
 
@@ -350,8 +363,9 @@ describe('After-Hours Atlas: Adult Mode Easter Egg, Kid Quarantine & Bidirection
 
     expect(totalUnits).toBe(256);
     expect(totalNodes).toBe(1792);
-    expect(FALLBACK_ARCADE_LEXICON.ebonics.length).toBeGreaterThanOrEqual(8);
-    expect(FALLBACK_ARCADE_LEXICON.suburban.length).toBeGreaterThanOrEqual(8);
+    for (const adultCode of ADULT_EASTER_EGG_LANGUAGES) {
+      expect(FALLBACK_ARCADE_LEXICON[adultCode].length).toBeGreaterThanOrEqual(8);
+    }
     expect(joinWordBankTokens(["We", "gon'", "pull", "up"])).toBe("We gon' pull up");
     expect(joinWordBankTokens(["l'", "eau"])).toBe("l'eau");
 
@@ -591,7 +605,8 @@ describe('After-Hours Atlas: Adult Mode Easter Egg, Kid Quarantine & Bidirection
     ).toBeInTheDocument();
   });
 
-  it('c) validates full bidirectional curriculum parity, TapHintTokens, ContextCloze partitioning, Boss/WordBank solvability, Checkpoints, AdventureMap & Arcade isolation', () => {
+  it('c) validates full bidirectional curriculum parity, TapHintTokens, ContextCloze partitioning, Boss/WordBank solvability, Checkpoints, AdventureMap & Arcade isolation', async () => {
+    await ensureAllAdultCoursesLoaded();
     const baseCardIds = new Set<string>();
     const baseUnitIds = new Set<string>();
     const baseNodeIds = new Set<string>();
@@ -703,11 +718,21 @@ describe('After-Hours Atlas: Adult Mode Easter Egg, Kid Quarantine & Bidirection
                 assertValidTapHints(ex.promptTokens, `${lang}:${ex.id}`);
               }
               const assembled = joinWordBankTokens(ex.targetTokens);
+              const wbGradeLang =
+                ex.direction === 'to_foreign'
+                  ? lang
+                  : isAdultMashupLanguage(lang)
+                    ? lang
+                    : lang === 'ebonics'
+                      ? 'suburban'
+                      : lang === 'suburban'
+                        ? 'ebonics'
+                        : 'en';
               const res = gradeAnswer({
                 submitted: assembled,
                 expected: ex.expectedSentence,
                 accepted: ex.acceptedSentences,
-                language: ex.direction === 'to_foreign' ? lang : 'en',
+                language: wbGradeLang,
               });
               expect(res.isCorrect, `${lang}:${ex.id} WordBank failed`).toBe(true);
             } else if (ex.type === 'context_cloze') {
