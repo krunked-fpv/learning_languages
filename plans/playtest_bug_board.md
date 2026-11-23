@@ -1,4 +1,18 @@
-# Operation Ironclad Atlas — Master Playtest Bug Board
+# Studio Wanderling — Master Playtest Bug Board
+
+## Sprint 2 — Operation Starlight Horizon (`PT-001`–`PT-115`)
+
+- **Sprint 2 Status:** `IN_EXECUTION` (`S2-001`–`S2-007` under active implementation; `PT-001`–`PT-115` + live browser sweep queued for Phase 3)
+- **Sprint 2 Playtest Target:** `115` playtests (`PT-001`–`PT-100` full regression + `PT-101`–`PT-115` Cohort F covering `S2-001`–`S2-007`) + live `/wanderling-subpath/` verification across `1440x900`, `768x1024`, `375x667`
+- **Open Sprint 2 Bugs (`BUG-S2-###`):** `0` *(populated by `vera-s2`, `mila-s2`, `devon-s2` during Phase 3 Blitz)*
+
+| Bug ID | Playtest ID(s) | Severity | Owner | Status | Summary |
+| :--- | :--- | :---: | :--- | :---: | :--- |
+| _None logged yet_ | — | — | — | — | *Awaiting Sprint 2 Wave 2 playtest blitz* |
+
+---
+
+# Operation Ironclad Atlas (Sprint 1 Archive) — Master Playtest Bug Board
 
 Lead Quartermaster: **Vera (`vera-redteam`)**  
 Scouts: **Mila (`mila-playtester`)**, **Devon (`devon-chaos`)**  

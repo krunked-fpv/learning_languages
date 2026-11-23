@@ -1,9 +1,10 @@
-# Operation Ironclad Atlas — Sprint 2 Proposals (RFCs)
+# Studio Wanderling — Sprint 2 Proposals (RFCs) — GREENLIT & IN EXECUTION
 
-Curator: **Vera (`vera-redteam`)**  
+**Sprint Status:** **GREENLIT — IN EXECUTION (`Operation Starlight Horizon`, Sprint 2)**  
+Curator: **Vera (`vera-redteam` / `vera-s2`)**  
 Contributors: **Mila (`mila-playtester`)**, **Devon (`devon-chaos`)**, Coordinator Guidance (`#7`)
 
-> **Scope Rule:** All big architectural changes, UX redesigns, bundle-splitting, contract-changing audio upgrades, and new game systems live here rather than expanding Sprint 1 bug-fix scope.
+> **Scope Rule:** All 7 Sprint 2 RFCs (`S2-001`–`S2-007`) below are approved for implementation in **Operation Starlight Horizon**, followed by a full `115`-playtest verification sweep (`PT-001`–`PT-115`), live `/wanderling-subpath/` browser audits, Bug Board closure, and zero-error release gate.
 
 ---
 

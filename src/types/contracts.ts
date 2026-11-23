@@ -1144,6 +1144,7 @@ export interface MapNode {
   nodeType: MapNodeType;
   proficiencyTier?: ProficiencyTier;
   checkpointTargetTier?: Exclude<ProficiencyTier, 'A1'>;
+  isSrsReviewQuest?: boolean;
   title: string;
   subtitle: string;
   xpReward: number;
@@ -1406,6 +1407,50 @@ export interface LeagueEntry {
   rank: number;
 }
 
+export interface VocabMasteryEntry {
+  strength: number;
+  lastReviewedISO: string;
+  reviewCount: number;
+}
+
+export interface SrsReviewCandidate {
+  vocabId: string;
+  strength: number;
+  daysSinceReview: number;
+  priorityScore: number;
+}
+
+export interface BaseCourseLoadState {
+  loaded: boolean;
+  loading: boolean;
+  error: string | null;
+}
+
+export interface FreeRecallToneCoaching {
+  hasToneMismatch: boolean;
+  expectedWord: string;
+  typedWord: string;
+  tip: string;
+}
+
+export interface CoopArcadeSessionParams {
+  gameId: string;
+  playerOneId: string;
+  playerOneScore: number;
+  playerTwoId: string;
+  playerTwoScore: number;
+  bonusGems: number;
+  xpEarned: number;
+}
+
+export interface CoopArcadeSessionSummary {
+  winnerProfileId: string | 'tie';
+  combinedScore: number;
+  playerOneGemsAwarded: number;
+  playerTwoGemsAwarded: number;
+  xpAwardedEach: number;
+}
+
 export interface LanguageProgressState {
   completedNodeIds: string[];
   nodeStars: Record<string, 1 | 2 | 3>;
@@ -1416,6 +1461,8 @@ export interface LanguageProgressState {
   seenExerciseIds?: string[];
   unlockedTiers?: ProficiencyTier[];
   hintAssistedCounts?: Record<string, number>;
+  vocabMastery?: Record<string, VocabMasteryEntry>;
+  lastSrsQuestCompletedISO?: string;
 }
 
 export type LanguageProgressMap = Record<BaseLanguageCode, LanguageProgressState> &
@@ -1461,6 +1508,8 @@ export interface KidProfile {
     checkpointsPassed?: number;
     clozeSolved?: number;
     hintsUsedCount?: number;
+    srsQuestsCompleted?: number;
+    coopMatchesPlayed?: number;
   };
   languageProgress: LanguageProgressMap;
 }
@@ -1535,6 +1584,7 @@ export interface SpeakOutcome {
   usedNativeVoice: boolean;
   fallbackActive: boolean;
   localeUsed?: string;
+  watchdogTriggered?: boolean;
 }
 
 export interface SpeechRuntimeState {
@@ -1543,6 +1593,8 @@ export interface SpeechRuntimeState {
   activeSpeed: SpeechSpeed | null;
   fallbackActive: boolean;
   voicesReady: boolean;
+  watchdogTriggered?: boolean;
+  watchdogRescueCount?: number;
 }
 
 // ==========================================

@@ -8,7 +8,7 @@
     "generate:icons": "node scripts/generate-pwa-icons.mjs",
     "prebuild": "npm run generate:icons",
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && node -e \"import('node:fs').then(async fs => { if (fs.existsSync('./scripts/inject-sw-precache.mjs')) await import('./scripts/inject-sw-precache.mjs'); })\"",
     "preview": "vite preview",
     "test": "vitest",
     "verify:artifacts": "node scripts/verify-build-artifacts.mjs",
