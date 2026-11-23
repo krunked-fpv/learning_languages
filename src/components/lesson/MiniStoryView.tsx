@@ -4,6 +4,7 @@ import { Volume2, Turtle, Eye, EyeOff, ArrowRight, Sparkles, Zap } from 'lucide-
 import { playSfx, speakPhrase } from '../../audio';
 import { LANGUAGE_META, type LanguageCode, type MiniStoryExercise } from '../../types/contracts';
 import { TapHintText } from './TapHintText';
+import { SayItNormallyButton } from './SayItNormallyButton';
 
 export interface MiniStoryViewProps {
   exercise: MiniStoryExercise;
@@ -185,13 +186,14 @@ export function MiniStoryView({
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   gap: 8,
+                  flexWrap: 'wrap',
                   marginBottom: 4,
                 }}
               >
                 <span style={{ fontSize: '0.76rem', fontWeight: 900, color: 'var(--lang-primary)' }}>
                   {bubble.speakerName}
                 </span>
-                <div style={{ display: 'flex', gap: 4 }}>
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   <button
                     type="button"
                     className="tactile-btn tactile-btn-soft"
@@ -297,6 +299,17 @@ export function MiniStoryView({
                   {bubble.englishText}
                 </div>
               ) : null}
+
+              <div style={{ marginTop: 6 }}>
+                <SayItNormallyButton
+                  language={language}
+                  dialectAText={bubble.foreignText}
+                  dialectBText={bubble.englishText}
+                  explicitPlain={bubble.plainEnglish}
+                  resetKey={`${exercise.id}:${bubble.id}`}
+                  size="sm"
+                />
+              </div>
             </motion.div>
           );
         })}

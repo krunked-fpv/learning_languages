@@ -9,6 +9,7 @@ import {
   type TapHintToken,
 } from '../../types/contracts';
 import { TapHintText } from './TapHintText';
+import { SayItNormallyButton } from './SayItNormallyButton';
 import {
   NO_SPACE_AFTER_RE,
   REGISTER_TAG_META,
@@ -221,16 +222,18 @@ export function ContextClozeView({
           display: 'flex',
           flexDirection: 'column',
           gap: 6,
+          minWidth: 0,
         }}
       >
         <div
           dir={langDir}
           style={{
-            fontSize: compact ? '1.05rem' : '1.26rem',
+            fontSize: compact ? '1.02rem' : '1.26rem',
             fontWeight: 900,
             color: 'var(--text-main)',
             lineHeight: langDir === 'rtl' ? 1.7 : 1.48,
             unicodeBidi: 'isolate',
+            overflowWrap: 'break-word',
           }}
         >
           {inlineBeforeHints ? (
@@ -268,6 +271,7 @@ export function ContextClozeView({
               alignItems: 'center',
               justifyContent: 'center',
               minWidth: compact ? 76 : 96,
+              maxWidth: '100%',
               padding: '2px 12px',
               marginInline: attachedClitic ? 1 : usesSpaces ? 3 : 2,
               borderRadius: 12,
@@ -277,6 +281,8 @@ export function ContextClozeView({
               fontWeight: 900,
               boxShadow: selectedChoice ? '0 0 0 3px var(--lang-tint)' : 'none',
               verticalAlign: 'baseline',
+              overflowWrap: 'anywhere',
+              whiteSpace: 'normal',
             }}
           >
             {selectedChoice ?? '______'}
@@ -335,6 +341,17 @@ export function ContextClozeView({
             ) : null}
           </div>
         ) : null}
+
+        <SayItNormallyButton
+          language={language}
+          dialectAText={exercise.fullForeignSentence}
+          dialectBText={exercise.englishTranslation}
+          explicitPlain={exercise.plainEnglish}
+          nuanceNote={exercise.nuanceNote}
+          avoidTerms={revealed ? undefined : [exercise.expectedBlank]}
+          resetKey={exercise.id}
+          size="sm"
+        />
       </div>
 
       {/* 1.0x / 0.65x / 1.12x Audio Controls */}
@@ -378,9 +395,11 @@ export function ContextClozeView({
         style={{
           display: 'grid',
           gridTemplateColumns:
-            exercise.choices.length >= 4
-              ? 'repeat(2, minmax(0, 1fr))'
-              : 'repeat(auto-fit, minmax(150px, 1fr))',
+            compact && exercise.choices.some((c) => c.length > 18)
+              ? '1fr'
+              : exercise.choices.length >= 4
+                ? 'repeat(2, minmax(0, 1fr))'
+                : 'repeat(auto-fit, minmax(150px, 1fr))',
           gap: compact ? 7 : 10,
         }}
       >
@@ -396,6 +415,7 @@ export function ContextClozeView({
               dir={langDir}
               className="tactile-btn"
               style={{
+                minWidth: 0,
                 justifyContent: 'space-between',
                 padding: compact ? '9px 11px' : '12px 15px',
                 fontSize: compact ? '0.9rem' : '1rem',
@@ -410,8 +430,10 @@ export function ContextClozeView({
                 setSelectedChoice(choice);
               }}
             >
-              <span dir={langDir}>{choice}</span>
-              {isSelected ? <Check size={16} /> : null}
+              <span dir={langDir} style={{ minWidth: 0, overflowWrap: 'anywhere', whiteSpace: 'normal' }}>
+                {choice}
+              </span>
+              {isSelected ? <Check size={16} style={{ flexShrink: 0 }} /> : null}
             </button>
           );
         })}

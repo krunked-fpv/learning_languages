@@ -24,6 +24,7 @@ import {
   type ProficiencyTier,
 } from '../../types/contracts';
 import { TapHintText } from './TapHintText';
+import { SayItNormallyButton } from './SayItNormallyButton';
 import { WordBankTray, buildWordBankPool, getAssembledText } from './WordBankTray';
 import { REGISTER_TAG_META } from './lessonHelpers';
 
@@ -457,6 +458,15 @@ export function BossGauntletView({
             ? ` • (${currentTurn.companionPhonetic})`
             : ''}
         </div>
+        <SayItNormallyButton
+          language={language}
+          dialectAText={currentTurn.companionSayForeign}
+          dialectBText={currentTurn.companionSayEnglish}
+          explicitPlain={currentTurn.plainEnglish}
+          nuanceNote={currentTurn.nuanceNote}
+          resetKey={`${exercise.id}:${currentTurn.id}`}
+          size="sm"
+        />
       </div>
 
       {/* Player Prompt + Optional Free-Recall Toggle */}
@@ -515,6 +525,7 @@ export function BossGauntletView({
                 dir={langDir}
                 className="tactile-btn"
                 style={{
+                  minWidth: 0,
                   justifyContent: 'space-between',
                   padding: compact ? '8px 12px' : '11px 14px',
                   background: isSelected ? 'var(--tile-selected-bg)' : 'var(--tile-bg)',
@@ -529,8 +540,8 @@ export function BossGauntletView({
                   setTurnOutcome(null);
                 }}
               >
-                <span dir={langDir}>{choice}</span>
-                {isSelected ? <Check size={16} /> : null}
+                <span dir={langDir} style={{ minWidth: 0, overflowWrap: 'break-word', whiteSpace: 'normal' }}>{choice}</span>
+                {isSelected ? <Check size={16} style={{ flexShrink: 0 }} /> : null}
               </button>
             );
           })}
@@ -571,7 +582,7 @@ export function BossGauntletView({
                 handleCheckTurn();
               }
             }}
-            placeholder={`Type your reply in ${langMeta.name} (+${FREE_RECALL_BONUS_XP} XP bonus)...`}
+            placeholder={`Type your reply in ${langMeta.dialectA ?? langMeta.name} (+${FREE_RECALL_BONUS_XP} XP bonus)...`}
             aria-label="Type your boss reply"
             style={{
               width: '100%',

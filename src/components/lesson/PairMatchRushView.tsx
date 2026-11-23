@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { CheckCircle2, Clock, Sparkles, Volume2 } from 'lucide-react';
 import { playSfx, speakPhrase } from '../../audio';
 import { LANGUAGE_META, type LanguageCode, type PairMatchRushExercise } from '../../types/contracts';
+import { SayItNormallyButton } from './SayItNormallyButton';
 import { deterministicShuffle } from './lessonHelpers';
 
 export interface PairMatchRushViewProps {
@@ -108,6 +109,17 @@ export function PairMatchRushView({
   const langMeta = LANGUAGE_META[language];
   const langDir = langMeta.dir;
 
+  const selectedPair =
+    exercise.pairs.find((p) => p.id === selectedLeftId) ??
+    exercise.pairs.find((p) => p.id === selectedRightId);
+  const recentMatchedPair =
+    matchedIds.length > 0
+      ? exercise.pairs.find((p) => p.id === matchedIds[matchedIds.length - 1])
+      : undefined;
+  const decoderPair = selectedPair ?? recentMatchedPair ?? exercise.pairs[0];
+  const decoderIsMatched = Boolean(decoderPair && matchedSet.has(decoderPair.id));
+  const decoderSideOnlyRight = Boolean(selectedRightId && !selectedLeftId && !decoderIsMatched);
+
   return (
     <div
       className="tactile-card"
@@ -173,6 +185,26 @@ export function PairMatchRushView({
         />
       </div>
 
+      {decoderPair ? (
+        <SayItNormallyButton
+          language={language}
+          dialectAText={decoderSideOnlyRight ? undefined : decoderPair.foreign}
+          dialectBText={
+            decoderIsMatched || decoderSideOnlyRight ? decoderPair.english : undefined
+          }
+          explicitPlain={decoderIsMatched ? decoderPair.plainEnglish : undefined}
+          avoidTerms={
+            decoderIsMatched
+              ? undefined
+              : decoderSideOnlyRight
+                ? [decoderPair.foreign]
+                : [decoderPair.english]
+          }
+          resetKey={`${exercise.id}:${decoderPair.id}:${selectedLeftId ?? ''}:${selectedRightId ?? ''}:${matchedIds.length}`}
+          size="sm"
+        />
+      ) : null}
+
       {/* 2-Column Bilingual Board */}
       <div
         style={{
@@ -236,12 +268,14 @@ export function PairMatchRushView({
                       style={{
                         textAlign: langDir === 'rtl' ? 'right' : 'left',
                         lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
-                        overflowWrap: 'break-word',
+                        overflowWrap: 'anywhere',
+                        minWidth: 0,
+                        whiteSpace: 'normal',
                       }}
                     >
                       {item.foreign}
                     </span>
-                    {isMatched ? <CheckCircle2 size={16} /> : null}
+                    {isMatched ? <CheckCircle2 size={16} style={{ flexShrink: 0 }} /> : null}
                   </button>
                   <button
                     type="button"
@@ -318,8 +352,8 @@ export function PairMatchRushView({
                   textAlign: 'left',
                 }}
               >
-                <span>{item.english}</span>
-                {isMatched ? <CheckCircle2 size={16} /> : null}
+                <span style={{ minWidth: 0, overflowWrap: 'anywhere', whiteSpace: 'normal' }}>{item.english}</span>
+                {isMatched ? <CheckCircle2 size={16} style={{ flexShrink: 0 }} /> : null}
               </motion.button>
             );
           })}

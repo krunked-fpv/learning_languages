@@ -8,6 +8,7 @@ import {
   type SpeechSpeed,
 } from '../../types/contracts';
 import { TapHintText } from './TapHintText';
+import { SayItNormallyButton } from './SayItNormallyButton';
 import { splitPhoneticSyllables } from './lessonHelpers';
 import { WordBankTray, buildWordBankPool, getAssembledText } from './WordBankTray';
 import type { ExerciseDraftPayload } from './WordBankView';
@@ -209,6 +210,20 @@ export function ListenDecodeView({
         </button>
       </div>
 
+      <SayItNormallyButton
+        language={language}
+        dialectAText={exercise.audioText}
+        dialectBText={revealed ? exercise.englishMeaning : undefined}
+        explicitPlain={exercise.plainEnglish}
+        avoidTerms={
+          !revealed && exercise.mode === 'assemble_heard'
+            ? exercise.targetTokens
+            : undefined
+        }
+        resetKey={exercise.id}
+        size="sm"
+      />
+
       {/* Phonetic Clue Banner */}
       {showPhoneticBanner ? (
         <div
@@ -292,6 +307,7 @@ export function ListenDecodeView({
                 disabled={locked}
                 className="tactile-btn"
                 style={{
+                  minWidth: 0,
                   justifyContent: 'space-between',
                   padding: compact ? '10px 14px' : '13px 16px',
                   background: isSelected ? 'var(--tile-selected-bg)' : 'var(--tile-bg)',
@@ -304,8 +320,8 @@ export function ListenDecodeView({
                   setSelectedChoice(choice);
                 }}
               >
-                <span>{choice}</span>
-                {isSelected ? <Check size={17} /> : null}
+                <span style={{ minWidth: 0, overflowWrap: 'break-word', whiteSpace: 'normal' }}>{choice}</span>
+                {isSelected ? <Check size={17} style={{ flexShrink: 0 }} /> : null}
               </button>
             );
           })}

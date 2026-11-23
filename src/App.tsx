@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type ComponentType, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties } from 'react';
 import { motion } from 'framer-motion';
 import { Music, Sparkles } from 'lucide-react';
+import { FlagIcon } from './art/FlagIcon';
 import { playSfx, setAudioPreferences } from './audio';
 import { ArcadeHub, type ArcadeGameMode } from './components/arcade/ArcadeHub';
 import { MascotStage } from './components/characters/MascotStage';
@@ -14,6 +15,7 @@ import { PhrasebookVault } from './components/meta/PhrasebookVault';
 import { BottomNav, type NavTabId } from './components/shell/BottomNav';
 import { ProfileVaultModal } from './components/shell/ProfileVaultModal';
 import { TopHud } from './components/shell/TopHud';
+import { useEnsureAdultCurriculum } from './components/shell/adultCurriculumSync';
 import * as curriculum from './curriculum';
 import { getCourse } from './curriculum';
 import { useVaultStore, vaultActions } from './store/useVaultStore';
@@ -44,6 +46,87 @@ const AdaptiveAdventureMap = AdventureMap as ComponentType<
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
+
+function AdultTrackLoadingCard({ language }: { language: LanguageCode }) {
+  const meta = LANGUAGE_META[language];
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      data-testid="adult-track-loading-card"
+      style={{
+        height: '100%',
+        minHeight: 0,
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 12,
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        className="tactile-card"
+        style={{
+          maxWidth: 460,
+          width: '100%',
+          padding: '24px 20px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+          textAlign: 'center',
+          background: 'var(--card-bg)',
+          color: 'var(--text-main)',
+          borderColor: 'var(--lang-primary)',
+        }}
+      >
+        <FlagIcon language={language} size={44} />
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '3px 10px',
+            borderRadius: 999,
+            background: 'var(--tint-indigo-bg)',
+            border: '1.5px solid var(--tint-indigo-border)',
+            color: 'var(--tint-indigo-ink)',
+            fontSize: '0.72rem',
+            fontWeight: 900,
+          }}
+        >
+          <Sparkles size={13} />
+          <span>AFTER-HOURS ATLAS</span>
+        </div>
+        <h2 style={{ margin: 0, fontSize: '1.22rem', fontWeight: 900, color: 'var(--text-main)' }}>
+          {meta.landTitle}
+        </h2>
+        {meta.pairDirectionBadge ? (
+          <div
+            style={{
+              padding: '3px 10px',
+              borderRadius: 999,
+              background: 'var(--card-soft-bg)',
+              border: '1.5px solid var(--card-border)',
+              fontSize: '0.76rem',
+              fontWeight: 800,
+              color: 'var(--text-main)',
+              maxWidth: '100%',
+              overflowWrap: 'break-word',
+            }}
+          >
+            {meta.pairDirectionBadge}
+          </div>
+        ) : null}
+        <p style={{ margin: 0, fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+          Loading {meta.name} track with {meta.companionName}...
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export function App() {
@@ -140,12 +223,23 @@ export function App() {
     }
   };
 
+  const isAdultModeActive = Boolean(activeProfile.adultModeActive);
   const effectiveLanguage: LanguageCode =
-    !activeProfile.adultModeActive && isAdultLanguage(activeProfile.activeLanguage)
+    !isAdultModeActive && isAdultLanguage(activeProfile.activeLanguage)
       ? (activeProfile.lastBaseLanguage ?? 'en')
       : activeProfile.activeLanguage;
 
+  const adultRegistryVersion = useEnsureAdultCurriculum(isAdultModeActive, effectiveLanguage);
+
+  const course = useMemo(
+    () => getCourse(effectiveLanguage),
+    [effectiveLanguage, adultRegistryVersion]
+  );
+  const isAdultCourseHydrating =
+    isAdultLanguage(effectiveLanguage) && (course?.units?.length ?? 0) === 0;
+
   const handleStartTierCheckpoint = (targetTier: Exclude<ProficiencyTier, 'A1'>) => {
+    if (isAdultCourseHydrating) return;
     const buildCheckpoint = (
       curriculum as {
         buildTierCheckpointNode?: (
@@ -160,7 +254,6 @@ export function App() {
     }
   };
 
-  const course = getCourse(effectiveLanguage);
   const palette = LANGUAGE_META[effectiveLanguage].accentPalette;
   const equippedTheme = activeProfile.equippedCosmetics.theme ?? 'default';
 
@@ -193,19 +286,29 @@ export function App() {
       <AmbientBackdrop theme={equippedTheme} />
 
       {activeNode ? (
-        <motion.div
-          key={`arena-${activeNode.id}`}
-          initial={{ opacity: 0, scale: 0.985 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'spring', stiffness: 420, damping: 30, duration: 0.21 }}
-          style={{ position: 'relative', zIndex: 45 }}
-        >
-          <LessonArena
-            node={activeNode}
-            language={effectiveLanguage}
-            onExit={() => setActiveNode(null)}
-          />
-        </motion.div>
+        isAdultCourseHydrating ? (
+          <div className="lesson-arena-shell" style={{ zIndex: 45 }}>
+            <div className="lesson-arena-stage">
+              <div className="lesson-arena-stage-inner">
+                <AdultTrackLoadingCard language={effectiveLanguage} />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <motion.div
+            key={`arena-${activeNode.id}`}
+            initial={{ opacity: 0, scale: 0.985 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 30, duration: 0.21 }}
+            style={{ position: 'relative', zIndex: 45 }}
+          >
+            <LessonArena
+              node={activeNode}
+              language={effectiveLanguage}
+              onExit={() => setActiveNode(null)}
+            />
+          </motion.div>
+        )
       ) : (
         <div className="app-shell-body">
           <TopHud
@@ -238,16 +341,20 @@ export function App() {
                 }}
               >
                 {activeTab === 'map' ? (
-                  <AdaptiveAdventureMap
-                    course={course}
-                    progress={activeProgress}
-                    equippedCosmetics={activeProfile.equippedCosmetics}
-                    onSelectNode={(node) => setActiveNode(node)}
-                    onSelectUnit={(unitIndex) =>
-                      vaultActions.setCurrentUnitIndex(effectiveLanguage, unitIndex)
-                    }
-                    onStartTierCheckpoint={handleStartTierCheckpoint}
-                  />
+                  isAdultCourseHydrating ? (
+                    <AdultTrackLoadingCard language={effectiveLanguage} />
+                  ) : (
+                    <AdaptiveAdventureMap
+                      course={course}
+                      progress={activeProgress}
+                      equippedCosmetics={activeProfile.equippedCosmetics}
+                      onSelectNode={(node) => setActiveNode(node)}
+                      onSelectUnit={(unitIndex) =>
+                        vaultActions.setCurrentUnitIndex(effectiveLanguage, unitIndex)
+                      }
+                      onStartTierCheckpoint={handleStartTierCheckpoint}
+                    />
+                  )
                 ) : null}
 
                 {activeTab === 'phrasebook' ? <PhrasebookVault /> : null}

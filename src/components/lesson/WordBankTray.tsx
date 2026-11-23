@@ -62,8 +62,14 @@ export function WordBankTray({
     () => getAssembledText(pool, selectedTileUids),
     [pool, selectedTileUids]
   );
-  const denseChips = compact || targetTokens.length >= 9 || pool.length >= 9;
-  const veryDense = targetTokens.length >= 9 || pool.length >= 11;
+  const totalPoolChars = useMemo(
+    () => pool.reduce((sum, tile) => sum + tile.label.length, 0),
+    [pool]
+  );
+  const longTokenLayout = totalPoolChars > 65;
+  const denseChips =
+    compact || targetTokens.length >= 9 || pool.length >= 9 || longTokenLayout;
+  const veryDense = targetTokens.length >= 9 || pool.length >= 11 || longTokenLayout;
 
   const addTile = (uid: string) => {
     if (disabled || selectedSet.has(uid)) return;
@@ -78,7 +84,7 @@ export function WordBankTray({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: denseChips ? 7 : 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: denseChips ? 7 : 12, minWidth: 0, width: '100%' }}>
       {/* Answer Assembly Tray */}
       <div
         aria-label="Answer tray"
@@ -94,6 +100,8 @@ export function WordBankTray({
           flexDirection: 'column',
           justifyContent: 'center',
           gap: veryDense ? 4 : 6,
+          minWidth: 0,
+          width: '100%',
         }}
       >
         {selectedTileUids.length === 0 ? (
@@ -112,7 +120,7 @@ export function WordBankTray({
           <>
             <div
               dir={dir}
-              style={{ display: 'flex', flexWrap: 'wrap', gap: veryDense ? 4 : 6, alignItems: 'center' }}
+              style={{ display: 'flex', flexWrap: 'wrap', gap: veryDense ? 4 : 6, alignItems: 'center', minWidth: 0 }}
             >
               {selectedTileUids.map((uid) => {
                 const tile = byUid.get(uid);
@@ -128,11 +136,13 @@ export function WordBankTray({
                     className={`tactile-tile is-selected ${veryDense ? 'word-bank-chip is-dense' : ''}`}
                     style={
                       veryDense
-                        ? { lineHeight: dir === 'rtl' ? 1.5 : 1.2 }
+                        ? { lineHeight: dir === 'rtl' ? 1.5 : 1.2, maxWidth: '100%', overflowWrap: 'anywhere' }
                         : {
                             padding: denseChips ? '6px 11px' : '8px 14px',
                             fontSize: denseChips ? '0.9rem' : '0.98rem',
                             lineHeight: dir === 'rtl' ? 1.5 : 1.25,
+                            maxWidth: '100%',
+                            overflowWrap: 'anywhere',
                           }
                     }
                     disabled={disabled}
@@ -151,6 +161,7 @@ export function WordBankTray({
                 color: 'var(--text-muted)',
                 borderTop: '1px solid var(--card-border)',
                 paddingTop: 3,
+                overflowWrap: 'anywhere',
               }}
             >
               Preview:{' '}
@@ -179,6 +190,8 @@ export function WordBankTray({
           flexWrap: 'wrap',
           justifyContent: 'center',
           gap: veryDense ? 5 : denseChips ? 6 : 8,
+          minWidth: 0,
+          width: '100%',
         }}
       >
         {pool.map((tile) => {
@@ -192,11 +205,13 @@ export function WordBankTray({
               }`}
               style={
                 veryDense
-                  ? { lineHeight: dir === 'rtl' ? 1.5 : 1.2 }
+                  ? { lineHeight: dir === 'rtl' ? 1.5 : 1.2, maxWidth: '100%', overflowWrap: 'anywhere' }
                   : {
                       padding: denseChips ? '6px 11px' : '8px 14px',
                       fontSize: denseChips ? '0.9rem' : '0.98rem',
                       lineHeight: dir === 'rtl' ? 1.5 : 1.25,
+                      maxWidth: '100%',
+                      overflowWrap: 'anywhere',
                     }
               }
               disabled={disabled || isUsed}
