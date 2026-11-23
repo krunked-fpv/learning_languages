@@ -15,7 +15,13 @@ import { PhrasebookVault } from './components/meta/PhrasebookVault';
 import { BottomNav, type NavTabId } from './components/shell/BottomNav';
 import { ProfileVaultModal } from './components/shell/ProfileVaultModal';
 import { TopHud } from './components/shell/TopHud';
-import { useEnsureAdultCurriculum } from './components/shell/adultCurriculumSync';
+import {
+  retryAdultCourseLoad,
+  useAdultLoadError,
+  useEnsureAdultCurriculum,
+} from './components/shell/adultCurriculumSync';
+import { safeVaultActions } from './components/shell/vaultSafeActions';
+import { ensureAccessibleButtonBg } from './components/lesson/lessonHelpers';
 import * as curriculum from './curriculum';
 import { getCourse } from './curriculum';
 import { useVaultStore, vaultActions } from './store/useVaultStore';
@@ -48,8 +54,16 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
 
-function AdultTrackLoadingCard({ language }: { language: LanguageCode }) {
+function AdultTrackLoadingCard({
+  language,
+  onReturnToKidAtlas,
+}: {
+  language: LanguageCode;
+  onReturnToKidAtlas?: () => void;
+}) {
   const meta = LANGUAGE_META[language];
+  const loadError = useAdultLoadError(language);
+
   return (
     <div
       role="status"
@@ -80,7 +94,7 @@ function AdultTrackLoadingCard({ language }: { language: LanguageCode }) {
           textAlign: 'center',
           background: 'var(--card-bg)',
           color: 'var(--text-main)',
-          borderColor: 'var(--lang-primary)',
+          borderColor: loadError ? 'var(--tint-amber-border)' : 'var(--lang-primary)',
         }}
       >
         <FlagIcon language={language} size={44} />
@@ -91,15 +105,15 @@ function AdultTrackLoadingCard({ language }: { language: LanguageCode }) {
             gap: 6,
             padding: '3px 10px',
             borderRadius: 999,
-            background: 'var(--tint-indigo-bg)',
-            border: '1.5px solid var(--tint-indigo-border)',
-            color: 'var(--tint-indigo-ink)',
+            background: loadError ? 'var(--tint-amber-bg)' : 'var(--tint-indigo-bg)',
+            border: `1.5px solid ${loadError ? 'var(--tint-amber-border)' : 'var(--tint-indigo-border)'}`,
+            color: loadError ? 'var(--tint-amber-ink)' : 'var(--tint-indigo-ink)',
             fontSize: '0.72rem',
             fontWeight: 900,
           }}
         >
           <Sparkles size={13} />
-          <span>AFTER-HOURS ATLAS</span>
+          <span>{loadError ? 'OFFLINE FALLBACK' : 'AFTER-HOURS ATLAS'}</span>
         </div>
         <h2 style={{ margin: 0, fontSize: '1.22rem', fontWeight: 900, color: 'var(--text-main)' }}>
           {meta.landTitle}
@@ -121,9 +135,41 @@ function AdultTrackLoadingCard({ language }: { language: LanguageCode }) {
             {meta.pairDirectionBadge}
           </div>
         ) : null}
-        <p style={{ margin: 0, fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-          Loading {meta.name} track with {meta.companionName}...
-        </p>
+        {loadError ? (
+          <>
+            <p style={{ margin: 0, fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-muted)', lineHeight: 1.45 }}>
+              You&apos;re offline right now and {meta.name} with {meta.companionName} hasn&apos;t been cached yet.
+              Reconnect to download this track, or hop back to the Kid Atlas anytime!
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 4 }}>
+              <button
+                type="button"
+                className="tactile-btn tactile-btn-primary"
+                onClick={() => {
+                  playSfx('button_click');
+                  retryAdultCourseLoad(language);
+                }}
+              >
+                Retry Loading
+              </button>
+              <button
+                type="button"
+                className="tactile-btn tactile-btn-soft"
+                onClick={() => {
+                  playSfx('whoosh_transition');
+                  safeVaultActions.setAdultModeActive(false);
+                  onReturnToKidAtlas?.();
+                }}
+              >
+                Return to Kid Atlas
+              </button>
+            </div>
+          </>
+        ) : (
+          <p style={{ margin: 0, fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+            Loading {meta.name} track with {meta.companionName}...
+          </p>
+        )}
       </div>
     </div>
   );
@@ -259,6 +305,7 @@ export function App() {
 
   const rootStyle = {
     '--lang-primary': palette.primary,
+    '--lang-btn-bg': ensureAccessibleButtonBg(palette.primary),
     '--lang-secondary': palette.secondary,
     '--lang-glow': palette.glow,
     '--lang-bevel': palette.bevel,
@@ -290,7 +337,10 @@ export function App() {
           <div className="lesson-arena-shell" style={{ zIndex: 45 }}>
             <div className="lesson-arena-stage">
               <div className="lesson-arena-stage-inner">
-                <AdultTrackLoadingCard language={effectiveLanguage} />
+                <AdultTrackLoadingCard
+                  language={effectiveLanguage}
+                  onReturnToKidAtlas={() => setActiveNode(null)}
+                />
               </div>
             </div>
           </div>

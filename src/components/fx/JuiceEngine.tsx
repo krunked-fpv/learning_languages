@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useCompactViewport } from '../lesson/lessonHelpers';
 
 export interface PopToastItem {
   id: string;
@@ -121,45 +122,55 @@ const TOAST_TONE_STYLE: Record<
 };
 
 export function FloatingPopToast({ items }: { items: readonly PopToastItem[] }) {
+  const compact = useCompactViewport();
+  const visibleItems = compact ? items.slice(-1) : items;
+
   return (
     <div
       aria-hidden="true"
+      className={`floating-pop-toast-stack ${compact ? 'is-compact' : ''}`}
       style={{
         position: 'fixed',
-        top: 66,
+        top: compact ? 10 : 66,
         left: '50%',
         transform: 'translateX(-50%)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 6,
+        gap: compact ? 4 : 6,
         pointerEvents: 'none',
         zIndex: 82,
+        maxWidth: 'calc(100vw - 24px)',
       }}
     >
       <AnimatePresence>
-        {items.map((item) => {
+        {visibleItems.map((item) => {
           const palette = TOAST_TONE_STYLE[item.tone];
           return (
             <motion.div
               key={item.id}
-              initial={{ opacity: 0, y: 14, scale: 0.78 }}
-              animate={{ opacity: 1, y: -10, scale: 1.04 }}
-              exit={{ opacity: 0, y: -28, scale: 0.9 }}
+              className="floating-pop-toast-pill"
+              initial={{ opacity: 0, y: compact ? 6 : 14, scale: compact ? 0.92 : 0.78 }}
+              animate={{ opacity: 1, y: compact ? 0 : -10, scale: compact ? 1 : 1.04 }}
+              exit={{ opacity: 0, y: compact ? -10 : -28, scale: 0.9 }}
               transition={{ type: 'spring', stiffness: 420, damping: 22 }}
               style={{
-                padding: '6px 14px',
+                padding: compact ? '3px 10px' : '6px 14px',
                 borderRadius: 999,
                 background: palette.bg,
                 borderTopWidth: 2,
                 borderRightWidth: 2,
                 borderLeftWidth: 2,
-                borderBottomWidth: 4,
+                borderBottomWidth: compact ? 3 : 4,
                 borderStyle: 'solid',
                 borderColor: palette.border,
                 color: palette.text,
                 fontWeight: 900,
-                fontSize: '0.88rem',
+                fontSize: compact ? '0.76rem' : '0.88rem',
+                lineHeight: 1.2,
+                maxWidth: '100%',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
                 boxShadow: '0 8px 20px rgba(15, 23, 42, 0.14)',
                 whiteSpace: 'nowrap',
                 willChange: 'transform, opacity',

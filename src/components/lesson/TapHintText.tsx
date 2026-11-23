@@ -227,38 +227,91 @@ export function TapHintText({
     </div>
   ) : null;
 
+  const alignedSegments = (() => {
+    if (!fallbackText || tokens.length === 0) return null;
+    const trimmedFallback = fallbackText.trim();
+    if (!trimmedFallback) return null;
+    const normalizedSearch = trimmedFallback.replace(/[’‘\u02BC]/g, "'");
+    const items: Array<{ prefix: string; token: TapHintToken; idx: number }> = [];
+    let cursor = 0;
+
+    for (let idx = 0; idx < tokens.length; idx++) {
+      const token = tokens[idx];
+      const normSurface = token.surface.replace(/[’‘\u02BC]/g, "'");
+      const found = normalizedSearch.indexOf(normSurface, cursor);
+      if (found === -1) return null;
+      const gap = trimmedFallback.slice(cursor, found);
+      if (/[\p{L}\p{N}]/u.test(gap)) return null;
+      items.push({ prefix: gap, token, idx });
+      cursor = found + normSurface.length;
+    }
+
+    const tail = trimmedFallback.slice(cursor);
+    if (/[\p{L}\p{N}]/u.test(tail)) return null;
+    return { items, tail };
+  })();
+
   return (
     <span className={className} dir={langDir} style={{ lineHeight: 1.5, unicodeBidi: 'isolate' }}>
-      {tokens.map((token, idx) => {
-        const prev = idx > 0 ? tokens[idx - 1].surface : '';
-        const needsSpace =
-          idx > 0 &&
-          (usesSpaces
-            ? !NO_SPACE_AFTER_RE.test(prev) && !NO_SPACE_BEFORE_RE.test(token.surface)
-            : /[A-Za-z0-9]$/.test(prev) && /^[A-Za-z0-9]/.test(token.surface));
-        const isOpen = activeIndex === idx;
+      {alignedSegments ? (
+        <>
+          {alignedSegments.items.map(({ prefix, token, idx }) => {
+            const isOpen = activeIndex === idx;
+            return (
+              <span key={`${token.normalizedId}-${idx}`}>
+                {prefix}
+                <button
+                  type="button"
+                  ref={(el) => {
+                    if (isOpen) anchorRef.current = el;
+                  }}
+                  className={`tap-hint-token-btn ${isOpen ? 'is-open' : ''}`}
+                  aria-expanded={isOpen}
+                  onClick={(e) => {
+                    anchorRef.current = e.currentTarget;
+                    playSfx('tile_tap');
+                    setActiveIndex((cur) => (cur === idx ? null : idx));
+                  }}
+                >
+                  {token.surface}
+                </button>
+              </span>
+            );
+          })}
+          {alignedSegments.tail}
+        </>
+      ) : (
+        tokens.map((token, idx) => {
+          const prev = idx > 0 ? tokens[idx - 1].surface : '';
+          const needsSpace =
+            idx > 0 &&
+            (usesSpaces
+              ? !NO_SPACE_AFTER_RE.test(prev) && !NO_SPACE_BEFORE_RE.test(token.surface)
+              : /[A-Za-z0-9]$/.test(prev) && /^[A-Za-z0-9]/.test(token.surface));
+          const isOpen = activeIndex === idx;
 
-        return (
-          <span key={`${token.normalizedId}-${idx}`}>
-            {needsSpace ? ' ' : ''}
-            <button
-              type="button"
-              ref={(el) => {
-                if (isOpen) anchorRef.current = el;
-              }}
-              className={`tap-hint-token-btn ${isOpen ? 'is-open' : ''}`}
-              aria-expanded={isOpen}
-              onClick={(e) => {
-                anchorRef.current = e.currentTarget;
-                playSfx('tile_tap');
-                setActiveIndex((cur) => (cur === idx ? null : idx));
-              }}
-            >
-              {token.surface}
-            </button>
-          </span>
-        );
-      })}
+          return (
+            <span key={`${token.normalizedId}-${idx}`}>
+              {needsSpace ? ' ' : ''}
+              <button
+                type="button"
+                ref={(el) => {
+                  if (isOpen) anchorRef.current = el;
+                }}
+                className={`tap-hint-token-btn ${isOpen ? 'is-open' : ''}`}
+                aria-expanded={isOpen}
+                onClick={(e) => {
+                  anchorRef.current = e.currentTarget;
+                  playSfx('tile_tap');
+                  setActiveIndex((cur) => (cur === idx ? null : idx));
+                }}
+              >
+                {token.surface}
+              </button>
+            </span>
+          );
+        })
+      )}
       {popoverNode && typeof document !== 'undefined'
         ? createPortal(popoverNode, document.body)
         : popoverNode}

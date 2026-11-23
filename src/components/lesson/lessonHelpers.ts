@@ -19,12 +19,54 @@ import {
 export const NO_SPACE_AFTER_RE =
   /(?:[¡¿(«「『（」』），、。？！・-]$|(?:^|[\s¡¿(«“„\-])(?:c|d|j|l|m|n|s|t|v|qu|jusqu|lorsqu|puisqu|quelqu|presqu|aujourd|un|dell|all|dall|nell|sull|coll|pell|quest|quell|anch|ch|gl|bell|buon|sant|grand|pover|mezz|qualcos|nient|com|dov|cos|quant|tant|tutt|altr|molt|poc|senz|sott)['’]$)/i;
 export const NO_SPACE_BEFORE_RE = /^[.,!?;:)»。？！，、・「」『』（）؟،؛।॥]/;
-const EDGE_PUNCT_STRIP_RE =
-  /[¡!¿?.,;:"'’‘“”„«»‹›()[\]。？！，、；：・「」『』（）【】《》〈〉؟،؛।॥…—–～·]/g;
+const OUTER_PUNCT_STRIP_RE =
+  /^[¡!¿?.,;:"“”„«»‹›()[\]。？！，、；：・「」『』（）【】《》〈〉؟،؛।॥…—–～·]+|[¡!¿?.,;:"“”„«»‹›()[\]。？！，、；：・「」『』（）【】《》〈〉؟،؛।॥…—–～·]+$/g;
 const CJK_OR_FULLWIDTH_RE =
   /[\u3005\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF。？！，、；：・「」『』（）【】《》〈〉]/;
 const TRAILING_PUNCT_RE =
   /^[¡!¿?.,;:"'’‘“”„«»‹›()[\]。？！，、；：・「」『』（）【】《》〈〉؟،؛।॥…—–～·]+/;
+
+function cleanOuterPunctuation(raw: string): string {
+  return stripEdgePunctuation(raw)
+    .replace(OUTER_PUNCT_STRIP_RE, '')
+    .replace(/[’‘\u02BC]/g, "'");
+}
+
+function hexToRelativeLuminance(hex: string): number {
+  const clean = hex.replace('#', '');
+  if (!/^[0-9a-fA-F]{6}$/.test(clean)) return 0;
+  const r = parseInt(clean.slice(0, 2), 16) / 255;
+  const g = parseInt(clean.slice(2, 4), 16) / 255;
+  const b = parseInt(clean.slice(4, 6), 16) / 255;
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+/**
+ * Ensures any hex background used behind white (#ffffff) CTA text meets WCAG AA contrast.
+ */
+export function ensureAccessibleButtonBg(hex: string, minContrast = 4.6): string {
+  const clean = hex.replace('#', '');
+  if (!/^[0-9a-fA-F]{6}$/.test(clean)) return hex;
+  const contrastWithWhite = (lum: number) => 1.05 / (lum + 0.05);
+  if (contrastWithWhite(hexToRelativeLuminance(clean)) >= minContrast) {
+    return hex;
+  }
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  for (let step = 1; step <= 18; step++) {
+    const factor = 1 - step * 0.05;
+    const nr = Math.max(0, Math.round(r * factor));
+    const ng = Math.max(0, Math.round(g * factor));
+    const nb = Math.max(0, Math.round(b * factor));
+    const candidate = `#${nr.toString(16).padStart(2, '0')}${ng.toString(16).padStart(2, '0')}${nb.toString(16).padStart(2, '0')}`;
+    if (contrastWithWhite(hexToRelativeLuminance(candidate)) >= minContrast) {
+      return candidate;
+    }
+  }
+  return '#1e293b';
+}
 
 export function joinWordBankTokens(tokens: readonly string[]): string {
   let out = '';
@@ -188,16 +230,26 @@ export function buildTapHintsFromExample(
 ): TapHintToken[] {
   const glossary = vocabCard ? getCourseGlossary(vocabCard.language) : undefined;
   const usesSpaces = vocabCard ? LANGUAGE_META[vocabCard.language].usesSpaces : !CJK_OR_FULLWIDTH_RE.test(foreign);
-  const targetClean =
-    (vocabCard ? stripEdgePunctuation(vocabCard.bareForeign) : '').toLowerCase().replace(EDGE_PUNCT_STRIP_RE, '') ??
-    '';
+  const targetClean = vocabCard
+    ? cleanOuterPunctuation(vocabCard.bareForeign).toLowerCase()
+    : '';
 
-  const words = segmentExampleWords(foreign, usesSpaces, glossary, targetClean);
+  const words = segmentExampleWords(foreign, usesSpaces, glossary, targetClean).filter((word) =>
+    /[\p{L}\p{N}]/u.test(word)
+  );
 
   return words.map((word, index) => {
-    const clean = stripEdgePunctuation(word).toLowerCase().replace(EDGE_PUNCT_STRIP_RE, '');
-    const isTarget = Boolean(targetClean && clean === targetClean);
-    const gloss = clean ? lookupGlossaryEntry(clean, glossary) : undefined;
+    const clean = cleanOuterPunctuation(word).toLowerCase();
+    const cleanNoOuterSingleQuote = clean.replace(/^'+|'+$/g, '');
+    const isTarget = Boolean(
+      targetClean && (clean === targetClean || cleanNoOuterSingleQuote === targetClean)
+    );
+    const gloss = clean
+      ? lookupGlossaryEntry(clean, glossary) ??
+        (cleanNoOuterSingleQuote !== clean
+          ? lookupGlossaryEntry(cleanNoOuterSingleQuote, glossary)
+          : undefined)
+      : undefined;
 
     const translation = isTarget && vocabCard
       ? vocabCard.english
@@ -208,6 +260,8 @@ export function buildTapHintsFromExample(
     const romanized = isTarget
       ? vocabCard?.romanized ?? gloss?.romanized
       : gloss?.romanized ?? (words.length === 1 ? vocabCard?.exampleRomanized : undefined);
+
+    const strippedSpeak = cleanOuterPunctuation(word);
 
     return {
       surface: word,
@@ -223,7 +277,7 @@ export function buildTapHintsFromExample(
         isTarget && vocabCard?.accentCallout ? vocabCard.accentCallout.tip : gloss?.accentNote,
       ...(gloss?.registerNote ? { registerNote: gloss.registerNote } : {}),
       ...(gloss?.grammarNote ? { grammarNote: gloss.grammarNote } : {}),
-      speakText: gloss?.speakText ?? (stripEdgePunctuation(word).replace(EDGE_PUNCT_STRIP_RE, '') || word),
+      speakText: gloss?.speakText ?? (strippedSpeak || word),
     };
   });
 }

@@ -17,7 +17,7 @@ import { VocabIllustration } from '../../art/VocabIllustration';
 import { getCourse } from '../../curriculum';
 import { playSfx, speakPhrase } from '../../audio';
 import { useVaultStore, vaultActions } from '../../store/useVaultStore';
-import { useCompactViewport } from '../lesson/lessonHelpers';
+import { ensureAccessibleButtonBg, useCompactViewport } from '../lesson/lessonHelpers';
 import { SayItNormallyButton } from '../lesson/SayItNormallyButton';
 import { safeVaultActions } from '../shell/vaultSafeActions';
 import { useEnsureAdultCurriculum } from '../shell/adultCurriculumSync';
@@ -424,7 +424,7 @@ export function PhrasebookVault() {
                       style={{
                         padding: '3px 10px',
                         borderRadius: 999,
-                        background: unit.themeColor,
+                        background: ensureAccessibleButtonBg(unit.themeColor),
                         color: '#ffffff',
                         fontSize: '0.76rem',
                         fontWeight: 900,

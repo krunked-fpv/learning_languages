@@ -184,7 +184,7 @@ export function WordBankTray({
               })}
             </div>
             <div
-              dir="ltr"
+              dir={dir}
               style={{
                 fontSize: veryDense ? '0.74rem' : '0.8rem',
                 fontWeight: 700,
@@ -192,10 +192,11 @@ export function WordBankTray({
                 borderTop: '1px solid var(--card-border)',
                 paddingTop: 3,
                 overflowWrap: 'anywhere',
+                textAlign: dir === 'rtl' ? 'right' : 'left',
               }}
             >
-              Preview:{' '}
-              <span
+              <bdi dir="ltr">Preview:</bdi>{' '}
+              <bdi
                 dir={dir}
                 style={{
                   color: 'var(--text-main)',
@@ -205,7 +206,7 @@ export function WordBankTray({
                 }}
               >
                 {assembledPreview}
-              </span>
+              </bdi>
             </div>
           </>
         )}

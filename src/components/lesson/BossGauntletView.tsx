@@ -83,6 +83,9 @@ export function BossGauntletView({
   const [bossCleared, setBossCleared] = useState(false);
   const [bossHintNonce, setBossHintNonce] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const checkTurnLockRef = useRef(false);
+  const nextTurnLockRef = useRef(false);
+  const completeLockRef = useRef(false);
 
   useEffect(() => {
     setTurnIndex(initialTurnIndex);
@@ -94,7 +97,17 @@ export function BossGauntletView({
     setTurnOutcome(null);
     setBossCleared(false);
     setBossHintNonce(0);
+    checkTurnLockRef.current = false;
+    nextTurnLockRef.current = false;
+    completeLockRef.current = false;
   }, [exercise.id, initialTurnIndex]);
+
+  useEffect(() => {
+    nextTurnLockRef.current = false;
+    if (turnOutcome?.kind !== 'ok') {
+      checkTurnLockRef.current = false;
+    }
+  }, [turnIndex, bossCleared, turnOutcome]);
 
   const langMeta = LANGUAGE_META[language];
   const langDir = langMeta.dir;
@@ -221,9 +234,12 @@ export function BossGauntletView({
           Boss Chest Bonus: +{exercise.rewardChestGems} Gems!
         </div>
         <button
+          key="boss-collect-chest-btn"
           type="button"
           className="tactile-btn tactile-btn-hero tactile-btn-success"
           onClick={() => {
+            if (completeLockRef.current) return;
+            completeLockRef.current = true;
             playSfx('chest_open');
             onComplete(exercise.rewardChestGems);
           }}
@@ -274,7 +290,10 @@ export function BossGauntletView({
   };
 
   const handleCheckTurn = () => {
-    if (!submittedValue) return;
+    if (!submittedValue || turnOutcome?.kind === 'ok' || checkTurnLockRef.current || nextTurnLockRef.current) {
+      return;
+    }
+    checkTurnLockRef.current = true;
     cancelHint({ clearAssists: true });
     const res = gradeAnswer({
       submitted: submittedValue,
@@ -325,6 +344,8 @@ export function BossGauntletView({
   };
 
   const handleNextTurn = () => {
+    if (nextTurnLockRef.current) return;
+    nextTurnLockRef.current = true;
     cancelHint({ clearAssists: true });
     playSfx('button_click');
     setSelectedChoice(null);
@@ -792,6 +813,7 @@ export function BossGauntletView({
 
         {turnOutcome?.kind === 'ok' ? (
           <button
+            key="boss-next-turn-btn"
             type="button"
             className="tactile-btn tactile-btn-hero tactile-btn-success"
             onClick={handleNextTurn}
@@ -800,6 +822,7 @@ export function BossGauntletView({
           </button>
         ) : (
           <button
+            key="boss-send-reply-btn"
             type="button"
             className="tactile-btn tactile-btn-hero tactile-btn-primary"
             disabled={!submittedValue}
