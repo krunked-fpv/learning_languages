@@ -12,6 +12,18 @@ const WOFF2_SIGNATURE = Buffer.from('wOF2', 'ascii');
 const UNICODE_FLAG_REGEX = /[\u{1F1E6}-\u{1F1FF}]/u;
 const TEXT_FILE_EXT_REGEX = /\.(html|htm|js|mjs|cjs|css|json|webmanifest|svg|txt|xml|md|map)$/i;
 const JS_EXTERNAL_URL_REGEX = /https?:\/\/[^\s'"`<>\\)\]}]*/gi;
+const MAX_JS_CHUNK_BYTES = 500 * 1024;
+const PRECACHE_ASSET_EXT_REGEX = /\.(js|mjs|css|woff2)$/i;
+const CORE_SHELL_PRECACHE_URLS = [
+  './',
+  './index.html',
+  './manifest.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-maskable-192.png',
+  './icons/icon-maskable-512.png',
+  './icons/apple-touch-icon.png',
+];
 // React DOM & Lucide embed standard W3C XML/DOM namespace URIs, and React 18's
 // production runtime includes its invariant decoder URL template in minified builds.
 const ALLOWED_JS_EXTERNAL_URLS = new Set([
@@ -129,6 +141,8 @@ function verifyNoLazyMashupModulepreload(html) {
     const hrefValue = (hrefMatch?.[2] ?? hrefMatch?.[3] ?? '').trim();
     if (/adult-mashup-/i.test(hrefValue)) {
       fail(`dist/index.html must NOT <link rel="modulepreload"> lazy mashup chunk: ${hrefValue}`);
+    } else if (/course-(?!es-)/i.test(hrefValue)) {
+      fail(`dist/index.html must NOT <link rel="modulepreload"> lazy non-es course chunk: ${hrefValue}`);
     }
   }
 }
@@ -300,7 +314,7 @@ function verifyServiceWorker() {
   const swPath = resolve(DIST_DIR, 'sw.js');
   if (!existsSync(swPath)) {
     fail('dist/sw.js is missing.');
-    return;
+    return { cacheVersion: '', precacheSet: new Set() };
   }
 
   const sw = readFileSync(swPath, 'utf8');
@@ -316,7 +330,8 @@ function verifyServiceWorker() {
     fail(`dist/sw.js must register an 'install' listener.`);
   }
   const cacheVersionMatch = sw.match(/CACHE_VERSION\s*=\s*(['"])([^'"]+)\1/);
-  if (!cacheVersionMatch || !cacheVersionMatch[2].trim()) {
+  const cacheVersion = cacheVersionMatch ? cacheVersionMatch[2].trim() : '';
+  if (!cacheVersion) {
     fail('dist/sw.js must define a non-empty CACHE_VERSION string.');
   }
   if (!sw.includes('caches.delete')) {
@@ -329,6 +344,7 @@ function verifyServiceWorker() {
     fail('dist/sw.js contains forbidden external HTTP/HTTPS URL.');
   }
 
+  const precacheSet = new Set();
   const precacheMatch = sw.match(/PRECACHE_URLS\s*=\s*\[([\s\S]*?)\]/);
   if (!precacheMatch) {
     fail('dist/sw.js must define PRECACHE_URLS.');
@@ -341,13 +357,26 @@ function verifyServiceWorker() {
         fail(`dist/sw.js PRECACHE_URLS entry must be relative "./", got ${JSON.stringify(precacheRef)}`);
         continue;
       }
+      if (precacheSet.has(precacheRef)) {
+        fail(`dist/sw.js PRECACHE_URLS contains duplicate entry: ${precacheRef}`);
+      } else {
+        precacheSet.add(precacheRef);
+      }
       if (precacheRef === './') continue;
       const resolvedTarget = resolve(DIST_DIR, precacheRef);
       if (!isInsideDist(resolvedTarget) || !existsSync(resolvedTarget)) {
         fail(`dist/sw.js PRECACHE_URLS references missing dist file: ${precacheRef}`);
       }
     }
+
+    for (const shellEntry of CORE_SHELL_PRECACHE_URLS) {
+      if (!precacheSet.has(shellEntry)) {
+        fail(`dist/sw.js PRECACHE_URLS is missing core shell entry: ${shellEntry}`);
+      }
+    }
   }
+
+  return { cacheVersion, precacheSet };
 }
 
 function verifyPngIcons() {
@@ -532,14 +561,20 @@ function verifyAssetsAndFonts() {
   const assetsDir = resolve(DIST_DIR, 'assets');
   if (!existsSync(assetsDir)) {
     fail('dist/assets directory is missing.');
-    return;
+    return [];
   }
 
   const foundLandmarks = new Set();
+  const builtPrecacheAssets = [];
 
   for (const fullPath of walkFiles(assetsDir)) {
-    const relLabel = `dist/${relative(DIST_DIR, fullPath).replace(/\\/g, '/')}`;
+    const relFromDist = relative(DIST_DIR, fullPath).replace(/\\/g, '/');
+    const relLabel = `dist/${relFromDist}`;
     const lowerName = fullPath.toLowerCase();
+
+    if (PRECACHE_ASSET_EXT_REGEX.test(lowerName)) {
+      builtPrecacheAssets.push(`./${relFromDist}`);
+    }
 
     if (lowerName.endsWith('.woff2')) {
       const buf = readFileSync(fullPath);
@@ -557,8 +592,15 @@ function verifyAssetsAndFonts() {
     checkNoFlagEmojis(relLabel, content);
 
     if (lowerName.endsWith('.js') || lowerName.endsWith('.mjs')) {
+      const chunkBytes = Buffer.byteLength(content, 'utf8');
       jsChunkCount += 1;
-      totalJsBytes += Buffer.byteLength(content, 'utf8');
+      totalJsBytes += chunkBytes;
+
+      if (chunkBytes > MAX_JS_CHUNK_BYTES) {
+        fail(
+          `${relLabel} exceeds strict 500 KiB chunk budget (${(chunkBytes / 1024).toFixed(1)} KiB > 500.0 KiB; max ${MAX_JS_CHUNK_BYTES} bytes).`
+        );
+      }
 
       if (content.trim().length === 0) {
         fail(`${relLabel} built JS chunk is empty.`);
@@ -619,6 +661,95 @@ function verifyAssetsAndFonts() {
       }
     }
   }
+
+  return builtPrecacheAssets;
+}
+
+let verifiedPrecacheManifestCount = 0;
+
+/**
+ * Verifies dist/sw-precache-manifest.json and ensures dist/sw.js + manifest cover all built assets.
+ */
+function verifySwPrecacheManifest(builtPrecacheAssets, swInfo) {
+  const manifestPath = resolve(DIST_DIR, 'sw-precache-manifest.json');
+  if (!existsSync(manifestPath)) {
+    fail('dist/sw-precache-manifest.json is missing.');
+    return;
+  }
+
+  const raw = readFileSync(manifestPath, 'utf8');
+  checkNoFlagEmojis('dist/sw-precache-manifest.json', raw);
+  if (/https?:\/\//i.test(raw)) {
+    fail('dist/sw-precache-manifest.json contains forbidden external HTTP/HTTPS URL.');
+  }
+
+  let manifest;
+  try {
+    manifest = JSON.parse(raw);
+  } catch (err) {
+    fail(`dist/sw-precache-manifest.json is invalid JSON: ${err.message}`);
+    return;
+  }
+
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    fail('dist/sw-precache-manifest.json must be a JSON object.');
+    return;
+  }
+
+  if (typeof manifest.cacheVersion !== 'string' || !manifest.cacheVersion.trim()) {
+    fail('dist/sw-precache-manifest.json must define a non-empty "cacheVersion" string.');
+  } else if (swInfo.cacheVersion && manifest.cacheVersion !== swInfo.cacheVersion) {
+    fail(
+      `dist/sw-precache-manifest.json cacheVersion (${manifest.cacheVersion}) does not match dist/sw.js CACHE_VERSION (${swInfo.cacheVersion}).`
+    );
+  }
+
+  if (typeof manifest.generatedAt !== 'string' || Number.isNaN(Date.parse(manifest.generatedAt))) {
+    fail('dist/sw-precache-manifest.json must define a valid ISO "generatedAt" timestamp.');
+  }
+
+  if (!Array.isArray(manifest.assets) || manifest.assets.length === 0) {
+    fail('dist/sw-precache-manifest.json "assets" must be a non-empty array.');
+    return;
+  }
+
+  const manifestAssetSet = new Set();
+  for (const entry of manifest.assets) {
+    if (typeof entry !== 'string' || !entry.startsWith('./')) {
+      fail(`dist/sw-precache-manifest.json asset entry must start with "./", got ${JSON.stringify(entry)}`);
+      continue;
+    }
+    if (entry.includes('\\')) {
+      fail(`dist/sw-precache-manifest.json asset entry must use forward slashes: ${entry}`);
+    }
+    if (manifestAssetSet.has(entry)) {
+      fail(`dist/sw-precache-manifest.json contains duplicate asset entry: ${entry}`);
+    } else {
+      manifestAssetSet.add(entry);
+    }
+    if (entry === './') continue;
+    const resolvedTarget = resolve(DIST_DIR, entry);
+    if (!isInsideDist(resolvedTarget) || !existsSync(resolvedTarget)) {
+      fail(`dist/sw-precache-manifest.json references missing dist file: ${entry}`);
+    }
+  }
+
+  for (const shellEntry of CORE_SHELL_PRECACHE_URLS) {
+    if (!manifestAssetSet.has(shellEntry)) {
+      fail(`dist/sw-precache-manifest.json is missing core shell entry: ${shellEntry}`);
+    }
+  }
+
+  for (const builtAsset of builtPrecacheAssets) {
+    if (!manifestAssetSet.has(builtAsset)) {
+      fail(`dist/sw-precache-manifest.json is missing built asset: ${builtAsset}`);
+    }
+    if (!swInfo.precacheSet.has(builtAsset)) {
+      fail(`dist/sw.js PRECACHE_URLS is missing built asset: ${builtAsset}`);
+    }
+  }
+
+  verifiedPrecacheManifestCount = manifestAssetSet.size;
 }
 
 let verifiedTextFileCount = 0;
@@ -638,9 +769,10 @@ if (!existsSync(DIST_DIR)) {
 } else {
   verifyIndexHtml();
   verifyManifestJson();
-  verifyServiceWorker();
+  const swInfo = verifyServiceWorker();
   verifyPngIcons();
-  verifyAssetsAndFonts();
+  const builtPrecacheAssets = verifyAssetsAndFonts();
+  verifySwPrecacheManifest(builtPrecacheAssets, swInfo);
   verifyAllDistTextNoFlags();
 }
 
@@ -653,5 +785,5 @@ if (errors.length > 0) {
 }
 
 console.log(
-  `[verify-build-artifacts] PASS: dist/index.html (zero eager adult-mashup- modulepreloads), dist/manifest.json, dist/sw.js, all 5 RGBA PNG icons, ${verifiedWoff2Count} relative ./assets/*.woff2 font(s), ${jsChunkCount} JS chunk(s) (${(totalJsBytes / 1024).toFixed(1)} KiB) with zero leaked external URLs, ${EXPECTED_LANDMARKS.length} cultural landmarks, and ${verifiedTextFileCount} dist/ text file(s) verified.`
+  `[verify-build-artifacts] PASS: dist/index.html (zero eager adult-mashup-/lazy-course modulepreloads), dist/manifest.json, dist/sw.js, dist/sw-precache-manifest.json (${verifiedPrecacheManifestCount} entries), all 5 RGBA PNG icons, ${verifiedWoff2Count} relative ./assets/*.woff2 font(s), ${jsChunkCount} JS chunk(s) <= 500 KiB (${(totalJsBytes / 1024).toFixed(1)} KiB total) with zero leaked external URLs, ${EXPECTED_LANDMARKS.length} cultural landmarks, and ${verifiedTextFileCount} dist/ text file(s) verified.`
 );
