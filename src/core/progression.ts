@@ -1,4 +1,5 @@
 import {
+  ADULT_EASTER_EGG_LANGUAGES,
   FREE_RECALL_BONUS_GEMS,
   FREE_RECALL_BONUS_XP,
   LANGUAGE_LIST,
@@ -7,6 +8,7 @@ import {
   type BadgeDefinition,
   type BadgeId,
   type KidProfile,
+  type LanguageCode,
   type LanguageProgressState,
   type LeagueEntry,
   type LeagueTier,
@@ -345,28 +347,32 @@ function getMaxTierOrUnitReached(langProg: LanguageProgressState | undefined): n
 }
 
 function getRawBadgeProgress(badgeId: BadgeId, profile: KidProfile): number {
-  const languagesPracticed = LANGUAGE_LIST.filter(
+  const trackedLanguages: readonly LanguageCode[] = profile.adultModeUnlocked
+    ? [...LANGUAGE_LIST, ...ADULT_EASTER_EGG_LANGUAGES]
+    : LANGUAGE_LIST;
+
+  const languagesPracticed = trackedLanguages.filter(
     (lang) =>
       (profile.languageProgress[lang]?.xpEarned ?? 0) > 0 ||
       (profile.languageProgress[lang]?.completedNodeIds.length ?? 0) > 0
   ).length;
 
-  const totalCompletedNodes = LANGUAGE_LIST.reduce(
+  const totalCompletedNodes = trackedLanguages.reduce(
     (sum, lang) => sum + (profile.languageProgress[lang]?.completedNodeIds.length ?? 0),
     0
   );
 
-  const totalUnlockedStickers = LANGUAGE_LIST.reduce(
+  const totalUnlockedStickers = trackedLanguages.reduce(
     (sum, lang) => sum + (profile.languageProgress[lang]?.unlockedVocabIds.length ?? 0),
     0
   );
 
-  const totalClaimedChests = LANGUAGE_LIST.reduce(
+  const totalClaimedChests = trackedLanguages.reduce(
     (sum, lang) => sum + (profile.languageProgress[lang]?.claimedChestIds.length ?? 0),
     0
   );
 
-  const highestTierOrUnitAcrossLangs = LANGUAGE_LIST.reduce(
+  const highestTierOrUnitAcrossLangs = trackedLanguages.reduce(
     (best, lang) => Math.max(best, getMaxTierOrUnitReached(profile.languageProgress[lang])),
     0
   );

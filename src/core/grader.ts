@@ -1,5 +1,6 @@
 import {
   LANGUAGE_META,
+  isAdultLanguage,
   type AccentCoaching,
   type ArticleCoaching,
   type GenderCategory,
@@ -25,6 +26,114 @@ const CJK_INTER_SPACE_REGEX =
 const ARABIC_HARAKAT_REGEX = /[\u064B-\u065F\u0670]/g;
 const SPECIAL_ACCENT_CHAR_REGEX =
   /[\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u024F\u02BE\u02BF\u1E00-\u1EFF\u0451\u0401\u064B-\u065F\u0670\u0901\u093C\u0981\u09BCأإآٱىة]/;
+const AFTER_HOURS_CASUAL_PUNCT_REGEX = /[~*•·\\/|_+]/g;
+
+const AFTER_HOURS_CLOSED_COMPOUNDS: Readonly<Record<string, string>> = {
+  lowkey: 'low key',
+  highkey: 'high key',
+  deadass: 'dead ass',
+  culdesac: 'cul de sac',
+  culdesacs: 'cul de sacs',
+  circleback: 'circle back',
+  circlebacks: 'circle backs',
+  dadjoke: 'dad joke',
+  dadjokes: 'dad jokes',
+  glowup: 'glow up',
+  glowups: 'glow ups',
+  shoutout: 'shout out',
+  shoutouts: 'shout outs',
+  clapback: 'clap back',
+  clapbacks: 'clap backs',
+  sideeye: 'side eye',
+  vibecheck: 'vibe check',
+  groupchat: 'group chat',
+  groupchats: 'group chats',
+  cookout: 'cook out',
+  cookouts: 'cook outs',
+  afterhours: 'after hours',
+  checkin: 'check in',
+  checkins: 'check ins',
+  followup: 'follow up',
+  followups: 'follow ups',
+  catchup: 'catch up',
+  touchbase: 'touch base',
+  levelup: 'level up',
+  turnup: 'turn up',
+  hangout: 'hang out',
+  hangouts: 'hang outs',
+  chillout: 'chill out',
+  hookup: 'hook up',
+  hookups: 'hook ups',
+  throwback: 'throw back',
+  throwbacks: 'throw backs',
+  backyard: 'back yard',
+  backyards: 'back yards',
+  potluck: 'pot luck',
+  potlucks: 'pot lucks',
+  gameplan: 'game plan',
+  gameplans: 'game plans',
+  realtalk: 'real talk',
+  forreal: 'for real',
+  nocap: 'no cap',
+  whiteboy: 'white boy',
+  homeowner: 'home owner',
+  homeowners: 'home owners',
+  blockparty: 'block party',
+  grillmaster: 'grill master',
+  bandaid: 'band aid',
+  bandaids: 'band aids',
+  mindset: 'mind set',
+  mindsets: 'mind sets',
+  standup: 'stand up',
+  allgood: 'all good',
+  rightnow: 'right now',
+  mybad: 'my bad',
+  goodvibes: 'good vibes',
+  lawncare: 'lawn care',
+  frontporch: 'front porch',
+  weekendwarrior: 'weekend warrior',
+};
+
+function expandAfterHoursCompounds(text: string): string {
+  return text
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => AFTER_HOURS_CLOSED_COMPOUNDS[word] ?? word)
+    .join(' ');
+}
+
+function normalizeAfterHoursBase(input: string): string {
+  return stripSentencePunctuation(
+    normalizeAnswer(input, { stripAccents: true }).replace(/`/g, "'")
+  )
+    .replace(/['"]/g, '')
+    .replace(AFTER_HOURS_CASUAL_PUNCT_REGEX, ' ')
+    .replace(/(?<=^|\s)-+|-(?=\s|$)/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getAfterHoursForms(input: string): { spaced: string; hyphenClosed: string } {
+  const base = normalizeAfterHoursBase(input);
+  if (!base) return { spaced: '', hyphenClosed: '' };
+  const spaced = expandAfterHoursCompounds(base.replace(/-/g, ' ').replace(/\s+/g, ' ').trim());
+  const hyphenClosed = expandAfterHoursCompounds(
+    base.replace(/-/g, '').replace(/\s+/g, ' ').trim()
+  );
+  return { spaced, hyphenClosed };
+}
+
+function matchesAfterHoursForgiving(submittedRaw: string, candidateRaw: string): boolean {
+  const sub = getAfterHoursForms(submittedRaw);
+  const cand = getAfterHoursForms(candidateRaw);
+  if (!sub.spaced || !cand.spaced) return false;
+  return (
+    sub.spaced === cand.spaced ||
+    sub.hyphenClosed === cand.hyphenClosed ||
+    sub.spaced === cand.hyphenClosed ||
+    sub.hyphenClosed === cand.spaced
+  );
+}
 
 /**
  * Collapses whitespace strictly between adjacent CJK/Kana characters so tile-joined
@@ -180,6 +289,10 @@ function matchesAccentForgiving(
     }
   }
 
+  if (isAdultLanguage(language)) {
+    return matchesAfterHoursForgiving(submittedRaw, candidateRaw);
+  }
+
   return false;
 }
 
@@ -326,11 +439,80 @@ function buildFriendlyAccentTip(
   return `Great job! ${tips.join(' ')}`;
 }
 
+function buildAfterHoursCoaching(
+  expectedCandidate: string,
+  submittedRaw: string,
+  language: LanguageCode
+): AccentCoaching {
+  const normCand = normalizeAnswer(expectedCandidate).replace(/`/g, "'");
+  const normSub = normalizeAnswer(submittedRaw).replace(/`/g, "'");
+  const candApostrophes = normCand.replace(/[^']/g, '');
+  const subApostrophes = normSub.replace(/[^']/g, '');
+  const hasApostropheDiff = candApostrophes !== subApostrophes;
+
+  const cleanWithoutApostrophes = (s: string) =>
+    stripSentencePunctuation(normalizeAnswer(s, { stripAccents: true }).replace(/`/g, "'"))
+      .replace(/['"]/g, '')
+      .replace(AFTER_HOURS_CASUAL_PUNCT_REGEX, ' ')
+      .replace(/(?<=^|\s)-+|-(?=\s|$)/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const hasCompoundOrHyphenDiff =
+    cleanWithoutApostrophes(expectedCandidate) !== cleanWithoutApostrophes(submittedRaw);
+
+  const highlightedChars: string[] = [];
+  if (hasApostropheDiff) highlightedChars.push("'");
+  if (hasCompoundOrHyphenDiff) highlightedChars.push('-');
+
+  if (highlightedChars.length === 0) {
+    const casualMatches = new Set([
+      ...(submittedRaw.match(AFTER_HOURS_CASUAL_PUNCT_REGEX) ?? []),
+      ...(expectedCandidate.match(AFTER_HOURS_CASUAL_PUNCT_REGEX) ?? []),
+    ]);
+    if (casualMatches.size > 0) {
+      highlightedChars.push(...casualMatches);
+    } else {
+      highlightedChars.push('punctuation');
+    }
+  }
+
+  let friendlyTip: string;
+  if (hasApostropheDiff && hasCompoundOrHyphenDiff) {
+    friendlyTip =
+      language === 'ebonics'
+        ? `Right on! You nailed the meaning — standard spelling writes "${expectedCandidate}" with its apostrophe and compound spacing.`
+        : `Spot on! You got the vibe — standard suburban phrasing spells it "${expectedCandidate}" with its apostrophe and compound spacing.`;
+  } else if (hasApostropheDiff) {
+    friendlyTip =
+      language === 'ebonics'
+        ? `Smooth! Dropping or shifting apostrophes works in everyday chat, while the classic spelling is "${expectedCandidate}".`
+        : `Nice! Casual messages often drop apostrophes, while the polished spelling is "${expectedCandidate}".`;
+  } else if (hasCompoundOrHyphenDiff) {
+    friendlyTip =
+      language === 'ebonics'
+        ? `Clean! Hyphenated, spaced, or closed all read naturally — the textbook phrasing writes "${expectedCandidate}".`
+        : `Love it! Compound phrases like "${expectedCandidate}" appear hyphenated, spaced, or closed in everyday notes.`;
+  } else {
+    friendlyTip = `Spot on! Casual punctuation varies in everyday messages — the polished form is "${expectedCandidate}".`;
+  }
+
+  return {
+    expected: expectedCandidate,
+    submitted: submittedRaw.trim() || submittedRaw,
+    highlightedChars,
+    friendlyTip,
+  };
+}
+
 function buildAccentCoaching(
   expectedCandidate: string,
   submittedRaw: string,
   language: LanguageCode
 ): AccentCoaching {
+  if (isAdultLanguage(language)) {
+    return buildAfterHoursCoaching(expectedCandidate, submittedRaw, language);
+  }
+
   const normCand = normalizeAnswer(expectedCandidate);
   const normSub = normalizeAnswer(submittedRaw);
   const candCounts = countSpecialChars(normCand);
@@ -791,6 +973,106 @@ const ARTICLE_META: Record<
       note: '"huyu" means "this" for people and animal nouns in Swahili.',
     },
     na: { gender: 'invariant', note: '"na" means "and" or "with" in Swahili.' },
+  },
+  ebonics: {
+    the: {
+      gender: 'invariant',
+      note: '"the" (often pronounced "da" in casual speech) is the definite article.',
+    },
+    a: {
+      gender: 'invariant',
+      note: '"a" introduces a singular noun (and often stays "a" before vowels in fast AAVE flow).',
+    },
+    an: {
+      gender: 'invariant',
+      note: '"an" introduces a singular noun before a vowel sound.',
+    },
+    some: {
+      gender: 'plural',
+      note: '"some" introduces plural or uncountable nouns.',
+    },
+    da: {
+      gender: 'invariant',
+      note: '"da" is an informal phonetic spelling of "the" in casual AAVE.',
+    },
+    dis: {
+      gender: 'invariant',
+      note: '"dis" is a casual spoken spelling of "this".',
+    },
+    dat: {
+      gender: 'invariant',
+      note: '"dat" is a casual spoken spelling of "that".',
+    },
+    dem: {
+      gender: 'plural',
+      note: '"dem" acts as a plural demonstrative ("those / them") before nouns in AAVE.',
+    },
+    them: {
+      gender: 'plural',
+      note: '"them" works as a plural demonstrative determiner ("those") before nouns (e.g., "them kicks").',
+    },
+    "y'all": {
+      gender: 'plural',
+      note: '"y\'all" is the warm second-person plural pronoun ("all of you").',
+    },
+    finna: {
+      gender: 'invariant',
+      note: '"finna" (from "fixing to") is an AAVE immediate-future aspect marker meaning "about to".',
+    },
+    steady: {
+      gender: 'invariant',
+      note: '"steady" is an AAVE aspect marker showing ongoing, intense, or persistent action.',
+    },
+    be: {
+      gender: 'invariant',
+      note: 'Habitual "be" in AAVE expresses a recurring or customary state ("they be working").',
+    },
+  },
+  suburban: {
+    the: {
+      gender: 'invariant',
+      note: '"the" is the standard definite article in Suburban English.',
+    },
+    a: {
+      gender: 'invariant',
+      note: '"a" introduces a singular noun before a consonant sound.',
+    },
+    an: {
+      gender: 'invariant',
+      note: '"an" introduces a singular noun before a vowel sound.',
+    },
+    some: {
+      gender: 'plural',
+      note: '"some" introduces plural or uncountable nouns.',
+    },
+    this: {
+      gender: 'invariant',
+      note: '"this" spotlights a nearby singular item or patio topic ("this bad boy").',
+    },
+    that: {
+      gender: 'invariant',
+      note: '"that" singles out a specific noun or situation.',
+    },
+    these: {
+      gender: 'plural',
+      note: '"these" is the plural demonstrative for nearby items.',
+    },
+    those: {
+      gender: 'plural',
+      note: '"those" is the plural demonstrative for specific items.',
+    },
+    our: {
+      gender: 'plural',
+      note: '"our" is the inclusive first-person plural possessive ("our cul-de-sac / our HOA").',
+    },
+    per: {
+      gender: 'invariant',
+      note: '"per" is a classic corporate-suburban connector ("per my last email").',
+    },
+    zero: {
+      gender: 'invariant',
+      note: '"zero" serves as an emphatic determiner ("zero bandwidth").',
+    },
   },
 };
 

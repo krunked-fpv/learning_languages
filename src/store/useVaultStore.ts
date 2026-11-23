@@ -17,16 +17,24 @@ import {
   resolveLeagueTierForXp,
 } from '../core';
 import {
+  ADULT_EASTER_EGG_CODES,
+  ADULT_EASTER_EGG_LANGUAGES,
+  ALL_LANGUAGE_LIST,
   LANGUAGE_LIST,
   PROFICIENCY_TIERS,
+  isAdultLanguage,
+  isDefaultKidProfileId,
+  type AdultLanguageCode,
   type AvatarId,
   type BadgeId,
+  type BaseLanguageCode,
   type CosmeticId,
   type CosmeticSlot,
   type EquippedCosmetics,
   type ImportVaultResult,
   type KidProfile,
   type LanguageCode,
+  type LanguageProgressMap,
   type LanguageProgressState,
   type LeagueTier,
   type ProficiencyTier,
@@ -48,7 +56,9 @@ const VALID_AVATARS = new Set<AvatarId>([
   'grand_laureate_crest',
 ]);
 
-const VALID_LANGUAGES = new Set<LanguageCode>(LANGUAGE_LIST);
+const VALID_BASE_LANGUAGES = new Set<BaseLanguageCode>(LANGUAGE_LIST);
+const VALID_ADULT_LANGUAGES = new Set<AdultLanguageCode>(ADULT_EASTER_EGG_LANGUAGES);
+const VALID_ALL_LANGUAGES = new Set<LanguageCode>(ALL_LANGUAGE_LIST);
 
 const VALID_LEAGUE_TIERS = new Set<LeagueTier>(TIER_ORDER);
 
@@ -94,12 +104,88 @@ function emptyLangProgress(): LanguageProgressState {
   };
 }
 
-function createAllLangProgress(): Record<LanguageCode, LanguageProgressState> {
-  const progress = {} as Record<LanguageCode, LanguageProgressState>;
+function defaultBaseLangForProfile(profileId: string): BaseLanguageCode {
+  return profileId === 'kid-maya' ? 'fr' : 'es';
+}
+
+function resolveLastBaseLanguage(params: {
+  id: string;
+  lastBaseLanguage?: unknown;
+  activeLanguage?: unknown;
+}): BaseLanguageCode {
+  if (
+    typeof params.lastBaseLanguage === 'string' &&
+    VALID_BASE_LANGUAGES.has(params.lastBaseLanguage as BaseLanguageCode)
+  ) {
+    return params.lastBaseLanguage as BaseLanguageCode;
+  }
+  if (
+    typeof params.activeLanguage === 'string' &&
+    VALID_BASE_LANGUAGES.has(params.activeLanguage as BaseLanguageCode)
+  ) {
+    return params.activeLanguage as BaseLanguageCode;
+  }
+  return defaultBaseLangForProfile(params.id);
+}
+
+function canUseAdultMode(profile: Pick<KidProfile, 'id' | 'adultModeUnlocked'>): boolean {
+  return !isDefaultKidProfileId(profile.id) && Boolean(profile.adultModeUnlocked);
+}
+
+function buildLanguageProgressMap(
+  existing: Partial<Record<LanguageCode, LanguageProgressState>> | undefined,
+  includeAdult: boolean,
+  cloneEntries = true
+): LanguageProgressMap {
+  const progress = {} as LanguageProgressMap;
   for (const lang of LANGUAGE_LIST) {
-    progress[lang] = emptyLangProgress();
+    const entry = existing?.[lang];
+    progress[lang] = entry ? (cloneEntries ? cloneLangProgress(entry) : entry) : emptyLangProgress();
+  }
+  if (includeAdult) {
+    for (const lang of ADULT_EASTER_EGG_LANGUAGES) {
+      const entry = existing?.[lang];
+      progress[lang] = entry
+        ? cloneEntries
+          ? cloneLangProgress(entry)
+          : entry
+        : emptyLangProgress();
+    }
   }
   return progress;
+}
+
+function withUpdatedLanguageProgress(
+  profile: KidProfile,
+  lang: LanguageCode,
+  nextState: LanguageProgressState
+): LanguageProgressMap {
+  const includeAdult = canUseAdultMode(profile);
+  const baseMap = buildLanguageProgressMap(profile.languageProgress, includeAdult, false);
+  if (!isAdultLanguage(lang) || includeAdult) {
+    baseMap[lang] = nextState;
+  }
+  return baseMap;
+}
+
+function disarmProfileAdultMode(profile: KidProfile): KidProfile {
+  const fallbackBase = resolveLastBaseLanguage(profile);
+  const nextActiveLang = isAdultLanguage(profile.activeLanguage)
+    ? fallbackBase
+    : profile.activeLanguage;
+  if (
+    !profile.adultModeActive &&
+    profile.activeLanguage === nextActiveLang &&
+    profile.lastBaseLanguage === fallbackBase
+  ) {
+    return profile;
+  }
+  return {
+    ...profile,
+    adultModeActive: false,
+    lastBaseLanguage: fallbackBase,
+    activeLanguage: nextActiveLang,
+  };
 }
 
 function makeFreshProfile(params: {
@@ -108,14 +194,36 @@ function makeFreshProfile(params: {
   avatarId: AvatarId;
   bannerColor: string;
   activeLanguage: LanguageCode;
+  lastBaseLanguage?: BaseLanguageCode;
+  adultModeUnlocked?: boolean;
+  adultModeActive?: boolean;
   gems?: number;
 }): KidProfile {
+  const isDefaultKid = isDefaultKidProfileId(params.id);
+  const adultModeUnlocked = !isDefaultKid && Boolean(params.adultModeUnlocked);
+  const adultModeActive = adultModeUnlocked && Boolean(params.adultModeActive);
+  const lastBaseLanguage = resolveLastBaseLanguage({
+    id: params.id,
+    lastBaseLanguage: params.lastBaseLanguage,
+    activeLanguage: params.activeLanguage,
+  });
+  const activeLanguage: LanguageCode =
+    adultModeActive && VALID_ALL_LANGUAGES.has(params.activeLanguage)
+      ? params.activeLanguage
+      : !isAdultLanguage(params.activeLanguage) &&
+          VALID_BASE_LANGUAGES.has(params.activeLanguage)
+        ? params.activeLanguage
+        : lastBaseLanguage;
+
   return {
     id: params.id,
     name: params.name,
     avatarId: params.avatarId,
     bannerColor: params.bannerColor,
-    activeLanguage: params.activeLanguage,
+    activeLanguage,
+    lastBaseLanguage,
+    adultModeUnlocked,
+    adultModeActive,
     gems: params.gems ?? 80,
     hearts: 5,
     maxHearts: 5,
@@ -147,7 +255,7 @@ function makeFreshProfile(params: {
       checkpointsPassed: 0,
       clozeSolved: 0,
     },
-    languageProgress: createAllLangProgress(),
+    languageProgress: buildLanguageProgressMap(undefined, adultModeUnlocked, false),
   };
 }
 
@@ -204,14 +312,30 @@ function cloneLangProgress(lp: LanguageProgressState): LanguageProgressState {
 }
 
 function cloneProfile(profile: KidProfile): KidProfile {
-  const languageProgress = {} as Record<LanguageCode, LanguageProgressState>;
-  for (const lang of LANGUAGE_LIST) {
-    const existing = profile.languageProgress[lang];
-    languageProgress[lang] = existing ? cloneLangProgress(existing) : emptyLangProgress();
-  }
+  const isDefaultKid = isDefaultKidProfileId(profile.id);
+  const adultModeUnlocked = !isDefaultKid && Boolean(profile.adultModeUnlocked);
+  const adultModeActive = adultModeUnlocked && Boolean(profile.adultModeActive);
+  const lastBaseLanguage = resolveLastBaseLanguage(profile);
+  const activeLanguage: LanguageCode =
+    adultModeActive && VALID_ALL_LANGUAGES.has(profile.activeLanguage)
+      ? profile.activeLanguage
+      : !isAdultLanguage(profile.activeLanguage) &&
+          VALID_BASE_LANGUAGES.has(profile.activeLanguage)
+        ? profile.activeLanguage
+        : lastBaseLanguage;
+
+  const languageProgress = buildLanguageProgressMap(
+    profile.languageProgress,
+    adultModeUnlocked,
+    true
+  );
 
   return {
     ...profile,
+    activeLanguage,
+    lastBaseLanguage,
+    adultModeUnlocked,
+    adultModeActive,
     heartElixirs: profile.heartElixirs ?? 0,
     xpBoosterCharges: profile.xpBoosterCharges ?? 0,
     unlockedAvatars: Array.from(
@@ -312,6 +436,9 @@ function validateKidProfile(
   if (typeof raw.id !== 'string' || raw.id.trim().length === 0) {
     return { ok: false, error: `${prefix}.id must be a non-empty string.` };
   }
+  const profileId = raw.id.trim();
+  const isDefaultKid = isDefaultKidProfileId(profileId);
+
   if (typeof raw.name !== 'string' || raw.name.trim().length === 0) {
     return { ok: false, error: `${prefix}.name must be a non-empty string.` };
   }
@@ -323,13 +450,44 @@ function validateKidProfile(
   }
   if (
     typeof raw.activeLanguage !== 'string' ||
-    !VALID_LANGUAGES.has(raw.activeLanguage as LanguageCode)
+    !VALID_ALL_LANGUAGES.has(raw.activeLanguage as LanguageCode)
   ) {
     return {
       ok: false,
       error: `${prefix}.activeLanguage "${String(raw.activeLanguage)}" is invalid.`,
     };
   }
+  if (
+    raw.lastBaseLanguage !== undefined &&
+    (typeof raw.lastBaseLanguage !== 'string' ||
+      !VALID_BASE_LANGUAGES.has(raw.lastBaseLanguage as BaseLanguageCode))
+  ) {
+    return {
+      ok: false,
+      error: `${prefix}.lastBaseLanguage "${String(raw.lastBaseLanguage)}" is invalid.`,
+    };
+  }
+  if (raw.adultModeUnlocked !== undefined && typeof raw.adultModeUnlocked !== 'boolean') {
+    return { ok: false, error: `${prefix}.adultModeUnlocked must be a boolean.` };
+  }
+  if (raw.adultModeActive !== undefined && typeof raw.adultModeActive !== 'boolean') {
+    return { ok: false, error: `${prefix}.adultModeActive must be a boolean.` };
+  }
+
+  const adultModeUnlocked = !isDefaultKid && raw.adultModeUnlocked === true;
+  const adultModeActive = adultModeUnlocked && raw.adultModeActive === true;
+  const lastBaseLanguage = resolveLastBaseLanguage({
+    id: profileId,
+    lastBaseLanguage: raw.lastBaseLanguage,
+    activeLanguage: raw.activeLanguage,
+  });
+  const activeLanguage: LanguageCode =
+    adultModeActive && VALID_ALL_LANGUAGES.has(raw.activeLanguage as LanguageCode)
+      ? (raw.activeLanguage as LanguageCode)
+      : !isAdultLanguage(raw.activeLanguage) &&
+          VALID_BASE_LANGUAGES.has(raw.activeLanguage as BaseLanguageCode)
+        ? (raw.activeLanguage as BaseLanguageCode)
+        : lastBaseLanguage;
   if (!isNonNegNumber(raw.gems)) {
     return { ok: false, error: `${prefix}.gems must be a non-negative number.` };
   }
@@ -451,7 +609,10 @@ function validateKidProfile(
     return { ok: false, error: `${prefix}.languageProgress must be an object.` };
   }
   const rawLangProgress = raw.languageProgress;
-  const hasAtLeastOneValidLang = LANGUAGE_LIST.some(
+  const allowedCheckLangs: readonly LanguageCode[] = adultModeUnlocked
+    ? ALL_LANGUAGE_LIST
+    : LANGUAGE_LIST;
+  const hasAtLeastOneValidLang = allowedCheckLangs.some(
     (lang) =>
       Object.prototype.hasOwnProperty.call(rawLangProgress, lang) &&
       rawLangProgress[lang] !== undefined
@@ -463,7 +624,7 @@ function validateKidProfile(
     };
   }
 
-  const validatedLangProgress = {} as Record<LanguageCode, LanguageProgressState>;
+  const validatedLangProgress = {} as LanguageProgressMap;
   for (const lang of LANGUAGE_LIST) {
     const rawEntry = rawLangProgress[lang];
     if (rawEntry === undefined) {
@@ -473,6 +634,19 @@ function validateKidProfile(
     const res = validateLangProgress(rawEntry, `${prefix}.languageProgress.${lang}`);
     if (!res.ok) return res;
     validatedLangProgress[lang] = res.value;
+  }
+
+  if (adultModeUnlocked) {
+    for (const lang of ADULT_EASTER_EGG_LANGUAGES) {
+      const rawEntry = rawLangProgress[lang];
+      if (rawEntry === undefined) {
+        validatedLangProgress[lang] = emptyLangProgress();
+        continue;
+      }
+      const res = validateLangProgress(rawEntry, `${prefix}.languageProgress.${lang}`);
+      if (!res.ok) return res;
+      validatedLangProgress[lang] = res.value;
+    }
   }
 
   if (
@@ -515,11 +689,14 @@ function validateKidProfile(
   return {
     ok: true,
     value: {
-      id: raw.id.trim(),
+      id: profileId,
       name: raw.name.trim(),
       avatarId: raw.avatarId as AvatarId,
       bannerColor: raw.bannerColor.trim(),
-      activeLanguage: raw.activeLanguage as LanguageCode,
+      activeLanguage,
+      lastBaseLanguage,
+      adultModeUnlocked,
+      adultModeActive,
       gems: Math.floor(raw.gems),
       hearts: Math.min(maxHearts, Math.floor(raw.hearts)),
       maxHearts,
@@ -710,9 +887,29 @@ function updateActiveProfile(updater: (profile: KidProfile) => KidProfile): void
 }
 
 function mergeTwoProfiles(existing: KidProfile, incoming: KidProfile): KidProfile {
-  const mergedLanguageProgress = createAllLangProgress();
+  const isDefaultKid = isDefaultKidProfileId(existing.id);
+  const adultModeUnlocked =
+    !isDefaultKid && Boolean(existing.adultModeUnlocked || incoming.adultModeUnlocked);
+  const adultModeActive = adultModeUnlocked && Boolean(existing.adultModeActive);
+  const lastBaseLanguage = resolveLastBaseLanguage({
+    id: existing.id,
+    lastBaseLanguage: existing.lastBaseLanguage ?? incoming.lastBaseLanguage,
+    activeLanguage: existing.activeLanguage,
+  });
+  const activeLanguage: LanguageCode =
+    adultModeActive && VALID_ALL_LANGUAGES.has(existing.activeLanguage)
+      ? existing.activeLanguage
+      : !isAdultLanguage(existing.activeLanguage) &&
+          VALID_BASE_LANGUAGES.has(existing.activeLanguage)
+        ? existing.activeLanguage
+        : lastBaseLanguage;
 
-  for (const lang of LANGUAGE_LIST) {
+  const langsToMerge: readonly LanguageCode[] = adultModeUnlocked
+    ? ALL_LANGUAGE_LIST
+    : LANGUAGE_LIST;
+  const mergedLanguageProgress = {} as LanguageProgressMap;
+
+  for (const lang of langsToMerge) {
     const a = existing.languageProgress[lang] ?? emptyLangProgress();
     const b = incoming.languageProgress[lang] ?? emptyLangProgress();
     const mergedStars: Record<string, 1 | 2 | 3> = { ...a.nodeStars };
@@ -753,6 +950,10 @@ function mergeTwoProfiles(existing: KidProfile, incoming: KidProfile): KidProfil
 
   const merged: KidProfile = {
     ...existing,
+    activeLanguage,
+    lastBaseLanguage,
+    adultModeUnlocked,
+    adultModeActive,
     gems: Math.max(existing.gems, incoming.gems),
     maxHearts,
     hearts: Math.min(maxHearts, Math.max(existing.hearts, incoming.hearts)),
@@ -902,7 +1103,11 @@ export function importVaultJson(
 
 let profileSequenceCounter = 0;
 
-function generateUniqueProfileId(name: string, existingProfiles: readonly KidProfile[]): string {
+function generateUniqueProfileId(
+  name: string,
+  existingProfiles: readonly KidProfile[],
+  prefix: 'kid' | 'adult' = 'kid'
+): string {
   const slug =
     name
       .toLowerCase()
@@ -910,13 +1115,13 @@ function generateUniqueProfileId(name: string, existingProfiles: readonly KidPro
       .replace(/^-+|-+$/g, '')
       .slice(0, 16) || 'explorer';
   const existingIds = new Set(existingProfiles.map((p) => p.id));
-  let candidate = `kid-${slug}`;
-  if (!existingIds.has(candidate)) return candidate;
+  let candidate = `${prefix}-${slug}`;
+  if (!existingIds.has(candidate) && !isDefaultKidProfileId(candidate)) return candidate;
 
   do {
     profileSequenceCounter += 1;
-    candidate = `kid-${slug}-${Date.now().toString(36)}-${profileSequenceCounter}`;
-  } while (existingIds.has(candidate));
+    candidate = `${prefix}-${slug}-${Date.now().toString(36)}-${profileSequenceCounter}`;
+  } while (existingIds.has(candidate) || isDefaultKidProfileId(candidate));
 
   return candidate;
 }
@@ -1043,14 +1248,10 @@ function awardArcadeResultToProfile(params: {
         ...profile.stats,
         arcadeGamesWon: profile.stats.arcadeGamesWon + 1,
       },
-      languageProgress: {
-        ...createAllLangProgress(),
-        ...profile.languageProgress,
-        [activeLang]: {
-          ...langProg,
-          xpEarned: langProg.xpEarned + earnedXp,
-        },
-      },
+      languageProgress: withUpdatedLanguageProgress(profile, activeLang, {
+        ...langProg,
+        xpEarned: langProg.xpEarned + earnedXp,
+      }),
     };
 
     return {
@@ -1062,11 +1263,23 @@ function awardArcadeResultToProfile(params: {
 
 export const vaultActions = {
   switchProfile(profileId: string): void {
-    if (!memoryVault.profiles.some((p) => p.id === profileId)) return;
+    const target = memoryVault.profiles.find((p) => p.id === profileId);
+    if (!target) return;
     if (memoryVault.activeProfileId === profileId) return;
+
+    const targetIsAdultActive = canUseAdultMode(target) && Boolean(target.adultModeActive);
+    const nextProfiles = targetIsAdultActive
+      ? memoryVault.profiles
+      : memoryVault.profiles.map((p) => {
+          if (p.id === profileId) return p;
+          if (!p.adultModeActive && !isAdultLanguage(p.activeLanguage)) return p;
+          return disarmProfileAdultMode(p);
+        });
+
     commitVault({
       ...memoryVault,
       activeProfileId: profileId,
+      profiles: nextProfiles,
     });
   },
 
@@ -1079,9 +1292,9 @@ export const vaultActions = {
     const cleanName = input.name.trim() || 'Explorer';
     const avatarId: AvatarId = VALID_AVATARS.has(input.avatarId) ? input.avatarId : 'pip_explorer';
     const bannerColor = input.bannerColor.trim() || '#2563EB';
-    const activeLanguage: LanguageCode =
-      input.activeLanguage && VALID_LANGUAGES.has(input.activeLanguage)
-        ? input.activeLanguage
+    const activeLanguage: BaseLanguageCode =
+      input.activeLanguage && VALID_BASE_LANGUAGES.has(input.activeLanguage as BaseLanguageCode)
+        ? (input.activeLanguage as BaseLanguageCode)
         : 'es';
     const id = generateUniqueProfileId(cleanName, memoryVault.profiles);
 
@@ -1091,6 +1304,9 @@ export const vaultActions = {
       avatarId,
       bannerColor,
       activeLanguage,
+      lastBaseLanguage: activeLanguage,
+      adultModeUnlocked: false,
+      adultModeActive: false,
       gems: 80,
     });
 
@@ -1101,6 +1317,123 @@ export const vaultActions = {
     });
 
     return created;
+  },
+
+  verifyAdultEasterEggCode(code: string): boolean {
+    if (typeof code !== 'string') return false;
+    const normalized = code.trim().toUpperCase();
+    return (ADULT_EASTER_EGG_CODES as readonly string[]).includes(normalized);
+  },
+
+  unlockAdultMode(options?: {
+    adultProfileName?: string;
+    initialTrack?: AdultLanguageCode;
+  }): KidProfile {
+    const requestedTrack: AdultLanguageCode | undefined =
+      options?.initialTrack && VALID_ADULT_LANGUAGES.has(options.initialTrack)
+        ? options.initialTrack
+        : undefined;
+    const active = getActiveProfileSnapshot();
+
+    if (!active || isDefaultKidProfileId(active.id)) {
+      const existingAdult = memoryVault.profiles.find((p) => canUseAdultMode(p));
+      if (existingAdult) {
+        const nextTrack: AdultLanguageCode =
+          requestedTrack ??
+          (isAdultLanguage(existingAdult.activeLanguage) ? existingAdult.activeLanguage : 'ebonics');
+        const updatedAdult: KidProfile = {
+          ...existingAdult,
+          adultModeUnlocked: true,
+          adultModeActive: true,
+          lastBaseLanguage: resolveLastBaseLanguage(existingAdult),
+          activeLanguage: nextTrack,
+          languageProgress: buildLanguageProgressMap(existingAdult.languageProgress, true, false),
+        };
+        const nextProfiles = memoryVault.profiles.map((p) =>
+          p.id === existingAdult.id ? updatedAdult : p
+        );
+        commitVault({
+          ...memoryVault,
+          activeProfileId: updatedAdult.id,
+          profiles: nextProfiles,
+        });
+        return updatedAdult;
+      }
+
+      const cleanName = options?.adultProfileName?.trim() || 'After-Hours';
+      const id = generateUniqueProfileId(cleanName, memoryVault.profiles, 'adult');
+      const created = makeFreshProfile({
+        id,
+        name: cleanName,
+        avatarId: 'star_compass',
+        bannerColor: '#7C3AED',
+        activeLanguage: requestedTrack ?? 'ebonics',
+        lastBaseLanguage: 'en',
+        adultModeUnlocked: true,
+        adultModeActive: true,
+        gems: 80,
+      });
+
+      commitVault({
+        ...memoryVault,
+        activeProfileId: created.id,
+        profiles: [...memoryVault.profiles, created],
+      });
+      return created;
+    }
+
+    updateActiveProfile((profile) => {
+      const lastBaseLanguage = resolveLastBaseLanguage(profile);
+      const nextTrack: AdultLanguageCode =
+        requestedTrack ??
+        (profile.adultModeActive && isAdultLanguage(profile.activeLanguage)
+          ? profile.activeLanguage
+          : 'ebonics');
+      return {
+        ...profile,
+        adultModeUnlocked: true,
+        adultModeActive: true,
+        lastBaseLanguage,
+        activeLanguage: nextTrack,
+        languageProgress: buildLanguageProgressMap(profile.languageProgress, true, false),
+      };
+    });
+
+    return getActiveProfileSnapshot()!;
+  },
+
+  setAdultModeActive(active: boolean): void {
+    updateActiveProfile((profile) => {
+      if (!active) {
+        const fallbackBase = resolveLastBaseLanguage(profile);
+        if (
+          !profile.adultModeActive &&
+          profile.activeLanguage === fallbackBase &&
+          profile.lastBaseLanguage === fallbackBase
+        ) {
+          return profile;
+        }
+        return {
+          ...profile,
+          adultModeActive: false,
+          lastBaseLanguage: fallbackBase,
+          activeLanguage: fallbackBase,
+        };
+      }
+
+      if (!canUseAdultMode(profile)) return profile;
+      const lastBaseLanguage = resolveLastBaseLanguage(profile);
+      const nextLanguage: LanguageCode = isAdultLanguage(profile.activeLanguage)
+        ? profile.activeLanguage
+        : 'ebonics';
+      return {
+        ...profile,
+        adultModeActive: true,
+        lastBaseLanguage,
+        activeLanguage: nextLanguage,
+        languageProgress: buildLanguageProgressMap(profile.languageProgress, true, false),
+      };
+    });
   },
 
   deleteProfile(profileId: string): boolean {
@@ -1121,32 +1454,45 @@ export const vaultActions = {
   },
 
   setActiveLanguage(lang: LanguageCode): void {
-    if (!VALID_LANGUAGES.has(lang)) return;
+    if (!VALID_ALL_LANGUAGES.has(lang)) return;
     updateActiveProfile((profile) => {
-      if (profile.activeLanguage === lang) return profile;
+      if (isAdultLanguage(lang)) {
+        if (!canUseAdultMode(profile) || !profile.adultModeActive) return profile;
+        const nextProgress = buildLanguageProgressMap(profile.languageProgress, true, false);
+        if (profile.activeLanguage === lang && nextProgress === profile.languageProgress) {
+          return profile;
+        }
+        return {
+          ...profile,
+          activeLanguage: lang,
+          languageProgress: nextProgress,
+        };
+      }
+
+      if (profile.activeLanguage === lang && profile.lastBaseLanguage === lang) {
+        return profile;
+      }
       return {
         ...profile,
         activeLanguage: lang,
+        lastBaseLanguage: lang,
       };
     });
   },
 
   setCurrentUnitIndex(lang: LanguageCode, unitIndex: number): void {
-    if (!VALID_LANGUAGES.has(lang)) return;
+    if (!VALID_ALL_LANGUAGES.has(lang)) return;
     const safeUnitIndex = Number.isFinite(unitIndex) ? Math.max(0, Math.floor(unitIndex)) : 0;
     updateActiveProfile((profile) => {
+      if (isAdultLanguage(lang) && !canUseAdultMode(profile)) return profile;
       const langProg = profile.languageProgress[lang] ?? emptyLangProgress();
       if (langProg.currentUnitIndex === safeUnitIndex) return profile;
       return {
         ...profile,
-        languageProgress: {
-          ...createAllLangProgress(),
-          ...profile.languageProgress,
-          [lang]: {
-            ...langProg,
-            currentUnitIndex: safeUnitIndex,
-          },
-        },
+        languageProgress: withUpdatedLanguageProgress(profile, lang, {
+          ...langProg,
+          currentUnitIndex: safeUnitIndex,
+        }),
       };
     });
   },
@@ -1205,10 +1551,11 @@ export const vaultActions = {
     prerequisiteNodeIds: readonly string[];
     targetUnitIndex: number;
   }): void {
-    if (!VALID_LANGUAGES.has(params.language)) return;
+    if (!VALID_ALL_LANGUAGES.has(params.language)) return;
     if (!VALID_UNLOCKABLE_TIERS.has(params.targetTier)) return;
 
     updateActiveProfile((profile) => {
+      if (isAdultLanguage(params.language) && !canUseAdultMode(profile)) return profile;
       const langProg = profile.languageProgress[params.language] ?? emptyLangProgress();
       const nextLangProg = applyTierUnlockToLangProgress(langProg, params);
       const updated: KidProfile = {
@@ -1217,11 +1564,7 @@ export const vaultActions = {
           ...profile.stats,
           checkpointsPassed: (profile.stats.checkpointsPassed ?? 0) + 1,
         },
-        languageProgress: {
-          ...createAllLangProgress(),
-          ...profile.languageProgress,
-          [params.language]: nextLangProg,
-        },
+        languageProgress: withUpdatedLanguageProgress(profile, params.language, nextLangProg),
       };
 
       const withStreak = applyDailyPracticeStreak(updated);
@@ -1249,8 +1592,9 @@ export const vaultActions = {
       targetUnitIndex?: number;
     };
   }): void {
-    if (!VALID_LANGUAGES.has(params.language)) return;
+    if (!VALID_ALL_LANGUAGES.has(params.language)) return;
     updateActiveProfile((profile) => {
+      if (isAdultLanguage(params.language) && !canUseAdultMode(profile)) return profile;
       const langProg = profile.languageProgress[params.language] ?? emptyLangProgress();
       const { earnedXp, nextBoosterCharges } = resolveBoostedXp(profile, params.xpEarned);
       const isAlreadyClaimedChest = Boolean(
@@ -1296,12 +1640,15 @@ export const vaultActions = {
       const isLesson = !params.isStory && !params.isBoss && !params.isChest && !isCheckpoint;
       const nextLessonsCompleted = profile.stats.lessonsCompleted + (isLesson ? 1 : 0);
 
-      const nextLanguageProgress: Record<LanguageCode, LanguageProgressState> = {
-        ...createAllLangProgress(),
-        ...profile.languageProgress,
-        [params.language]: nextLangProg,
-      };
-      const totalCompletedNodes = LANGUAGE_LIST.reduce(
+      const nextLanguageProgress = withUpdatedLanguageProgress(
+        profile,
+        params.language,
+        nextLangProg
+      );
+      const trackedLangs: readonly LanguageCode[] = canUseAdultMode(profile)
+        ? ALL_LANGUAGE_LIST
+        : LANGUAGE_LIST;
+      const totalCompletedNodes = trackedLangs.reduce(
         (sum, lang) => sum + (nextLanguageProgress[lang]?.completedNodeIds.length ?? 0),
         0
       );
@@ -1342,8 +1689,9 @@ export const vaultActions = {
   },
 
   recordSeenExercises(lang: LanguageCode, exerciseIds: readonly string[]): void {
-    if (!VALID_LANGUAGES.has(lang) || exerciseIds.length === 0) return;
+    if (!VALID_ALL_LANGUAGES.has(lang) || exerciseIds.length === 0) return;
     updateActiveProfile((profile) => {
+      if (isAdultLanguage(lang) && !canUseAdultMode(profile)) return profile;
       const langProg = profile.languageProgress[lang] ?? emptyLangProgress();
       const existing = langProg.seenExerciseIds ?? [];
       const seenSet = new Set(existing);
@@ -1361,14 +1709,10 @@ export const vaultActions = {
       const nextSeen = [...existing, ...toAppend].slice(-MAX_SEEN_EXERCISES);
       return {
         ...profile,
-        languageProgress: {
-          ...createAllLangProgress(),
-          ...profile.languageProgress,
-          [lang]: {
-            ...langProg,
-            seenExerciseIds: nextSeen,
-          },
-        },
+        languageProgress: withUpdatedLanguageProgress(profile, lang, {
+          ...langProg,
+          seenExerciseIds: nextSeen,
+        }),
       };
     });
   },
