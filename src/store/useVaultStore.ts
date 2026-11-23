@@ -287,8 +287,24 @@ export function createDefaultVault(): SaveVault {
   };
 }
 
+const DANGEROUS_OBJECT_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+function hasOwnDangerousKey(obj: object): boolean {
+  for (const key of Object.keys(obj)) {
+    if (DANGEROUS_OBJECT_KEYS.has(key)) return true;
+  }
+  return false;
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) {
+    return false;
+  }
+  return !hasOwnDangerousKey(value);
 }
 
 function isNonNegNumber(value: unknown): value is number {
@@ -363,57 +379,171 @@ function cloneProfile(profile: KidProfile): KidProfile {
   };
 }
 
+type ValidationResult<T> = { ok: true; value: T } | { ok: false; error: string };
+
+function readOptionalNonNegNumber(
+  raw: unknown,
+  label: string,
+  defaultValue = 0,
+  roundFn: (n: number) => number = Math.floor
+): ValidationResult<number> {
+  if (raw === undefined) return { ok: true, value: defaultValue };
+  if (!isNonNegNumber(raw)) {
+    return { ok: false, error: `${label} must be a non-negative number.` };
+  }
+  return { ok: true, value: roundFn(raw) };
+}
+
+function readOptionalStringArray(
+  raw: unknown,
+  label: string
+): ValidationResult<string[]> {
+  if (raw === undefined) return { ok: true, value: [] };
+  if (!isStringArray(raw)) {
+    return { ok: false, error: `${label} must be an array of strings.` };
+  }
+  return { ok: true, value: Array.from(new Set(raw)) };
+}
+
+function readOptionalSetArray<T extends string>(
+  raw: unknown,
+  errorMessage: string,
+  validSet: ReadonlySet<T>
+): ValidationResult<T[]> {
+  if (raw === undefined) return { ok: true, value: [] };
+  if (
+    !Array.isArray(raw) ||
+    !raw.every((item) => typeof item === 'string' && validSet.has(item as T))
+  ) {
+    return { ok: false, error: errorMessage };
+  }
+  return { ok: true, value: Array.from(new Set(raw as T[])) };
+}
+
+function validateEquippedCosmetics(
+  raw: unknown,
+  prefix: string
+): ValidationResult<EquippedCosmetics> {
+  const equipped: EquippedCosmetics = {};
+  if (raw === undefined) return { ok: true, value: equipped };
+  if (!isPlainObject(raw)) {
+    return { ok: false, error: `${prefix}.equippedCosmetics must be an object.` };
+  }
+  for (const [slotKey, cosmeticVal] of Object.entries(raw)) {
+    if (!VALID_COSMETIC_SLOTS.has(slotKey as CosmeticSlot)) {
+      return { ok: false, error: `${prefix}.equippedCosmetics has invalid slot "${slotKey}".` };
+    }
+    if (cosmeticVal !== undefined) {
+      if (typeof cosmeticVal !== 'string' || !VALID_COSMETIC_IDS.has(cosmeticVal as CosmeticId)) {
+        return {
+          ok: false,
+          error: `${prefix}.equippedCosmetics.${slotKey} has invalid cosmetic "${String(cosmeticVal)}".`,
+        };
+      }
+      const def = getCosmeticById(cosmeticVal as CosmeticId);
+      if (!def || def.slot !== slotKey) {
+        return {
+          ok: false,
+          error: `${prefix}.equippedCosmetics.${slotKey} cosmetic "${cosmeticVal}" does not fit slot "${slotKey}".`,
+        };
+      }
+      equipped[slotKey as CosmeticSlot] = cosmeticVal as CosmeticId;
+    }
+  }
+  return { ok: true, value: equipped };
+}
+
+const PROFILE_STAT_KEYS = [
+  'lessonsCompleted',
+  'storiesCompleted',
+  'bossesCleared',
+  'arcadeGamesWon',
+  'turtlePlaysCount',
+  'bestComboStreak',
+  'accentSpotlightsSeen',
+  'freeRecallSolved',
+  'fluentPlaysCount',
+  'checkpointsPassed',
+  'clozeSolved',
+  'hintsUsedCount',
+] as const;
+
+function validateProfileStats(
+  raw: unknown,
+  prefix: string
+): ValidationResult<KidProfile['stats']> {
+  const stats: Record<(typeof PROFILE_STAT_KEYS)[number], number> = {
+    lessonsCompleted: 0,
+    storiesCompleted: 0,
+    bossesCleared: 0,
+    arcadeGamesWon: 0,
+    turtlePlaysCount: 0,
+    bestComboStreak: 0,
+    accentSpotlightsSeen: 0,
+    freeRecallSolved: 0,
+    fluentPlaysCount: 0,
+    checkpointsPassed: 0,
+    clozeSolved: 0,
+    hintsUsedCount: 0,
+  };
+  if (raw === undefined) return { ok: true, value: stats };
+  if (!isPlainObject(raw)) {
+    return { ok: false, error: `${prefix}.stats must be an object.` };
+  }
+  for (const key of PROFILE_STAT_KEYS) {
+    const parsed = readOptionalNonNegNumber(raw[key], `${prefix}.stats.${key}`);
+    if (!parsed.ok) return parsed;
+    stats[key] = parsed.value;
+  }
+  return { ok: true, value: stats };
+}
+
 function validateLangProgress(
   raw: unknown,
   label: string
-): { ok: true; value: LanguageProgressState } | { ok: false; error: string } {
+): ValidationResult<LanguageProgressState> {
   if (!isPlainObject(raw)) {
     return { ok: false, error: `${label} must be an object.` };
   }
-  if (!isStringArray(raw.completedNodeIds)) {
-    return { ok: false, error: `${label}.completedNodeIds must be an array of strings.` };
-  }
-  if (!isPlainObject(raw.nodeStars)) {
-    return { ok: false, error: `${label}.nodeStars must be an object.` };
-  }
+  const completedRes = readOptionalStringArray(raw.completedNodeIds, `${label}.completedNodeIds`);
+  if (!completedRes.ok) return completedRes;
+
   const nodeStars: Record<string, 1 | 2 | 3> = {};
-  for (const [nodeId, starVal] of Object.entries(raw.nodeStars)) {
-    if (starVal !== 1 && starVal !== 2 && starVal !== 3) {
-      return { ok: false, error: `${label}.nodeStars["${nodeId}"] must be 1, 2, or 3.` };
+  if (raw.nodeStars !== undefined) {
+    if (!isPlainObject(raw.nodeStars)) {
+      return { ok: false, error: `${label}.nodeStars must be an object.` };
     }
-    nodeStars[nodeId] = starVal;
-  }
-  if (!isStringArray(raw.unlockedVocabIds)) {
-    return { ok: false, error: `${label}.unlockedVocabIds must be an array of strings.` };
-  }
-  if (!isStringArray(raw.claimedChestIds)) {
-    return { ok: false, error: `${label}.claimedChestIds must be an array of strings.` };
-  }
-  if (!isNonNegNumber(raw.currentUnitIndex)) {
-    return { ok: false, error: `${label}.currentUnitIndex must be a non-negative number.` };
-  }
-  if (!isNonNegNumber(raw.xpEarned)) {
-    return { ok: false, error: `${label}.xpEarned must be a non-negative number.` };
-  }
-  let seenExerciseIds: string[] = [];
-  if (raw.seenExerciseIds !== undefined) {
-    if (!isStringArray(raw.seenExerciseIds)) {
-      return { ok: false, error: `${label}.seenExerciseIds must be an array of strings.` };
+    for (const [nodeId, starVal] of Object.entries(raw.nodeStars)) {
+      if (starVal !== 1 && starVal !== 2 && starVal !== 3) {
+        return { ok: false, error: `${label}.nodeStars["${nodeId}"] must be 1, 2, or 3.` };
+      }
+      nodeStars[nodeId] = starVal;
     }
-    seenExerciseIds = Array.from(new Set(raw.seenExerciseIds)).slice(-MAX_SEEN_EXERCISES);
   }
-  let unlockedTiers: ProficiencyTier[] = [];
-  if (raw.unlockedTiers !== undefined) {
-    if (
-      !Array.isArray(raw.unlockedTiers) ||
-      !raw.unlockedTiers.every(
-        (t) => typeof t === 'string' && VALID_PROFICIENCY_TIERS.has(t as ProficiencyTier)
-      )
-    ) {
-      return { ok: false, error: `${label}.unlockedTiers contains invalid proficiency tiers.` };
-    }
-    unlockedTiers = Array.from(new Set(raw.unlockedTiers as ProficiencyTier[]));
-  }
+
+  const vocabRes = readOptionalStringArray(raw.unlockedVocabIds, `${label}.unlockedVocabIds`);
+  if (!vocabRes.ok) return vocabRes;
+
+  const chestRes = readOptionalStringArray(raw.claimedChestIds, `${label}.claimedChestIds`);
+  if (!chestRes.ok) return chestRes;
+
+  const unitRes = readOptionalNonNegNumber(raw.currentUnitIndex, `${label}.currentUnitIndex`);
+  if (!unitRes.ok) return unitRes;
+
+  const xpRes = readOptionalNonNegNumber(raw.xpEarned, `${label}.xpEarned`, 0, Math.round);
+  if (!xpRes.ok) return xpRes;
+
+  const seenRes = readOptionalStringArray(raw.seenExerciseIds, `${label}.seenExerciseIds`);
+  if (!seenRes.ok) return seenRes;
+  const seenExerciseIds = seenRes.value.slice(-MAX_SEEN_EXERCISES);
+
+  const tiersRes = readOptionalSetArray(
+    raw.unlockedTiers,
+    `${label}.unlockedTiers contains invalid proficiency tiers.`,
+    VALID_PROFICIENCY_TIERS
+  );
+  if (!tiersRes.ok) return tiersRes;
+
   const hintAssistedCounts: Record<string, number> = {};
   if (raw.hintAssistedCounts !== undefined) {
     if (!isPlainObject(raw.hintAssistedCounts)) {
@@ -436,23 +566,20 @@ function validateLangProgress(
   return {
     ok: true,
     value: {
-      completedNodeIds: Array.from(new Set(raw.completedNodeIds)),
+      completedNodeIds: completedRes.value,
       nodeStars,
-      unlockedVocabIds: Array.from(new Set(raw.unlockedVocabIds)),
-      claimedChestIds: Array.from(new Set(raw.claimedChestIds)),
-      currentUnitIndex: Math.floor(raw.currentUnitIndex),
-      xpEarned: Math.round(raw.xpEarned),
+      unlockedVocabIds: vocabRes.value,
+      claimedChestIds: chestRes.value,
+      currentUnitIndex: unitRes.value,
+      xpEarned: xpRes.value,
       seenExerciseIds,
-      unlockedTiers,
+      unlockedTiers: tiersRes.value,
       ...(Object.keys(hintAssistedCounts).length > 0 ? { hintAssistedCounts } : {}),
     },
   };
 }
 
-function validateKidProfile(
-  raw: unknown,
-  index: number
-): { ok: true; value: KidProfile } | { ok: false; error: string } {
+function validateKidProfile(raw: unknown, index: number): ValidationResult<KidProfile> {
   const prefix = `profiles[${index}]`;
   if (!isPlainObject(raw)) {
     return { ok: false, error: `${prefix} must be an object.` };
@@ -466,15 +593,27 @@ function validateKidProfile(
   if (typeof raw.name !== 'string' || raw.name.trim().length === 0) {
     return { ok: false, error: `${prefix}.name must be a non-empty string.` };
   }
-  if (typeof raw.avatarId !== 'string' || !VALID_AVATARS.has(raw.avatarId as AvatarId)) {
-    return { ok: false, error: `${prefix}.avatarId "${String(raw.avatarId)}" is invalid.` };
+
+  let avatarId: AvatarId = profileId === 'kid-maya' ? 'colette_baker' : 'pip_explorer';
+  if (raw.avatarId !== undefined) {
+    if (typeof raw.avatarId !== 'string' || !VALID_AVATARS.has(raw.avatarId as AvatarId)) {
+      return { ok: false, error: `${prefix}.avatarId "${String(raw.avatarId)}" is invalid.` };
+    }
+    avatarId = raw.avatarId as AvatarId;
   }
-  if (typeof raw.bannerColor !== 'string' || raw.bannerColor.trim().length === 0) {
-    return { ok: false, error: `${prefix}.bannerColor must be a non-empty string.` };
+
+  let bannerColor = profileId === 'kid-maya' ? '#EC4899' : '#2563EB';
+  if (raw.bannerColor !== undefined) {
+    if (typeof raw.bannerColor !== 'string' || raw.bannerColor.trim().length === 0) {
+      return { ok: false, error: `${prefix}.bannerColor must be a non-empty string.` };
+    }
+    bannerColor = raw.bannerColor.trim();
   }
+
   if (
-    typeof raw.activeLanguage !== 'string' ||
-    !VALID_ALL_LANGUAGES.has(raw.activeLanguage as LanguageCode)
+    raw.activeLanguage !== undefined &&
+    (typeof raw.activeLanguage !== 'string' ||
+      !VALID_ALL_LANGUAGES.has(raw.activeLanguage as LanguageCode))
   ) {
     return {
       ok: false,
@@ -500,135 +639,88 @@ function validateKidProfile(
 
   const adultModeUnlocked = !isDefaultKid && raw.adultModeUnlocked === true;
   const adultModeActive = adultModeUnlocked && raw.adultModeActive === true;
-  const lastBaseLanguage = resolveLastBaseLanguage({
-    id: profileId,
-    lastBaseLanguage: raw.lastBaseLanguage,
-    activeLanguage: raw.activeLanguage,
-  });
-  const activeLanguage: LanguageCode =
-    adultModeActive && VALID_ALL_LANGUAGES.has(raw.activeLanguage as LanguageCode)
-      ? (raw.activeLanguage as LanguageCode)
-      : !isAdultLanguage(raw.activeLanguage) &&
-          VALID_BASE_LANGUAGES.has(raw.activeLanguage as BaseLanguageCode)
-        ? (raw.activeLanguage as BaseLanguageCode)
-        : lastBaseLanguage;
-  if (!isNonNegNumber(raw.gems)) {
-    return { ok: false, error: `${prefix}.gems must be a non-negative number.` };
-  }
-  if (!isNonNegNumber(raw.maxHearts) || raw.maxHearts < 1) {
-    return { ok: false, error: `${prefix}.maxHearts must be at least 1.` };
-  }
-  if (!isNonNegNumber(raw.hearts)) {
-    return { ok: false, error: `${prefix}.hearts must be a non-negative number.` };
-  }
-  if (!isNonNegNumber(raw.streakDays)) {
-    return { ok: false, error: `${prefix}.streakDays must be a non-negative number.` };
-  }
-  if (raw.lastPracticeISO !== null && typeof raw.lastPracticeISO !== 'string') {
-    return { ok: false, error: `${prefix}.lastPracticeISO must be null or an ISO string.` };
-  }
-  if (!isNonNegNumber(raw.streakShields)) {
-    return { ok: false, error: `${prefix}.streakShields must be a non-negative number.` };
-  }
-  if (raw.heartElixirs !== undefined && !isNonNegNumber(raw.heartElixirs)) {
-    return { ok: false, error: `${prefix}.heartElixirs must be a non-negative number.` };
-  }
-  if (raw.xpBoosterCharges !== undefined && !isNonNegNumber(raw.xpBoosterCharges)) {
-    return { ok: false, error: `${prefix}.xpBoosterCharges must be a non-negative number.` };
-  }
-  if (
-    raw.unlockedAvatars !== undefined &&
-    (!Array.isArray(raw.unlockedAvatars) ||
-      !raw.unlockedAvatars.every(
-        (id) => typeof id === 'string' && VALID_AVATARS.has(id as AvatarId)
-      ))
-  ) {
-    return { ok: false, error: `${prefix}.unlockedAvatars contains invalid avatar IDs.` };
-  }
-  if (!isNonNegNumber(raw.weeklyXp) || !isNonNegNumber(raw.totalXp)) {
-    return { ok: false, error: `${prefix}.weeklyXp and totalXp must be non-negative numbers.` };
-  }
-  if (
-    typeof raw.leagueTier !== 'string' ||
-    !VALID_LEAGUE_TIERS.has(raw.leagueTier as LeagueTier)
-  ) {
-    return { ok: false, error: `${prefix}.leagueTier "${String(raw.leagueTier)}" is invalid.` };
+
+  const gemsRes = readOptionalNonNegNumber(raw.gems, `${prefix}.gems`);
+  if (!gemsRes.ok) return gemsRes;
+
+  let maxHearts = 5;
+  if (raw.maxHearts !== undefined) {
+    if (!isNonNegNumber(raw.maxHearts) || raw.maxHearts < 1) {
+      return { ok: false, error: `${prefix}.maxHearts must be at least 1.` };
+    }
+    maxHearts = Math.floor(raw.maxHearts);
   }
 
-  if (!isPlainObject(raw.equippedCosmetics)) {
-    return { ok: false, error: `${prefix}.equippedCosmetics must be an object.` };
-  }
-  const equippedCosmetics: EquippedCosmetics = {};
-  for (const [slotKey, cosmeticVal] of Object.entries(raw.equippedCosmetics)) {
-    if (!VALID_COSMETIC_SLOTS.has(slotKey as CosmeticSlot)) {
-      return { ok: false, error: `${prefix}.equippedCosmetics has invalid slot "${slotKey}".` };
+  const heartsRes = readOptionalNonNegNumber(raw.hearts, `${prefix}.hearts`, maxHearts);
+  if (!heartsRes.ok) return heartsRes;
+  const hearts = Math.min(maxHearts, heartsRes.value);
+
+  const streakDaysRes = readOptionalNonNegNumber(raw.streakDays, `${prefix}.streakDays`);
+  if (!streakDaysRes.ok) return streakDaysRes;
+
+  let lastPracticeISO: string | null = null;
+  if (raw.lastPracticeISO !== undefined) {
+    if (raw.lastPracticeISO !== null && typeof raw.lastPracticeISO !== 'string') {
+      return { ok: false, error: `${prefix}.lastPracticeISO must be null or an ISO string.` };
     }
-    if (cosmeticVal !== undefined) {
-      if (
-        typeof cosmeticVal !== 'string' ||
-        !VALID_COSMETIC_IDS.has(cosmeticVal as CosmeticId)
-      ) {
-        return {
-          ok: false,
-          error: `${prefix}.equippedCosmetics.${slotKey} has invalid cosmetic "${String(cosmeticVal)}".`,
-        };
-      }
-      const def = getCosmeticById(cosmeticVal as CosmeticId);
-      if (!def || def.slot !== slotKey) {
-        return {
-          ok: false,
-          error: `${prefix}.equippedCosmetics.${slotKey} cosmetic "${cosmeticVal}" does not fit slot "${slotKey}".`,
-        };
-      }
-      equippedCosmetics[slotKey as CosmeticSlot] = cosmeticVal as CosmeticId;
-    }
+    lastPracticeISO = raw.lastPracticeISO;
   }
 
-  if (
-    !Array.isArray(raw.unlockedCosmetics) ||
-    !raw.unlockedCosmetics.every(
-      (id) => typeof id === 'string' && VALID_COSMETIC_IDS.has(id as CosmeticId)
-    )
-  ) {
-    return { ok: false, error: `${prefix}.unlockedCosmetics contains invalid cosmetic IDs.` };
+  const streakShieldsRes = readOptionalNonNegNumber(raw.streakShields, `${prefix}.streakShields`);
+  if (!streakShieldsRes.ok) return streakShieldsRes;
+
+  const heartElixirsRes = readOptionalNonNegNumber(raw.heartElixirs, `${prefix}.heartElixirs`);
+  if (!heartElixirsRes.ok) return heartElixirsRes;
+
+  const xpBoosterRes = readOptionalNonNegNumber(
+    raw.xpBoosterCharges,
+    `${prefix}.xpBoosterCharges`
+  );
+  if (!xpBoosterRes.ok) return xpBoosterRes;
+
+  const unlockedAvatarsRes = readOptionalSetArray(
+    raw.unlockedAvatars,
+    `${prefix}.unlockedAvatars contains invalid avatar IDs.`,
+    VALID_AVATARS
+  );
+  if (!unlockedAvatarsRes.ok) return unlockedAvatarsRes;
+
+  const weeklyXpRes = readOptionalNonNegNumber(raw.weeklyXp, `${prefix}.weeklyXp`, 0, Math.round);
+  if (!weeklyXpRes.ok) return weeklyXpRes;
+
+  const totalXpRes = readOptionalNonNegNumber(raw.totalXp, `${prefix}.totalXp`, 0, Math.round);
+  if (!totalXpRes.ok) return totalXpRes;
+
+  let leagueTier: LeagueTier = resolveLeagueTierForXp(weeklyXpRes.value);
+  if (raw.leagueTier !== undefined) {
+    if (
+      typeof raw.leagueTier !== 'string' ||
+      !VALID_LEAGUE_TIERS.has(raw.leagueTier as LeagueTier)
+    ) {
+      return { ok: false, error: `${prefix}.leagueTier "${String(raw.leagueTier)}" is invalid.` };
+    }
+    leagueTier = raw.leagueTier as LeagueTier;
   }
 
-  if (
-    !Array.isArray(raw.badges) ||
-    !raw.badges.every((id) => typeof id === 'string' && VALID_BADGE_IDS.has(id as BadgeId))
-  ) {
-    return { ok: false, error: `${prefix}.badges contains invalid badge IDs.` };
-  }
+  const equippedRes = validateEquippedCosmetics(raw.equippedCosmetics, prefix);
+  if (!equippedRes.ok) return equippedRes;
 
-  if (!isPlainObject(raw.stats)) {
-    return { ok: false, error: `${prefix}.stats must be an object.` };
-  }
-  const statKeys = [
-    'lessonsCompleted',
-    'storiesCompleted',
-    'bossesCleared',
-    'arcadeGamesWon',
-    'turtlePlaysCount',
-    'bestComboStreak',
-    'accentSpotlightsSeen',
-  ] as const;
-  for (const key of statKeys) {
-    if (!isNonNegNumber(raw.stats[key])) {
-      return { ok: false, error: `${prefix}.stats.${key} must be a non-negative number.` };
-    }
-  }
-  const optionalStatKeys = [
-    'freeRecallSolved',
-    'fluentPlaysCount',
-    'checkpointsPassed',
-    'clozeSolved',
-    'hintsUsedCount',
-  ] as const;
-  for (const key of optionalStatKeys) {
-    if (raw.stats[key] !== undefined && !isNonNegNumber(raw.stats[key])) {
-      return { ok: false, error: `${prefix}.stats.${key} must be a non-negative number.` };
-    }
-  }
+  const unlockedCosmeticsRes = readOptionalSetArray(
+    raw.unlockedCosmetics,
+    `${prefix}.unlockedCosmetics contains invalid cosmetic IDs.`,
+    VALID_COSMETIC_IDS
+  );
+  if (!unlockedCosmeticsRes.ok) return unlockedCosmeticsRes;
+
+  const badgesRes = readOptionalSetArray(
+    raw.badges,
+    `${prefix}.badges contains invalid badge IDs.`,
+    VALID_BADGE_IDS
+  );
+  if (!badgesRes.ok) return badgesRes;
+
+  const statsRes = validateProfileStats(raw.stats, prefix);
+  if (!statsRes.ok) return statsRes;
 
   if (!isPlainObject(raw.languageProgress)) {
     return { ok: false, error: `${prefix}.languageProgress must be an object.` };
@@ -649,8 +741,30 @@ function validateKidProfile(
     };
   }
 
+  const firstPresentBaseLang = LANGUAGE_LIST.find(
+    (lang) =>
+      Object.prototype.hasOwnProperty.call(rawLangProgress, lang) &&
+      rawLangProgress[lang] !== undefined
+  );
+  const rawOrFallbackActiveLang = raw.activeLanguage ?? firstPresentBaseLang;
+  const lastBaseLanguage = resolveLastBaseLanguage({
+    id: profileId,
+    lastBaseLanguage: raw.lastBaseLanguage,
+    activeLanguage: rawOrFallbackActiveLang,
+  });
+  const activeLanguage: LanguageCode =
+    adultModeActive &&
+    typeof raw.activeLanguage === 'string' &&
+    VALID_ALL_LANGUAGES.has(raw.activeLanguage as LanguageCode)
+      ? (raw.activeLanguage as LanguageCode)
+      : typeof rawOrFallbackActiveLang === 'string' &&
+          !isAdultLanguage(rawOrFallbackActiveLang) &&
+          VALID_BASE_LANGUAGES.has(rawOrFallbackActiveLang as BaseLanguageCode)
+        ? (rawOrFallbackActiveLang as BaseLanguageCode)
+        : lastBaseLanguage;
+
   const validatedLangProgress = {} as LanguageProgressMap;
-  for (const lang of LANGUAGE_LIST) {
+  for (const lang of allowedCheckLangs) {
     const rawEntry = rawLangProgress[lang];
     if (rawEntry === undefined) {
       validatedLangProgress[lang] = emptyLangProgress();
@@ -661,31 +775,18 @@ function validateKidProfile(
     validatedLangProgress[lang] = res.value;
   }
 
-  if (adultModeUnlocked) {
-    for (const lang of ADULT_EASTER_EGG_LANGUAGES) {
-      const rawEntry = rawLangProgress[lang];
-      if (rawEntry === undefined) {
-        validatedLangProgress[lang] = emptyLangProgress();
-        continue;
-      }
-      const res = validateLangProgress(rawEntry, `${prefix}.languageProgress.${lang}`);
-      if (!res.ok) return res;
-      validatedLangProgress[lang] = res.value;
-    }
-  }
-
   if (
     raw.secretArcadeUnlocked !== undefined &&
     typeof raw.secretArcadeUnlocked !== 'boolean'
   ) {
     return { ok: false, error: `${prefix}.secretArcadeUnlocked must be a boolean.` };
   }
-  if (raw.secretArcadeBestScore !== undefined && !isNonNegNumber(raw.secretArcadeBestScore)) {
-    return {
-      ok: false,
-      error: `${prefix}.secretArcadeBestScore must be a non-negative number.`,
-    };
-  }
+  const secretBestRes = readOptionalNonNegNumber(
+    raw.secretArcadeBestScore,
+    `${prefix}.secretArcadeBestScore`
+  );
+  if (!secretBestRes.ok) return secretBestRes;
+
   const arcadeHighScores: Record<string, number> = {};
   if (raw.arcadeHighScores !== undefined) {
     if (!isPlainObject(raw.arcadeHighScores)) {
@@ -702,13 +803,8 @@ function validateKidProfile(
     }
   }
 
-  const maxHearts = Math.floor(raw.maxHearts);
   const hydratedUnlockedAvatars = Array.from(
-    new Set([
-      ...STARTER_AVATAR_IDS,
-      ...((raw.unlockedAvatars as AvatarId[] | undefined) ?? []),
-      raw.avatarId as AvatarId,
-    ])
+    new Set([...STARTER_AVATAR_IDS, ...unlockedAvatarsRes.value, avatarId])
   );
 
   return {
@@ -716,59 +812,31 @@ function validateKidProfile(
     value: {
       id: profileId,
       name: raw.name.trim(),
-      avatarId: raw.avatarId as AvatarId,
-      bannerColor: raw.bannerColor.trim(),
+      avatarId,
+      bannerColor,
       activeLanguage,
       lastBaseLanguage,
       adultModeUnlocked,
       adultModeActive,
-      gems: Math.floor(raw.gems),
-      hearts: Math.min(maxHearts, Math.floor(raw.hearts)),
+      gems: gemsRes.value,
+      hearts,
       maxHearts,
-      streakDays: Math.floor(raw.streakDays),
-      lastPracticeISO: raw.lastPracticeISO,
-      streakShields: Math.floor(raw.streakShields),
-      heartElixirs: raw.heartElixirs !== undefined ? Math.floor(raw.heartElixirs) : 0,
-      xpBoosterCharges:
-        raw.xpBoosterCharges !== undefined ? Math.floor(raw.xpBoosterCharges) : 0,
+      streakDays: streakDaysRes.value,
+      lastPracticeISO,
+      streakShields: streakShieldsRes.value,
+      heartElixirs: heartElixirsRes.value,
+      xpBoosterCharges: xpBoosterRes.value,
       unlockedAvatars: hydratedUnlockedAvatars,
-      equippedCosmetics,
-      unlockedCosmetics: Array.from(new Set(raw.unlockedCosmetics as CosmeticId[])),
-      badges: Array.from(new Set(raw.badges as BadgeId[])),
-      weeklyXp: Math.round(raw.weeklyXp),
-      totalXp: Math.round(raw.totalXp),
-      leagueTier: raw.leagueTier as LeagueTier,
+      equippedCosmetics: equippedRes.value,
+      unlockedCosmetics: unlockedCosmeticsRes.value,
+      badges: badgesRes.value,
+      weeklyXp: weeklyXpRes.value,
+      totalXp: totalXpRes.value,
+      leagueTier,
       secretArcadeUnlocked: raw.secretArcadeUnlocked ?? false,
-      secretArcadeBestScore:
-        raw.secretArcadeBestScore !== undefined ? Math.floor(raw.secretArcadeBestScore) : 0,
+      secretArcadeBestScore: secretBestRes.value,
       arcadeHighScores,
-      stats: {
-        lessonsCompleted: Math.floor(raw.stats.lessonsCompleted as number),
-        storiesCompleted: Math.floor(raw.stats.storiesCompleted as number),
-        bossesCleared: Math.floor(raw.stats.bossesCleared as number),
-        arcadeGamesWon: Math.floor(raw.stats.arcadeGamesWon as number),
-        turtlePlaysCount: Math.floor(raw.stats.turtlePlaysCount as number),
-        bestComboStreak: Math.floor(raw.stats.bestComboStreak as number),
-        accentSpotlightsSeen: Math.floor(raw.stats.accentSpotlightsSeen as number),
-        freeRecallSolved:
-          raw.stats.freeRecallSolved !== undefined
-            ? Math.floor(raw.stats.freeRecallSolved as number)
-            : 0,
-        fluentPlaysCount:
-          raw.stats.fluentPlaysCount !== undefined
-            ? Math.floor(raw.stats.fluentPlaysCount as number)
-            : 0,
-        checkpointsPassed:
-          raw.stats.checkpointsPassed !== undefined
-            ? Math.floor(raw.stats.checkpointsPassed as number)
-            : 0,
-        clozeSolved:
-          raw.stats.clozeSolved !== undefined ? Math.floor(raw.stats.clozeSolved as number) : 0,
-        hintsUsedCount:
-          raw.stats.hintsUsedCount !== undefined
-            ? Math.floor(raw.stats.hintsUsedCount as number)
-            : 0,
-      },
+      stats: statsRes.value,
       languageProgress: validatedLangProgress,
     },
   };
@@ -816,19 +884,26 @@ function validateVaultObject(
     };
   }
 
-  if (!isPlainObject(raw.audioSettings)) {
-    return { ok: false, error: 'Missing or invalid audioSettings.' };
-  }
-  if (
-    typeof raw.audioSettings.volume !== 'number' ||
-    !Number.isFinite(raw.audioSettings.volume) ||
-    raw.audioSettings.volume < 0 ||
-    raw.audioSettings.volume > 1
-  ) {
-    return { ok: false, error: 'audioSettings.volume must be a number between 0 and 1.' };
-  }
-  if (typeof raw.audioSettings.muted !== 'boolean') {
-    return { ok: false, error: 'audioSettings.muted must be a boolean.' };
+  let audioSettings = { volume: 0.85, muted: false };
+  if (raw.audioSettings !== undefined) {
+    if (!isPlainObject(raw.audioSettings)) {
+      return { ok: false, error: 'Missing or invalid audioSettings.' };
+    }
+    if (
+      typeof raw.audioSettings.volume !== 'number' ||
+      !Number.isFinite(raw.audioSettings.volume) ||
+      raw.audioSettings.volume < 0 ||
+      raw.audioSettings.volume > 1
+    ) {
+      return { ok: false, error: 'audioSettings.volume must be a number between 0 and 1.' };
+    }
+    if (typeof raw.audioSettings.muted !== 'boolean') {
+      return { ok: false, error: 'audioSettings.muted must be a boolean.' };
+    }
+    audioSettings = {
+      volume: raw.audioSettings.volume,
+      muted: raw.audioSettings.muted,
+    };
   }
 
   return {
@@ -837,10 +912,7 @@ function validateVaultObject(
       schemaVersion: 1,
       activeProfileId: activeId,
       profiles,
-      audioSettings: {
-        volume: raw.audioSettings.volume,
-        muted: raw.audioSettings.muted,
-      },
+      audioSettings,
     },
   };
 }
@@ -1649,6 +1721,7 @@ export const vaultActions = {
     isStory?: boolean;
     isBoss?: boolean;
     isChest?: boolean;
+    isCheckpoint?: boolean;
     checkpointUnlock?: {
       targetTier: Exclude<ProficiencyTier, 'A1'>;
       prerequisiteNodeIds?: readonly string[];
@@ -1699,7 +1772,11 @@ export const vaultActions = {
 
       const nextWeeklyXp = profile.weeklyXp + earnedXp;
       const nextTotalXp = profile.totalXp + earnedXp;
-      const isCheckpoint = Boolean(checkpointUnlock);
+      const isCheckpoint =
+        Boolean(checkpointUnlock) ||
+        Boolean(params.isCheckpoint) ||
+        params.nodeId.startsWith('checkpoint-') ||
+        params.nodeId.includes('-checkpoint-');
       const isLesson = !params.isStory && !params.isBoss && !params.isChest && !isCheckpoint;
       const nextLessonsCompleted = profile.stats.lessonsCompleted + (isLesson ? 1 : 0);
 
@@ -1734,7 +1811,9 @@ export const vaultActions = {
           lessonsCompleted: nextLessonsCompleted,
           storiesCompleted: profile.stats.storiesCompleted + (params.isStory ? 1 : 0),
           bossesCleared: profile.stats.bossesCleared + (params.isBoss ? 1 : 0),
-          checkpointsPassed: (profile.stats.checkpointsPassed ?? 0) + (isCheckpoint ? 1 : 0),
+          // Only increment checkpointsPassed here when unlockProficiencyTier isn't called separately
+          checkpointsPassed:
+            (profile.stats.checkpointsPassed ?? 0) + (checkpointUnlock ? 1 : 0),
           bestComboStreak: Math.max(
             profile.stats.bestComboStreak,
             Math.max(0, Math.floor(params.maxCombo))
