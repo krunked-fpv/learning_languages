@@ -259,7 +259,7 @@ export function StarlightSecretGame({
             uid: nextUidRef.current++,
             kind: 'word',
             item: chosen,
-            x: 21 + Math.random() * 58,
+            x: 22 + Math.random() * 56,
             y: 100,
             speed: (13 + Math.random() * 6) * paceMultiplier,
             swayOffset: Math.random() * Math.PI * 2,
@@ -272,8 +272,8 @@ export function StarlightSecretGame({
       for (const b of bubblesRef.current) {
         const nextY = b.y - b.speed * dt;
         const swayX = Math.max(
-          19,
-          Math.min(81, b.x + Math.sin(elapsedRef.current * 2.2 + b.swayOffset) * 5 * dt)
+          21,
+          Math.min(79, b.x + Math.sin(elapsedRef.current * 2.2 + b.swayOffset) * 5 * dt)
         );
         if (nextY > -12) {
           nextList.push({ ...b, x: swayX, y: nextY });
@@ -755,7 +755,9 @@ export function StarlightSecretGame({
                     display: 'flex',
                     alignItems: 'center',
                     gap: 5,
-                    maxWidth: isCompact ? '44%' : '250px',
+                    maxWidth: isCompact ? '40%' : '250px',
+                    minWidth: 0,
+                    overflow: 'hidden',
                     cursor: 'pointer',
                     boxShadow: '0 8px 20px rgba(0, 0, 0, 0.25)',
                     zIndex: 8,
@@ -770,11 +772,14 @@ export function StarlightSecretGame({
                   </span>
                   <span
                     dir={langDir}
-                    style={getArcadeForeignTextStyle(language, b.item.foreign, {
-                      isCompact,
-                      density: 'normal',
-                      color: pal.text,
-                    })}
+                    style={{
+                      ...getArcadeForeignTextStyle(language, b.item.foreign, {
+                        isCompact,
+                        density: 'normal',
+                        color: pal.text,
+                      }),
+                      flex: '0 1 auto',
+                    }}
                   >
                     {b.item.foreign}
                   </span>

@@ -170,7 +170,7 @@ export function WordBankView({
                 ? 'Match the Meaning Clue'
                 : 'Build the English Phrase'
               : exercise.direction === 'to_english'
-                ? 'Translate to English'
+                ? `Translate to ${langMeta.translationLanguageLabel ?? 'English'}`
                 : `Translate to ${langMeta.name}`}
           </span>
 
@@ -435,10 +435,12 @@ export function WordBankView({
               exercise.direction === 'to_foreign'
                 ? language === 'en'
                   ? 'Type the English phrase...'
-                  : isNonLatinCourse
-                    ? `Type in ${langMeta.name} or romanized`
-                    : `Type in ${langMeta.name} (accents optional, or tap keys below!)`
-                : 'Type in English...'
+                  : langMeta.isAdultOnly
+                    ? `Type in ${langMeta.name}...`
+                    : isNonLatinCourse
+                      ? `Type in ${langMeta.name} or romanized`
+                      : `Type in ${langMeta.name} (accents optional, or tap keys below!)`
+                : `Type in ${langMeta.translationLanguageLabel ?? 'English'}...`
             }
             aria-label="Type your translation"
             style={{

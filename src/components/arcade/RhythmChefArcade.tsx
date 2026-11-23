@@ -478,8 +478,9 @@ export function RhythmChefArcade({
                       position: 'relative',
                       width: '100%',
                       height: '100%',
+                      minWidth: 0,
                       minHeight: 0,
-                      padding: isCompact ? '22px 6px 8px' : 12,
+                      padding: isCompact ? '20px 6px 6px' : 12,
                       borderRadius: 22,
                       background: pal.bg,
                       borderTopWidth: 3,
@@ -540,7 +541,7 @@ export function RhythmChefArcade({
                       <VocabIllustration
                         illustrationKey={item.illustrationKey}
                         language={language}
-                        size={isCompact ? 30 : 44}
+                        size={isCompact ? (item.foreign.length > 20 ? 25 : 28) : 44}
                       />
                     </span>
                     <span
@@ -548,7 +549,7 @@ export function RhythmChefArcade({
                       style={{
                         ...getArcadeForeignTextStyle(language, item.foreign, {
                           isCompact,
-                          density: 'large',
+                          density: isCompact && item.foreign.length > 24 ? 'normal' : 'large',
                           color: pal.text,
                         }),
                         paddingInline: 4,

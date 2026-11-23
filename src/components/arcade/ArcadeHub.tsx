@@ -12,8 +12,14 @@ import {
 } from 'lucide-react';
 import { FlagIcon } from '../../art/FlagIcon';
 import { playSfx } from '../../audio';
+import { getCourse } from '../../curriculum';
 import { useVaultStore } from '../../store/useVaultStore';
-import { LANGUAGE_META, type ArcadeProficiencyTier } from '../../types/contracts';
+import {
+  LANGUAGE_META,
+  isDefaultKidProfileId,
+  type ArcadeProficiencyTier,
+  type LanguageMeta,
+} from '../../types/contracts';
 import {
   CafeOrderRushEmblem,
   ConstellationMemoryEmblem,
@@ -160,6 +166,19 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
   const { language, bestScoreFor, tierMeta } = useArcadeDeck(arcadeTier);
   const { containerRef, width, height, isNarrow, isCompact } = useArcadeContainerMetrics();
   const langMeta = LANGUAGE_META[language];
+  let courseMeta: LanguageMeta = langMeta;
+  try {
+    const activeCourse = getCourse(language);
+    if (activeCourse?.meta) {
+      courseMeta = activeCourse.meta;
+    }
+  } catch {
+    courseMeta = langMeta;
+  }
+  const showAdultDirectionBadge =
+    Boolean(courseMeta.isAdultOnly && courseMeta.pairDirectionBadge) &&
+    activeProfile.adultModeActive !== false &&
+    !isDefaultKidProfileId(activeProfile.id);
   const [mode, setMode] = useState<ArcadeGameMode>(initialMode);
   const [page, setPage] = useState<0 | 1 | 2>(0);
 
@@ -302,12 +321,56 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                   }}
                 >
                   <FlagIcon language={language} size={isCompact ? 14 : 17} />
-                  <span dir={langMeta.dir} style={{ lineHeight: 1.35 }}>
-                    {langMeta.nativeName}
+                  <span dir={courseMeta.dir} style={{ lineHeight: 1.35 }}>
+                    {courseMeta.nativeName}
                   </span>
                 </span>
               </div>
-              {!isCompact ? (
+              {showAdultDirectionBadge ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    flexWrap: 'wrap',
+                    marginTop: isCompact ? 2 : 1,
+                  }}
+                >
+                  <span
+                    data-testid="arcade-direction-badge"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: isCompact ? '1px 7px' : '2px 8px',
+                      borderRadius: 999,
+                      background: 'var(--tint-indigo-bg, #eef2ff)',
+                      border: '1px solid var(--lang-primary, #7c3aed)',
+                      color: 'var(--tint-indigo-ink, #312e81)',
+                      fontSize: isCompact ? '0.64rem' : '0.7rem',
+                      fontWeight: 900,
+                      lineHeight: 1.3,
+                      maxWidth: '100%',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {courseMeta.pairDirectionBadge}
+                  </span>
+                  {!isCompact ? (
+                    <span
+                      style={{
+                        fontSize: '0.71rem',
+                        fontWeight: 700,
+                        color: 'var(--text-muted, #475569)',
+                      }}
+                    >
+                      {courseMeta.landTitle} • {tierMeta.label} ({tierMeta.cefrLabel}):{' '}
+                      {tierMeta.paceLabel} pace & {tierMeta.rewardLabel} XP/Gems
+                    </span>
+                  ) : null}
+                </div>
+              ) : !isCompact ? (
                 <div
                   style={{
                     fontSize: '0.72rem',

@@ -313,10 +313,14 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
 
   const handleCheck = useCallback(() => {
     if (!draft || feedback) return;
-    const gradingLanguage =
+    const gradingLanguage: LanguageCode =
       (currentExercise?.type === 'word_bank' && currentExercise.direction === 'to_english') ||
       (currentExercise?.type === 'listen_decode' && currentExercise.mode === 'select_meaning')
-        ? 'en'
+        ? language === 'ebonics'
+          ? 'suburban'
+          : language === 'suburban'
+            ? 'ebonics'
+            : 'en'
         : language;
     const result = gradeAnswer({
       submitted: draft.submitted,

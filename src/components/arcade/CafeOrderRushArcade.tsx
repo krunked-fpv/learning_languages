@@ -57,7 +57,8 @@ export function CafeOrderRushArcade({
   const { language, lexicon, targetLexicon, bestScoreFor, paceMultiplier } =
     useArcadeDeck(arcadeTier);
   const { containerRef, isCompact } = useArcadeContainerMetrics();
-  const langDir = LANGUAGE_META[language].dir;
+  const langMeta = LANGUAGE_META[language];
+  const langDir = langMeta.dir;
 
   const [phase, setPhase] = useState<'ready' | 'playing' | 'summary'>('ready');
   const [timeLeft, setTimeLeft] = useState(ROUND_DURATION_SECONDS);
@@ -600,9 +601,13 @@ export function CafeOrderRushArcade({
                       ? round.direction === 'foreign_to_english'
                         ? 'Order: Match Meaning Clue'
                         : 'Order: Match English Phrase'
-                      : round.direction === 'foreign_to_english'
-                        ? 'Order: Match English'
-                        : `Order: Match ${LANGUAGE_META[language].nativeName}`}
+                      : langMeta.isAdultOnly && langMeta.translationLanguageLabel
+                        ? round.direction === 'foreign_to_english'
+                          ? `Order: Match ${langMeta.translationLanguageLabel}`
+                          : `Order: Match ${langMeta.name}`
+                        : round.direction === 'foreign_to_english'
+                          ? 'Order: Match English'
+                          : `Order: Match ${langMeta.nativeName}`}
                   </span>
                   {patience >= 0.55 ? (
                     <span
@@ -623,14 +628,14 @@ export function CafeOrderRushArcade({
                   ) : null}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: isCompact ? 5 : 8, flexWrap: 'wrap' }}>
                   {round.direction === 'foreign_to_english' ? (
                     <strong
                       dir={langDir}
                       style={{
                         ...getArcadeForeignTextStyle(language, target.foreign, {
                           isCompact,
-                          density: 'large',
+                          density: isCompact && target.foreign.length > 20 ? 'normal' : 'large',
                           color: '#1e1b4b',
                           textAlign: 'start',
                         }),
@@ -643,10 +648,20 @@ export function CafeOrderRushArcade({
                       dir="ltr"
                       style={{
                         fontFamily: 'var(--font-display)',
-                        fontSize: isCompact ? '0.96rem' : '1.16rem',
+                        fontSize: isCompact
+                          ? target.english.length > 28
+                            ? '0.78rem'
+                            : target.english.length > 18
+                              ? '0.86rem'
+                              : '0.95rem'
+                          : target.english.length > 28
+                            ? '1rem'
+                            : '1.16rem',
                         fontWeight: 900,
                         color: '#1e1b4b',
-                        lineHeight: 1.25,
+                        lineHeight: 1.22,
+                        maxWidth: '100%',
+                        overflowWrap: 'break-word',
                       }}
                     >
                       {target.english}
@@ -664,6 +679,8 @@ export function CafeOrderRushArcade({
                         color: '#3730a3',
                         fontSize: isCompact ? '0.66rem' : '0.74rem',
                         fontWeight: 800,
+                        maxWidth: '100%',
+                        overflowWrap: 'break-word',
                       }}
                     >
                       {target.romanized}
@@ -677,8 +694,10 @@ export function CafeOrderRushArcade({
                       borderRadius: 999,
                       background: '#fef3c7',
                       color: '#78350f',
-                      fontSize: isCompact ? '0.66rem' : '0.74rem',
+                      fontSize: isCompact ? '0.64rem' : '0.74rem',
                       fontWeight: 800,
+                      maxWidth: '100%',
+                      overflowWrap: 'break-word',
                     }}
                   >
                     {target.phonetic}
@@ -772,8 +791,9 @@ export function CafeOrderRushArcade({
                       position: 'relative',
                       width: '100%',
                       height: '100%',
+                      minWidth: 0,
                       minHeight: 0,
-                      padding: isCompact ? '18px 8px 8px' : '12px 14px',
+                      padding: isCompact ? '15px 6px 5px' : '12px 14px',
                       borderRadius: 20,
                       background: '#ffffff',
                       borderTopWidth: 2.5,
@@ -787,7 +807,7 @@ export function CafeOrderRushArcade({
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: isCompact ? 3 : 6,
+                      gap: isCompact ? 2 : 6,
                       cursor: 'pointer',
                       transform: isFlashed ? 'scale(0.95)' : 'scale(1)',
                       transition: 'transform 90ms ease',
@@ -798,13 +818,13 @@ export function CafeOrderRushArcade({
                     <span
                       style={{
                         position: 'absolute',
-                        top: 6,
-                        left: 8,
+                        top: isCompact ? 4 : 6,
+                        left: isCompact ? 6 : 8,
                         padding: '1px 7px',
                         borderRadius: 999,
                         background: accent.badgeBg,
                         color: accent.badgeInk,
-                        fontSize: '0.66rem',
+                        fontSize: isCompact ? '0.6rem' : '0.66rem',
                         fontWeight: 900,
                       }}
                     >
@@ -815,7 +835,7 @@ export function CafeOrderRushArcade({
                       <VocabIllustration
                         illustrationKey={item.illustrationKey}
                         language={language}
-                        size={isCompact ? 30 : 44}
+                        size={isCompact ? 23 : 44}
                       />
                     </span>
 
@@ -825,7 +845,11 @@ export function CafeOrderRushArcade({
                           dir={langDir}
                           style={getArcadeForeignTextStyle(language, item.foreign, {
                             isCompact,
-                            density: 'large',
+                            density: isCompact
+                              ? item.foreign.length > 18
+                                ? 'tight'
+                                : 'normal'
+                              : 'large',
                             color: '#1e1b4b',
                           })}
                         >
@@ -854,13 +878,19 @@ export function CafeOrderRushArcade({
                           fontFamily: 'var(--font-display)',
                           fontWeight: 900,
                           fontSize: isCompact
-                            ? item.english.length > 18
+                            ? item.english.length > 30
+                              ? '0.6rem'
+                              : item.english.length > 22
+                                ? '0.68rem'
+                                : item.english.length > 16
+                                  ? '0.76rem'
+                                  : '0.86rem'
+                            : item.english.length > 32
                               ? '0.78rem'
-                              : '0.88rem'
-                            : item.english.length > 22
-                              ? '0.92rem'
-                              : '1.02rem',
-                          lineHeight: 1.25,
+                              : item.english.length > 22
+                                ? '0.9rem'
+                                : '1.02rem',
+                          lineHeight: isCompact && item.english.length > 18 ? 1.16 : 1.24,
                           color: '#1e1b4b',
                           textAlign: 'center',
                           maxWidth: '100%',

@@ -105,7 +105,8 @@ export function PairMatchRushView({
 
   const pct = totalMs > 0 ? Math.round((timeLeftMs / totalMs) * 100) : 0;
   const secondsDisplay = Math.ceil(timeLeftMs / 1000);
-  const langDir = LANGUAGE_META[language].dir;
+  const langMeta = LANGUAGE_META[language];
+  const langDir = langMeta.dir;
 
   return (
     <div
@@ -127,7 +128,9 @@ export function PairMatchRushView({
           <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
             {language === 'en'
               ? `Match each phrase with its meaning clue (${matchedIds.length}/${exercise.pairs.length})`
-              : `Match each word with its English partner (${matchedIds.length}/${exercise.pairs.length})`}
+              : langMeta.translationLanguageLabel
+                ? `Match each phrase with its ${langMeta.translationLanguageLabel} partner (${matchedIds.length}/${exercise.pairs.length})`
+                : `Match each word with its English partner (${matchedIds.length}/${exercise.pairs.length})`}
           </div>
         </div>
 
@@ -233,6 +236,7 @@ export function PairMatchRushView({
                       style={{
                         textAlign: langDir === 'rtl' ? 'right' : 'left',
                         lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
+                        overflowWrap: 'break-word',
                       }}
                     >
                       {item.foreign}
@@ -286,9 +290,11 @@ export function PairMatchRushView({
                 onClick={() => handleSelectRight(item.id)}
                 className="tactile-btn"
                 style={{
+                  minWidth: 0,
                   padding: compact ? '8px 10px' : '10px 12px',
                   fontSize: compact ? '0.85rem' : '0.94rem',
                   justifyContent: 'space-between',
+                  overflowWrap: 'break-word',
                   background: isMatched
                     ? 'var(--tint-emerald-bg)'
                     : isShaking

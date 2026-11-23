@@ -327,6 +327,27 @@ export function AdventureMap({
       >
         <FlagIcon language={course.language} size={42} />
         <h2 style={{ margin: '10px 0 4px' }}>{course.meta.landTitle}</h2>
+        {course.meta.isAdultOnly && course.meta.pairDirectionBadge && (
+          <span
+            data-pair-direction-badge="true"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              marginBottom: 6,
+              padding: '2px 10px',
+              borderRadius: 999,
+              backgroundColor: palette.surfaceTint,
+              borderStyle: 'solid',
+              borderWidth: '1.5px',
+              borderColor: palette.primary,
+              color: palette.bevel,
+              fontSize: 11,
+              fontWeight: 900,
+            }}
+          >
+            {course.meta.pairDirectionBadge}
+          </span>
+        )}
         <p style={{ margin: 0, color: 'var(--text-muted, #475569)' }}>
           Charting your expedition with {course.meta.companionName}...
         </p>
@@ -412,7 +433,7 @@ export function AdventureMap({
                   title={course.meta.landTitle}
                   style={{
                     margin: 0,
-                    fontSize: isCompactWidth ? '0.94rem' : '1.15rem',
+                    fontSize: isCompactWidth ? '0.94rem' : 'clamp(0.98rem, 1.6vw, 1.15rem)',
                     fontWeight: 900,
                     color: 'var(--text-main, #0f172a)',
                     lineHeight: 1.15,
@@ -424,6 +445,33 @@ export function AdventureMap({
                 >
                   {course.meta.landTitle}
                 </h2>
+                {!isCompactWidth && course.meta.isAdultOnly && course.meta.pairDirectionBadge && (
+                  <span
+                    data-pair-direction-badge="true"
+                    title={course.meta.pairDirectionBadge}
+                    style={{
+                      flexShrink: 0,
+                      maxWidth: '50%',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '2px 8px',
+                      borderRadius: 999,
+                      backgroundColor: palette.surfaceTint,
+                      borderStyle: 'solid',
+                      borderWidth: '1.5px',
+                      borderColor: palette.primary,
+                      color: palette.bevel,
+                      fontSize: 10.5,
+                      fontWeight: 900,
+                      letterSpacing: '0.01em',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {course.meta.pairDirectionBadge}
+                  </span>
+                )}
               </div>
               <p
                 title={`Guide: ${course.meta.companionName} • ${course.meta.companionRole}`}
@@ -483,6 +531,34 @@ export function AdventureMap({
             </span>
           </div>
         </div>
+
+        {isCompactWidth && course.meta.isAdultOnly && course.meta.pairDirectionBadge && (
+          <div style={{ marginTop: 4, display: 'flex', alignItems: 'center' }}>
+            <span
+              data-pair-direction-badge="true"
+              title={course.meta.pairDirectionBadge}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                maxWidth: '100%',
+                padding: '1px 8px',
+                borderRadius: 999,
+                backgroundColor: palette.surfaceTint,
+                borderStyle: 'solid',
+                borderWidth: '1.5px',
+                borderColor: palette.primary,
+                color: palette.bevel,
+                fontSize: 10,
+                fontWeight: 900,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {course.meta.pairDirectionBadge}
+            </span>
+          </div>
+        )}
 
         {/* 5-Tier CEFR Atlas Ribbon (A1 Sprout · A2 Trailblazer · B1 Storyweaver · B2 Diplomat · C1+ Laureate) */}
         <div

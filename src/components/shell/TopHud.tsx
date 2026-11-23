@@ -2,6 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
+  ArrowLeft,
+  ArrowLeftRight,
   Check,
   ChevronDown,
   Compass,
@@ -23,9 +25,12 @@ import { playSfx, setAudioPreferences } from '../../audio';
 import { COSMETIC_CATALOG } from '../../core';
 import { useVaultStore, vaultActions } from '../../store/useVaultStore';
 import {
+  ADULT_EASTER_EGG_LANGUAGES,
   LANGUAGE_LIST,
   LANGUAGE_META,
   MAX_HEART_CONTAINERS,
+  isAdultLanguage,
+  type AdultLanguageCode,
   type CosmeticId,
   type LanguageCode,
 } from '../../types/contracts';
@@ -143,7 +148,12 @@ export function TopHud({
   }, [activeProfile.unlockedCosmetics]);
 
   const activeThemeId = activeProfile.equippedCosmetics.theme ?? 'default';
-  const activeLangMeta = LANGUAGE_META[activeProfile.activeLanguage];
+  const isAdultModeActive = Boolean(activeProfile.adultModeActive);
+  const displayLanguage: LanguageCode =
+    !isAdultModeActive && isAdultLanguage(activeProfile.activeLanguage)
+      ? (activeProfile.lastBaseLanguage ?? 'en')
+      : activeProfile.activeLanguage;
+  const activeLangMeta = LANGUAGE_META[displayLanguage];
   const { volume, muted } = vault.audioSettings;
 
   const togglePopover = (which: Exclude<OpenPopover, null>) => {
@@ -155,6 +165,12 @@ export function TopHud({
     playSfx('whoosh_transition');
     vaultActions.setActiveLanguage(lang);
     setOpenPopover(null);
+  };
+
+  const handleReturnToKidAtlas = () => {
+    playSfx('whoosh_transition');
+    setOpenPopover(null);
+    safeVaultActions.setAdultModeActive(false);
   };
 
   const handleSelectTheme = (themeId?: CosmeticId) => {
@@ -201,13 +217,143 @@ export function TopHud({
     >
       {openPopover === 'lang' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontSize: '0.76rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-            Choose Expedition Land
-          </div>
           <div
             className="console-scroll-pane"
             style={{ maxHeight: 'min(420px, calc(100dvh - 88px))', paddingRight: 2 }}
           >
+            {isAdultModeActive ? (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 7,
+                  padding: '8px 9px',
+                  borderRadius: 14,
+                  background: 'var(--tint-indigo-bg)',
+                  border: '1.5px solid var(--tint-indigo-border)',
+                  marginBottom: 10,
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 6,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '0.74rem',
+                      fontWeight: 900,
+                      color: 'var(--tint-indigo-ink)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.03em',
+                    }}
+                  >
+                    After-Hours Atlas (18+)
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="tactile-btn tactile-btn-amber"
+                      style={{ padding: '4px 9px', fontSize: '0.72rem', borderRadius: 10 }}
+                      onClick={() => {
+                        const flipped: AdultLanguageCode =
+                          activeProfile.activeLanguage === 'ebonics' ? 'suburban' : 'ebonics';
+                        handleSelectLanguage(flipped);
+                      }}
+                    >
+                      <ArrowLeftRight size={13} />
+                      <span>Flip Direction</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="tactile-btn tactile-btn-success"
+                      data-testid="popover-return-to-kid-atlas-btn"
+                      aria-label="Return to Kid Atlas"
+                      style={{ padding: '4px 9px', fontSize: '0.72rem', borderRadius: 10 }}
+                      onClick={handleReturnToKidAtlas}
+                    >
+                      <ArrowLeft size={13} />
+                      <span>Kid Atlas</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                    gap: 6,
+                  }}
+                >
+                  {ADULT_EASTER_EGG_LANGUAGES.map((lang) => {
+                    const meta = LANGUAGE_META[lang];
+                    const isSelected = lang === activeProfile.activeLanguage;
+                    return (
+                      <button
+                        key={lang}
+                        type="button"
+                        className="tactile-btn"
+                        style={{
+                          justifyContent: 'flex-start',
+                          padding: '7px 8px',
+                          gap: 7,
+                          minWidth: 0,
+                          background: isSelected ? 'var(--tile-selected-bg)' : 'var(--tile-bg)',
+                          borderColor: isSelected ? meta.accentPalette.primary : 'var(--card-border)',
+                          color: isSelected ? 'var(--tile-selected-ink)' : 'var(--text-main)',
+                        }}
+                        onClick={() => handleSelectLanguage(lang)}
+                      >
+                        <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                          <FlagIcon language={lang} size={24} />
+                        </span>
+                        <div style={{ textAlign: 'left', minWidth: 0, flex: 1 }}>
+                          <div
+                            style={{
+                              fontSize: '0.78rem',
+                              fontWeight: 800,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {meta.name}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              color: 'var(--text-muted)',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {meta.nativeName}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            <div
+              style={{
+                fontSize: '0.76rem',
+                fontWeight: 900,
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                marginBottom: 8,
+              }}
+            >
+              Choose Expedition Land
+            </div>
             <div
               style={{
                 display: 'grid',
@@ -217,7 +363,7 @@ export function TopHud({
             >
               {LANGUAGE_LIST.map((lang) => {
                 const meta = LANGUAGE_META[lang];
-                const isSelected = lang === activeProfile.activeLanguage;
+                const isSelected = lang === displayLanguage;
                 return (
                   <button
                     key={lang}
@@ -461,10 +607,29 @@ export function TopHud({
             aria-expanded={openPopover === 'lang'}
             onClick={() => togglePopover('lang')}
           >
-            <FlagIcon language={activeProfile.activeLanguage} size={22} />
+            <FlagIcon language={displayLanguage} size={22} />
             <span className="hud-hide-xs">{activeLangMeta.name}</span>
             <ChevronDown size={13} />
           </button>
+
+          {isAdultModeActive ? (
+            <button
+              type="button"
+              className="hud-pill"
+              aria-label="Return to Kid Atlas"
+              data-testid="return-to-kid-atlas-btn"
+              style={{
+                background: 'var(--tint-emerald-bg)',
+                borderColor: 'var(--tint-emerald-border)',
+                color: 'var(--tint-emerald-ink)',
+                fontWeight: 900,
+              }}
+              onClick={handleReturnToKidAtlas}
+            >
+              <ArrowLeft size={14} />
+              <span>Kid Atlas</span>
+            </button>
+          ) : null}
 
           <button
             ref={paletteBtnRef}

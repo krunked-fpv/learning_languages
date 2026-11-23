@@ -19,6 +19,7 @@ import { getCourse } from './curriculum';
 import { useVaultStore, vaultActions } from './store/useVaultStore';
 import {
   LANGUAGE_META,
+  isAdultLanguage,
   type LanguageCode,
   type MapNode,
   type ProficiencyTier,
@@ -60,11 +61,30 @@ export function App() {
 
   const prevProfileIdRef = useRef<string>(activeProfile.id);
   const prevSecretUnlockedRef = useRef<boolean>(Boolean(activeProfile.secretArcadeUnlocked));
+  const prevLessonProfileRef = useRef<string>(activeProfile.id);
+  const prevLessonLanguageRef = useRef<LanguageCode>(activeProfile.activeLanguage);
+  const prevAdultActiveRef = useRef<boolean>(Boolean(activeProfile.adultModeActive));
 
   // Sync persisted audio volume & mute preferences into Web Audio + Speech engines
   useEffect(() => {
     setAudioPreferences(vault.audioSettings);
   }, [vault.audioSettings]);
+
+  // Automatically close an active lesson when switching profiles, languages, or exiting Adult Mode
+  useEffect(() => {
+    const profileChanged = prevLessonProfileRef.current !== activeProfile.id;
+    const languageChanged = prevLessonLanguageRef.current !== activeProfile.activeLanguage;
+    const adultModeDisabled =
+      prevAdultActiveRef.current && !Boolean(activeProfile.adultModeActive);
+
+    prevLessonProfileRef.current = activeProfile.id;
+    prevLessonLanguageRef.current = activeProfile.activeLanguage;
+    prevAdultActiveRef.current = Boolean(activeProfile.adultModeActive);
+
+    if (profileChanged || languageChanged || adultModeDisabled) {
+      setActiveNode((current) => (current ? null : current));
+    }
+  }, [activeProfile.id, activeProfile.activeLanguage, activeProfile.adultModeActive]);
 
   // Detect secretArcadeUnlocked flipping false -> true for the same profile (Compass, 3 lessons, or Boss!)
   useEffect(() => {
@@ -120,6 +140,11 @@ export function App() {
     }
   };
 
+  const effectiveLanguage: LanguageCode =
+    !activeProfile.adultModeActive && isAdultLanguage(activeProfile.activeLanguage)
+      ? (activeProfile.lastBaseLanguage ?? 'en')
+      : activeProfile.activeLanguage;
+
   const handleStartTierCheckpoint = (targetTier: Exclude<ProficiencyTier, 'A1'>) => {
     const buildCheckpoint = (
       curriculum as {
@@ -130,13 +155,13 @@ export function App() {
       }
     ).buildTierCheckpointNode;
     if (typeof buildCheckpoint === 'function') {
-      const checkpointNode = buildCheckpoint(activeProfile.activeLanguage, targetTier);
+      const checkpointNode = buildCheckpoint(effectiveLanguage, targetTier);
       setActiveNode(checkpointNode);
     }
   };
 
-  const course = getCourse(activeProfile.activeLanguage);
-  const palette = LANGUAGE_META[activeProfile.activeLanguage].accentPalette;
+  const course = getCourse(effectiveLanguage);
+  const palette = LANGUAGE_META[effectiveLanguage].accentPalette;
   const equippedTheme = activeProfile.equippedCosmetics.theme ?? 'default';
 
   const rootStyle = {
@@ -162,7 +187,7 @@ export function App() {
     <div
       className={`app-root ${activeNode ? 'is-lesson-active' : ''}`}
       data-theme={equippedTheme}
-      data-language={activeProfile.activeLanguage}
+      data-language={effectiveLanguage}
       style={rootStyle}
     >
       <AmbientBackdrop theme={equippedTheme} />
@@ -177,7 +202,7 @@ export function App() {
         >
           <LessonArena
             node={activeNode}
-            language={activeProfile.activeLanguage}
+            language={effectiveLanguage}
             onExit={() => setActiveNode(null)}
           />
         </motion.div>
@@ -199,7 +224,7 @@ export function App() {
           <div className="app-main-column">
             <main className="app-main-content">
               <motion.div
-                key={`${activeTab}-${activeProfile.activeLanguage}`}
+                key={`${activeTab}-${effectiveLanguage}`}
                 initial={{ opacity: 0, scale: 0.985 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ type: 'spring', stiffness: 420, damping: 30, duration: 0.21 }}
@@ -219,7 +244,7 @@ export function App() {
                     equippedCosmetics={activeProfile.equippedCosmetics}
                     onSelectNode={(node) => setActiveNode(node)}
                     onSelectUnit={(unitIndex) =>
-                      vaultActions.setCurrentUnitIndex(activeProfile.activeLanguage, unitIndex)
+                      vaultActions.setCurrentUnitIndex(effectiveLanguage, unitIndex)
                     }
                     onStartTierCheckpoint={handleStartTierCheckpoint}
                   />
@@ -244,7 +269,7 @@ export function App() {
           <BottomNav
             activeTab={activeTab}
             unlockedPhraseCount={activeProgress.unlockedVocabIds.length}
-            activeLanguage={activeProfile.activeLanguage}
+            activeLanguage={effectiveLanguage}
             onSelectTab={(tab) => {
               if (tab === 'arcade') {
                 setArcadeInitialMode('hub');

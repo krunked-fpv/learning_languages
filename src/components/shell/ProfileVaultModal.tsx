@@ -1,12 +1,15 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
 import {
   AlertCircle,
+  ArrowLeftRight,
   CheckCircle2,
   Download,
   Flame,
   Gem,
   Heart,
+  KeyRound,
   Shield,
+  ShieldCheck,
   Sparkles,
   Trash2,
   Upload,
@@ -24,11 +27,16 @@ import {
   vaultActions,
 } from '../../store/useVaultStore';
 import {
+  ADULT_EASTER_EGG_TAP_COUNT,
   LANGUAGE_LIST,
   LANGUAGE_META,
   MAX_HEART_CONTAINERS,
   STARTER_AVATAR_IDS,
+  isAdultLanguage,
+  isDefaultKidProfileId,
+  type AdultLanguageCode,
   type AvatarId,
+  type BaseLanguageCode,
   type LanguageCode,
 } from '../../types/contracts';
 import { safeVaultActions } from './vaultSafeActions';
@@ -69,7 +77,7 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
   const [newName, setNewName] = useState('');
   const [newAvatar, setNewAvatar] = useState<AvatarId>('pip_explorer');
   const [newBanner, setNewBanner] = useState<string>(BANNER_PALETTE[0]);
-  const [newLanguage, setNewLanguage] = useState<LanguageCode>('es');
+  const [newLanguage, setNewLanguage] = useState<BaseLanguageCode>('es');
 
   const [importMode, setImportMode] = useState<'replace' | 'merge'>('replace');
   const [pasteJsonOpen, setPasteJsonOpen] = useState(false);
@@ -79,22 +87,76 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
     message: string;
   } | null>(null);
 
+  const [atlasTapCount, setAtlasTapCount] = useState(0);
+  const [keycodeOpen, setKeycodeOpen] = useState(false);
+  const [keycodeInput, setKeycodeInput] = useState('');
+  const [keycodeError, setKeycodeError] = useState<string | null>(null);
+  const [adultConfirmOpen, setAdultConfirmOpen] = useState(false);
+  const [selectedAdultTrack, setSelectedAdultTrack] = useState<AdultLanguageCode>('ebonics');
+  const [adultProfileName, setAdultProfileName] = useState('After-Hours');
+
   const canDelete = vault.profiles.length > 1;
+  const isOnDefaultKid = isDefaultKidProfileId(activeProfile.id);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        if (adultConfirmOpen) {
+          setAdultConfirmOpen(false);
+        } else {
+          onClose();
+        }
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+  }, [adultConfirmOpen, onClose]);
+
+  const openAdultConfirmModal = () => {
+    setSelectedAdultTrack('ebonics');
+    setAdultProfileName('After-Hours');
+    setAdultConfirmOpen(true);
+  };
+
+  const handleVersionPillTap = () => {
+    const nextTap = atlasTapCount + 1;
+    if (nextTap >= ADULT_EASTER_EGG_TAP_COUNT) {
+      setAtlasTapCount(0);
+      playSfx('star_pop', 2);
+      openAdultConfirmModal();
+    } else {
+      setAtlasTapCount(nextTap);
+      playSfx('tile_tap');
+    }
+  };
+
+  const handleKeycodeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = keycodeInput.trim();
+    if (!trimmed) return;
+    if (safeVaultActions.verifyAdultEasterEggCode(trimmed)) {
+      playSfx('star_pop', 2);
+      setKeycodeInput('');
+      setKeycodeError(null);
+      setKeycodeOpen(false);
+      openAdultConfirmModal();
+    } else {
+      playSfx('gentle_nudge');
+      setKeycodeError('No matching atlas keycode.');
+    }
+  };
 
   const handleCreateProfile = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = newName.trim();
     if (!trimmed) return;
+    if (safeVaultActions.verifyAdultEasterEggCode(trimmed)) {
+      playSfx('star_pop', 2);
+      setNewName('');
+      setShowCreator(false);
+      openAdultConfirmModal();
+      return;
+    }
     const created = vaultActions.createProfile({
       name: trimmed.slice(0, 20),
       avatarId: newAvatar,
@@ -157,6 +219,7 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
   };
 
   return (
+    <>
     <div
       className="modal-backdrop"
       role="dialog"
@@ -213,6 +276,11 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {vault.profiles.map((profile) => {
             const isActive = profile.id === activeProfile.id;
+            const displayLang: LanguageCode =
+              !profile.adultModeActive && isAdultLanguage(profile.activeLanguage)
+                ? (profile.lastBaseLanguage ?? 'en')
+                : profile.activeLanguage;
+            const displayLangMeta = LANGUAGE_META[displayLang] ?? LANGUAGE_META.en;
             return (
               <div
                 key={profile.id}
@@ -267,7 +335,7 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
                       <strong style={{ fontSize: '1rem', color: 'var(--text-main)' }}>
                         {profile.name}
                       </strong>
-                      <FlagIcon language={profile.activeLanguage} size={20} />
+                      <FlagIcon language={displayLang} size={20} />
                       {isActive ? (
                         <span
                           style={{
@@ -295,7 +363,7 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
                         marginTop: 2,
                       }}
                     >
-                      <span>{LANGUAGE_META[profile.activeLanguage].name}</span>
+                      <span>{displayLangMeta.name}</span>
                       <span>•</span>
                       <span>{profile.totalXp} XP</span>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
@@ -704,7 +772,317 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
           ) : null}
         </div>
         </div>
+
+        {/* Discreet Re-entry CTA (only shown when unlocked on a custom profile while in Kid Atlas) */}
+        {!isOnDefaultKid && activeProfile.adultModeUnlocked && !activeProfile.adultModeActive ? (
+          <div style={{ flexShrink: 0 }}>
+            <button
+              type="button"
+              className="tactile-btn tactile-btn-indigo"
+              style={{ width: '100%', padding: '8px 12px', fontSize: '0.82rem' }}
+              onClick={() => {
+                playSfx('adult_unlock');
+                safeVaultActions.setAdultModeActive(true);
+                onClose();
+              }}
+            >
+              <ShieldCheck size={15} />
+              <span>Enter After-Hours Atlas (18+)</span>
+            </button>
+          </div>
+        ) : null}
+
+        {/* Discreet Kid-Innocuous Atlas Version Footer & Keycode Entry */}
+        <div
+          style={{
+            flexShrink: 0,
+            borderTop: '1px solid var(--card-border)',
+            paddingTop: 8,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+              flexWrap: 'wrap',
+            }}
+          >
+            <button
+              type="button"
+              data-testid="atlas-version-easter-egg"
+              onClick={handleVersionPillTap}
+              style={{
+                background: 'var(--card-soft-bg)',
+                border: '1px solid var(--card-border)',
+                borderRadius: 999,
+                padding: '3px 10px',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+              }}
+            >
+              Wanderling Atlas v2.0
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                playSfx('button_click');
+                setKeycodeOpen((v) => !v);
+                setKeycodeError(null);
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                background: 'transparent',
+                border: '1px solid var(--card-border)',
+                borderRadius: 999,
+                padding: '3px 9px',
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+              }}
+            >
+              <KeyRound size={12} />
+              <span>Atlas Keycode</span>
+            </button>
+          </div>
+
+          {keycodeOpen ? (
+            <form
+              onSubmit={handleKeycodeSubmit}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}
+            >
+              <input
+                type="text"
+                className="themed-input"
+                value={keycodeInput}
+                onChange={(e) => {
+                  setKeycodeInput(e.target.value);
+                  if (keycodeError) setKeycodeError(null);
+                }}
+                placeholder="Enter atlas keycode..."
+                aria-label="Atlas Keycode"
+                style={{
+                  flex: '1 1 150px',
+                  minWidth: 0,
+                  padding: '5px 10px',
+                  fontSize: '0.78rem',
+                }}
+              />
+              <button
+                type="submit"
+                className="tactile-btn tactile-btn-soft"
+                style={{ padding: '5px 11px', fontSize: '0.76rem', borderRadius: 11 }}
+                disabled={!keycodeInput.trim()}
+              >
+                Apply
+              </button>
+              {keycodeError ? (
+                <div style={{ width: '100%', fontSize: '0.74rem', fontWeight: 700, color: 'var(--tint-rose-ink)' }}>
+                  {keycodeError}
+                </div>
+              ) : null}
+            </form>
+          ) : null}
+        </div>
       </div>
     </div>
+
+    {adultConfirmOpen ? (
+      <div
+        className="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-label="After-Hours Atlas 18+ Confirmation"
+        style={{ zIndex: 105 }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setAdultConfirmOpen(false);
+        }}
+      >
+        <div
+          className="modal-card"
+          style={{
+            maxWidth: 480,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span
+                style={{
+                  padding: '3px 9px',
+                  borderRadius: 999,
+                  background: 'var(--tint-indigo-bg)',
+                  border: '1.5px solid var(--tint-indigo-border)',
+                  color: 'var(--tint-indigo-ink)',
+                  fontSize: '0.72rem',
+                  fontWeight: 900,
+                }}
+              >
+                18+ ONLY
+              </span>
+              <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                After-Hours Atlas
+              </h2>
+            </div>
+            <button
+              type="button"
+              className="tactile-btn tactile-btn-soft"
+              style={{ padding: 6, borderRadius: 11 }}
+              aria-label="Close 18+ confirmation modal"
+              onClick={() => setAdultConfirmOpen(false)}
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <p style={{ margin: 0, fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-muted)', lineHeight: 1.45 }}>
+            Unlock bidirectional adult colloquial slang &amp; cultural vernacular tracks (AAVE / Ebonics
+            &amp; Suburban Vernacular). Default kid profiles (<strong>Leo</strong> &amp;{' '}
+            <strong>Maya</strong>) stay 100% kid-safe and untouched — you can switch back to the Kid
+            Atlas with 1 tap anytime.
+          </p>
+
+          <div>
+            <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: 6 }}>
+              Choose Initial Track Direction:
+            </div>
+            <div
+              role="group"
+              aria-label="Choose Initial Track Direction"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                gap: 8,
+              }}
+            >
+              {(
+                [
+                  {
+                    code: 'ebonics' as const,
+                    title: 'AAVE -> Suburban',
+                    subtitle: 'Learn Suburban equivalents',
+                  },
+                  {
+                    code: 'suburban' as const,
+                    title: 'Suburban -> AAVE',
+                    subtitle: 'Learn AAVE / Ebonics equivalents',
+                  },
+                ] as const
+              ).map((opt) => {
+                const selected = selectedAdultTrack === opt.code;
+                const meta = LANGUAGE_META[opt.code];
+                return (
+                  <button
+                    key={opt.code}
+                    type="button"
+                    aria-pressed={selected}
+                    className="tactile-btn"
+                    style={{
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      gap: 4,
+                      padding: '9px 10px',
+                      minWidth: 0,
+                      textAlign: 'left',
+                      background: selected ? 'var(--tile-selected-bg)' : 'var(--tile-bg)',
+                      borderColor: selected ? meta.accentPalette.primary : 'var(--card-border)',
+                      color: selected ? 'var(--tile-selected-ink)' : 'var(--text-main)',
+                    }}
+                    onClick={() => {
+                      playSfx('tile_tap');
+                      setSelectedAdultTrack(opt.code);
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+                      <FlagIcon language={opt.code} size={22} />
+                      <ArrowLeftRight size={13} style={{ opacity: 0.7 }} />
+                    </div>
+                    <div style={{ fontSize: '0.84rem', fontWeight: 900 }}>{opt.title}</div>
+                    <div style={{ fontSize: '0.71rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                      {opt.subtitle}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {isOnDefaultKid ? (
+            <div>
+              <label
+                htmlFor="adult-profile-name-input"
+                style={{
+                  display: 'block',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  color: 'var(--text-muted)',
+                  marginBottom: 5,
+                }}
+              >
+                Adult Profile Name (optional — keeps {activeProfile.name} untouched)
+              </label>
+              <input
+                id="adult-profile-name-input"
+                type="text"
+                className="themed-input"
+                value={adultProfileName}
+                maxLength={20}
+                onChange={(e) => setAdultProfileName(e.target.value)}
+                placeholder="After-Hours"
+                aria-label="Adult Profile Name"
+                style={{ width: '100%', padding: '8px 12px', fontSize: '0.9rem' }}
+              />
+            </div>
+          ) : null}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 2 }}>
+            <button
+              type="button"
+              className="tactile-btn tactile-btn-hero tactile-btn-indigo"
+              style={{ width: '100%' }}
+              onClick={() => {
+                playSfx('adult_unlock');
+                safeVaultActions.unlockAdultMode({
+                  ...(isOnDefaultKid
+                    ? { adultProfileName: adultProfileName.trim() || 'After-Hours' }
+                    : {}),
+                  initialTrack: selectedAdultTrack,
+                });
+                setAdultConfirmOpen(false);
+                onClose();
+              }}
+            >
+              <ShieldCheck size={18} />
+              <span>I am 18+ — Unlock After-Hours Atlas</span>
+            </button>
+
+            <button
+              type="button"
+              className="tactile-btn tactile-btn-soft"
+              style={{ width: '100%' }}
+              onClick={() => {
+                playSfx('button_click');
+                setAdultConfirmOpen(false);
+              }}
+            >
+              Stay in Kid Atlas
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null}
+    </>
   );
 }

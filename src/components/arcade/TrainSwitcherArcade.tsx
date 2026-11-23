@@ -559,6 +559,7 @@ export function TrainSwitcherArcade({
                       justifyContent: 'center',
                       gap: isCompact ? 2 : 3,
                       minWidth: 0,
+                      overflow: 'hidden',
                       cursor: 'pointer',
                       boxShadow: isSelected
                         ? '0 0 18px rgba(245, 158, 11, 0.55)'

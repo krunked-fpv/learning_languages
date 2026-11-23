@@ -9,7 +9,12 @@ import {
   type TapHintToken,
 } from '../../types/contracts';
 import { TapHintText } from './TapHintText';
-import { REGISTER_TAG_META, cleanClozeCompareChars, splitTapHintsAroundBlank } from './lessonHelpers';
+import {
+  NO_SPACE_AFTER_RE,
+  REGISTER_TAG_META,
+  cleanClozeCompareChars,
+  splitTapHintsAroundBlank,
+} from './lessonHelpers';
 import type { ExerciseDraftPayload } from './WordBankView';
 
 export interface ContextClozeViewProps {
@@ -240,7 +245,7 @@ export function ContextClozeView({
               !attachedClitic &&
               beforeTokens.length > 0 &&
               exercise.sentenceBeforeBlank.length > 0 &&
-              !/['’¡¿(«\-]$/.test(exercise.sentenceBeforeBlank)
+              !NO_SPACE_AFTER_RE.test(exercise.sentenceBeforeBlank.trimEnd())
                 ? ' '
                 : ''}
             </>
@@ -249,7 +254,8 @@ export function ContextClozeView({
               {exercise.sentenceBeforeBlank}
               {usesSpaces &&
               exercise.sentenceBeforeBlank &&
-              !/[\s'’¡¿(«\-]$/.test(exercise.sentenceBeforeBlank)
+              !/\s$/.test(exercise.sentenceBeforeBlank) &&
+              !NO_SPACE_AFTER_RE.test(exercise.sentenceBeforeBlank)
                 ? ' '
                 : ''}
             </span>

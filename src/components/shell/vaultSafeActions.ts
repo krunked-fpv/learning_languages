@@ -1,8 +1,11 @@
 import * as core from '../../core';
 import { vaultActions } from '../../store/useVaultStore';
 import {
+  ADULT_EASTER_EGG_CODES,
   UNLOCKABLE_AVATAR_COSTS,
+  type AdultLanguageCode,
   type AvatarId,
+  type KidProfile,
   type LanguageCode,
   type ProficiencyTier,
 } from '../../types/contracts';
@@ -30,6 +33,12 @@ interface ExtendedVaultActions {
     prerequisiteNodeIds: readonly string[];
     targetUnitIndex: number;
   }) => void;
+  unlockAdultMode?: (options?: {
+    adultProfileName?: string;
+    initialTrack?: AdultLanguageCode;
+  }) => KidProfile | null;
+  setAdultModeActive?: (active: boolean) => void;
+  verifyAdultEasterEggCode?: (code: string) => boolean;
 }
 
 const extVault = vaultActions as typeof vaultActions & ExtendedVaultActions;
@@ -68,6 +77,24 @@ export const safeVaultActions = {
     targetUnitIndex: number;
   }): void {
     extVault.unlockProficiencyTier?.(params);
+  },
+  unlockAdultMode(options?: {
+    adultProfileName?: string;
+    initialTrack?: AdultLanguageCode;
+  }): KidProfile | null {
+    return typeof extVault.unlockAdultMode === 'function'
+      ? (extVault.unlockAdultMode(options) ?? null)
+      : null;
+  },
+  setAdultModeActive(active: boolean): void {
+    extVault.setAdultModeActive?.(active);
+  },
+  verifyAdultEasterEggCode(code: string): boolean {
+    if (typeof extVault.verifyAdultEasterEggCode === 'function') {
+      return extVault.verifyAdultEasterEggCode(code);
+    }
+    const normalized = code.trim().toUpperCase();
+    return (ADULT_EASTER_EGG_CODES as readonly string[]).includes(normalized);
   },
 };
 
