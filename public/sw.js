@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'wanderling-cache-v7';
+const CACHE_VERSION = 'wanderling-cache-v8';
 
 const PRECACHE_URLS = [
   './',
@@ -12,10 +12,11 @@ const PRECACHE_URLS = [
 ];
 
 self.addEventListener('install', (event) => {
+  const uniqueUrls = Array.from(new Set(PRECACHE_URLS.filter(Boolean)));
   event.waitUntil(
     caches
       .open(CACHE_VERSION)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
+      .then((cache) => cache.addAll(uniqueUrls))
       .then(() => self.skipWaiting())
   );
 });
