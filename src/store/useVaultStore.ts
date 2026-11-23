@@ -1336,6 +1336,14 @@ export const vaultActions = {
     const active = getActiveProfileSnapshot();
 
     if (!active || isDefaultKidProfileId(active.id)) {
+      const inheritedBaseLanguage: BaseLanguageCode =
+        active &&
+        !isAdultLanguage(active.activeLanguage) &&
+        VALID_BASE_LANGUAGES.has(active.activeLanguage)
+          ? active.activeLanguage
+          : active
+            ? resolveLastBaseLanguage(active)
+            : 'en';
       const existingAdult = memoryVault.profiles.find((p) => canUseAdultMode(p));
       if (existingAdult) {
         const nextTrack: AdultLanguageCode =
@@ -1345,7 +1353,9 @@ export const vaultActions = {
           ...existingAdult,
           adultModeUnlocked: true,
           adultModeActive: true,
-          lastBaseLanguage: resolveLastBaseLanguage(existingAdult),
+          lastBaseLanguage: existingAdult.lastBaseLanguage
+            ? resolveLastBaseLanguage(existingAdult)
+            : inheritedBaseLanguage,
           activeLanguage: nextTrack,
           languageProgress: buildLanguageProgressMap(existingAdult.languageProgress, true, false),
         };
@@ -1368,7 +1378,7 @@ export const vaultActions = {
         avatarId: 'star_compass',
         bannerColor: '#7C3AED',
         activeLanguage: requestedTrack ?? 'ebonics',
-        lastBaseLanguage: 'en',
+        lastBaseLanguage: inheritedBaseLanguage,
         adultModeUnlocked: true,
         adultModeActive: true,
         gems: 80,
@@ -1458,14 +1468,22 @@ export const vaultActions = {
     updateActiveProfile((profile) => {
       if (isAdultLanguage(lang)) {
         if (!canUseAdultMode(profile) || !profile.adultModeActive) return profile;
-        const nextProgress = buildLanguageProgressMap(profile.languageProgress, true, false);
-        if (profile.activeLanguage === lang && nextProgress === profile.languageProgress) {
+        const preservedLastBase = resolveLastBaseLanguage(profile);
+        const hasAllAdultKeys = ADULT_EASTER_EGG_LANGUAGES.every(
+          (code) => profile.languageProgress[code] !== undefined
+        );
+        if (
+          profile.activeLanguage === lang &&
+          profile.lastBaseLanguage === preservedLastBase &&
+          hasAllAdultKeys
+        ) {
           return profile;
         }
         return {
           ...profile,
           activeLanguage: lang,
-          languageProgress: nextProgress,
+          lastBaseLanguage: preservedLastBase,
+          languageProgress: buildLanguageProgressMap(profile.languageProgress, true, false),
         };
       }
 
