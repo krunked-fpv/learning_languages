@@ -24,7 +24,7 @@ const CJK_INTER_SPACE_REGEX =
   /(?<=[\u3005\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF])\s+(?=[\u3005\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF])/g;
 const ARABIC_HARAKAT_REGEX = /[\u064B-\u065F\u0670]/g;
 const SPECIAL_ACCENT_CHAR_REGEX =
-  /[\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u024F\u1E00-\u1EFF\u0451\u0401\u064B-\u065F\u0670أإآٱىة]/;
+  /[\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u024F\u02BE\u02BF\u1E00-\u1EFF\u0451\u0401\u064B-\u065F\u0670\u0901\u093C\u0981\u09BCأإآٱىة]/;
 
 /**
  * Collapses whitespace strictly between adjacent CJK/Kana characters so tile-joined
@@ -42,12 +42,18 @@ function stripDiacriticsAndVariants(text: string): string {
   return text
     .split('й')
     .map((segment) =>
-      segment.normalize('NFD').replace(/[\u0300-\u036f]/g, '').normalize('NFC')
+      segment
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f\u093C\u09BC]/g, '')
+        .replace(/\u0901/g, '\u0902')
+        .replace(/\u0981/g, '\u0982')
+        .normalize('NFC')
     )
     .join('й')
     .replace(/œ/g, 'oe')
     .replace(/æ/g, 'ae')
     .replace(/đ/g, 'd')
+    .replace(/[\u02BE\u02BF]/g, '')
     .replace(ARABIC_HARAKAT_REGEX, '')
     .replace(/[أإآٱ]/g, 'ا')
     .replace(/ى/g, 'ي')
@@ -122,6 +128,23 @@ function matchesAccentForgiving(
   );
   if (!subStripped || !candStripped) return false;
   if (subStripped === candStripped) return true;
+
+  // Forgivingly relax romanization syllable apostrophes (e.g. "Wǎn'ān" -> "wanan" or "wan an")
+  // and clitic hyphens (e.g. "al-qalīl" -> "al qalil") for non-Latin courses.
+  if (language === 'ar' || language === 'arz' || language === 'zh' || language === 'ja') {
+    const relaxSpaces = (s: string) =>
+      s.replace(/['-]/g, ' ').replace(/\s+/g, ' ').trim();
+    const relaxCollapsed = (s: string) =>
+      s.replace(/'/g, '').replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
+    if (
+      relaxSpaces(subStripped) === relaxSpaces(candStripped) ||
+      relaxCollapsed(subStripped) === relaxCollapsed(candStripped) ||
+      relaxSpaces(subStripped) === relaxCollapsed(candStripped) ||
+      relaxCollapsed(subStripped) === relaxSpaces(candStripped)
+    ) {
+      return true;
+    }
+  }
 
   if (language === 'de') {
     const subExpanded = stripSentencePunctuation(
@@ -287,7 +310,17 @@ function buildFriendlyAccentTip(
 
   const remaining = chars.filter((c) => !handled.has(c));
   if (remaining.length > 0) {
-    tips.push(`Notice the accent on ${remaining.join(', ')} — it guides the stress and tone.`);
+    if (remaining.some((c) => /[\u02BE\u02BF]/.test(c))) {
+      tips.push(
+        'Watch the glottal/ʿayn transliteration marks (ʾ / ʿ) in precise Arabic romanization.'
+      );
+    } else if (remaining.some((c) => /[\u0901\u093C\u0981\u09BC]/.test(c))) {
+      tips.push(
+        `Notice the nasal chandrabindu or nukta dot (${remaining.join(', ')}) — it refines the consonant or vowel resonance.`
+      );
+    } else {
+      tips.push(`Notice the accent on ${remaining.join(', ')} — it guides the stress and tone.`);
+    }
   }
 
   return `Great job! ${tips.join(' ')}`;

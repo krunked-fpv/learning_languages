@@ -339,6 +339,7 @@ export function recordArcadeRunResult(params: {
   heartsWon: number;
   bonusGems: number;
   xpEarned: number;
+  preserveXpBooster?: boolean;
 }): void {
   type RecordWithXp = (input: {
     gameId: string;
@@ -346,6 +347,7 @@ export function recordArcadeRunResult(params: {
     heartsWon: number;
     bonusGems: number;
     xpEarned?: number;
+    preserveXpBooster?: boolean;
   }) => void;
   (vaultActions.recordArcadeGameResult as RecordWithXp)(params);
 }

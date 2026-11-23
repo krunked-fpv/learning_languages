@@ -55,7 +55,7 @@ export function DiscoveryCardView({
     if (speed === 'slow') onTurtlePlay();
     if (speed === 'fluent') onFluentPlay?.();
     void speakPhrase({
-      text: vocabCard.bareForeign,
+      text: vocabCard.foreignWithArticle || vocabCard.bareForeign,
       language,
       phonetic: vocabCard.phonetic,
       slow: speed === 'slow',

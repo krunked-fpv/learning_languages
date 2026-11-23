@@ -28,7 +28,9 @@ export function TapHintText({
   const popoverRef = useRef<HTMLDivElement | null>(null);
 
   const activeToken = activeIndex !== null ? tokens[activeIndex] ?? null : null;
-  const langDir = LANGUAGE_META[language].dir;
+  const langMeta = LANGUAGE_META[language];
+  const langDir = langMeta.dir;
+  const usesSpaces = langMeta.usesSpaces;
 
   useLayoutEffect(() => {
     if (activeIndex === null || !anchorRef.current) return;
@@ -227,8 +229,9 @@ export function TapHintText({
         const prev = idx > 0 ? tokens[idx - 1].surface : '';
         const needsSpace =
           idx > 0 &&
-          !NO_SPACE_AFTER_RE.test(prev) &&
-          !NO_SPACE_BEFORE_RE.test(token.surface);
+          (usesSpaces
+            ? !NO_SPACE_AFTER_RE.test(prev) && !NO_SPACE_BEFORE_RE.test(token.surface)
+            : /[A-Za-z0-9]$/.test(prev) && /^[A-Za-z0-9]/.test(token.surface));
         const isOpen = activeIndex === idx;
 
         return (

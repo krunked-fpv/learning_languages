@@ -109,6 +109,17 @@ export function PhrasebookVault() {
 
   const activeFlashcard = showOffDeck[deckIndex] ?? null;
 
+  useEffect(() => {
+    if (!showOffOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowOffOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showOffOpen]);
+
   const openShowOff = () => {
     playSfx('button_click');
     setDeckIndex(0);
@@ -486,7 +497,7 @@ export function PhrasebookVault() {
                                 aria-label={`Speak ${card.bareForeign}`}
                                 onClick={() => {
                                   void speakPhrase({
-                                    text: card.bareForeign,
+                                    text: card.foreignWithArticle || card.bareForeign,
                                     language: viewLang,
                                     phonetic: card.phonetic,
                                     speed: 'normal',
@@ -503,7 +514,7 @@ export function PhrasebookVault() {
                                 onClick={() => {
                                   vaultActions.recordTurtlePlay();
                                   void speakPhrase({
-                                    text: card.bareForeign,
+                                    text: card.foreignWithArticle || card.bareForeign,
                                     language: viewLang,
                                     phonetic: card.phonetic,
                                     slow: true,
@@ -521,7 +532,7 @@ export function PhrasebookVault() {
                                 onClick={() => {
                                   safeVaultActions.recordFluentPlay();
                                   void speakPhrase({
-                                    text: card.bareForeign,
+                                    text: card.foreignWithArticle || card.bareForeign,
                                     language: viewLang,
                                     phonetic: card.phonetic,
                                     speed: 'fluent',
@@ -712,7 +723,9 @@ export function PhrasebookVault() {
                         {activeFlashcard.foreignWithArticle}
                       </div>
                       <div style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-muted)' }}>
-                        Tap card to flip & reveal English!
+                        {viewLang === 'en'
+                          ? 'Tap card to flip & reveal meaning clue!'
+                          : 'Tap card to flip & reveal English!'}
                       </div>
                     </>
                   ) : (
@@ -767,7 +780,7 @@ export function PhrasebookVault() {
                     className="tactile-btn tactile-btn-primary"
                     onClick={() => {
                       void speakPhrase({
-                        text: activeFlashcard.bareForeign,
+                        text: activeFlashcard.foreignWithArticle || activeFlashcard.bareForeign,
                         language: viewLang,
                         phonetic: activeFlashcard.phonetic,
                         speed: 'normal',
@@ -782,7 +795,7 @@ export function PhrasebookVault() {
                     onClick={() => {
                       vaultActions.recordTurtlePlay();
                       void speakPhrase({
-                        text: activeFlashcard.bareForeign,
+                        text: activeFlashcard.foreignWithArticle || activeFlashcard.bareForeign,
                         language: viewLang,
                         phonetic: activeFlashcard.phonetic,
                         slow: true,
@@ -798,7 +811,7 @@ export function PhrasebookVault() {
                     onClick={() => {
                       safeVaultActions.recordFluentPlay();
                       void speakPhrase({
-                        text: activeFlashcard.bareForeign,
+                        text: activeFlashcard.foreignWithArticle || activeFlashcard.bareForeign,
                         language: viewLang,
                         phonetic: activeFlashcard.phonetic,
                         speed: 'fluent',

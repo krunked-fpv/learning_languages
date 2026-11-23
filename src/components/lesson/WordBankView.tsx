@@ -64,15 +64,18 @@ export function WordBankView({
     setPeekPhonetics(false);
   }, [exercise.id]);
 
+  const disableFreeRecall = language === 'en' && exercise.direction === 'to_english';
+  const effectiveInputMode = disableFreeRecall ? 'tiles' : inputMode;
+
   const pool = useMemo(
     () => buildWordBankPool(exercise.id, exercise.targetTokens, exercise.distractorTokens),
     [exercise.id, exercise.targetTokens, exercise.distractorTokens]
   );
 
   const submittedValue = useMemo(() => {
-    if (inputMode === 'type') return typedText.trim();
+    if (effectiveInputMode === 'type') return typedText.trim();
     return getAssembledText(pool, selectedTileUids);
-  }, [inputMode, typedText, pool, selectedTileUids]);
+  }, [effectiveInputMode, typedText, pool, selectedTileUids]);
 
   useEffect(() => {
     if (!submittedValue) {
@@ -85,13 +88,15 @@ export function WordBankView({
       accepted: exercise.acceptedSentences,
       expectedArticle: exercise.articleHint,
       speakOnResult:
-        exercise.direction === 'to_foreign' ? exercise.expectedSentence : exercise.promptSpeakText,
+        exercise.direction === 'to_foreign'
+          ? exercise.expectedSentence
+          : (exercise.promptSpeakText ?? exercise.promptText),
       phoneticHint: exercise.phoneticHint,
-      isFreeRecall: inputMode === 'type',
+      isFreeRecall: effectiveInputMode === 'type',
       nuanceNote: exercise.nuanceNote,
       registerTag: exercise.registerTag,
     });
-  }, [submittedValue, exercise, inputMode, onDraftChange]);
+  }, [submittedValue, exercise, effectiveInputMode, onDraftChange]);
 
   const langMeta = LANGUAGE_META[language];
   const promptDir = exercise.direction === 'to_english' ? langMeta.dir : 'ltr';
@@ -104,7 +109,9 @@ export function WordBankView({
   const hasPromptSupport = Boolean(exercise.promptRomanized || exercise.promptPhonetic);
   const showPhoneticSupport = isGuided || peekPhonetics;
   const highlightFreeRecall =
-    Boolean(exercise.allowFreeRecall) || proficiencyTier === 'B2' || proficiencyTier === 'C1_C2';
+    !disableFreeRecall &&
+    (Boolean(exercise.allowFreeRecall) || proficiencyTier === 'B2' || proficiencyTier === 'C1_C2');
+  const isNonLatinCourse = ['zh', 'ja', 'hi', 'bn', 'ar', 'arz', 'ru'].includes(language);
   const registerBadge = exercise.registerTag ? REGISTER_TAG_META[exercise.registerTag] : null;
 
   const insertAccentChar = (ch: string) => {
@@ -158,9 +165,13 @@ export function WordBankView({
               textTransform: 'uppercase',
             }}
           >
-            {exercise.direction === 'to_english'
-              ? 'Translate to English'
-              : `Translate to ${langMeta.name}`}
+            {language === 'en'
+              ? exercise.direction === 'to_english'
+                ? 'Match the Meaning Clue'
+                : 'Build the English Phrase'
+              : exercise.direction === 'to_english'
+                ? 'Translate to English'
+                : `Translate to ${langMeta.name}`}
           </span>
 
           {registerBadge ? (
@@ -196,43 +207,45 @@ export function WordBankView({
             </button>
           ) : null}
 
-          <button
-            type="button"
-            className={`tactile-btn ${
-              inputMode === 'tiles' && highlightFreeRecall ? 'tactile-btn-amber' : 'tactile-btn-soft'
-            }`}
-            style={{ padding: '5px 10px', fontSize: '0.76rem', borderRadius: 12 }}
-            disabled={locked}
-            onClick={() => {
-              playSfx('button_click');
-              setInputMode((m) => (m === 'tiles' ? 'type' : 'tiles'));
-            }}
-          >
-            {inputMode === 'tiles' ? (
-              highlightFreeRecall ? (
-                <>
-                  <Sparkles size={14} />
-                  <span>
-                    Keyboard Free-Recall (+{FREE_RECALL_BONUS_XP} XP / +{FREE_RECALL_BONUS_GEMS} Gems)
-                  </span>
-                  <span className="visually-hidden"> Type Instead</span>
-                </>
+          {!disableFreeRecall ? (
+            <button
+              type="button"
+              className={`tactile-btn ${
+                effectiveInputMode === 'tiles' && highlightFreeRecall ? 'tactile-btn-amber' : 'tactile-btn-soft'
+              }`}
+              style={{ padding: '5px 10px', fontSize: '0.76rem', borderRadius: 12 }}
+              disabled={locked}
+              onClick={() => {
+                playSfx('button_click');
+                setInputMode((m) => (m === 'tiles' ? 'type' : 'tiles'));
+              }}
+            >
+              {effectiveInputMode === 'tiles' ? (
+                highlightFreeRecall ? (
+                  <>
+                    <Sparkles size={14} />
+                    <span>
+                      Keyboard Free-Recall (+{FREE_RECALL_BONUS_XP} XP / +{FREE_RECALL_BONUS_GEMS} Gems)
+                    </span>
+                    <span className="visually-hidden"> Type Instead</span>
+                  </>
+                ) : (
+                  <>
+                    <Keyboard size={15} />
+                    <span>Type Instead</span>
+                    <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>
+                      (Free-Recall +{FREE_RECALL_BONUS_XP} XP)
+                    </span>
+                  </>
+                )
               ) : (
                 <>
-                  <Keyboard size={15} />
-                  <span>Type Instead</span>
-                  <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>
-                    (Free-Recall +{FREE_RECALL_BONUS_XP} XP)
-                  </span>
+                  <Grid size={15} />
+                  <span>Use Word Tiles</span>
                 </>
-              )
-            ) : (
-              <>
-                <Grid size={15} />
-                <span>Use Word Tiles</span>
-              </>
-            )}
-          </button>
+              )}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -365,7 +378,7 @@ export function WordBankView({
       </div>
 
       {/* Input Area: Word Bank OR Keyboard Free-Recall */}
-      {inputMode === 'tiles' ? (
+      {effectiveInputMode === 'tiles' ? (
         <WordBankTray
           seed={exercise.id}
           targetTokens={exercise.targetTokens}
@@ -404,7 +417,11 @@ export function WordBankView({
           <input
             ref={inputRef}
             type="text"
-            dir={answerDir}
+            dir={
+              answerDir === 'rtl' && /[A-Za-z]/.test(typedText) && !/[\u0600-\u06FF]/.test(typedText)
+                ? 'ltr'
+                : answerDir
+            }
             value={typedText}
             disabled={locked}
             onChange={(e) => setTypedText(e.target.value)}
@@ -416,7 +433,11 @@ export function WordBankView({
             }}
             placeholder={
               exercise.direction === 'to_foreign'
-                ? `Type in ${langMeta.name} (accents optional, or tap keys below!)`
+                ? language === 'en'
+                  ? 'Type the English phrase...'
+                  : isNonLatinCourse
+                    ? `Type in ${langMeta.name} or romanized`
+                    : `Type in ${langMeta.name} (accents optional, or tap keys below!)`
                 : 'Type in English...'
             }
             aria-label="Type your translation"

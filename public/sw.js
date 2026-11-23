@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'wanderling-cache-v3';
+const CACHE_VERSION = 'wanderling-cache-v4';
 
 const PRECACHE_URLS = [
   './',

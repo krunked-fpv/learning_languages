@@ -45,6 +45,7 @@ interface FeedbackBannerState {
   kind: 'correct' | 'accent' | 'nudge';
   headline: string;
   detail?: string;
+  expectedText?: string;
   accentCoaching?: AccentCoaching;
   articleCoaching?: ArticleCoaching;
   speakText?: string;
@@ -312,11 +313,16 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
 
   const handleCheck = useCallback(() => {
     if (!draft || feedback) return;
+    const gradingLanguage =
+      (currentExercise?.type === 'word_bank' && currentExercise.direction === 'to_english') ||
+      (currentExercise?.type === 'listen_decode' && currentExercise.mode === 'select_meaning')
+        ? 'en'
+        : language;
     const result = gradeAnswer({
       submitted: draft.submitted,
       expected: draft.expected,
       accepted: draft.accepted,
-      language,
+      language: gradingLanguage,
       expectedArticle: draft.expectedArticle,
     });
 
@@ -417,6 +423,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
         kind: 'nudge',
         headline: 'Almost there!',
         detail: `Expected: ${draft.expected}`,
+        expectedText: draft.expected,
         articleCoaching: result.articleCoaching,
         speakText: draft.speakOnResult,
         phonetic: draft.phoneticHint,
@@ -429,7 +436,11 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
     const card = getVocabCard(language, currentExercise.vocabId);
     playSfx('flip_card');
     if (card) {
-      void speakPhrase({ text: card.bareForeign, language, phonetic: card.phonetic });
+      void speakPhrase({
+        text: card.foreignWithArticle || card.bareForeign,
+        language,
+        phonetic: card.phonetic,
+      });
     }
     const nextCombo = comboCount + 1;
     const nextMax = Math.max(maxCombo, nextCombo);
@@ -1193,11 +1204,27 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                   {feedback.accentCoaching ? (
                     <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--tint-amber-ink)' }}>
                       Spell with accents:{' '}
-                      <strong dir={langDir} style={{ unicodeBidi: 'isolate' }}>
+                      <strong
+                        dir={/[\u0600-\u06FF]/.test(feedback.accentCoaching.expected) ? 'rtl' : 'ltr'}
+                        style={{ unicodeBidi: 'isolate' }}
+                      >
                         {feedback.accentCoaching.expected}
                       </strong>{' '}
                       ({feedback.accentCoaching.highlightedChars.join(', ')}) —{' '}
                       {feedback.accentCoaching.friendlyTip}
+                    </div>
+                  ) : feedback.expectedText ? (
+                    <div
+                      dir="ltr"
+                      style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-main)' }}
+                    >
+                      Expected:{' '}
+                      <strong
+                        dir={/[\u0600-\u06FF]/.test(feedback.expectedText) ? 'rtl' : 'ltr'}
+                        style={{ unicodeBidi: 'isolate' }}
+                      >
+                        {feedback.expectedText}
+                      </strong>
                     </div>
                   ) : feedback.detail ? (
                     <div

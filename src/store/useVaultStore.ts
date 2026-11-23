@@ -1001,6 +1001,7 @@ function awardArcadeResultToProfile(params: {
   heartsWon: number;
   bonusGems: number;
   xpEarned?: number;
+  preserveXpBooster?: boolean;
 }): void {
   updateActiveProfile((profile) => {
     const safeScore = Number.isFinite(params.score) ? Math.max(0, Math.floor(params.score)) : 0;
@@ -1010,7 +1011,12 @@ function awardArcadeResultToProfile(params: {
     const bonusGems = Number.isFinite(params.bonusGems)
       ? Math.max(0, Math.floor(params.bonusGems))
       : 0;
-    const { earnedXp, nextBoosterCharges } = resolveBoostedXp(profile, params.xpEarned ?? 15);
+    const rawXp = Number.isFinite(params.xpEarned ?? 15)
+      ? Math.max(0, Math.round(params.xpEarned ?? 15))
+      : 15;
+    const { earnedXp, nextBoosterCharges } = params.preserveXpBooster
+      ? { earnedXp: rawXp, nextBoosterCharges: profile.xpBoosterCharges ?? 0 }
+      : resolveBoostedXp(profile, rawXp);
     const prevScores = profile.arcadeHighScores ?? {};
     const nextBest = Math.max(prevScores[params.gameId] ?? 0, safeScore);
     const activeLang = profile.activeLanguage;
@@ -1403,6 +1409,7 @@ export const vaultActions = {
     heartsWon: number;
     bonusGems: number;
     xpEarned?: number;
+    preserveXpBooster?: boolean;
   }): void {
     const cleanGameId = typeof params.gameId === 'string' ? params.gameId.trim() : '';
     if (!cleanGameId) return;
@@ -1413,6 +1420,7 @@ export const vaultActions = {
       heartsWon: params.heartsWon,
       bonusGems: params.bonusGems,
       xpEarned: params.xpEarned,
+      preserveXpBooster: params.preserveXpBooster,
     });
   },
 

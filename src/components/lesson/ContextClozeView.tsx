@@ -9,7 +9,7 @@ import {
   type TapHintToken,
 } from '../../types/contracts';
 import { TapHintText } from './TapHintText';
-import { REGISTER_TAG_META, splitTapHintsAroundBlank } from './lessonHelpers';
+import { REGISTER_TAG_META, cleanClozeCompareChars, splitTapHintsAroundBlank } from './lessonHelpers';
 import type { ExerciseDraftPayload } from './WordBankView';
 
 export interface ContextClozeViewProps {
@@ -24,18 +24,32 @@ export interface ContextClozeViewProps {
   onDraftChange: (draft: ExerciseDraftPayload | null) => void;
 }
 
-const COMPARE_CLEAN_RE = /[\s¡!¿?.,;:"'。？！，、・「」『』（）؟،؛।॥\-_]/g;
-
 function tokensCoverText(tokens: readonly TapHintToken[], rawText: string): boolean {
-  const cleanRaw = rawText.trim().toLowerCase().replace(COMPARE_CLEAN_RE, '');
+  const cleanRaw = cleanClozeCompareChars(rawText);
   if (!cleanRaw) return tokens.length === 0;
   if (tokens.length === 0) return false;
-  const cleanTokens = tokens
-    .map((t) => t.surface)
-    .join('')
-    .toLowerCase()
-    .replace(COMPARE_CLEAN_RE, '');
+  const cleanTokens = cleanClozeCompareChars(tokens.map((t) => t.surface).join(''));
   return cleanTokens === cleanRaw;
+}
+
+/**
+ * Detects an unspaced single-letter Arabic clitic (e.g. "و") at the end of sentenceBeforeBlank
+ * whose surface token overlaps expectedBlank ("والوئام") and therefore cannot be a clickable hint.
+ */
+function extractAttachedCliticSuffix(
+  beforeTokens: readonly TapHintToken[],
+  sentenceBeforeBlank: string
+): string | null {
+  if (!sentenceBeforeBlank || /\s$/.test(sentenceBeforeBlank)) return null;
+  const cleanRaw = cleanClozeCompareChars(sentenceBeforeBlank);
+  const cleanTokens = cleanClozeCompareChars(beforeTokens.map((t) => t.surface).join(''));
+  if (!cleanTokens || !cleanRaw.startsWith(cleanTokens)) return null;
+  const remainder = cleanRaw.slice(cleanTokens.length);
+  if (remainder.length >= 1 && remainder.length <= 2) {
+    const trimmed = sentenceBeforeBlank.trimEnd();
+    return trimmed.slice(-remainder.length);
+  }
+  return null;
 }
 
 export function ContextClozeView({
@@ -96,18 +110,27 @@ export function ContextClozeView({
     [exercise]
   );
 
-  const inlineBeforeHints = tokensCoverText(beforeTokens, exercise.sentenceBeforeBlank);
+  const usesSpaces = LANGUAGE_META[language].usesSpaces;
+  const attachedClitic = useMemo(
+    () => extractAttachedCliticSuffix(beforeTokens, exercise.sentenceBeforeBlank),
+    [beforeTokens, exercise.sentenceBeforeBlank]
+  );
+  const inlineBeforeHints =
+    tokensCoverText(beforeTokens, exercise.sentenceBeforeBlank) || Boolean(attachedClitic);
   const inlineAfterHints = tokensCoverText(afterTokens, exercise.sentenceAfterBlank);
   const fallbackPeekTokens = useMemo(() => {
     if (inlineBeforeHints && inlineAfterHints) return [];
-    const expectedNorm = exercise.expectedBlank.trim().toLowerCase();
+    const expectedNorm = cleanClozeCompareChars(exercise.expectedBlank);
     const collected = [
       ...(!inlineBeforeHints ? beforeTokens : []),
       ...(!inlineAfterHints ? afterTokens : []),
       ...unmatchedTokens,
     ];
     if (collected.length > 0) return collected;
-    return exercise.tapHints.filter((t) => t.surface.trim().toLowerCase() !== expectedNorm);
+    return exercise.tapHints.filter((t) => {
+      const c = cleanClozeCompareChars(t.surface);
+      return c !== expectedNorm && (!expectedNorm || !c.includes(expectedNorm));
+    });
   }, [inlineBeforeHints, inlineAfterHints, beforeTokens, afterTokens, unmatchedTokens, exercise]);
 
   const triggerSpeak = (speed: SpeechSpeed) => {
@@ -212,10 +235,24 @@ export function ContextClozeView({
                 fallbackText={exercise.sentenceBeforeBlank}
                 language={language}
               />
-              {/\s$/.test(exercise.sentenceBeforeBlank) ? ' ' : ''}
+              {attachedClitic ? ` ${attachedClitic}` : ''}
+              {usesSpaces &&
+              !attachedClitic &&
+              beforeTokens.length > 0 &&
+              exercise.sentenceBeforeBlank.length > 0 &&
+              !/['’¡¿(«\-]$/.test(exercise.sentenceBeforeBlank)
+                ? ' '
+                : ''}
             </>
           ) : (
-            <span>{exercise.sentenceBeforeBlank}</span>
+            <span>
+              {exercise.sentenceBeforeBlank}
+              {usesSpaces &&
+              exercise.sentenceBeforeBlank &&
+              !/[\s'’¡¿(«\-]$/.test(exercise.sentenceBeforeBlank)
+                ? ' '
+                : ''}
+            </span>
           )}
 
           <span
@@ -226,7 +263,7 @@ export function ContextClozeView({
               justifyContent: 'center',
               minWidth: compact ? 76 : 96,
               padding: '2px 12px',
-              marginInline: 3,
+              marginInline: attachedClitic ? 1 : usesSpaces ? 3 : 2,
               borderRadius: 12,
               border: `2px ${selectedChoice ? 'solid' : 'dashed'} var(--lang-primary)`,
               background: selectedChoice ? 'var(--tile-selected-bg)' : 'var(--tile-bg)',
@@ -241,7 +278,12 @@ export function ContextClozeView({
 
           {inlineAfterHints ? (
             <>
-              {/^\s/.test(exercise.sentenceAfterBlank) ? ' ' : ''}
+              {usesSpaces &&
+              afterTokens.length > 0 &&
+              (/^\s/.test(exercise.sentenceAfterBlank) ||
+                !/^[.,!?;:)"'»’”؟،؛।॥\-]/.test(exercise.sentenceAfterBlank))
+                ? ' '
+                : ''}
               <TapHintText
                 tokens={afterTokens}
                 fallbackText={exercise.sentenceAfterBlank}
@@ -249,7 +291,14 @@ export function ContextClozeView({
               />
             </>
           ) : (
-            <span>{exercise.sentenceAfterBlank}</span>
+            <span>
+              {usesSpaces &&
+              exercise.sentenceAfterBlank &&
+              !/^[\s.,!?;:)"'»’”؟،؛।॥\-]/.test(exercise.sentenceAfterBlank)
+                ? ' '
+                : ''}
+              {exercise.sentenceAfterBlank}
+            </span>
           )}
         </div>
 

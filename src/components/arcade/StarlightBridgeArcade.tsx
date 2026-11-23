@@ -49,25 +49,43 @@ interface BridgeRound {
   correctPlankText: string;
 }
 
-const ARTICLE_PREFIX_RE = /^(?:el|la|los|las|un|una|le|les|l'|der|die|das|ein|eine|il|lo|i|gli|o|a|os|as|um|uma|al-|at-|ash-|ar-)\s*/i;
+const ARTICLE_PREFIX_RE =
+  /^(?:the|an|a|el|la|los|las|un|una|le|les|une|l'|der|die|das|ein|eine|il|lo|i|gli|o|a|os|as|um|uma|al-|at-|ash-|ar-|con|cái|quả|chiếc|người)\s*/i;
+const BRIDGE_EDGE_PUNCT_RE =
+  /^[¡!¿?.,;:"'’‘“”„«»‹›()[\]。？！，、；：・「」『』（）【】《》〈〉؟،؛।॥…—–]+|[¡!¿?.,;:"'’‘“”„«»‹›()[\]。？！，、；：・「」『』（）【】《》〈〉؟،؛।॥…—–]+$/g;
 
-function extractBlankFromExample(
+export function extractBlankFromExample(
   item: ArcadeLanternItem,
   language: LanguageCode
 ): { beforeBlank: string; matchedToken: string; afterBlank: string } | null {
   const example = item.exampleForeign?.trim();
   if (!example) return null;
 
-  const candidates = [item.foreign.trim()];
-  const stripped = item.foreign.replace(ARTICLE_PREFIX_RE, '').trim();
-  if (stripped && stripped !== item.foreign.trim()) {
-    candidates.push(stripped);
+  const trimmedForeign = item.foreign.trim();
+  const cleanEdge = trimmedForeign.replace(BRIDGE_EDGE_PUNCT_RE, '').trim();
+  const strippedArticle = cleanEdge.replace(ARTICLE_PREFIX_RE, '').trim();
+  const strippedArabicDef = cleanEdge.startsWith('ال') && cleanEdge.length > 3 ? cleanEdge.slice(2) : '';
+
+  const rawCandidates = [
+    trimmedForeign,
+    cleanEdge,
+    strippedArticle,
+    strippedArabicDef,
+  ];
+  const seen = new Set<string>();
+  const candidates: string[] = [];
+  for (const raw of rawCandidates) {
+    const t = raw.trim();
+    if (!t || seen.has(t.toLowerCase())) continue;
+    seen.add(t.toLowerCase());
+    candidates.push(t);
   }
 
   const usesSpaces = LANGUAGE_META[language].usesSpaces;
+  const minLen = usesSpaces ? 2 : 1;
 
   for (const cand of candidates) {
-    if (!cand || cand.length < 2) continue;
+    if (!cand || cand.length < minLen) continue;
     const lowerExample = example.toLowerCase();
     const lowerCand = cand.toLowerCase();
     const idx = lowerExample.indexOf(lowerCand);
@@ -76,8 +94,8 @@ function extractBlankFromExample(
     if (usesSpaces) {
       const charBefore = idx > 0 ? example[idx - 1] : ' ';
       const charAfter = idx + cand.length < example.length ? example[idx + cand.length] : ' ';
-      const boundaryBefore = /[\s¡¿"'(«،؛.,!?—-]/.test(charBefore);
-      const boundaryAfter = /[\s!?.,;:،؛"')»—-]/.test(charAfter);
+      const boundaryBefore = /[\s¡¿"'(’‘“”«،؛.,!?—–-]/.test(charBefore);
+      const boundaryAfter = /[\s!?.,;:،؛"'’‘“”)»।॥—–-]/.test(charAfter);
       if (!boundaryBefore || !boundaryAfter) continue;
     }
 

@@ -954,8 +954,19 @@ select {
 }
 
 .tactile-btn:disabled {
-  opacity: 0.48;
+  opacity: 0.72;
   cursor: not-allowed;
+}
+
+.tactile-btn-primary:disabled,
+.tactile-btn-success:disabled,
+.tactile-btn-amber:disabled,
+.tactile-btn-indigo:disabled,
+.tactile-btn-rose:disabled {
+  background: var(--card-soft-bg);
+  border-color: var(--card-border);
+  color: var(--text-muted);
+  opacity: 0.86;
 }
 
 .tactile-btn-hero {
@@ -1309,8 +1320,8 @@ select {
 
 .tap-hint-token-btn:hover,
 .tap-hint-token-btn.is-open {
-  background: var(--lang-tint);
-  color: var(--text-main);
+  background: var(--tile-selected-bg);
+  color: var(--tile-selected-ink);
 }
 
 .tap-hint-popover {

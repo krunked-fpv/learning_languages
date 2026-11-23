@@ -75,6 +75,15 @@ export function getArcadeLexicon(
 
 export {
   buildTierCheckpointNode,
+  getCourseGlossary,
   getNodePoolSize,
   getPlayableNodeExercises,
 } from './levelPool';
+
+export {
+  lookupGlossaryEntry,
+  normalizeLookupKey,
+  stripEdgePunctuation,
+  type GlossaryEntry,
+  type GlossaryMap,
+} from './helpers';

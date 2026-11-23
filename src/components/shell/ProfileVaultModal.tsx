@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
@@ -80,6 +80,16 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
   } | null>(null);
 
   const canDelete = vault.profiles.length > 1;
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
 
   const handleCreateProfile = (e: React.FormEvent) => {
     e.preventDefault();

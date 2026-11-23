@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react';
 import {
+  getCourseGlossary,
+  lookupGlossaryEntry,
+  stripEdgePunctuation,
+  type GlossaryMap,
+} from '../../curriculum';
+import {
+  LANGUAGE_META,
   resolveUnitProficiencyTier,
   type CourseUnit,
   type MapNode,
@@ -11,12 +18,13 @@ import {
 
 export const NO_SPACE_AFTER_RE = /['’¡¿(«「『（」』），、。？！・-]$/;
 export const NO_SPACE_BEFORE_RE = /^[.,!?;:)»。？！，、・「」『』（）؟،؛।॥]/;
-const EDGE_PUNCT_STRIP_RE = /[¡!¿?.,;:"'。？！，、・「」『』（）؟،؛।॥]/g;
+const EDGE_PUNCT_STRIP_RE =
+  /[¡!¿?.,;:"'’‘“”„«»‹›()[\]。？！，、；：・「」『』（）【】《》〈〉؟،؛।॥…—–～·]/g;
+const CJK_OR_FULLWIDTH_RE =
+  /[\u3005\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF。？！，、；：・「」『』（）【】《》〈〉]/;
+const TRAILING_PUNCT_RE =
+  /^[¡!¿?.,;:"'’‘“”„«»‹›()[\]。？！，、；：・「」『』（）【】《》〈〉؟،؛।॥…—–～·]+/;
 
-/**
- * Joins word-bank tokens while preserving French/Italian elisions (e.g. `l'` + `eau` -> `l'eau`)
- * and natural opening/closing punctuation spacing.
- */
 export function joinWordBankTokens(tokens: readonly string[]): string {
   let out = '';
   for (const raw of tokens) {
@@ -26,9 +34,13 @@ export function joinWordBankTokens(tokens: readonly string[]): string {
       out = token;
       continue;
     }
+    const prevLast = out.slice(-1);
+    const nextFirst = token[0];
     const prevEndsNoSpace = NO_SPACE_AFTER_RE.test(out);
     const nextStartsPunct = NO_SPACE_BEFORE_RE.test(token);
-    out += prevEndsNoSpace || nextStartsPunct ? token : ` ${token}`;
+    const adjacentCjk =
+      CJK_OR_FULLWIDTH_RE.test(prevLast) && CJK_OR_FULLWIDTH_RE.test(nextFirst);
+    out += prevEndsNoSpace || nextStartsPunct || adjacentCjk ? token : ` ${token}`;
   }
   return out;
 }
@@ -87,9 +99,85 @@ export function splitPhoneticSyllables(phonetic: string): PhoneticSyllable[] {
   return result;
 }
 
+function segmentExampleWords(
+  foreign: string,
+  usesSpaces: boolean,
+  glossary?: GlossaryMap,
+  targetClean?: string
+): string[] {
+  const trimmed = foreign.trim();
+  if (!trimmed) return [];
+
+  if (usesSpaces && !CJK_OR_FULLWIDTH_RE.test(trimmed)) {
+    return trimmed.split(/\s+/).filter(Boolean);
+  }
+
+  const tokens: string[] = [];
+  let i = 0;
+  let pendingLeading = '';
+
+  while (i < trimmed.length) {
+    if (/\s/.test(trimmed[i])) {
+      i += 1;
+      continue;
+    }
+
+    const leadingMatch = trimmed.slice(i).match(/^[¡¿("'’‘“”„«‹「『（【《〈]+/);
+    if (leadingMatch) {
+      pendingLeading += leadingMatch[0];
+      i += leadingMatch[0].length;
+      continue;
+    }
+
+    let word = '';
+    const asciiMatch = trimmed.slice(i).match(/^[A-Za-z0-9'-]+/);
+    if (asciiMatch) {
+      word = asciiMatch[0];
+      i += word.length;
+    } else if (
+      targetClean &&
+      trimmed.slice(i, i + targetClean.length).toLowerCase() === targetClean
+    ) {
+      word = trimmed.slice(i, i + targetClean.length);
+      i += targetClean.length;
+    } else {
+      let matched = '';
+      const maxLen = Math.min(12, trimmed.length - i);
+      for (let len = maxLen; len >= 2; len -= 1) {
+        const slice = trimmed.slice(i, i + len);
+        if (TRAILING_PUNCT_RE.test(slice) || /\s/.test(slice)) continue;
+        if (lookupGlossaryEntry(slice, glossary)) {
+          matched = slice;
+          break;
+        }
+      }
+      word = matched || trimmed[i];
+      i += word.length;
+    }
+
+    const trailingMatch = trimmed.slice(i).match(TRAILING_PUNCT_RE);
+    let trailing = '';
+    if (trailingMatch) {
+      trailing = trailingMatch[0];
+      i += trailing.length;
+    }
+
+    tokens.push(`${pendingLeading}${word}${trailing}`);
+    pendingLeading = '';
+  }
+
+  if (pendingLeading && tokens.length > 0) {
+    tokens[tokens.length - 1] += pendingLeading;
+  } else if (pendingLeading) {
+    tokens.push(pendingLeading);
+  }
+
+  return tokens;
+}
+
 /**
  * Builds interactive TapHintToken entries for a DiscoveryCard's example sentence
- * so kids can tap any word in the example to peek at pronunciation and translation.
+ * so kids can tap any word in the example to peek at word-level pronunciation and translation.
  */
 export function buildTapHintsFromExample(
   foreign: string,
@@ -97,29 +185,44 @@ export function buildTapHintsFromExample(
   phonetic: string,
   vocabCard?: VocabCard
 ): TapHintToken[] {
-  const words = foreign.trim().split(/\s+/).filter(Boolean);
-  const targetClean = vocabCard?.bareForeign.toLowerCase().replace(EDGE_PUNCT_STRIP_RE, '') ?? '';
+  const glossary = vocabCard ? getCourseGlossary(vocabCard.language) : undefined;
+  const usesSpaces = vocabCard ? LANGUAGE_META[vocabCard.language].usesSpaces : !CJK_OR_FULLWIDTH_RE.test(foreign);
+  const targetClean =
+    (vocabCard ? stripEdgePunctuation(vocabCard.bareForeign) : '').toLowerCase().replace(EDGE_PUNCT_STRIP_RE, '') ??
+    '';
+
+  const words = segmentExampleWords(foreign, usesSpaces, glossary, targetClean);
 
   return words.map((word, index) => {
-    const clean = word.toLowerCase().replace(EDGE_PUNCT_STRIP_RE, '');
+    const clean = stripEdgePunctuation(word).toLowerCase().replace(EDGE_PUNCT_STRIP_RE, '');
     const isTarget = Boolean(targetClean && clean === targetClean);
+    const gloss = clean ? lookupGlossaryEntry(clean, glossary) : undefined;
+
+    const translation = isTarget && vocabCard
+      ? vocabCard.english
+      : gloss?.translation ?? english;
+    const wordPhonetic = isTarget && vocabCard
+      ? vocabCard.phonetic
+      : gloss?.phonetic ?? phonetic;
     const romanized = isTarget
-      ? vocabCard?.romanized
-      : words.length === 1
-        ? vocabCard?.exampleRomanized
-        : undefined;
+      ? vocabCard?.romanized ?? gloss?.romanized
+      : gloss?.romanized ?? (words.length === 1 ? vocabCard?.exampleRomanized : undefined);
+
     return {
       surface: word,
       normalizedId: `${vocabCard?.id ?? 'ex'}-${index}`,
-      translation: isTarget && vocabCard ? vocabCard.english : english,
-      phonetic: isTarget && vocabCard ? vocabCard.phonetic : phonetic,
+      translation,
+      phonetic: wordPhonetic,
       ...(romanized ? { romanized } : {}),
       articleNote:
         isTarget && vocabCard?.article
           ? `Uses article "${vocabCard.article}" (${vocabCard.gender})`
-          : undefined,
-      accentNote: isTarget && vocabCard?.accentCallout ? vocabCard.accentCallout.tip : undefined,
-      speakText: word.replace(EDGE_PUNCT_STRIP_RE, '') || word,
+          : gloss?.articleNote,
+      accentNote:
+        isTarget && vocabCard?.accentCallout ? vocabCard.accentCallout.tip : gloss?.accentNote,
+      ...(gloss?.registerNote ? { registerNote: gloss.registerNote } : {}),
+      ...(gloss?.grammarNote ? { grammarNote: gloss.grammarNote } : {}),
+      speakText: gloss?.speakText ?? (stripEdgePunctuation(word).replace(EDGE_PUNCT_STRIP_RE, '') || word),
     };
   });
 }
@@ -219,13 +322,21 @@ export function resolveNodeProficiencyTier(
   return resolveUnitProficiencyTier(resolveUnitOrderFromId(node.unitId));
 }
 
-function normalizeHintMatch(text: string): string {
-  return text.trim().toLowerCase().replace(EDGE_PUNCT_STRIP_RE, '');
+const CLOZE_COMPARE_STRIP_RE =
+  /[\s¡!¿?.,;:"'’‘“”„«»‹›()[\]。？！，、；：・「」『』（）【】《》〈〉؟،؛।॥—–―…\-_\u0640]/g;
+
+export function cleanClozeCompareChars(text: string): string {
+  return text
+    .normalize('NFC')
+    .replace(/[\u2018\u2019\u02BC]/g, "'")
+    .toLowerCase()
+    .replace(CLOZE_COMPARE_STRIP_RE, '');
 }
 
 /**
- * Partitions ContextCloze tapHints into tokens matching sentenceBeforeBlank vs sentenceAfterBlank,
- * skipping the blank target token so learners can tap words surrounding the blank.
+ * Partitions ContextCloze tapHints into tokens matching sentenceBeforeBlank vs sentenceAfterBlank
+ * by walking cumulative character spans of before+blank+after so multi-word blanks and attached
+ * clitics (e.g. Arabic "والوئام") never leak into afterTokens or unmatchedTokens.
  */
 export function splitTapHintsAroundBlank(
   sentenceBeforeBlank: string,
@@ -241,49 +352,50 @@ export function splitTapHintsAroundBlank(
     return { beforeTokens: [], afterTokens: [], unmatchedTokens: [] };
   }
 
-  const normBefore = normalizeHintMatch(sentenceBeforeBlank);
-  const normAfter = normalizeHintMatch(sentenceAfterBlank);
-  const normExpected = normalizeHintMatch(expectedBlank);
+  const beforeClean = cleanClozeCompareChars(sentenceBeforeBlank);
+  const blankClean = cleanClozeCompareChars(expectedBlank);
+  const afterClean = cleanClozeCompareChars(sentenceAfterBlank);
+
+  const blankStart = beforeClean.length;
+  const blankEnd = blankStart + blankClean.length;
+  const fullClean = `${beforeClean}${blankClean}${afterClean}`;
 
   const beforeTokens: TapHintToken[] = [];
   const afterTokens: TapHintToken[] = [];
   const unmatchedTokens: TapHintToken[] = [];
 
-  let beforeCursor = 0;
-  let afterCursor = 0;
-  let skippedBlank = false;
+  let cursor = 0;
 
   for (const hint of tapHints) {
-    const normSurf = normalizeHintMatch(hint.surface);
-    if (!normSurf) continue;
+    const surfClean = cleanClozeCompareChars(hint.surface);
+    if (!surfClean) continue;
 
-    if (!skippedBlank && normBefore) {
-      const idx = normBefore.indexOf(normSurf, beforeCursor);
-      if (idx !== -1) {
-        beforeTokens.push(hint);
-        beforeCursor = idx + normSurf.length;
-        continue;
-      }
+    let idx = fullClean.indexOf(surfClean, cursor);
+    if (idx === -1 && blankClean && surfClean.includes(blankClean)) {
+      continue;
     }
-
-    if (!skippedBlank && normExpected && (normSurf === normExpected || normExpected.includes(normSurf))) {
-      skippedBlank = true;
+    if (idx === -1) {
+      if (
+        !blankClean ||
+        (!blankClean.includes(surfClean) && !surfClean.includes(blankClean))
+      ) {
+        unmatchedTokens.push(hint);
+      }
       continue;
     }
 
-    if (normAfter) {
-      const idx = normAfter.indexOf(normSurf, afterCursor);
-      if (idx !== -1) {
-        skippedBlank = true;
-        afterTokens.push(hint);
-        afterCursor = idx + normSurf.length;
-        continue;
-      }
-    }
+    // If the token falls strictly before blankStart, check whether jumping across blankStart
+    // was actually meant for afterBlank when cursor is already at blankStart.
+    const start = idx;
+    const end = start + surfClean.length;
+    cursor = end;
 
-    if (!skippedBlank && normSurf !== normExpected) {
-      unmatchedTokens.push(hint);
+    if (end <= blankStart) {
+      beforeTokens.push(hint);
+    } else if (start >= blankEnd) {
+      afterTokens.push(hint);
     }
+    // Otherwise [start, end) overlaps [blankStart, blankEnd): skip cleanly (blank or fused clitic)
   }
 
   return { beforeTokens, afterTokens, unmatchedTokens };

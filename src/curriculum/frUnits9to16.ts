@@ -2795,7 +2795,7 @@ export function buildFrenchUnits9to16(G: GlossaryMap): CourseUnit[] {
         },
         {
           sentenceBeforeBlank: 'Salut Colette! Comment ',
-          sentenceAfterBlank: ' à la fête aujourd’hui?',
+          sentenceAfterBlank: " à la fête aujourd'hui?",
           fullForeignSentence: "Salut Colette! Comment vas-tu à la fête aujourd'hui?",
           englishTranslation: 'Hi Colette! How are you at the festival today?',
           phonetic: 'sah-LOO koh-LEHT! koh-MAHN vah-TOO ah lah feht oh-zhoor-DWEE?',

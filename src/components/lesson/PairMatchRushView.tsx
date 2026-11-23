@@ -125,7 +125,9 @@ export function PairMatchRushView({
             {exercise.title}
           </div>
           <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-            Match each word with its English partner ({matchedIds.length}/{exercise.pairs.length})
+            {language === 'en'
+              ? `Match each phrase with its meaning clue (${matchedIds.length}/${exercise.pairs.length})`
+              : `Match each word with its English partner (${matchedIds.length}/${exercise.pairs.length})`}
           </div>
         </div>
 

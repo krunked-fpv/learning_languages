@@ -1148,6 +1148,10 @@ function selectChallengesWithoutRepeats<T extends { id: string }>(
   return [...unseen, ...seenSortedOldestFirst].slice(0, count);
 }
 
+export function getCourseGlossary(lang: LanguageCode): GlossaryMap {
+  return GLOSSARIES[lang];
+}
+
 export function getNodePoolSize(lang: LanguageCode, nodeId: string): number {
   const entry = getOrBuildPool(lang, nodeId);
   if (!entry) return 0;

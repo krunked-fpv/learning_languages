@@ -88,7 +88,7 @@ function dedupeStrings(items: readonly string[]): string[] {
   return out;
 }
 
-function lookupGlossaryEntry(
+export function lookupGlossaryEntry(
   surface: string,
   glossary?: GlossaryMap,
   overrides?: Record<string, GlossaryEntry>

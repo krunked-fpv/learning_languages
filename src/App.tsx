@@ -24,6 +24,16 @@ import {
   type ProficiencyTier,
 } from './types/contracts';
 
+const DARK_UI_THEMES = new Set<string>([
+  'theme_cosmic_galaxy',
+  'theme_aurora_borealis',
+  'theme_starlight_indigo',
+  'theme_royal_velvet',
+  'theme_emerald_rainforest',
+  'theme_neon_night_market',
+  'theme_laureate_imperial',
+]);
+
 const AdaptiveAdventureMap = AdventureMap as ComponentType<
   AdventureMapProps & {
     onStartTierCheckpoint?: (targetTier: Exclude<ProficiencyTier, 'A1'>) => void;
@@ -134,8 +144,19 @@ export function App() {
     '--lang-secondary': palette.secondary,
     '--lang-glow': palette.glow,
     '--lang-bevel': palette.bevel,
-    '--lang-tint': palette.surfaceTint,
+    ...(DARK_UI_THEMES.has(equippedTheme) ? {} : { '--lang-tint': palette.surfaceTint }),
   } as CSSProperties;
+
+  useEffect(() => {
+    if (!secretUnlockedModalOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSecretUnlockedModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [secretUnlockedModalOpen]);
 
   return (
     <div

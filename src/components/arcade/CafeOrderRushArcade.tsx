@@ -596,9 +596,13 @@ export function CafeOrderRushArcade({
                       textTransform: 'uppercase',
                     }}
                   >
-                    {round.direction === 'foreign_to_english'
-                      ? 'Order: Match English'
-                      : `Order: Match ${LANGUAGE_META[language].nativeName}`}
+                    {language === 'en'
+                      ? round.direction === 'foreign_to_english'
+                        ? 'Order: Match Meaning Clue'
+                        : 'Order: Match English Phrase'
+                      : round.direction === 'foreign_to_english'
+                        ? 'Order: Match English'
+                        : `Order: Match ${LANGUAGE_META[language].nativeName}`}
                   </span>
                   {patience >= 0.55 ? (
                     <span

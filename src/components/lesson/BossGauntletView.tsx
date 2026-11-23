@@ -554,7 +554,11 @@ export function BossGauntletView({
           <input
             ref={inputRef}
             type="text"
-            dir={langDir}
+            dir={
+              langDir === 'rtl' && /[A-Za-z]/.test(typedText) && !/[\u0600-\u06FF]/.test(typedText)
+                ? 'ltr'
+                : langDir
+            }
             value={typedText}
             disabled={turnOutcome?.kind === 'ok'}
             onChange={(e) => {

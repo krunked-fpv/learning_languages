@@ -145,6 +145,7 @@ export function SkyCatcherArcade({
       heartsWon,
       bonusGems,
       xpEarned,
+      preserveXpBooster: Boolean(isHeartRecovery),
     });
     playSfx('unit_fanfare');
     setSummaryResult({ score: finalScore, heartsWon, bonusGems, xpEarned, catches: totalCatches });
