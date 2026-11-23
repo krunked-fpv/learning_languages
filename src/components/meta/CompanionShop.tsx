@@ -56,6 +56,8 @@ const COMPANION_SWITCHERS: readonly { id: CompanionId; label: string }[] = [
   { id: 'luca', label: 'Luca' },
 ];
 
+const SHOP_ACTION_COOLDOWN_MS = 350;
+
 export function CompanionShop() {
   const { activeProfile } = useVaultStore();
   const compact = useCompactViewport();
@@ -66,14 +68,26 @@ export function CompanionShop() {
   const [shopNotice, setShopNotice] = useState<string | null>(null);
   const [txNonce, setTxNonce] = useState(0);
   const actionLockRef = useRef(false);
+  const lastActionAtRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     actionLockRef.current = false;
   }, [txNonce, activeProfile]);
 
-  const acquireShopActionLock = () => {
+  useEffect(() => {
+    lastActionAtRef.current.clear();
+  }, [activeProfile.id]);
+
+  /** Guard same-tick commits and rapid double-clicks per action key without blocking distinct item loops. */
+  const acquireShopActionLock = (actionKey: string) => {
     if (actionLockRef.current) return false;
+    const now = Date.now();
+    const prevAt = lastActionAtRef.current.get(actionKey);
+    if (prevAt !== undefined && now - prevAt < SHOP_ACTION_COOLDOWN_MS) {
+      return false;
+    }
     actionLockRef.current = true;
+    lastActionAtRef.current.set(actionKey, now);
     setTxNonce((n) => n + 1);
     return true;
   };
@@ -117,7 +131,7 @@ export function CompanionShop() {
   const showAvatarsSection = slotFilter === 'all' || slotFilter === 'avatars';
 
   const handleBuyShield = () => {
-    if (!acquireShopActionLock()) return;
+    if (!acquireShopActionLock('buy_shield')) return;
     const ok = vaultActions.buyStreakShield();
     if (ok) {
       playSfx('heart_win');
@@ -130,7 +144,7 @@ export function CompanionShop() {
   };
 
   const handleBuyHeartElixir = () => {
-    if (!acquireShopActionLock()) return;
+    if (!acquireShopActionLock('buy_elixir')) return;
     const neededRefill = activeProfile.hearts < activeProfile.maxHearts;
     const ok = safeVaultActions.buyHeartElixir();
     if (ok) {
@@ -148,7 +162,7 @@ export function CompanionShop() {
   };
 
   const handleUseHeartElixir = () => {
-    if (!acquireShopActionLock()) return;
+    if (!acquireShopActionLock('use_elixir')) return;
     const ok = safeVaultActions.useHeartElixir();
     if (ok) {
       playSfx('heart_win');
@@ -161,7 +175,7 @@ export function CompanionShop() {
   };
 
   const handleBuyHeartCrystal = () => {
-    if (!acquireShopActionLock()) return;
+    if (!acquireShopActionLock('buy_crystal')) return;
     const ok = safeVaultActions.buyHeartCrystal();
     if (ok) {
       playSfx('tier_unlock');
@@ -180,7 +194,7 @@ export function CompanionShop() {
   };
 
   const handleBuyXpBooster = () => {
-    if (!acquireShopActionLock()) return;
+    if (!acquireShopActionLock('buy_booster')) return;
     const ok = safeVaultActions.buyXpBooster();
     if (ok) {
       playSfx('booster_spark');
@@ -195,7 +209,7 @@ export function CompanionShop() {
   };
 
   const handleSelectOrBuyAvatar = (avatarId: (typeof avatarCatalog)[number]) => {
-    if (!acquireShopActionLock()) return;
+    if (!acquireShopActionLock(`avatar:${avatarId.id}`)) return;
     const alreadyUnlocked =
       unlockedAvatarSet.has(avatarId.id) || STARTER_AVATAR_IDS.includes(avatarId.id);
     const ok = safeVaultActions.buyAndSelectAvatar(avatarId.id);
@@ -216,9 +230,10 @@ export function CompanionShop() {
   };
 
   const handleBuyOrEquip = (item: CosmeticItem) => {
-    if (!acquireShopActionLock()) return;
     const isEquipped = activeProfile.equippedCosmetics[item.slot] === item.id;
     const isUnlocked = unlockedSet.has(item.id);
+    const actionKind = isEquipped ? 'unequip' : isUnlocked ? 'equip' : 'buy';
+    if (!acquireShopActionLock(`cosmetic:${item.id}:${actionKind}`)) return;
     const isPropOrPet = item.slot === 'prop' || item.slot === 'pet';
 
     if (isEquipped) {
@@ -481,6 +496,7 @@ export function CompanionShop() {
             </div>
 
             <button
+              key={`buy-shield-${activeProfile.streakShields}`}
               type="button"
               className="tactile-btn tactile-btn-primary"
               style={{
@@ -763,6 +779,7 @@ export function CompanionShop() {
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       {(activeProfile.heartElixirs ?? 0) > 0 && activeProfile.hearts < activeProfile.maxHearts ? (
                         <button
+                          key={`use-elixir-${activeProfile.hearts}-${activeProfile.heartElixirs ?? 0}`}
                           type="button"
                           className="tactile-btn tactile-btn-success"
                           style={{ flex: 1, padding: '7px 10px', fontSize: '0.78rem' }}
@@ -773,6 +790,7 @@ export function CompanionShop() {
                         </button>
                       ) : null}
                       <button
+                        key={`buy-elixir-${activeProfile.hearts}-${activeProfile.heartElixirs ?? 0}`}
                         type="button"
                         className="tactile-btn tactile-btn-rose"
                         style={{ flex: 1, padding: '7px 10px', fontSize: '0.8rem' }}
@@ -809,6 +827,7 @@ export function CompanionShop() {
                       </div>
                     </div>
                     <button
+                      key={`buy-crystal-${activeProfile.maxHearts}`}
                       type="button"
                       className="tactile-btn tactile-btn-success"
                       style={{ width: '100%', padding: '7px 10px', fontSize: '0.8rem' }}
@@ -847,6 +866,7 @@ export function CompanionShop() {
                       </div>
                     </div>
                     <button
+                      key={`buy-booster-${activeProfile.xpBoosterCharges ?? 0}`}
                       type="button"
                       className="tactile-btn tactile-btn-indigo"
                       style={{ width: '100%', padding: '7px 10px', fontSize: '0.8rem' }}
