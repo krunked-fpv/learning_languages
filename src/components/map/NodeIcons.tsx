@@ -115,3 +115,24 @@ export function PadlockBadge() {
     </svg>
   );
 }
+
+/** Faceted starlight gem emblem for the Spaced-Repetition Memory Quest CTA. */
+export function StarlightGemIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 2.2L19.2 8.4L16.4 20.6H7.6L4.8 8.4L12 2.2Z"
+        fill="#38BDF8"
+        stroke="#0F172A"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M12 2.2L15.4 8.6L12 20.6L8.6 8.6L12 2.2Z" fill="#BAE6FD" />
+      <path d="M4.8 8.4H19.2" stroke="#0F172A" strokeWidth="1.4" strokeLinecap="round" />
+      <path
+        d="M19.5 2.5L20.2 4.3L22 5L20.2 5.7L19.5 7.5L18.8 5.7L17 5L18.8 4.3L19.5 2.5Z"
+        fill="#FDE047"
+      />
+    </svg>
+  );
+}
