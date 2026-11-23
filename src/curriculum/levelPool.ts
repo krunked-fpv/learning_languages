@@ -368,6 +368,7 @@ function makeDynamicWordBankToEn(
   const joined = targetTokens.join(' ');
   const distractorTokens = pickEnglishDistractors(unit, targetTokens, seedOffset);
   const nuance = card.registerNote ?? card.grammarNote;
+  const plain = card.examplePlainEnglish ?? card.plainEnglish;
   return {
     type: 'word_bank',
     id,
@@ -390,6 +391,7 @@ function makeDynamicWordBankToEn(
     ...(card.article ? { articleHint: `Spot "${card.article}" (${card.gender}) with "${card.bareForeign}".` } : {}),
     ...(nuance ? { nuanceNote: nuance } : {}),
     ...(enableFreeRecall ? { allowFreeRecall: true } : {}),
+    ...(plain ? { plainEnglish: plain } : {}),
     vocabIds: [card.id],
   };
 }
@@ -411,6 +413,7 @@ function makeDynamicWordBankToForeign(
   const joined = targetTokens.join(' ');
   const distractorTokens = pickForeignDistractors(unit, targetTokens, seedOffset, glossary);
   const nuance = card.registerNote ?? card.grammarNote;
+  const plain = card.examplePlainEnglish ?? card.plainEnglish;
   return {
     type: 'word_bank',
     id,
@@ -432,6 +435,7 @@ function makeDynamicWordBankToForeign(
     ...(card.article ? { articleHint: `Remember "${card.article}" (${card.gender}) for "${card.bareForeign}".` } : {}),
     ...(nuance ? { nuanceNote: nuance } : {}),
     ...(enableFreeRecall ? { allowFreeRecall: true } : {}),
+    ...(plain ? { plainEnglish: plain } : {}),
     vocabIds: [card.id],
   };
 }
@@ -447,6 +451,9 @@ function makeDynamicListenMeaning(
   const phonetic = useExample ? card.examplePhonetic : card.phonetic;
   const romanized = useExample ? card.exampleRomanized : card.romanized;
   const englishMeaning = useExample ? card.exampleEnglish : card.english;
+  const plain = useExample
+    ? (card.examplePlainEnglish ?? card.plainEnglish)
+    : (card.plainEnglish ?? card.examplePlainEnglish);
   const wordCount = tokenizeCleanWords(audioText, glossary).length;
   const generatedChoices = pickEnglishChoices(unit, card, englishMeaning, useExample, id);
   const wrongLower = new Set(
@@ -473,6 +480,7 @@ function makeDynamicListenMeaning(
       ...expanded,
     ]),
     tapHints: buildTapHints(audioText, glossary),
+    ...(plain ? { plainEnglish: plain } : {}),
     vocabIds: [card.id],
   };
 }
@@ -491,6 +499,7 @@ function makeDynamicListenAssemble(
   }
   const joined = targetTokens.join(' ');
   const distractorTokens = pickForeignDistractors(unit, targetTokens, seedOffset, glossary);
+  const plain = card.examplePlainEnglish ?? card.plainEnglish;
   return {
     type: 'listen_decode',
     id,
@@ -511,6 +520,7 @@ function makeDynamicListenAssemble(
       ...(card.exampleRomanized ? [card.exampleRomanized] : []),
     ]),
     tapHints: buildTapHints(card.exampleForeign, glossary),
+    ...(plain ? { plainEnglish: plain } : {}),
     vocabIds: [card.id],
   };
 }
@@ -585,6 +595,7 @@ function makeDynamicContextClozeFromCard(
   }
   if (choiceList.length < 3) return undefined;
 
+  const plain = card.examplePlainEnglish ?? card.plainEnglish;
   return {
     type: 'context_cloze',
     id,
@@ -603,6 +614,7 @@ function makeDynamicContextClozeFromCard(
       `"${card.foreignWithArticle}" (${card.english}) fits this context naturally.`,
     registerTag: card.registerNote ? 'polite' : 'grammar',
     tapHints: buildTapHints(card.exampleForeign, glossary),
+    ...(plain ? { plainEnglish: plain } : {}),
     vocabIds: [card.id],
   };
 }
@@ -892,6 +904,7 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
 
     usedSay.add(sayKey);
     usedExpected.add(ansKey);
+    const sayPlain = sayCard.examplePlainEnglish ?? sayCard.plainEnglish;
 
     if (isChoiceTurn) {
       const isAdult = isAdultLanguage(lang);
@@ -952,6 +965,7 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
         ...(answerCard.romanized ? { romanizedAnswer: answerCard.romanized } : {}),
         victoryReplyForeign: answerCard.exampleForeign,
         victoryReplyEnglish: answerCard.exampleEnglish,
+        ...(sayPlain ? { plainEnglish: sayPlain } : {}),
       });
     } else {
       let targetTokens = tokenizeCleanWords(answerCard.exampleForeign, glossary);
@@ -988,6 +1002,7 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
         victoryReplyForeign: answerCard.foreignWithArticle,
         victoryReplyEnglish: answerCard.english,
         ...(enableFreeRecall ? { allowFreeRecall: true } : {}),
+        ...(sayPlain ? { plainEnglish: sayPlain } : {}),
       });
     }
     seq++;
