@@ -2,7 +2,7 @@
 
 Lead Quartermaster: **Vera (`vera-redteam`)**  
 Scouts: **Mila (`mila-playtester`)**, **Devon (`devon-chaos`)**  
-Test Suite: `tests/playtests/cohortA–E` (`PT-001`–`PT-100`) + Live Chromium Subpath Verification (`http://127.0.0.1:4173/wanderling-subpath/`)
+Test Suite: `tests/playtests/cohortA–E` (`PT-001`–`PT-100`) + `tests/playtests/bug-board-regressions.test.tsx` + Live Chromium Subpath Verification (`http://127.0.0.1:4173/wanderling-subpath/`)
 
 > **Quarantine Rules:**  
 > - Concrete Sprint 1 bugs only (`BUG-001`+). No scope creep: major architectural redesigns, Watchdog v2 (`PT-106`), code-splitting (`6.7 MB` bundle warning), and new modes live strictly in [sprint_2_proposals.md](./sprint_2_proposals.md).  
@@ -10,183 +10,229 @@ Test Suite: `tests/playtests/cohortA–E` (`PT-001`–`PT-100`) + Live Chromium 
 
 ---
 
+## Phase 3 Regression Lock Status
+
+- **Phase Status:** `VERIFIED_CLOSED` (`0` open Sprint 1 bugs, `17 / 17` verified closed)
+- **Playtest Scorecard:** `100 / 100` passing (`PT-001`–`PT-100`: Cohort A `32/32`, Cohort B `14/14`, Cohort C `27/27`, Cohort D `15/15`, Cohort E `12/12`)
+- **Targeted Bug Board & Repo Regression Suites:**
+  - `tests/playtests/bug-board-regressions.test.tsx`: `5 / 5 PASS` (`BUG-005`, `BUG-006`, `BUG-010`, `BUG-013`, `BUG-014` + `BUG-002` Shop cooldown)
+  - `tests/multilang-polish-redteam.test.tsx`: `12 / 12 PASS`
+  - `tests/ui-redteam.test.tsx`: `16 / 16 PASS` (post-`dc27282` hotfix); `11 / 11` repo baseline files `115 / 115 PASS` (pre-`dc27282` on `e77fd77`)
+  - TypeScript: `npx --no-install tsc --noEmit` -> `0` errors
+- **Post-Rebuild Live Chromium Verification (`http://127.0.0.1:4173/wanderling-subpath/`):** `1440x900`, `768x1024`, `375x667` -> `0` console errors, `0` page errors, `0` HTTP 4xx/5xx responses, `0` outer scroll overflow, `0` Unicode flags (`phase3-dark-map-cosmic.png`, `phase3-mobile-shop-fixed.png`, `phase3-mobile-bridge-ar-fixed.png`, `phase3-mobile-rtl-wordbank-fixed.png`, `phase3-offline-mashup-recovery.png`)
+
+---
+
 ## Severity Summary
 
-| Severity | Count | Bug IDs |
-| :--- | :---: | :--- |
-| **P0 — Critical / Softlock / Unfair Loss** | 2 | `BUG-001`, `BUG-002` |
-| **P1 — High / Contrast / Core Flow / Offline** | 4 | `BUG-003`, `BUG-004`, `BUG-005`, `BUG-006` |
-| **P2 — Medium / Linguistics / State / Migration** | 6 | `BUG-007`, `BUG-008`, `BUG-009`, `BUG-010`, `BUG-011`, `BUG-012` |
-| **P3 — Low / Polish / Leaks / Metadata** | 5 | `BUG-013`, `BUG-014`, `BUG-015`, `BUG-016`, `BUG-017` |
+| Severity | Count | Closed | Open | Bug IDs |
+| :--- | :---: | :---: | :---: | :--- |
+| **P0 — Critical / Softlock / Unfair Loss** | 2 | 2 | 0 | `BUG-001`, `BUG-002` |
+| **P1 — High / Contrast / Core Flow / Offline** | 4 | 4 | 0 | `BUG-003`, `BUG-004`, `BUG-005`, `BUG-006` |
+| **P2 — Medium / Linguistics / State / Migration** | 6 | 6 | 0 | `BUG-007`, `BUG-008`, `BUG-009`, `BUG-010`, `BUG-011`, `BUG-012` |
+| **P3 — Low / Polish / Leaks / Metadata** | 5 | 5 | 0 | `BUG-013`, `BUG-014`, `BUG-015`, `BUG-016`, `BUG-017` |
 
 ---
 
 ## Canonical Bug Register
 
 ### BUG-001 — TowerStackArcade symmetric sine glide causes scoop collision & IEEE-754 rounding coin-flip
+- **Status:** `VERIFIED_CLOSED`
 - **Severity:** `P0`
 - **Owner:** `leo-arcade`
+- **Fix Commit:** `57b499f` (`243e753`, `ironclad/leo-arcade`)
 - **Playtests / Reporter:** `PT-053`–`PT-055` (`PT-101`) | `devon-chaos` (verified by `vera-redteam`)
 - **File / Line:** `src/components/arcade/TowerStackArcade.tsx:133-140, 204-210, 319-322`
 - **Repro Steps:** Launch *Gelato & Pastry Tower*, click `Start Stacking!`, wait until target scoop reaches center (`x = 50%`), and click `Drop Scoop!`.
 - **Expected vs Actual:** Expected target and distractor scoops on offset phases/lanes so the target passes `x = 50%` cleanly separated. Actual computes `xA = 50 + Math.sin(phase) * 29` and `xB = 50 + Math.sin(phase + Math.PI) * 29`, guaranteeing `|xA - 50| === |xB - 50|` (delta `< 1e-11`); both scoops overlap dead center, and `.sort((a, b) => Math.abs(a.x - 50) - Math.abs(b.x - 50))` picks the distractor ~47% of the time via IEEE-754 ULP rounding.
-- **Regression Gate:** `tests/playtests/cohortC-arcade-matrix.test.tsx` (`[PT-053]`/`[PT-055]`)
+- **Regression Gate:** `tests/playtests/cohortC-arcade-matrix.test.tsx` (`[PT-053]`–`[PT-055]`) — `PASS`
 
 ### BUG-002 — Synchronous double-click races trigger `-2` heart loss, skipped exercises, un-keyed `Check`/`Continue` DOM reuse, blank-stage softlock & double shop spend
+- **Status:** `VERIFIED_CLOSED`
 - **Severity:** `P0`
-- **Owner:** `liam-gameplay`
+- **Owner:** `liam-gameplay` & `liam-shop-hotfix`
+- **Fix Commit:** `e77fd77` (`1a6ffa0`, `ironclad/liam-gameplay`) + `dc27282` (`c73855b`, `ironclad/liam-shop-lock`)
 - **Playtests / Reporter:** `PT-100` (`PT-102`) | `vera-redteam` & `devon-chaos`
 - **File / Line:**
   - `src/components/lesson/LessonArena.tsx:318-341` (`advanceExercise`), `354-355` (`handleCheck`), `484-501` (`handleDiscoveryCollect`), `505-516` (`chestClaimed`), `1312-1341` (un-keyed `Continue`/`Check` footer buttons)
   - `src/components/lesson/BossGauntletView.tsx:276-343` (`handleCheckTurn`, `handleNextTurn`, `onComplete`)
   - `src/components/lesson/MiniStoryView.tsx:121-140` (`handleAdvance`)
   - `src/components/lesson/PairMatchRushView.tsx:448`
-  - `src/components/meta/CompanionShop.tsx:118-174`
+  - `src/components/meta/CompanionShop.tsx:59-93, 133-266, 498-513` (per-`actionKey` `350ms` cooldown lock + inventory/state-backed consumable button `key`s)
 - **Repro Steps:**
   1. In `LessonArena`, select a wrong answer and double-click `Check` in the same frame -> hearts drop by `2` for `1` mistake; or double-click across two ticks -> un-keyed `Check` DOM node becomes `Continue` and click #2 immediately skips feedback.
   2. Double-click `Speak & Collect` -> skips next exercise; double-click `Continue` on penultimate exercise (`71%`) -> `exerciseIndex === exercises.length` renders blank `100%` softlock with only `X` exit and no completion rewards.
-  3. Double-click `Buy Elixir (35 Gems)` / cosmetic buy or Boss `Send Reply!` / `Collect Boss Chest & Finish!` -> double gem deduction or duplicate turn callbacks.
-- **Expected vs Actual:** Expected synchronous `useRef` action locks + distinct `key` props on `Check`/`Continue` buttons + idempotent store guards across Lesson, Boss, Story, PairMatch, and Shop. Actual relies on async React state or no guard at all.
-- **Regression Gate:** `tests/playtests/cohortE-chaos-vault-pwa.test.tsx` (`[PT-100]`)
+  3. Double-click `Buy Shield (45 Gems)` / `Buy Elixir (35 Gems)` / cosmetic buy or Boss `Send Reply!` / `Collect Boss Chest & Finish!` -> double gem deduction or duplicate turn callbacks.
+- **Expected vs Actual:** Expected synchronous `useRef` action locks + distinct `key` props on `Check`/`Continue` & consumable buttons + idempotent per-`actionKey` cooldown across Lesson, Boss, Story, PairMatch, and Shop. Fixed cleanly with `useRef` turn/advance locks, `350ms` per-key Shop cooldown, and state-backed button keys.
+- **Regression Gate:** `tests/playtests/cohortE-chaos-vault-pwa.test.tsx` (`[PT-100]`) + `tests/playtests/bug-board-regressions.test.tsx` (`[BUG-014]` stale-ref & cross-commit consumable double-click checks) — `PASS`
 
 ### BUG-003 — Dark-theme CEFR tier pills on `AdventureMap` render near-invisible contrast (`~1.01:1–1.15:1`)
+- **Status:** `VERIFIED_CLOSED`
 - **Severity:** `P1`
-- **Owner:** `liam-gameplay` / `julian-architect`
+- **Owner:** `mateo-illustrator`
+- **Fix Commit:** `ed62265` (`e09a6e3`, `ironclad/mateo-illustrator`)
 - **Playtests / Reporter:** `PT-074`, `PT-076`, `PT-078`, `PT-079`, `PT-082`, `PT-085`, `PT-086`, `PT-088` | `mila-playtester` (verified by `vera-redteam`)
 - **File / Line:** `src/components/map/AdventureMap.tsx:618-624` (pastel tints in `src/types/contracts.ts:742, 753, 763, 773, 782`)
 - **Repro Steps:** Equip any dark palette (`theme_starlight_indigo`, `theme_cosmic_galaxy`, `theme_aurora_borealis`, `theme_royal_velvet`, `theme_emerald_rainforest`, `theme_neon_night_market`, `theme_laureate_imperial`) with `A2+` unlocked and view the CEFR tier strip on `AdventureMap`.
-- **Expected vs Actual:** Expected dark ink (`#0F172A`) on pastel `meta.surfaceTint` (`#ECFDF5`, `#E0F2FE`, `#EDE9FE`, `#FEF3C7`, `#FCE7F3`) matching Lesson/Phrasebook/Shop pills. Actual sets `color: 'var(--text-main, #0f172a)'`, resolving to near-white in all 7 dark palettes (`1.01:1–1.15:1` contrast).
-- **Regression Gate:** `tests/playtests/cohortD-palettes-viewports.test.tsx` (`[PT-076]`, `[PT-078]`, `[PT-079]`, `[PT-082]`, `[PT-085]`, `[PT-086]`, `[PT-088]`)
+- **Expected vs Actual:** Expected dark ink (`#0F172A`) on pastel `meta.surfaceTint` (`#ECFDF5`, `#E0F2FE`, `#EDE9FE`, `#FEF3C7`, `#FCE7F3`) matching Lesson/Phrasebook/Shop pills. Actual set `color: 'var(--text-main, #0f172a)'`, resolving to near-white in dark palettes. Resolved with crisp `#0F172A` (`rgb(15, 23, 42)`) ink & jewel active pills.
+- **Regression Gate:** `tests/playtests/cohortD-palettes-viewports.test.tsx` (`[PT-076]`, `[PT-078]`, `[PT-079]`, `[PT-082]`, `[PT-085]`, `[PT-086]`, `[PT-088]`) + Playwright `phase3-dark-map-cosmic.png` (`rgb(15, 23, 42)` verified) — `PASS`
 
 ### BUG-004 — Mandarin (`zh`) & Japanese (`ja`) Free-Recall Hint Bar rejects valid Pinyin/Romaji prefixes
+- **Status:** `VERIFIED_CLOSED`
 - **Severity:** `P1`
-- **Owner:** `liam-gameplay`
+- **Owner:** `julian-architect`
+- **Fix Commit:** `d325cba` (`2cc6bc1`, `ironclad/julian-architect`)
 - **Playtests / Reporter:** `PT-019`, `PT-023`, `PT-024` | `mila-playtester` (verified by `vera-redteam`)
 - **File / Line:** `src/core/hintEngine.ts:472-479` (consumed by `src/components/lesson/WordBankView.tsx:547`)
 - **Repro Steps:** Switch to `zh` (`zh-u15-n2`) or `ja`, open a `to_foreign` WordBank, enable `Keyboard Free-Recall`, press `+ Hint` twice, and type valid Pinyin (`"Ma"`, `"Wan"`) or Romaji (`"Oya"`).
-- **Expected vs Actual:** Expected romanized prefix recognition matching the prompt `"Type in Mandarin Chinese or romanized"`. Actual branches solely on `LANGUAGE_META[language].usesSpaces` (`false`), splitting Latin text via `splitGraphemes` against native Hanzi/Kana tokens, returning `validWordPrefixCount: 0, hasWrongSuffix: true`, and showing false error `"Check word after prefix"`.
-- **Regression Gate:** `tests/playtests/cohortA-base-campaigns.test.tsx` (`[PT-023]`, `[PT-024]`)
+- **Expected vs Actual:** Expected romanized prefix recognition matching the prompt `"Type in Mandarin Chinese or romanized"`. Fixed romanized Latin-prefix branch against normalized `acceptedSentences` so Pinyin/Romaji prefixes advance cleanly without false `"Check word after prefix"` coaching errors.
+- **Regression Gate:** `tests/playtests/cohortA-base-campaigns.test.tsx` (`[PT-023]`, `[PT-024]`) — `PASS`
 
 ### BUG-005 — `StarlightBridgeArcade` vertically clips bottom choice planks on mobile (`375x667`) for Master RTL/CJK prompts
+- **Status:** `VERIFIED_CLOSED`
 - **Severity:** `P1`
-- **Owner:** `leo-arcade` / `julian-architect`
+- **Owner:** `leo-arcade`
+- **Fix Commit:** `57b499f` (`243e753`, `ironclad/leo-arcade`)
 - **Playtests / Reporter:** `PT-070`, `PT-103` | `devon-chaos` (verified by `vera-redteam`)
 - **File / Line:** `src/components/arcade/StarlightBridgeArcade.tsx:970-1085`
 - **Repro Steps:** At `375x667`, switch to `ar` or `zh`, pick `Master C1-C2`, and start *Starlight Bridge Cloze Builder*.
-- **Expected vs Actual:** Expected all 4 bridge choice planks fully visible inside the `100dvh` card. Actual long C1_C2 prompt + romanized + phonetic + Hint stack overflows the `overflow-y: hidden` stage container, clipping `Plank 3`/`Plank 4` bottoms (`ar` `-4px`, `zh` `-27px`) and ellipsizing sub-bar instructions.
-- **Regression Gate:** Live Chromium `375x667` bounding-box check (`verify_live_browser.py` / `tests/playtests/cohortC-arcade-matrix.test.tsx`)
+- **Expected vs Actual:** Expected all 4 bridge choice planks fully visible inside the `100dvh` card. Fixed with compact `maxHeight: 43%` + `overflowY: auto` on the Cloze prompt box and un-ellipsized instruction wrapping; verified live on `375x667` (`ar` and `zh` all 4 plank bottoms `<= 575px`, zero clipping).
+- **Regression Gate:** `tests/playtests/bug-board-regressions.test.tsx` (`[BUG-005]`) + `tests/playtests/cohortC-arcade-matrix.test.tsx` (`[PT-070]`) + Playwright `phase3-mobile-bridge-ar-fixed.png` — `PASS`
 
 ### BUG-006 — Offline PWA fails with HTTP `503` & infinite spinner when opening uncached After-Hours Mashup chunks
+- **Status:** `VERIFIED_CLOSED`
 - **Severity:** `P1`
-- **Owner:** `hannah-platform`
+- **Owner:** `hannah-platform` & `liam-gameplay`
+- **Fix Commit:** `de6a105` (`522977a`, `ironclad/hannah-platform`) + `e77fd77` (`1a6ffa0`, `ironclad/liam-gameplay`)
 - **Playtests / Reporter:** `PT-099`, `PT-104` | `devon-chaos` (verified by `vera-redteam`)
-- **File / Line:** `public/sw.js:3-18, 65-77`, `src/components/shell/adultCurriculumSync.ts:45-46`, `src/curriculum/adultRegistry.ts:187-230`
-- **Repro Steps:** Load app twice online so `sw.js` controls scope, go offline, reload, unlock After-Hours (`7` taps), and pick an unvisited Mashup (`stoner_tactical`) whose lazy chunk (`dist/assets/adult-mashup-*.js`) was never fetched online.
-- **Expected vs Actual:** Expected either precached chunks (or clear offline fallback/retry UI in `AdultTrackLoadingCard`). Actual `sw.js` precaches only 8 static shell URLs (`PRECACHE_URLS`), returns `503 Service Unavailable`, emits uncaught dynamic import `pageerror`, and traps `AdultTrackLoadingCard` in an infinite spinner.
-- **Regression Gate:** `tests/playtests/cohortE-chaos-vault-pwa.test.tsx` (`[PT-099]` verifies SW precache/offline chunk cache vs `503` miss; live Chromium verifies uncached Mashup spinner lock)
+- **File / Line:** `public/sw.js` (`wanderling-cache-v7`), `src/components/shell/adultCurriculumSync.ts`, `src/App.tsx` (`AdultTrackLoadingCard`), `src/curriculum/adultRegistry.ts`
+- **Repro Steps:** Load app twice online so `sw.js` controls scope, go offline, reload, unlock After-Hours (`7` taps), and pick an unvisited Mashup (`stoner_tactical`) whose lazy chunk was never fetched online.
+- **Expected vs Actual:** Resolved by bumping `sw.js` precache to `wanderling-cache-v7` and wrapping dynamic Mashup hydration in `AdultTrackLoadingCard` offline error recovery (`OFFLINE FALLBACK` badge, `Retry Loading`, and `Return to Kid Atlas` exit).
+- **Regression Gate:** `tests/playtests/bug-board-regressions.test.tsx` (`[BUG-006]`) + `tests/playtests/cohortE-chaos-vault-pwa.test.tsx` (`[PT-098]`, `[PT-099]`) + Playwright `phase3-offline-mashup-recovery.png` — `PASS`
 
 ### BUG-007 — Tap-to-Peek strips internal apostrophes (`fr`/`it`) & exposes Russian standalone `"—"` as clickable token
+- **Status:** `VERIFIED_CLOSED`
 - **Severity:** `P2`
-- **Owner:** `clara-linguist` / `liam-gameplay`
+- **Owner:** `clara-linguist` & `liam-gameplay`
+- **Fix Commit:** `8940ce8` (`7b91a37`, `ironclad/clara-linguist`) + `e77fd77` (`1a6ffa0`, `ironclad/liam-gameplay`)
 - **Playtests / Reporter:** `PT-003`, `PT-006`, `PT-013` | `mila-playtester` (verified by `vera-redteam`)
 - **File / Line:** `src/components/lesson/lessonHelpers.ts:22-23, 198-207`
 - **Repro Steps:** Open Discovery cards containing Romance elisions (`fr-u1-c5` `"s'il"`, `fr-u2-c1` `"l'eau"`, `it-u1-c3` `"d’oro!"`, `it-u2-c1` `"l'acqua"`) or Russian em-dash (`ru-u1-c9` `"Моё имя — Пип."`), and tap those tokens.
-- **Expected vs Actual:** Expected boundary-only punctuation stripping preserving internal apostrophes for glossary lookup, and non-clickable standalone punctuation. Actual `.replace(EDGE_PUNCT_STRIP_RE, '')` uses global `/g`, turning `"s'il"` -> `"sil"` and `"d’oro!"` -> `"doro"` (`40/1113` French and `21/1091` Italian tokens fall back to full-sentence translation), and leaves `"—"` (`3/996` Russian tokens) clickable.
-- **Regression Gate:** `tests/playtests/cohortA-base-campaigns.test.tsx` (`[PT-002]` `fr`, `[PT-013]` `ru`)
+- **Expected vs Actual:** Resolved with boundary-only punctuation stripping preserving internal apostrophes for glossary lookup and skipping standalone punctuation/em-dash tokens (`isClickable` false).
+- **Regression Gate:** `tests/playtests/cohortA-base-campaigns.test.tsx` (`[PT-002]` `fr`, `[PT-004]` `it`, `[PT-013]` `ru`) — `PASS`
 
 ### BUG-008 — Duplicate / case-colliding distractor tiles in Egyptian Arabic & Portuguese WordBanks
+- **Status:** `VERIFIED_CLOSED`
 - **Severity:** `P2`
 - **Owner:** `clara-linguist`
+- **Fix Commit:** `8940ce8` (`7b91a37`, `ironclad/clara-linguist`)
 - **Playtests / Reporter:** `PT-005`, `PT-012` | `mila-playtester` (verified by `vera-redteam`)
 - **File / Line:**
-  - `src/curriculum/arzUnits9to16.ts:3540-3541` (`arz-u16-boss` turn `arz-u16-b2`: `'مع'` appears in both `targetTokens` and `distractorTokens`)
-  - `src/curriculum/pt.ts:2557-2558` (`pt-u3-n3-e7`: distractor `'o'` collides case-insensitively with target `'O'`)
-  - `src/curriculum/pt.ts:2631-2632` (`pt-u3-n4-e7`: distractor `'a'` collides case-insensitively with target `'A'`)
-- **Expected vs Actual:** Distractor tiles must be lexically distinct from all `targetTokens` in the same exercise.
-- **Regression Gate:** `tests/playtests/cohortA-base-campaigns.test.tsx` (`[PT-005]`, `[PT-012]`)
+  - `src/curriculum/arzUnits9to16.ts:3540-3541` (`arz-u16-boss` turn `arz-u16-b2`: removed duplicate `'مع'` distractor)
+  - `src/curriculum/pt.ts:2557-2558, 2631-2632` (`pt-u3-n3-e7`, `pt-u3-n4-e7`: replaced case-colliding distractors `'o'`/`'a'`)
+- **Expected vs Actual:** Distractor tiles are now lexically distinct (even case-insensitively) from all `targetTokens` in the same exercise.
+- **Regression Gate:** `tests/playtests/cohortA-base-campaigns.test.tsx` (`[PT-005]`, `[PT-012]`) — `PASS`
 
 ### BUG-009 — Arabic (`ar`) ContextCloze splits bound proclitic `و` outside blank word
+- **Status:** `VERIFIED_CLOSED`
 - **Severity:** `P2`
 - **Owner:** `clara-linguist`
+- **Fix Commit:** `8940ce8` (`7b91a37`, `ironclad/clara-linguist`)
 - **Playtests / Reporter:** `PT-011` | `mila-playtester` (verified by `vera-redteam`)
 - **File / Line:** `src/curriculum/arUnits9to16.ts:2948-2955` (`ar-u14-n4-cloze` and derived `ar-u14-n1/n2/n3-pool-cc-3`)
-- **Repro Steps:** Open `ar-u14-n4` ContextCloze (`"يقوي السلام و[______] روابط المجتمع بأسره."`).
-- **Expected vs Actual:** Bound conjunction `و` should stay attached inside `expectedBlank: 'والوئام'` (`sentenceBeforeBlank: 'يقوي السلام'`, choices prefixed cleanly) rather than leaving detached `و` against the dashed blank box.
-- **Regression Gate:** `tests/playtests/cohortA-base-campaigns.test.tsx` (`[PT-011]`)
+- **Repro Steps:** Open `ar-u14-n4` ContextCloze (`"يقوي السلام [______] روابط المجتمع بأسره."`).
+- **Expected vs Actual:** Bound conjunction `و` now attaches directly inside `expectedBlank: 'والوئام'` (`sentenceBeforeBlank: 'يقوي السلام'`, choices prefixed cleanly). Test expectation synced in `tests/multilang-polish-redteam.test.tsx:209` (Option A approved `#34`).
+- **Regression Gate:** `tests/playtests/cohortA-base-campaigns.test.tsx` (`[PT-011]`) + `tests/multilang-polish-redteam.test.tsx` — `PASS`
 
 ### BUG-010 — `FloatingPopToast` stack overlaps active Lesson card controls on mobile (`375x667`)
+- **Status:** `VERIFIED_CLOSED`
 - **Severity:** `P2`
 - **Owner:** `liam-gameplay`
-- **Playtests / Reporter:** `PT-081` | `mila-playtester` (verified by `vera-redteam` via `shot-mobile-ar-rtl-wordbank.png`)
+- **Fix Commit:** `e77fd77` (`1a6ffa0`, `ironclad/liam-gameplay`)
+- **Playtests / Reporter:** `PT-081` | `mila-playtester` (verified by `vera-redteam`)
 - **File / Line:** `src/components/fx/JuiceEngine.tsx:123-138`, `src/components/lesson/LessonArena.tsx:166-171`
 - **Repro Steps:** At `375x667`, quickly collect 2 Discovery stickers into a 3x Combo exercise.
-- **Expected vs Actual:** Up to 3 stacked toasts (`top: 66px`, `1150ms`) cover `"TRANSLATE TO..."`, register chip, and `+ Hint` controls on compact mobile screens.
-- **Regression Gate:** Live `375x667` bounding-box overlap check + `JuiceEngine` toast slot bounds.
+- **Expected vs Actual:** Compact viewports now anchor a single `.is-compact` toast slot at `top: 10px`, leaving lesson header controls (`TRANSLATE TO...`, `+ Hint`, audio speed) completely unobstructed.
+- **Regression Gate:** `tests/playtests/bug-board-regressions.test.tsx` (`[BUG-010]`) + Playwright `phase3-mobile-rtl-wordbank-fixed.png` (`top: 10px`, 1 toast pill) — `PASS`
 
 ### BUG-011 — Tier Placement Checkpoints inflate `stats.lessonsCompleted`
+- **Status:** `VERIFIED_CLOSED`
 - **Severity:** `P2`
-- **Owner:** `liam-gameplay` / `julian-architect`
+- **Owner:** `julian-architect` & `liam-gameplay`
+- **Fix Commit:** `d325cba` (`2cc6bc1`, `ironclad/julian-architect`) + `e77fd77` (`1a6ffa0`, `ironclad/liam-gameplay`)
 - **Playtests / Reporter:** `PT-017`–`PT-032`, `PT-105` | `devon-chaos` (verified by `vera-redteam`)
 - **File / Line:** `src/components/lesson/LessonArena.tsx:266-277, 290-294`, `src/store/useVaultStore.ts:1702-1734`
 - **Repro Steps:** Complete `buildTierCheckpointNode('es', 'B1')` through `LessonArena`.
-- **Expected vs Actual:** Expected `stats.checkpointsPassed === 1` and `stats.lessonsCompleted === 0`. Actual invokes `completeMapNode` without `checkpointUnlock` (calling `unlockProficiencyTier` separately), evaluating `isCheckpoint = false` and incrementing both counters.
-- **Regression Gate:** `tests/playtests/cohortA-base-campaigns.test.tsx` (`[PT-017]`–`[PT-032]`)
+- **Expected vs Actual:** `completeMapNode` now receives `checkpointUnlock` atomically so `stats.checkpointsPassed === 1` without inflating `stats.lessonsCompleted`.
+- **Regression Gate:** `tests/playtests/cohortA-base-campaigns.test.tsx` (`[PT-017]`–`[PT-032]`) — `PASS`
 
 ### BUG-012 — `importVaultJson` rejects sparse valid v1 saves before `normalizeProfile` backfills optional fields
+- **Status:** `VERIFIED_CLOSED`
 - **Severity:** `P2`
 - **Owner:** `julian-architect`
+- **Fix Commit:** `d325cba` (`2cc6bc1`, `ironclad/julian-architect`)
 - **Playtests / Reporter:** `PT-094`, `PT-107` | `devon-chaos` (verified by `vera-redteam`)
 - **File / Line:** `src/store/useVaultStore.ts:470-537` (`validateProfile`)
 - **Repro Steps:** Call `importVaultJson` on a `schemaVersion: 1` save with valid required fields (`id`, `name`, `languageProgress`) omitting optional fields (`avatarId`, `gems`, `stats`).
-- **Expected vs Actual:** Expected `normalizeProfile` defaults applied safely on v1 migration. Actual `validateProfile` rejects early (`profiles[0].avatarId "undefined" is invalid.` / `gems must be a non-negative number.`).
-- **Regression Gate:** `tests/playtests/cohortE-chaos-vault-pwa.test.tsx` (`[PT-094]`)
+- **Expected vs Actual:** `validateProfile` now safely allows optional v1 fields so `normalizeProfile` backfills defaults losslessly during legacy save migration.
+- **Regression Gate:** `tests/playtests/cohortE-chaos-vault-pwa.test.tsx` (`[PT-094]`) — `PASS`
 
 ### BUG-013 — RTL `WordBankTray` places `"Preview:"` label at visual left (end) of Arabic reading line
+- **Status:** `VERIFIED_CLOSED`
 - **Severity:** `P3`
 - **Owner:** `liam-gameplay`
-- **Playtests / Reporter:** `PT-045`, `PT-046`, `PT-078` | `mila-playtester` & `vera-redteam` (confirmed visually in `shot-mobile-ar-rtl-wordbank.png`)
-- **File / Line:** `src/components/lesson/WordBankTray.tsx:186-209`
-- **Repro Steps:** Assemble tiles in an `ar` or `arz` `to_foreign` WordBank (`ar-u15-n2`) to show the preview line.
-- **Expected vs Actual:** Container uses `<div dir="ltr">Preview: <span dir={dir} style={{ unicodeBidi: 'isolate' }}>` inside an RTL screen, rendering English `"Preview:"` at the visual left (sentence end) after right-to-left Arabic words rather than leading from the RTL start or sitting cleanly above/isolated via `<bdi>`.
-- **Regression Gate:** Live `375x667` RTL WordBank visual check (`shot-mobile-ar-rtl-wordbank.png`) + `tests/playtests/cohortB-adult-quarantine.test.tsx` (`[PT-045]`)
+- **Fix Commit:** `e77fd77` (`1a6ffa0`, `ironclad/liam-gameplay`)
+- **Playtests / Reporter:** `PT-045`, `PT-046`, `PT-078` | `mila-playtester` & `vera-redteam`
+- **File / Line:** `src/components/lesson/WordBankTray.tsx:186-215`
+- **Repro Steps:** Assemble tiles in an `ar` or `arz` `to_foreign` WordBank (`ar-u1-n1` / `ar-u15-n2`) to show the preview line.
+- **Expected vs Actual:** Preview container sets `dir={dir}` and `textAlign: dir === 'rtl' ? 'right' : 'left'`, isolating `"Preview:"` in `<bdi dir="ltr">` at the RTL start (`left: 288px, right: 339px` on `375x667`) while Arabic words flow cleanly leftward (`left: 220px, right: 285px`).
+- **Regression Gate:** `tests/playtests/bug-board-regressions.test.tsx` (`[BUG-013]`) + `tests/playtests/cohortB-adult-quarantine.test.tsx` (`[PT-045]`) + Playwright `phase3-mobile-rtl-wordbank-fixed.png` — `PASS`
 
 ### BUG-014 — Mobile Gem Shop horizontal pedestal slices Streak Freeze card + CTA pill contrast below WCAG AA
+- **Status:** `VERIFIED_CLOSED`
 - **Severity:** `P3`
-- **Owner:** `julian-architect` / `liam-gameplay`
+- **Owner:** `liam-gameplay` & `liam-shop-hotfix`
+- **Fix Commit:** `e77fd77` (`1a6ffa0`, `ironclad/liam-gameplay`) + `dc27282` (`c73855b`, `ironclad/liam-shop-lock`)
 - **Playtests / Reporter:** `PT-085` | `mila-playtester` (verified in `src/styles/theme.css:1299-1304`)
-- **File / Line:** `src/styles/theme.css:1299-1304`, `src/components/meta/CompanionShop.tsx:239`
-- **Repro Steps:** Open Gem Shop at `375x667` (`shot-dark-shop-mobile.png`) and measure contrast on bright amber (`0.65x Turtle`, `Keyboard Free-Recall`, `Family Show-Off Mode` `~2.15:1`), emerald (`A1 Sprout`, `Speak & Collect`, `Next Card` `~2.54:1`), and orange (`~2.73:1`) white-text pills.
-- **Expected vs Actual:** Stack Streak Freeze without slicing off the viewport right edge; deepen CTA pill backgrounds to meet WCAG `>= 4.5:1` / large-text `>= 3.0:1`.
-- **Regression Gate:** Live `375x667` Shop viewport geometry + contrast check.
+- **File / Line:** `src/styles/theme.css:1299-1304`, `src/components/meta/CompanionShop.tsx`
+- **Repro Steps:** Open Gem Shop at `375x667` (`phase3-mobile-shop-fixed.png`) and measure contrast on emerald/amber/indigo/rose CTA pills.
+- **Expected vs Actual:** `.shop-pedestal-col` stacks vertically (`overflow: visible`, `flex-direction: column`) with `Buy Shield (45 Gems)` unclipped inside `375px` (`clipRight: false`), darkened WCAG AA CTA buttons (`>= 4.5:1`), and hardened consumable purchase locks.
+- **Regression Gate:** `tests/playtests/bug-board-regressions.test.tsx` (`[BUG-014]`) + Playwright `phase3-mobile-shop-fixed.png` — `PASS`
 
 ### BUG-015 — `TargetPromptBar` `Say It Normally` toggle (`plainOpen`) stays open across Arcade target changes
+- **Status:** `VERIFIED_CLOSED`
 - **Severity:** `P3`
 - **Owner:** `leo-arcade`
+- **Fix Commit:** `57b499f` (`243e753`, `ironclad/leo-arcade`)
 - **Playtests / Reporter:** `PT-047`–`PT-073`, `PT-108` | `devon-chaos` (verified in `src/components/arcade/arcadeShared.tsx:1849-1878`)
 - **File / Line:** `src/components/arcade/arcadeShared.tsx:1849-1878`
-- **Repro Steps:** Expand `Say It Normally` in Adult Mode *Sky-Catcher*/*Meteor Blaster*/*Tower Stack*/*Train Switcher*/*Rhythm Chef*/*Critter Choir*, clear the round, and advance to the next target.
-- **Expected vs Actual:** Expected `plainOpen` to reset to `false` on `targetItem.id` change (consistent with `CafeOrderRushArcade:130`, `ConstellationMemoryArcade:104`, `StarlightBridgeArcade:244`). Actual leaves the spoiler drawer open across targets.
-- **Regression Gate:** `tests/playtests/cohortB-adult-quarantine.test.tsx` (`[PT-033]`)
+- **Repro Steps:** Expand `Say It Normally` in Adult Mode Arcade cabinets, clear the round, and advance to the next target.
+- **Expected vs Actual:** `TargetPromptBar` now resets `plainOpen` to `false` on `targetItem.id` changes consistently across all Arcade cabinets.
+- **Regression Gate:** `tests/playtests/cohortB-adult-quarantine.test.tsx` (`[PT-033]`) + `tests/playtests/cohortC-arcade-matrix.test.tsx` — `PASS`
 
 ### BUG-016 — Uncleaned `window.setTimeout` handles on unmount in `LessonArena.tsx` & `PairMatchRushView.tsx`
+- **Status:** `VERIFIED_CLOSED`
 - **Severity:** `P3`
 - **Owner:** `liam-gameplay`
+- **Fix Commit:** `e77fd77` (`1a6ffa0`, `ironclad/liam-gameplay`)
 - **Playtests / Reporter:** `PT-109` | `devon-chaos` (verified in `src/components/lesson/PairMatchRushView.tsx:107-111`, `src/components/lesson/LessonArena.tsx:169, 176-177`)
-- **File / Line:** `src/components/lesson/LessonArena.tsx:169, 176-177`; `src/components/lesson/PairMatchRushView.tsx:107-111`
+- **File / Line:** `src/components/lesson/LessonArena.tsx`; `src/components/lesson/PairMatchRushView.tsx`
 - **Repro Steps:** Trigger confetti burst in `LessonArena` or mismatch shake in `PairMatchRushView`, then unmount immediately before timeout expiry (`420ms`).
-- **Expected vs Actual:** Cleanup timeout handles on unmount to eliminate stale post-unmount state updates/timer leaks.
-- **Regression Gate:** `tests/playtests/cohortE-chaos-vault-pwa.test.tsx` (`[PT-100]`)
+- **Expected vs Actual:** Both views now store and clear timeout handles in unmount cleanup effects with zero stale post-unmount state updates.
+- **Regression Gate:** `tests/playtests/cohortE-chaos-vault-pwa.test.tsx` (`[PT-100]`) — `PASS`
 
 ### BUG-017 — Stale `"4-language"` metadata in `package.json` & `DESIGN.md`
+- **Status:** `VERIFIED_CLOSED`
 - **Severity:** `P3`
-- **Owner:** `hannah-platform`
+- **Owner:** `hannah-platform` & `coordinator`
+- **Fix Commit:** `e6075f0` (`package.json`) + `de6a105` (`522977a`, `ironclad/hannah-platform`)
 - **Playtests / Reporter:** `PT-110` | `devon-chaos` & `vera-redteam`
-- **File / Line:** `package.json:6` (`"4-language interactive learning adventure & offline PWA."`); `DESIGN.md:6, 23` (`"Four Symmetrical Cultural Lands"`, `ES, FR, DE, IT`)
-- **Expected vs Actual:** Update root metadata and design header to reflect all 16 living languages (+ 7 After-Hours Atlas tracks) consistently with `README.md`.
-- **Regression Gate:** `tests/playtests/cohortE-chaos-vault-pwa.test.tsx` (`[PT-098]`)
+- **File / Line:** `package.json:6`; `DESIGN.md`; `README.md`
+- **Expected vs Actual:** Root metadata, design overview, and README all accurately describe all 16 living languages (+ 7 After-Hours Atlas tracks).
+- **Regression Gate:** `tests/playtests/cohortE-chaos-vault-pwa.test.tsx` (`[PT-098]`) — `PASS`
 
 ---
 
 ## Contract Guardrail Note (`src/types/contracts.ts`)
-- No breaking edits to `src/types/contracts.ts` are required to resolve `BUG-001`–`BUG-017`.
-- `SpeechOutcome` contract & `4500ms` hung-utterance watchdog behavior (`PT-106`, locked by `tests/adult-easter-egg.test.tsx:1165` and `tests/speech-audio.test.ts:242`) are intentionally preserved for Sprint 1 and queued in [sprint_2_proposals.md](./sprint_2_proposals.md) (`S2-004`).
+- Zero breaking edits to `src/types/contracts.ts` were required to resolve and close `BUG-001`–`BUG-017`.
+- `SpeechOutcome` contract & `4500ms` hung-utterance watchdog behavior (`PT-106`, locked by `tests/adult-easter-egg.test.tsx:1165` and `tests/speech-audio.test.ts:242`) remain intact for Sprint 1 and queued in [sprint_2_proposals.md](./sprint_2_proposals.md) (`S2-004`).

@@ -206,7 +206,7 @@ describe('Wanderling 2.0 — Multi-Language Playtest Polish & Red-Team Regressio
     const arCloze = COURSES.ar.units
       .flatMap((u) => u.nodes)
       .flatMap((n) => getPlayableNodeExercises('ar', n.id, [], false))
-      .find((ex): ex is ContextClozeExercise => ex.type === 'context_cloze' && ex.expectedBlank === 'الوئام')!;
+      .find((ex): ex is ContextClozeExercise => ex.type === 'context_cloze' && ex.expectedBlank === 'والوئام')!;
     expect(arCloze).toBeDefined();
 
     const { unmount: unmountAr } = render(

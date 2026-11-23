@@ -636,12 +636,12 @@ describe('Cohort E [PT-089..PT-100]: Chaos, Save Vault, Audio Watchdog, PWA Offl
     const sw = loadServiceWorkerHarness('http://127.0.0.1:4173/wanderling-subpath/');
     // Pre-populate stale caches
     sw.cacheStore.set('wanderling-cache-v1', new Map());
-    sw.cacheStore.set('wanderling-cache-v5', new Map());
+    sw.cacheStore.set('wanderling-cache-v6', new Map());
 
     await sw.dispatchInstall();
     expect(sw.skipWaiting).toHaveBeenCalledTimes(1);
 
-    const activeCache = sw.cacheStore.get('wanderling-cache-v6');
+    const activeCache = sw.cacheStore.get('wanderling-cache-v7');
     expect(activeCache).toBeDefined();
     for (const relUrl of [
       './',
@@ -660,8 +660,8 @@ describe('Cohort E [PT-089..PT-100]: Chaos, Save Vault, Audio Watchdog, PWA Offl
     await sw.dispatchActivate();
     expect(sw.clientsClaim).toHaveBeenCalledTimes(1);
     expect(sw.cacheStore.has('wanderling-cache-v1')).toBe(false);
-    expect(sw.cacheStore.has('wanderling-cache-v5')).toBe(false);
-    expect(sw.cacheStore.has('wanderling-cache-v6')).toBe(true);
+    expect(sw.cacheStore.has('wanderling-cache-v6')).toBe(false);
+    expect(sw.cacheStore.has('wanderling-cache-v7')).toBe(true);
 
     // BUG-017: Root metadata must match 16-language Wanderling 2.0 scope
     const pkg = JSON.parse(readFileSync(resolve(ROOT_DIR, 'package.json'), 'utf8')) as {
@@ -802,7 +802,7 @@ describe('Cohort E [PT-089..PT-100]: Chaos, Save Vault, Audio Watchdog, PWA Offl
     ).toContain('Second Question Must Not Be Skipped');
 
     // 1c. Consecutive double-click on un-keyed Check button must NOT reuse the DOM node as Continue and skip feedback
-    clickTokensInTray(['No']); // Wrong answer on wb2
+    clickTokensInTray(['Pan']); // Wrong answer on wb2
     const checkBtn2 = requireButtonByText('Check');
     fireEvent.click(checkBtn2);
     fireEvent.click(checkBtn2);
