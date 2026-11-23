@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Coffee, Sparkles, Volume2 } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
+import { useVaultStore } from '../../store/useVaultStore';
 import {
   LANGUAGE_META,
   type ArcadeLanternItem,
@@ -14,14 +15,18 @@ import { CafeOrderRushEmblem } from './ArcadeEmblems';
 import {
   ARCADE_SHELL_STYLE,
   ArcadeHeaderBar,
+  ArcadePlainEnglishCallout,
   ArcadeReadyCard,
+  ArcadeSayItNormallyButton,
   ArcadeSummaryCard,
   SOFT_BTN_STYLE,
   computeScaledArcadeRewards,
   getArcadeClueTextStyle,
   getArcadeForeignTextStyle,
+  isAdultArcadeActive,
   pickDistinctItems,
   recordArcadeRunResult,
+  resolveArcadePlainEnglish,
   useArcadeContainerMetrics,
   useArcadeDeck,
 } from './arcadeShared';
@@ -55,13 +60,16 @@ export function CafeOrderRushArcade({
   arcadeTier = 'sprout',
   onExit,
 }: CafeOrderRushArcadeProps) {
+  const { activeProfile } = useVaultStore();
   const { language, lexicon, targetLexicon, bestScoreFor, paceMultiplier } =
     useArcadeDeck(arcadeTier);
   const { containerRef, isCompact } = useArcadeContainerMetrics();
   const langMeta = LANGUAGE_META[language];
   const langDir = langMeta.dir;
+  const showPlainButton = isAdultArcadeActive(language, activeProfile);
 
   const [phase, setPhase] = useState<'ready' | 'playing' | 'summary'>('ready');
+  const [plainOpen, setPlainOpen] = useState(false);
   const [timeLeft, setTimeLeft] = useState(ROUND_DURATION_SECONDS);
   const [score, setScore] = useState(0);
   const [combo, setCombo] = useState(0);
@@ -83,6 +91,20 @@ export function CafeOrderRushArcade({
       lexicon[3] ?? targetLexicon[0],
     ],
   }));
+  const plainResult = useMemo(
+    () =>
+      plainOpen && showPlainButton
+        ? resolveArcadePlainEnglish(round.target, {
+            avoidTerms: [
+              round.direction === 'foreign_to_english' ? round.target.english : round.target.foreign,
+            ],
+          })
+        : null,
+    [plainOpen, showPlainButton, round]
+  );
+  useEffect(() => {
+    setPlainOpen(false);
+  }, [round.uid, phase]);
   const [toast, setToast] = useState<ReactNode>('Serve the matching treat platter before the ring runs out!');
   const [summary, setSummary] = useState<{
     score: number;
@@ -730,7 +752,27 @@ export function CafeOrderRushArcade({
                     <Volume2 size={13} />
                     <span>Hear</span>
                   </button>
+                  {showPlainButton ? (
+                    <ArcadeSayItNormallyButton
+                      item={target}
+                      language={language}
+                      isCompact={isCompact}
+                      open={plainOpen}
+                      avoidTerms={[
+                        round.direction === 'foreign_to_english' ? target.english : target.foreign,
+                      ]}
+                      onToggle={(nextOpen) => setPlainOpen(nextOpen)}
+                    />
+                  ) : null}
                 </div>
+
+                {plainResult ? (
+                  <ArcadePlainEnglishCallout
+                    result={plainResult}
+                    isCompact={isCompact}
+                    onClose={() => setPlainOpen(false)}
+                  />
+                ) : null}
 
                 {/* Patience Bar */}
                 <div

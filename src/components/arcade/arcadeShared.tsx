@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
-import { Gem, Heart, Play, RotateCcw, Sparkles, Star, Volume2, X } from 'lucide-react';
+import { Gem, Heart, MessageSquareQuote, Play, RotateCcw, Sparkles, Star, Volume2, X } from 'lucide-react';
 import { playSfx, speakPhrase } from '../../audio';
+import * as core from '../../core';
 import * as curriculum from '../../curriculum';
 import { getArcadeLexicon } from '../../curriculum';
 import { useVaultStore, vaultActions } from '../../store/useVaultStore';
@@ -12,6 +13,7 @@ import {
   type ArcadeLanternItem,
   type ArcadeProficiencyTier,
   type CompanionId,
+  type KidProfile,
   type LanguageCode,
   type ProficiencyTier,
 } from '../../types/contracts';
@@ -190,6 +192,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: "Yo fam, what's good at the cookout?",
       exampleEnglish: "Hey friend, how's everything going at the barbecue?",
       examplePhonetic: 'yoh fam, wuhts GOOD at thuh COOK-owt',
+      plainEnglish: 'Hello, how are you doing today?',
     },
     {
       id: 'fb-eb-2',
@@ -201,6 +204,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'That playlist was fire, no cap!',
       exampleEnglish: 'Those songs were genuinely terrific!',
       examplePhonetic: 'that PLAY-list wuz FYR, noh KAP',
+      plainEnglish: 'I am telling the complete truth without exaggeration.',
     },
     {
       id: 'fb-eb-3',
@@ -212,6 +216,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'You bringing plates? Say less, I got you.',
       exampleEnglish: 'Bringing tableware? Consider it handled!',
       examplePhonetic: 'yoo BRING-in playts? say LESS, y gaht yoo',
+      plainEnglish: 'I understand completely and agree to the plan.',
     },
     {
       id: 'fb-eb-4',
@@ -223,6 +228,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: "I'm low-key excited for Sunday dinner.",
       exampleEnglish: "I'm subtly looking forward to dinner on Sunday.",
       examplePhonetic: 'ym LOH-kee ik-SY-ted for SUN-day DIN-er',
+      plainEnglish: 'Secretly, modestly, or to a moderate degree.',
     },
     {
       id: 'fb-eb-5',
@@ -234,6 +240,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Oh, my bad, I spilled the punch!',
       exampleEnglish: 'Oh dear, pardon me for tipping the beverage!',
       examplePhonetic: 'oh, my BAD, y spild thuh punch',
+      plainEnglish: 'I apologize; that mistake was my fault.',
     },
     {
       id: 'fb-eb-6',
@@ -245,6 +252,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: "Wait till you see that clip, I'm dead!",
       exampleEnglish: 'Just wait until you see that video, what a hoot!',
       examplePhonetic: 'wayt til yoo see that klip, ym DED',
+      plainEnglish: 'I find that extremely funny.',
     },
     {
       id: 'fb-eb-7',
@@ -256,6 +264,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Traffic picking up, so we finna bounce soon.',
       exampleEnglish: 'Commute is building, so we are heading off shortly.',
       examplePhonetic: 'TRAF-ik PIK-in up, soh wee FIN-uh BOWNSS soon',
+      plainEnglish: 'I am preparing to leave very soon.',
     },
     {
       id: 'fb-eb-8',
@@ -267,6 +276,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: "Grandma's peach cobbler is straight bussin' today!",
       exampleEnglish: "Nana's baked fruit dessert is out of this world!",
       examplePhonetic: 'GRAN-mahz peech KAHB-ler iz strayt BUH-sin tuh-DAY',
+      plainEnglish: 'This food tastes exceptionally good.',
     },
   ],
   suburban: [
@@ -280,6 +290,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Howdy, neighbor, lovely morning for mowing!',
       exampleEnglish: "What's good, fam, sun out early for the yard!",
       examplePhonetic: 'HOW-dee NAY-ber, LUV-lee MOR-ning for MOH-ing',
+      plainEnglish: 'Hello, friendly person who lives nearby.',
     },
     {
       id: 'fb-sb-2',
@@ -291,6 +302,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Just out here living the dream on a Tuesday.',
       exampleEnglish: "Man, I'm just tryna make it through Tuesday.",
       examplePhonetic: 'just owt heer LIV-ing thuh DREEM on uh TOOZ-day',
+      plainEnglish: 'I am enduring a routine workday with polite optimism.',
     },
     {
       id: 'fb-sb-3',
@@ -302,6 +314,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: "Great thought, let's circle back after lunch.",
       exampleEnglish: "Bet, we gon' run that back after we eat.",
       examplePhonetic: 'grayt thawt, lets SER-kul BAK AF-ter lunch',
+      plainEnglish: 'Let us discuss this topic again later.',
     },
     {
       id: 'fb-sb-4',
@@ -313,6 +326,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Ope, scoot past ya right quick to grab ranch.',
       exampleEnglish: 'My bad, let me squeeze right past for the sauce.',
       examplePhonetic: 'ohp SKOOT past yuh ryt kwik too grab ranch',
+      plainEnglish: 'Excuse me while I walk past you in a narrow space.',
     },
     {
       id: 'fb-sb-5',
@@ -324,6 +338,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Sparkling seltzer on the deck? That hits the spot!',
       exampleEnglish: 'Cold fizzy drink on the porch? Straight bussin!',
       examplePhonetic: 'SPARK-ling SELT-ser on thuh dek? that HITS thuh SPAHT',
+      plainEnglish: 'This snack or drink is very satisfying right now.',
     },
     {
       id: 'fb-sb-6',
@@ -335,6 +350,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Well, would ya look at that lawn striping!',
       exampleEnglish: 'Bruh, check out how clean that yard cut is!',
       examplePhonetic: 'wel WOOD yuh LOOK at that lawn STRY-ping',
+      plainEnglish: 'That is a mild surprise worth observing.',
     },
     {
       id: 'fb-sb-7',
@@ -346,6 +362,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Early tee time tomorrow, time to hit the hay.',
       exampleEnglish: "Got an early morning, I'm 'bout to crash.",
       examplePhonetic: 'ER-lee tee tym tuh-MAR-oh, tym too HIT thuh HAY',
+      plainEnglish: 'It is late and I am going to sleep now.',
     },
     {
       id: 'fb-sb-8',
@@ -357,6 +374,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'No worries at all, sport, happens to the best!',
       exampleEnglish: 'You straight, my guy, everybody slips up!',
       examplePhonetic: 'noh WUR-eez at AWL sport, HAP-enz too thuh best',
+      plainEnglish: 'Do not worry about that minor mistake; everything is fine.',
     },
   ],
   corp_trades: [
@@ -370,6 +388,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: "Let's circle back after lunch on this trench.",
       exampleEnglish: "We ain't touchin' that ditch before noon, boss.",
       examplePhonetic: 'lets SER-kul bak AF-ter lunch on this trench',
+      plainEnglish: 'We are postponing this task until an unspecified later date.',
     },
     {
       id: 'fb-ct-2',
@@ -381,6 +400,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Honestly, my bandwidth is tight till Friday afternoon.',
       exampleEnglish: "Honestly, my crew's slammed till Friday quittin' time.",
       examplePhonetic: 'AH-nest-lee, my BAND-with iz tyt til FRY-day',
+      plainEnglish: 'Everyone here already has too much work to take on more.',
     },
     {
       id: 'fb-ct-3',
@@ -392,6 +412,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Can we synergize cross-functionally by the breaker box?',
       exampleEnglish: "Can y'all help the electricians pull wire today?",
       examplePhonetic: 'kan wee SIN-er-jyz by thuh BRAY-ker boks',
+      plainEnglish: 'Different teams need to help each other finish the physical job.',
     },
     {
       id: 'fb-ct-4',
@@ -403,6 +424,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Sending a quick EOD touchpoint before you pack tools.',
       exampleEnglish: 'Gonna corner ya by the truck before shift ends.',
       examplePhonetic: 'SEND-ing uh kwik ee-oh-dee TUCH-poynt',
+      plainEnglish: 'A brief end-of-day conversation right before everyone goes home.',
     },
     {
       id: 'fb-ct-5',
@@ -414,6 +436,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Folks, this wall feels like a suboptimal deliverable.',
       exampleEnglish: "Boys, this sheetrock's wavy as a country road.",
       examplePhonetic: 'fawks, this wawl iz uh sub-AHP-tuh-mul dih-LIV-er-uh-bul',
+      plainEnglish: 'The finished work does not meet quality standards and needs repair.',
     },
     {
       id: 'fb-ct-6',
@@ -425,6 +448,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: "Let's unpack the core ask before we order lumber.",
       exampleEnglish: 'Quit the riddle and say which pipe busted.',
       examplePhonetic: 'lets un-PAK thuh kor ask bih-FOR lum-ber',
+      plainEnglish: 'Please state the main problem or request in simple terms.',
     },
     {
       id: 'fb-ct-7',
@@ -436,6 +460,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: "HR approved retention pizza morale for Saturday's pour.",
       exampleEnglish: 'Front office bought two pies instead of raise money.',
       examplePhonetic: 'aych-ahr uh-PROOVD rih-TEN-shun PEET-zuh mor-AL',
+      plainEnglish: 'Management bought inexpensive pizza instead of offering higher pay.',
     },
     {
       id: 'fb-ct-8',
@@ -447,6 +472,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: "Great pushback, let's take this offline near loading bay.",
       exampleEnglish: "Cool speech, come talk by the trailer where it's quiet.",
       examplePhonetic: 'grayt PUSH-bak, lets tayk this AWF-lyn',
+      plainEnglish: 'Let us continue this disagreement privately after the group meeting.',
     },
   ],
   midwest_northeast: [
@@ -460,6 +486,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Ope, sneak right past ya for the last bagel!',
       exampleEnglish: "Yo, out the way—I'm grabbin' that everything bagel!",
       examplePhonetic: 'ohp, sneek ryt past yuh for thuh last BAY-gul',
+      plainEnglish: 'Excuse me, please step aside so I can pass through.',
     },
     {
       id: 'fb-mn-2',
@@ -471,6 +498,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Welp, interesting parking job across two whole spaces!',
       exampleEnglish: "Are you kiddin' me across the crosswalk? Fuggedaboutit!",
       examplePhonetic: 'welp, IN-tres-ting PAR-king jahb uh-KROSS too spay-sez',
+      plainEnglish: 'Your vehicle is parked very poorly across the painted lines.',
     },
     {
       id: 'fb-mn-3',
@@ -482,6 +510,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Time to slap knees and say welp before midnight.',
       exampleEnglish: "Alright, I'm out—catch ya on the avenue!",
       examplePhonetic: 'tym too slap neez and say welp bih-FOR MID-nyt',
+      plainEnglish: 'I am announcing politely that it is finally time for me to leave.',
     },
     {
       id: 'fb-mn-4',
@@ -493,6 +522,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: "Your lukewarm soup? Well, that's different for sure!",
       exampleEnglish: 'This lukewarm soup is dead to me, fuggedaboutit!',
       examplePhonetic: 'wel, thats DIF-er-ent for shur',
+      plainEnglish: 'I really dislike this dish and will not eat it again.',
     },
     {
       id: 'fb-mn-5',
@@ -504,6 +534,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'You betcha, no trouble hauling three coolers up!',
       exampleEnglish: "Consider it done, quit sayin' thank you already!",
       examplePhonetic: 'yoo BECH-uh, noh TRUB-ul HAW-ling three KOO-lerz',
+      plainEnglish: 'You are welcome; I was happy to help without any fuss.',
     },
     {
       id: 'fb-mn-6',
@@ -515,6 +546,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'At this four-way stop, no, you go ahead first!',
       exampleEnglish: "It's your right-of-way, pal—step on the pedal!",
       examplePhonetic: 'at this four-way stahp, noh yoo goh uh-HED ferst',
+      plainEnglish: 'Please drive through the intersection now because it is your turn.',
     },
     {
       id: 'fb-mn-7',
@@ -526,6 +558,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Popped over and brought ya some hotdish in foil!',
       exampleEnglish: 'Stopped by the deli and grabbed bagels and schmear!',
       examplePhonetic: 'pahpt OH-ver and brawt yuh sum HAHT-dish',
+      plainEnglish: 'I brought over some comforting homemade food to share.',
     },
     {
       id: 'fb-mn-8',
@@ -537,6 +570,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: "Wind off Lake Superior? Oh, it's just a breeze!",
       exampleEnglish: "Ten degrees on the corner—my ears are fallin' off!",
       examplePhonetic: 'wind awf layk soo-PEER-ee-er? oh, its just uh breez',
+      plainEnglish: 'The outdoor wind is extremely cold today.',
     },
   ],
   south_genz: [
@@ -550,6 +584,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Well bless his heart, he tried parallel parking again.',
       exampleEnglish: 'Bro lost a thousand aura points on that curb, no cap.',
       examplePhonetic: 'wel bles hiz hart, hee tryd PAR-uh-lel PAR-king',
+      plainEnglish: 'He tried his best, though the result was quite unfortunate.',
     },
     {
       id: 'fb-sg-2',
@@ -561,6 +596,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: "Livestreaming in line? Ain't that just precious, sugar!",
       exampleEnglish: 'Doing TikTok dances in the aisle is straight NPC behavior!',
       examplePhonetic: 'aynt that just PRESH-us, SHUG-er',
+      plainEnglish: 'That public behavior is embarrassing and socially awkward.',
     },
     {
       id: 'fb-sg-3',
@@ -572,6 +608,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: "Bring that pitcher, you're sweet as sugar pie today!",
       exampleEnglish: "Respectfully, you're eating with that sweet tea drip!",
       examplePhonetic: 'yur sweet az SHUG-er py tuh-DAY',
+      plainEnglish: 'You are being remarkably charming and confident today.',
     },
     {
       id: 'fb-sg-4',
@@ -583,6 +620,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Hold my sweet tea while I settle this casserole!',
       exampleEnglish: 'Wait, let me cook real quick, respectfully!',
       examplePhonetic: 'hohld my sweet tee wyl eye SET-ul this',
+      plainEnglish: 'Stand back and watch while I handle this situation myself.',
     },
     {
       id: 'fb-sg-5',
@@ -594,6 +632,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: "Lukewarm biscuits? Honey, that dog won't hunt!",
       exampleEnglish: 'Chat, that take is straight delulu and ratioed!',
       examplePhonetic: 'HUN-ee, that dawg wohnt hunt',
+      plainEnglish: 'That proposal is unrealistic and will definitely not work.',
     },
     {
       id: 'fb-sg-6',
@@ -605,6 +644,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: "Porch swings are open—y'all come sit a spell!",
       exampleEnglish: 'Hop in the voice call and chill for a sec!',
       examplePhonetic: 'porch swingz ar OH-pen—yawl kum sit uh spel',
+      plainEnglish: 'Everyone is welcome to sit down and relax together for a while.',
     },
     {
       id: 'fb-sg-7',
@@ -616,6 +656,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: "Grab your sunhat, we're fixin' to go yonder!",
       exampleEnglish: "Bet, we're finna dip to the other spot!",
       examplePhonetic: 'weer FIK-sin too goh YAHN-der',
+      plainEnglish: 'We are getting ready to depart for another destination.',
     },
     {
       id: 'fb-sg-8',
@@ -627,6 +668,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: "White sneakers in red clay? I'll pray for ya!",
       exampleEnglish: "Zero survival instincts on the timeline, it's over!",
       examplePhonetic: 'wyt SNEE-kerz in red klay? yl pray for yuh',
+      plainEnglish: 'You made an unwise decision and I wish you good luck.',
     },
   ],
   cali_country: [
@@ -640,6 +682,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Skipping my oat latte means my cortisol is spiked!',
       exampleEnglish: "Haulin' firewood since dawn got me plumb tuckered out!",
       examplePhonetic: 'my KOR-tih-zawl iz spykt',
+      plainEnglish: 'I feel stressed and physically exhausted right now.',
     },
     {
       id: 'fb-cc-2',
@@ -651,6 +694,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Dawn starts with an adaptogenic cold-plunge in Malibu.',
       exampleEnglish: "Wrecked my shins hoppin' in the creek at sunrise!",
       examplePhonetic: 'uh-dap-tuh-JEN-ik kohld-plunj in MAL-uh-boo',
+      plainEnglish: 'Submerging oneself briefly in freezing water to feel alert.',
     },
     {
       id: 'fb-cc-3',
@@ -662,6 +706,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Please protect my sacred bandwidth until noon breathwork.',
       exampleEnglish: "Don't holler at me till I finish my porch coffee!",
       examplePhonetic: 'pleez pruh-TEKT my SAY-kred BAND-with',
+      plainEnglish: 'Please give me quiet personal time without any interruptions.',
     },
     {
       id: 'fb-cc-4',
@@ -673,6 +718,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'We are holding space for vibes by the canyon fire.',
       exampleEnglish: "Just watchin' hickory smoke curl over the tailgate!",
       examplePhonetic: 'wee ar HOHL-ding spays for vybz',
+      plainEnglish: 'Sitting calmly together and enjoying the peaceful atmosphere.',
     },
     {
       id: 'fb-cc-5',
@@ -684,6 +730,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Paid nineteen bucks for a raw-water biohack bottle!',
       exampleEnglish: "Boy, that's just holler spring water in fancy glass!",
       examplePhonetic: 'payd nyn-teen buks for uh raw WAW-ter BY-oh-hak',
+      plainEnglish: 'Drinking untreated natural spring water for perceived health benefits.',
     },
     {
       id: 'fb-cc-6',
@@ -695,6 +742,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'A sound-bath gong will realign your root chakra fast.',
       exampleEnglish: 'Slap some silver duct tape on that fender and ride!',
       examplePhonetic: 'uh sownd-bath gawng wil ree-uh-LYN yor root SHAH-kruh',
+      plainEnglish: 'Apply a quick, practical fix so everything functions smoothly again.',
     },
     {
       id: 'fb-cc-7',
@@ -706,6 +754,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'I named my organic sourdough starter after my aura.',
       exampleEnglish: "Nothing beats Granny's cast-iron cornbread with butter!",
       examplePhonetic: 'eye naymd my or-GAN-ik SOW-er-doh STAR-ter',
+      plainEnglish: 'Traditional homemade baked bread passed down as a kitchen specialty.',
     },
     {
       id: 'fb-cc-8',
@@ -717,6 +766,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Booked a silent Malibu sound-bath for deep grounding.',
       exampleEnglish: 'We got free bullfrog concerts down by the holler!',
       examplePhonetic: 'bookt uh SY-lent MAL-uh-boo SOWND-bath',
+      plainEnglish: 'Sitting quietly outside while listening to soothing ambient sounds.',
     },
   ],
   stoner_tactical: [
@@ -730,6 +780,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: "Dropped your deck? Yo, it's all chill, bro!",
       exampleEnglish: 'Copy that, lawn sector alpha is locked and level!',
       examplePhonetic: 'yoh, its awl chil, broh',
+      plainEnglish: 'Everything is under control and there is no reason to worry.',
     },
     {
       id: 'fb-st-2',
@@ -741,6 +792,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: "Dude, who's down for a late-night taco drive-thru?",
       exampleEnglish: 'Deploy for covert snack extraction at 0-dark-thirty!',
       examplePhonetic: 'dood, hooz down for uh layt-nyt TAH-koh dryv-throo',
+      plainEnglish: 'Going out late at night specifically to buy fast food.',
     },
     {
       id: 'fb-st-3',
@@ -752,6 +804,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Whoa man, clouds are sky pillows floating overhead.',
       exampleEnglish: 'Tactical weather briefing: forty percent cloud cover!',
       examplePhonetic: 'woh man, klowdz ar sky PIL-ohz',
+      plainEnglish: 'The sky is covered in thick, soft-looking clouds today.',
     },
     {
       id: 'fb-st-4',
@@ -763,6 +816,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Grab your wax and shred the gnarly half-pipe today!',
       exampleEnglish: 'Calibrate the trimmer and edge the driveway perimeter!',
       examplePhonetic: 'grab yor waks and shred thuh NAR-lee haf-pyp',
+      plainEnglish: 'Spending the afternoon doing an active outdoor hobby with high focus.',
     },
     {
       id: 'fb-st-5',
@@ -774,6 +828,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'My bad bro, dude, totally spaced out on the curb!',
       exampleEnglish: 'Comms check failed—unit went dark at 0-dark-thirty!',
       examplePhonetic: 'dood, TOH-tul-ee spayst owt',
+      plainEnglish: 'I momentarily forgot what I was doing and stopped paying attention.',
     },
     {
       id: 'fb-st-6',
@@ -785,6 +840,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Watch me land a kickflip over the sprinkler head!',
       exampleEnglish: 'Alert! Bogey breaching the laser-measured perimeter!',
       examplePhonetic: 'wach mee land uh KIK-flip OH-ver thuh SPRINK-ler',
+      plainEnglish: 'Performing a skateboard trick across a carefully maintained front lawn.',
     },
     {
       id: 'fb-st-7',
@@ -796,6 +852,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'Three cheesy burritos triggered cosmic couch-lock zone.',
       exampleEnglish: 'Commander entering tactical recovery mode on recliner!',
       examplePhonetic: 'three CHEE-zee bur-EE-tohz TRIG-erd KAHZ-mik kowch-lahk zohn',
+      plainEnglish: 'Resting motionless on comfortable living room furniture after a large meal.',
     },
     {
       id: 'fb-st-8',
@@ -807,6 +864,7 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
       exampleForeign: 'No HOA stress here—good vibes only, dude!',
       exampleEnglish: 'Hold formation and keep cul-de-sac morale green!',
       examplePhonetic: 'noh aych-oh-ay stres heer—good vybz OHN-lee, dood',
+      plainEnglish: 'Let us keep the social atmosphere friendly, calm, and cooperative.',
     },
   ],
 };
@@ -1534,6 +1592,238 @@ export function ArcadeHeaderBar({
   );
 }
 
+export interface ArcadePlainEnglishResult {
+  spokenText: string;
+  displayLine: string;
+  label: string;
+}
+
+interface CorePlainEnglishHelpers {
+  decodeToNormalEnglish?: (req: {
+    language: LanguageCode;
+    dialectAText?: string;
+    dialectBText?: string;
+    explicitPlain?: string;
+    registerNote?: string;
+    nuanceNote?: string;
+    avoidTerms?: readonly string[];
+  }) => ArcadePlainEnglishResult;
+}
+
+const LOCAL_PLAIN_FALLBACK_MAP: Record<string, string> = {
+  "what's good": 'Hello, how are you doing today?',
+  'no cap': 'I am telling the complete truth without exaggeration.',
+  'say less': 'I understand completely and agree to the plan.',
+  'low-key': 'Secretly, modestly, or to a moderate degree.',
+  'my bad': 'I apologize; that mistake was my fault.',
+  "i'm dead": 'I find that extremely funny.',
+  'finna bounce': 'I am preparing to leave very soon.',
+  "bussin'": 'This food tastes exceptionally good.',
+  'howdy, neighbor': 'Hello, friendly person who lives nearby.',
+  'living the dream': 'I am enduring a routine workday with polite optimism.',
+  "let's circle back": 'Let us discuss this topic again later.',
+  'ope, scoot past ya': 'Excuse me while I walk past you in a narrow space.',
+  'that hits the spot': 'This snack or drink is very satisfying right now.',
+  'time to hit the hay': 'It is late and I am going to sleep now.',
+  'bandwidth is tight': 'Everyone here already has too much work to take on more.',
+  'take this offline': 'Let us continue this discussion privately after the meeting.',
+  'well bless his heart': 'He tried his best, though the result was quite unfortunate.',
+  'hold my sweet tea': 'Stand back and watch while I handle this situation myself.',
+  'my cortisol is spiked': 'I feel stressed and physically exhausted right now.',
+  "yo, it's all chill": 'Everything is under control and there is no reason to worry.',
+};
+
+function maskPlainSpoilers(text: string, avoidTerms?: readonly string[]): string {
+  if (!avoidTerms || avoidTerms.length === 0) return text;
+  let masked = text;
+  for (const term of avoidTerms) {
+    const trimmed = term.trim();
+    if (trimmed.length < 3) continue;
+    const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    masked = masked.replace(new RegExp(`\\b${escaped}\\b`, 'gi'), 'that expression');
+  }
+  return masked;
+}
+
+export function isAdultArcadeActive(
+  language: LanguageCode,
+  profile: Pick<KidProfile, 'id' | 'adultModeUnlocked' | 'adultModeActive'>
+): boolean {
+  return (
+    isAdultLanguage(language) &&
+    Boolean(profile.adultModeUnlocked) &&
+    Boolean(profile.adultModeActive) &&
+    !isDefaultKidProfileId(profile.id)
+  );
+}
+
+export function resolveArcadePlainEnglish(
+  item: ArcadeLanternItem,
+  options: {
+    avoidTerms?: readonly string[];
+    dialectAText?: string;
+    dialectBText?: string;
+  } = {}
+): ArcadePlainEnglishResult {
+  const dialectA = options.dialectAText ?? item.foreign;
+  const dialectB = options.dialectBText ?? item.english;
+  const coreHelpers = core as typeof core & CorePlainEnglishHelpers;
+
+  if (typeof coreHelpers.decodeToNormalEnglish === 'function') {
+    const decoded = coreHelpers.decodeToNormalEnglish({
+      language: item.language,
+      dialectAText: dialectA,
+      dialectBText: dialectB,
+      explicitPlain: item.plainEnglish,
+      avoidTerms: options.avoidTerms,
+    });
+    if (decoded?.displayLine?.trim() && decoded?.spokenText?.trim()) {
+      return decoded;
+    }
+  }
+
+  const cleanB = dialectB.replace(/^(?:Suburban|AAVE):\s*/i, '').trim();
+  const cleanA = dialectA.replace(/^(?:Suburban|AAVE):\s*/i, '').trim();
+  const lookupKey = cleanA.toLowerCase().replace(/[!?.,]+$/g, '');
+  const rawPlain =
+    item.plainEnglish?.trim() ||
+    LOCAL_PLAIN_FALLBACK_MAP[lookupKey] ||
+    (cleanB
+      ? `In plain everyday English, this simply means: ${cleanB}.`
+      : `In plain everyday English: ${cleanA}.`);
+  const safeLine = maskPlainSpoilers(rawPlain, options.avoidTerms);
+  return {
+    spokenText: rawPlain,
+    displayLine: safeLine,
+    label: 'Normal English',
+  };
+}
+
+export function ArcadePlainEnglishCallout({
+  result,
+  isCompact,
+  onClose,
+}: {
+  result: ArcadePlainEnglishResult;
+  isCompact: boolean;
+  onClose?: () => void;
+}) {
+  return (
+    <div
+      data-testid="arcade-plain-english-callout"
+      role="status"
+      dir="ltr"
+      style={{
+        width: '100%',
+        maxWidth: '100%',
+        minWidth: 0,
+        padding: isCompact ? '4px 8px' : '5px 10px',
+        borderRadius: 12,
+        background: 'var(--tint-indigo-bg, #eef2ff)',
+        border: '1.5px solid var(--tint-indigo-border, #818cf8)',
+        color: 'var(--tint-indigo-ink, #312e81)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 6,
+        fontSize: isCompact ? 'clamp(0.64rem, 1.9vw, 0.72rem)' : '0.78rem',
+        fontWeight: 800,
+        lineHeight: 1.24,
+        overflowWrap: 'anywhere',
+      }}
+    >
+      <span style={{ minWidth: 0, flex: 1 }}>
+        <strong style={{ fontWeight: 900 }}>{result.label}:</strong> {result.displayLine}
+      </span>
+      {onClose ? (
+        <button
+          type="button"
+          aria-label="Hide Normal English"
+          onClick={onClose}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: 'inherit',
+            cursor: 'pointer',
+            padding: 2,
+            display: 'inline-flex',
+            alignItems: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <X size={12} />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+export function ArcadeSayItNormallyButton({
+  item,
+  language,
+  isCompact,
+  open,
+  avoidTerms,
+  dialectAText,
+  dialectBText,
+  onToggle,
+}: {
+  item: ArcadeLanternItem;
+  language: LanguageCode;
+  isCompact: boolean;
+  open: boolean;
+  avoidTerms?: readonly string[];
+  dialectAText?: string;
+  dialectBText?: string;
+  onToggle: (nextOpen: boolean, resolved: ArcadePlainEnglishResult) => void;
+}) {
+  const { activeProfile } = useVaultStore();
+  if (!isAdultArcadeActive(language, activeProfile)) {
+    return null;
+  }
+
+  return (
+    <button
+      type="button"
+      data-testid="arcade-say-it-normally-btn"
+      aria-expanded={open}
+      className="tactile-btn"
+      style={{
+        ...SOFT_BTN_STYLE,
+        background: open ? 'var(--tint-indigo-bg, #eef2ff)' : 'var(--card-soft-bg, #f1f5f9)',
+        borderColor: open ? 'var(--tint-indigo-border, #818cf8)' : 'var(--card-border, #cbd5e1)',
+        color: open ? 'var(--tint-indigo-ink, #312e81)' : 'var(--text-main, #1e1b4b)',
+        padding: isCompact ? '3px 7px' : '4px 9px',
+        fontSize: isCompact ? 'clamp(0.6rem, 1.8vw, 0.68rem)' : '0.72rem',
+        lineHeight: 1.2,
+        borderRadius: 10,
+        flexShrink: 0,
+        whiteSpace: 'nowrap',
+      }}
+      onClick={() => {
+        playSfx('button_click');
+        const resolved = resolveArcadePlainEnglish(item, {
+          avoidTerms,
+          dialectAText,
+          dialectBText,
+        });
+        const nextOpen = !open;
+        if (nextOpen) {
+          void speakPhrase({
+            text: resolved.spokenText,
+            language: 'en',
+            speed: 'normal',
+          });
+        }
+        onToggle(nextOpen, resolved);
+      }}
+    >
+      <MessageSquareQuote size={isCompact ? 12 : 13} />
+      <span>Say It Normally in English</span>
+    </button>
+  );
+}
+
 export function TargetPromptBar({
   label,
   targetItem,
@@ -1551,7 +1841,18 @@ export function TargetPromptBar({
   hearLabel?: string;
   borderColor?: string;
 }) {
+  const { activeProfile } = useVaultStore();
   const langMeta = LANGUAGE_META[language];
+  const showPlainButton = isAdultArcadeActive(language, activeProfile);
+  const [plainOpen, setPlainOpen] = useState(false);
+
+  const plainResult = useMemo(
+    () =>
+      plainOpen && showPlainButton
+        ? resolveArcadePlainEnglish(targetItem, { avoidTerms: [targetItem.foreign] })
+        : null,
+    [plainOpen, showPlainButton, targetItem]
+  );
 
   return (
     <div
@@ -1566,10 +1867,8 @@ export function TargetPromptBar({
         minWidth: 0,
         padding: isCompact ? '5px 9px' : '8px 14px',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: isCompact ? 5 : 8,
-        flexWrap: 'wrap',
+        flexDirection: 'column',
+        gap: isCompact ? 4 : 6,
         borderRadius: 16,
         borderColor: borderColor ?? 'var(--lang-primary, #f59e0b)',
       }}
@@ -1578,137 +1877,167 @@ export function TargetPromptBar({
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: isCompact ? 5 : 7,
+          justifyContent: 'space-between',
+          gap: isCompact ? 5 : 8,
           flexWrap: 'wrap',
+          width: '100%',
           minWidth: 0,
-          maxWidth: '100%',
-          flex: '1 1 200px',
         }}
       >
-        <span
-          dir="ltr"
+        <div
           style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: isCompact ? '0.68rem' : '0.8rem',
-            fontWeight: 900,
-            color: 'var(--tint-amber-ink, #b45309)',
-            letterSpacing: '0.03em',
-            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: isCompact ? 5 : 7,
+            flexWrap: 'wrap',
+            minWidth: 0,
+            maxWidth: '100%',
+            flex: '1 1 200px',
           }}
         >
-          {label}
-        </span>
-        <strong
-          dir="ltr"
-          style={getArcadeClueTextStyle(targetItem.english, {
-            isCompact,
-            variant: 'prompt',
-            color: 'var(--text-main, #1e1b4b)',
-            textAlign: 'start',
-          })}
-        >
-          {targetItem.english}
-        </strong>
-        {targetItem.romanized ? (
+          <span
+            dir="ltr"
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: isCompact ? '0.68rem' : '0.8rem',
+              fontWeight: 900,
+              color: 'var(--tint-amber-ink, #b45309)',
+              letterSpacing: '0.03em',
+              flexShrink: 0,
+            }}
+          >
+            {label}
+          </span>
+          <strong
+            dir="ltr"
+            style={getArcadeClueTextStyle(targetItem.english, {
+              isCompact,
+              variant: 'prompt',
+              color: 'var(--text-main, #1e1b4b)',
+              textAlign: 'start',
+            })}
+          >
+            {targetItem.english}
+          </strong>
+          {targetItem.romanized ? (
+            <span
+              dir="ltr"
+              style={{
+                padding: isCompact ? '1px 7px' : '2px 8px',
+                borderRadius: 999,
+                background: 'var(--tint-indigo-bg, #eef2ff)',
+                border: '1px solid var(--tint-indigo-border, #c7d2fe)',
+                color: 'var(--tint-indigo-ink, #3730a3)',
+                fontSize: isCompact ? 'clamp(0.6rem, 1.8vw, 0.68rem)' : '0.76rem',
+                fontWeight: 800,
+                lineHeight: 1.3,
+                maxWidth: '100%',
+                overflowWrap: 'anywhere',
+              }}
+            >
+              {targetItem.romanized}
+            </span>
+          ) : null}
           <span
             dir="ltr"
             style={{
               padding: isCompact ? '1px 7px' : '2px 8px',
               borderRadius: 999,
-              background: 'var(--tint-indigo-bg, #eef2ff)',
-              border: '1px solid var(--tint-indigo-border, #c7d2fe)',
-              color: 'var(--tint-indigo-ink, #3730a3)',
-              fontSize: isCompact ? 'clamp(0.6rem, 1.8vw, 0.68rem)' : '0.76rem',
+              background: 'var(--card-soft-bg, #fef3c7)',
+              borderTopWidth: 1,
+              borderRightWidth: 1,
+              borderLeftWidth: 1,
+              borderBottomWidth: 2,
+              borderStyle: 'solid',
+              borderColor: 'var(--card-border, #cbd5e1)',
+              color: 'var(--text-muted, #475569)',
+              fontSize: isCompact
+                ? targetItem.phonetic.length > 26
+                  ? 'clamp(0.56rem, 1.65vw, 0.64rem)'
+                  : 'clamp(0.62rem, 1.85vw, 0.68rem)'
+                : targetItem.phonetic.length > 32
+                  ? '0.7rem'
+                  : '0.76rem',
+              fontWeight: 800,
+              lineHeight: 1.25,
+              maxWidth: '100%',
+              overflowWrap: 'anywhere',
+            }}
+          >
+            {targetItem.phonetic}
+          </span>
+          <span
+            dir={langMeta.dir}
+            style={{
+              padding: isCompact ? '1px 6px' : '2px 7px',
+              borderRadius: 999,
+              background: 'var(--card-soft-bg, #eff6ff)',
+              border: '1px solid var(--card-border, #cbd5e1)',
+              color: 'var(--text-muted, #475569)',
+              fontSize: isCompact ? 'clamp(0.58rem, 1.7vw, 0.64rem)' : '0.7rem',
               fontWeight: 800,
               lineHeight: 1.3,
               maxWidth: '100%',
               overflowWrap: 'anywhere',
             }}
           >
-            {targetItem.romanized}
+            {langMeta.nativeName}
           </span>
+          <button
+            type="button"
+            className="tactile-btn"
+            aria-label={`Hear ${targetItem.foreign}`}
+            style={{
+              ...SOFT_BTN_STYLE,
+              padding: isCompact ? '3px 7px' : '4px 9px',
+              fontSize: isCompact ? '0.7rem' : '0.74rem',
+              borderRadius: 10,
+              flexShrink: 0,
+            }}
+            onClick={() => {
+              void speakPhrase({
+                text: targetItem.foreign,
+                language,
+                phonetic: targetItem.phonetic,
+              });
+            }}
+          >
+            <Volume2 size={13} />
+            <span>{hearLabel}</span>
+          </button>
+          {showPlainButton ? (
+            <ArcadeSayItNormallyButton
+              item={targetItem}
+              language={language}
+              isCompact={isCompact}
+              open={plainOpen}
+              avoidTerms={[targetItem.foreign]}
+              onToggle={(nextOpen) => setPlainOpen(nextOpen)}
+            />
+          ) : null}
+        </div>
+
+        {rightContent ? (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              flexWrap: 'wrap',
+              maxWidth: '100%',
+            }}
+          >
+            {rightContent}
+          </div>
         ) : null}
-        <span
-          dir="ltr"
-          style={{
-            padding: isCompact ? '1px 7px' : '2px 8px',
-            borderRadius: 999,
-            background: 'var(--card-soft-bg, #fef3c7)',
-            borderTopWidth: 1,
-            borderRightWidth: 1,
-            borderLeftWidth: 1,
-            borderBottomWidth: 2,
-            borderStyle: 'solid',
-            borderColor: 'var(--card-border, #cbd5e1)',
-            color: 'var(--text-muted, #475569)',
-            fontSize: isCompact
-              ? targetItem.phonetic.length > 26
-                ? 'clamp(0.56rem, 1.65vw, 0.64rem)'
-                : 'clamp(0.62rem, 1.85vw, 0.68rem)'
-              : targetItem.phonetic.length > 32
-                ? '0.7rem'
-                : '0.76rem',
-            fontWeight: 800,
-            lineHeight: 1.25,
-            maxWidth: '100%',
-            overflowWrap: 'anywhere',
-          }}
-        >
-          {targetItem.phonetic}
-        </span>
-        <span
-          dir={langMeta.dir}
-          style={{
-            padding: isCompact ? '1px 6px' : '2px 7px',
-            borderRadius: 999,
-            background: 'var(--card-soft-bg, #eff6ff)',
-            border: '1px solid var(--card-border, #cbd5e1)',
-            color: 'var(--text-muted, #475569)',
-            fontSize: isCompact ? 'clamp(0.58rem, 1.7vw, 0.64rem)' : '0.7rem',
-            fontWeight: 800,
-            lineHeight: 1.3,
-            maxWidth: '100%',
-            overflowWrap: 'anywhere',
-          }}
-        >
-          {langMeta.nativeName}
-        </span>
-        <button
-          type="button"
-          className="tactile-btn"
-          aria-label={`Hear ${targetItem.foreign}`}
-          style={{
-            ...SOFT_BTN_STYLE,
-            padding: isCompact ? '3px 7px' : '4px 9px',
-            fontSize: isCompact ? '0.7rem' : '0.74rem',
-            borderRadius: 10,
-            flexShrink: 0,
-          }}
-          onClick={() => {
-            void speakPhrase({
-              text: targetItem.foreign,
-              language,
-              phonetic: targetItem.phonetic,
-            });
-          }}
-        >
-          <Volume2 size={13} />
-          <span>{hearLabel}</span>
-        </button>
       </div>
 
-      {rightContent ? (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            flexWrap: 'wrap',
-            maxWidth: '100%',
-          }}
-        >
-          {rightContent}
-        </div>
+      {plainResult ? (
+        <ArcadePlainEnglishCallout
+          result={plainResult}
+          isCompact={isCompact}
+          onClose={() => setPlainOpen(false)}
+        />
       ) : null}
     </div>
   );

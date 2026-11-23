@@ -16,7 +16,6 @@ import { getCourse } from '../../curriculum';
 import { useVaultStore } from '../../store/useVaultStore';
 import {
   LANGUAGE_META,
-  isDefaultKidProfileId,
   type ArcadeProficiencyTier,
   type LanguageMeta,
 } from '../../types/contracts';
@@ -34,8 +33,12 @@ import {
 import {
   ARCADE_TIER_LIST,
   ARCADE_TIER_META,
+  ArcadePlainEnglishCallout,
+  ArcadeSayItNormallyButton,
   CARD_SURFACE_STYLE,
   SOFT_BTN_STYLE,
+  isAdultArcadeActive,
+  resolveArcadePlainEnglish,
   useArcadeContainerMetrics,
   useArcadeDeck,
 } from './arcadeShared';
@@ -163,7 +166,7 @@ const STANDARD_CABINETS: readonly CabinetSpec[] = [
 export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) {
   const { activeProfile } = useVaultStore();
   const [arcadeTier, setArcadeTier] = useState<ArcadeProficiencyTier>('sprout');
-  const { language, bestScoreFor, tierMeta } = useArcadeDeck(arcadeTier);
+  const { language, targetLexicon, bestScoreFor, tierMeta } = useArcadeDeck(arcadeTier);
   const { containerRef, width, height, isNarrow, isCompact } = useArcadeContainerMetrics();
   const langMeta = LANGUAGE_META[language];
   let courseMeta: LanguageMeta = langMeta;
@@ -177,11 +180,16 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
   }
   const showAdultDirectionBadge =
     Boolean(courseMeta.isAdultOnly && courseMeta.pairDirectionBadge) &&
-    Boolean(activeProfile.adultModeUnlocked) &&
-    Boolean(activeProfile.adultModeActive) &&
-    !isDefaultKidProfileId(activeProfile.id);
+    isAdultArcadeActive(language, activeProfile);
   const [mode, setMode] = useState<ArcadeGameMode>(initialMode);
   const [page, setPage] = useState<0 | 1 | 2>(0);
+  const [plainOpen, setPlainOpen] = useState(false);
+
+  const hubSampleItem = targetLexicon[0];
+  const hubPlainResult =
+    plainOpen && showAdultDirectionBadge && hubSampleItem
+      ? resolveArcadePlainEnglish(hubSampleItem)
+      : null;
 
   useEffect(() => {
     setMode(initialMode);
@@ -362,6 +370,15 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                   >
                     {courseMeta.pairDirectionBadge}
                   </span>
+                  {hubSampleItem ? (
+                    <ArcadeSayItNormallyButton
+                      item={hubSampleItem}
+                      language={language}
+                      isCompact={isCompact}
+                      open={plainOpen}
+                      onToggle={(nextOpen) => setPlainOpen(nextOpen)}
+                    />
+                  ) : null}
                   {!isCompact ? (
                     <span
                       style={{
@@ -477,6 +494,14 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
             </button>
           </div>
         </div>
+
+        {hubPlainResult ? (
+          <ArcadePlainEnglishCallout
+            result={hubPlainResult}
+            isCompact={isCompact}
+            onClose={() => setPlainOpen(false)}
+          />
+        ) : null}
 
         {/* Narrow Mobile Tier Selector Strip */}
         {isNarrow ? (

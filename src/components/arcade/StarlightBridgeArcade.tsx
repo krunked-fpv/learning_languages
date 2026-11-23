@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Compass, Sparkles, Volume2 } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
@@ -15,14 +15,18 @@ import { StarlightBridgeEmblem } from './ArcadeEmblems';
 import {
   ARCADE_SHELL_STYLE,
   ArcadeHeaderBar,
+  ArcadePlainEnglishCallout,
   ArcadeReadyCard,
+  ArcadeSayItNormallyButton,
   ArcadeSummaryCard,
   SOFT_BTN_STYLE,
   computeScaledArcadeRewards,
   getArcadeClueTextStyle,
   getArcadeForeignTextStyle,
+  isAdultArcadeActive,
   pickDistinctItems,
   recordArcadeRunResult,
+  resolveArcadePlainEnglish,
   useArcadeContainerMetrics,
   useArcadeDeck,
 } from './arcadeShared';
@@ -193,7 +197,24 @@ export function StarlightBridgeArcade({
   const [pipPose, setPipPose] = useState<CharacterPose>('happy');
   const [plankLocked, setPlankLocked] = useState(false);
   const [wrongChoiceIdx, setWrongChoiceIdx] = useState<number | null>(null);
+  const showPlainButton = isAdultArcadeActive(language, activeProfile);
+  const [plainOpen, setPlainOpen] = useState(false);
+
   const [round, setRound] = useState<BridgeRound>(() => makeRound(1));
+  const plainResult = useMemo(
+    () =>
+      plainOpen && showPlainButton
+        ? resolveArcadePlainEnglish(round.target, {
+            dialectAText: round.cloze.speakText,
+            dialectBText: round.cloze.englishClue,
+            avoidTerms: [round.correctPlankText, round.target.foreign],
+          })
+        : null,
+    [plainOpen, showPlainButton, round]
+  );
+  useEffect(() => {
+    setPlainOpen(false);
+  }, [round.uid, phase]);
   const [toast, setToast] = useState<ReactNode>('Tap the matching bridge plank before Pip reaches the sky chasm!');
   const [summary, setSummary] = useState<{
     score: number;
@@ -581,12 +602,21 @@ export function StarlightBridgeArcade({
                 borderStyle: 'solid',
                 borderColor: plankLocked ? '#10b981' : '#818cf8',
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: isCompact ? 6 : 12,
+                flexDirection: 'column',
+                gap: isCompact ? 4 : 6,
                 boxShadow: '0 8px 22px rgba(2, 6, 23, 0.35)',
               }}
             >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: isCompact ? 6 : 12,
+                  width: '100%',
+                  minWidth: 0,
+                }}
+              >
               <span style={{ flexShrink: 0, display: 'inline-flex' }}>
                 <VocabIllustration
                   illustrationKey={round.target.illustrationKey}
@@ -738,6 +768,18 @@ export function StarlightBridgeArcade({
                   >
                     {cloze.phoneticHint}
                   </span>
+                  {showPlainButton ? (
+                    <ArcadeSayItNormallyButton
+                      item={round.target}
+                      language={language}
+                      isCompact={isCompact}
+                      open={plainOpen}
+                      dialectAText={cloze.speakText}
+                      dialectBText={cloze.englishClue}
+                      avoidTerms={[round.correctPlankText, round.target.foreign]}
+                      onToggle={(nextOpen) => setPlainOpen(nextOpen)}
+                    />
+                  ) : null}
                 </div>
               </div>
 
@@ -763,6 +805,15 @@ export function StarlightBridgeArcade({
                 <Volume2 size={14} />
                 {!isCompact ? <span>Hear</span> : null}
               </button>
+              </div>
+
+              {plainResult ? (
+                <ArcadePlainEnglishCallout
+                  result={plainResult}
+                  isCompact={isCompact}
+                  onClose={() => setPlainOpen(false)}
+                />
+              ) : null}
             </div>
 
             {/* Sky-Island Chasm & Animated Pip Track */}
