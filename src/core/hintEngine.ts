@@ -111,6 +111,27 @@ const NO_SPACE_AFTER_HINT_RE =
 const NO_SPACE_BEFORE_HINT_RE = /^[.,!?;:)»。？！，、・「」『』（）؟،؛।॥]/;
 const CJK_FULLWIDTH_HINT_RE =
   /[\u3005\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF。？！，、；：・「」『』（）【】《》〈〉]/;
+const CJK_KANA_LETTER_RE = /[\u3005\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/;
+const LATIN_LETTER_RE = /[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]/;
+
+function isRomanizedText(text: string): boolean {
+  return LATIN_LETTER_RE.test(text) && !CJK_KANA_LETTER_RE.test(text);
+}
+
+/**
+ * Normalizes a romanized (Pinyin / Romaji) word for prefix comparison by stripping
+ * NFD combining tone/macron marks and internal apostrophes or hyphens.
+ */
+function cleanCompareRomanizedWord(raw: string): string {
+  const norm = normalizeAnswer(raw, { stripAccents: true });
+  const base = norm || raw.trim().toLowerCase();
+  return base
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .normalize('NFC')
+    .replace(/['’‘\-]/g, '')
+    .replace(EDGE_PUNCT_STRIP_RE, '');
+}
 
 function joinTokensForHint(tokens: readonly string[]): string {
   let out = '';
@@ -430,6 +451,9 @@ function tokenizeSentenceForFreeRecall(
   const trimmed = sentence.trim();
   if (!trimmed) return [];
   if (!LANGUAGE_META[language].usesSpaces) {
+    if (isRomanizedText(trimmed)) {
+      return trimmed.split(/\s+/).filter(Boolean);
+    }
     if (targetTokens && targetTokens.length > 0) {
       const joinedClean = targetTokens.join('').replace(/\s+/g, '');
       const rawClean = trimmed.replace(EDGE_PUNCT_STRIP_RE, '').replace(/\s+/g, '');
@@ -442,6 +466,29 @@ function tokenizeSentenceForFreeRecall(
     return splitGraphemes(trimmed).filter((ch) => ch.trim().length > 0);
   }
   return trimmed.split(/\s+/).filter(Boolean);
+}
+
+/**
+ * Expands a Latin/romanized candidate into space-delimited word forms, plus a
+ * syllable-split variant when apostrophes or hyphens appear (e.g. "Wǎn'ān").
+ */
+function buildRomanizedCandidateWordLists(candidate: string): string[][] {
+  const baseWords = candidate
+    .trim()
+    .split(/\s+/)
+    .filter((w) => cleanCompareRomanizedWord(w).length > 0);
+  const variants: string[][] = baseWords.length > 0 ? [baseWords] : [];
+  if (/['’‘\-]/.test(candidate)) {
+    const splitWords = candidate
+      .trim()
+      .replace(/['’‘\-]+/g, ' ')
+      .split(/\s+/)
+      .filter((w) => cleanCompareRomanizedWord(w).length > 0);
+    if (splitWords.length > baseWords.length) {
+      variants.push(splitWords);
+    }
+  }
+  return variants;
 }
 
 export function resolveFreeRecallHint(input: FreeRecallHintInput): FreeRecallHintPlan {
@@ -472,31 +519,53 @@ export function resolveFreeRecallHint(input: FreeRecallHintInput): FreeRecallHin
   const usesSpaces = LANGUAGE_META[language].usesSpaces;
   const trimmedTyped = typedText.trim();
   const endsWithSpace = /\s$/.test(typedText);
+  const isRomanizedTyped =
+    !usesSpaces && trimmedTyped.length > 0 && isRomanizedText(trimmedTyped);
+
   const typedWords = trimmedTyped
-    ? usesSpaces
+    ? usesSpaces || isRomanizedTyped
       ? trimmedTyped.split(/\s+/).filter(Boolean)
       : splitGraphemes(trimmedTyped).filter((c) => c.trim().length > 0)
     : [];
 
-  let bestWords = tokenizeSentenceForFreeRecall(
-    uniqueCandidates[0],
-    language,
-    uniqueCandidates[0] === expected.trim() ? targetTokens : undefined
-  );
+  const romanizedCandidates = isRomanizedTyped
+    ? uniqueCandidates.filter(isRomanizedText)
+    : [];
+  const candidatesToEvaluate =
+    isRomanizedTyped && romanizedCandidates.length > 0 ? romanizedCandidates : uniqueCandidates;
+
+  const candidateWordLists: string[][] = [];
+  if (isRomanizedTyped && romanizedCandidates.length > 0) {
+    for (const cand of candidatesToEvaluate) {
+      candidateWordLists.push(...buildRomanizedCandidateWordLists(cand));
+    }
+  } else {
+    for (const cand of candidatesToEvaluate) {
+      candidateWordLists.push(
+        tokenizeSentenceForFreeRecall(
+          cand,
+          language,
+          cand === expected.trim() ? targetTokens : undefined
+        )
+      );
+    }
+  }
+
+  const compareWord = isRomanizedTyped
+    ? cleanCompareRomanizedWord
+    : (w: string) => cleanCompareWord(w, language);
+
+  let bestWords = candidateWordLists[0] ?? [];
   let bestPrefixCount = -1;
   let bestHasWrongSuffix = false;
+  let bestHasActivePartial = false;
 
-  for (const cand of uniqueCandidates) {
-    const candWords = tokenizeSentenceForFreeRecall(
-      cand,
-      language,
-      cand === expected.trim() ? targetTokens : undefined
-    );
+  for (const candWords of candidateWordLists) {
     let prefix = 0;
     const maxLen = Math.min(typedWords.length, candWords.length);
     while (prefix < maxLen) {
-      const tw = cleanCompareWord(typedWords[prefix], language);
-      const cw = cleanCompareWord(candWords[prefix], language);
+      const tw = compareWord(typedWords[prefix]);
+      const cw = compareWord(candWords[prefix]);
       if (tw.length > 0 && tw === cw) {
         prefix += 1;
       } else {
@@ -505,6 +574,7 @@ export function resolveFreeRecallHint(input: FreeRecallHintInput): FreeRecallHin
     }
 
     let wrongSuffix = false;
+    let hasActivePartial = false;
     if (typedWords.length > prefix) {
       if (prefix >= candWords.length) {
         wrongSuffix = true;
@@ -512,10 +582,12 @@ export function resolveFreeRecallHint(input: FreeRecallHintInput): FreeRecallHin
         wrongSuffix = true;
       } else {
         // Active final partial word: tolerate a valid prefix of the next expected word
-        const activeTyped = cleanCompareWord(typedWords[prefix], language);
-        const nextExpected = cleanCompareWord(candWords[prefix], language);
+        const activeTyped = compareWord(typedWords[prefix]);
+        const nextExpected = compareWord(candWords[prefix]);
         if (!activeTyped || !nextExpected.startsWith(activeTyped)) {
           wrongSuffix = true;
+        } else {
+          hasActivePartial = true;
         }
       }
     }
@@ -525,19 +597,26 @@ export function resolveFreeRecallHint(input: FreeRecallHintInput): FreeRecallHin
     if (bestPrefixCount < 0 || score > bestScore) {
       bestPrefixCount = prefix;
       bestHasWrongSuffix = wrongSuffix;
+      bestHasActivePartial = hasActivePartial;
       bestWords = candWords;
     }
   }
 
-  const validWordPrefixCount = Math.max(0, bestPrefixCount);
-  const remainingCount = Math.max(0, bestWords.length - validWordPrefixCount);
+  const completedPrefixCount = Math.max(0, bestPrefixCount);
+  // Count a valid active romanized opening prefix (e.g. "Ma" -> "Mǎtè'ào", "Oya" -> "oyasumi")
+  // as progress without prematurely marking its uncompleted slot as matched or complete.
+  const validWordPrefixCount =
+    isRomanizedTyped && completedPrefixCount === 0 && bestHasActivePartial
+      ? 1
+      : completedPrefixCount;
+  const remainingCount = Math.max(0, bestWords.length - completedPrefixCount);
   const resolvedReveals = tier >= 3 ? Math.max(1, revealWordCount) : 0;
 
   const slots: FreeRecallHintSlot[] = bestWords.map((word, index) => {
-    if (index < validWordPrefixCount) {
+    if (index < completedPrefixCount) {
       return { index, word, display: word, state: 'matched' };
     }
-    const remIdx = index - validWordPrefixCount;
+    const remIdx = index - completedPrefixCount;
     if (tier >= 3 && remIdx < resolvedReveals) {
       return { index, word, display: word, state: 'revealed' };
     }
@@ -557,9 +636,9 @@ export function resolveFreeRecallHint(input: FreeRecallHintInput): FreeRecallHin
   });
 
   const nextWord =
-    validWordPrefixCount < bestWords.length ? bestWords[validWordPrefixCount] : null;
+    completedPrefixCount < bestWords.length ? bestWords[completedPrefixCount] : null;
   const alreadyComplete =
-    validWordPrefixCount === bestWords.length && !bestHasWrongSuffix && bestWords.length > 0;
+    completedPrefixCount === bestWords.length && !bestHasWrongSuffix && bestWords.length > 0;
 
   return {
     targetWords: bestWords,
