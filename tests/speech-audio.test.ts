@@ -17,7 +17,7 @@ import { LessonArena } from '../src/components/lesson/LessonArena';
 import { ListenDecodeView } from '../src/components/lesson/ListenDecodeView';
 import { getCourse } from '../src/curriculum';
 import { vaultActions } from '../src/store/useVaultStore';
-import { LANGUAGE_LIST, type LanguageCode, type ListenDecodeExercise, type MapNode, type SoundEffectId } from '../src/types/contracts';
+import { LANGUAGE_LIST, type BaseLanguageCode, type ListenDecodeExercise, type MapNode, type SoundEffectId } from '../src/types/contracts';
 
 interface MockUtterance {
   text: string;
@@ -614,7 +614,7 @@ describe('Challenge 3-speech: Zero-Stall Speech Fallback, Watchdog & ListenDecod
       },
     });
 
-    const samplePhonetics: Record<LanguageCode, { text: string; phonetic: string }> = {
+    const samplePhonetics: Record<BaseLanguageCode, { text: string; phonetic: string }> = {
       es: { text: '¡Hola!', phonetic: 'OH-lah' },
       fr: { text: 'Bonjour', phonetic: 'bon-ZHOOR' },
       de: { text: 'Hallo', phonetic: 'HAH-loh' },
