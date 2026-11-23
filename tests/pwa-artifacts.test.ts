@@ -38,6 +38,7 @@ describe('Challenge 5-artifacts: Production PWA Build, Manifest, Service Worker 
       stdio: 'pipe',
       env: {
         ...process.env,
+        NODE_ENV: 'production',
         PATH: `${nodeBinDir}${pathSep}${process.env.PATH ?? ''}`,
       },
     });
