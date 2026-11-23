@@ -1,6 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Flame, Gem, Heart, RotateCcw, Sparkles, Star, Volume2, X, Zap } from 'lucide-react';
+import {
+  Flame,
+  Gem,
+  Heart,
+  RotateCcw,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  Volume2,
+  X,
+  Zap,
+} from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import {
   calculateComboMultiplier,
@@ -9,7 +20,7 @@ import {
   gradeAnswer,
 } from '../../core';
 import { getCourse, getPlayableNodeExercises, getUnitById, getVocabCard } from '../../curriculum';
-import { playSfx, speakPhrase, stopSpeech } from '../../audio';
+import { playSfx, speakPhrase, stopSpeech, useSpeechRuntimeState } from '../../audio';
 import { useVaultStore, vaultActions } from '../../store/useVaultStore';
 import { MascotStage } from '../characters/MascotStage';
 import { SkyCatcherArcade } from '../arcade/SkyCatcherArcade';
@@ -51,6 +62,35 @@ interface FeedbackBannerState {
   articleCoaching?: ArticleCoaching;
   speakText?: string;
   phonetic?: string;
+}
+
+function collectPracticedVocabIds(
+  node: MapNode,
+  exercises: readonly LessonExercise[]
+): string[] {
+  const ids = new Set<string>(node.rewardVocabIds);
+  for (const ex of exercises) {
+    switch (ex.type) {
+      case 'discovery_card':
+        if (ex.vocabId) ids.add(ex.vocabId);
+        break;
+      case 'pair_match_rush':
+        for (const pair of ex.pairs) {
+          if (pair.vocabId) ids.add(pair.vocabId);
+        }
+        break;
+      case 'word_bank':
+      case 'context_cloze':
+      case 'listen_decode':
+      case 'mini_story':
+      case 'boss_gauntlet':
+        for (const vid of ex.vocabIds) {
+          if (vid) ids.add(vid);
+        }
+        break;
+    }
+  }
+  return Array.from(ids);
 }
 
 export interface LessonArenaProps {
@@ -113,6 +153,10 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
   const discoveryLockRef = useRef(false);
   const chestLockRef = useRef(false);
   const zeroHeartActionLockRef = useRef(false);
+  const studyBreakLockRef = useRef(false);
+  const speechRuntime = useSpeechRuntimeState();
+  const watchdogRescueCount = speechRuntime?.watchdogRescueCount ?? 0;
+  const prevWatchdogCountRef = useRef<number>(watchdogRescueCount);
   const toastTimersRef = useRef<Set<number>>(new Set());
   const confettiTimersRef = useRef<Set<number>>(new Set());
   const seenAtStartRef = useRef<readonly string[] | undefined>(activeProgress.seenExerciseIds);
@@ -182,6 +226,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
     discoveryLockRef.current = false;
     chestLockRef.current = false;
     zeroHeartActionLockRef.current = false;
+    studyBreakLockRef.current = false;
     exerciseHintsRef.current = {};
   }, [node.id, node.exercises, language, replayNonce, clearArenaTimers]);
 
@@ -208,6 +253,26 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
     }, 1150);
     toastTimersRef.current.add(timer);
   }, []);
+
+  useEffect(() => {
+    if (watchdogRescueCount > prevWatchdogCountRef.current) {
+      prevWatchdogCountRef.current = watchdogRescueCount;
+      if (!lessonWon && !inRecoveryArcade) {
+        pushPopToast('Marimba Phonetic Guide Active!', 'accent');
+      }
+    } else if (watchdogRescueCount < prevWatchdogCountRef.current) {
+      prevWatchdogCountRef.current = watchdogRescueCount;
+    }
+  }, [watchdogRescueCount, lessonWon, inRecoveryArcade, pushPopToast]);
+
+  const handleStudyBreak = useCallback(() => {
+    if (studyBreakLockRef.current) return;
+    studyBreakLockRef.current = true;
+    stopSpeech();
+    playSfx('whoosh_transition');
+    safeVaultActions.setAdultModeActive(false);
+    onExit();
+  }, [onExit]);
 
   const triggerMiniConfetti = useCallback(() => {
     confettiTimersRef.current.forEach((t) => window.clearTimeout(t));
@@ -337,7 +402,9 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
             })()
           : undefined;
 
-        vaultActions.completeMapNode({
+        const practicedVocabIds = collectPracticedVocabIds(node, exercises);
+
+        safeVaultActions.completeMapNode({
           language,
           nodeId: node.id,
           stars: rewards.stars,
@@ -348,6 +415,8 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
           isStory: node.nodeType === 'story',
           isBoss: node.nodeType === 'boss',
           isChest: node.nodeType === 'chest',
+          isSrsQuest: Boolean(node.isSrsReviewQuest),
+          practicedVocabIds,
           ...(checkpointUnlock ? { checkpointUnlock } : {}),
         });
 
@@ -675,8 +744,30 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
         >
           {node.checkpointTargetTier
             ? `Checkpoint → ${PROFICIENCY_TIER_META[node.checkpointTargetTier].cefrLabel}`
-            : `${tierMeta.cefrLabel} · ${tierMeta.title}`}
+            : node.isSrsReviewQuest
+              ? 'Memory Quest'
+              : `${tierMeta.cefrLabel} · ${tierMeta.title}`}
         </span>
+
+        {isAdultLanguage(language) ? (
+          <button
+            type="button"
+            data-testid="lesson-study-break-btn"
+            aria-label="Study Break: Return to Kid Atlas"
+            className="tactile-btn tactile-btn-success"
+            style={{
+              padding: compact ? '4px 8px' : '6px 10px',
+              fontSize: compact ? '0.72rem' : '0.78rem',
+              borderRadius: 12,
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+            }}
+            onClick={handleStudyBreak}
+          >
+            <ShieldCheck size={compact ? 13 : 14} />
+            <span>Study Break</span>
+          </button>
+        ) : null}
 
         {replayNonce > 0 ? (
           <span

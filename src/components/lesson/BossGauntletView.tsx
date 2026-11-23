@@ -29,6 +29,7 @@ import { FreeRecallHintBar } from './FreeRecallHintBar';
 import { TapHintText } from './TapHintText';
 import { SayItNormallyButton } from './SayItNormallyButton';
 import { StarlightHintButton } from './StarlightHintButton';
+import { VirtualScriptDrawer } from './VirtualScriptDrawer';
 import { WordBankTray, buildWordBankPool, getAssembledText } from './WordBankTray';
 import { REGISTER_TAG_META } from './lessonHelpers';
 import { useHintEngine } from './useHintEngine';
@@ -763,6 +764,13 @@ export function BossGauntletView({
               </button>
             ))}
           </div>
+          <VirtualScriptDrawer
+            key={`${exercise.id}:${currentTurn.id}`}
+            language={language}
+            compact={compact}
+            disabled={turnOutcome?.kind === 'ok'}
+            onInsertChar={insertAccentChar}
+          />
         </div>
       )}
 

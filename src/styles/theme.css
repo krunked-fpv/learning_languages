@@ -1117,6 +1117,7 @@ select {
 
 .lesson-progress-track {
   flex: 1;
+  min-width: 24px;
   height: 15px;
   border-radius: 999px;
   background: rgba(148, 163, 184, 0.25);

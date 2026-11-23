@@ -17,8 +17,11 @@ import { ProfileVaultModal } from './components/shell/ProfileVaultModal';
 import { TopHud } from './components/shell/TopHud';
 import {
   retryAdultCourseLoad,
+  retryBaseCourseLoad,
   useAdultLoadError,
+  useBaseLoadError,
   useEnsureAdultCurriculum,
+  useEnsureBaseCurriculum,
 } from './components/shell/adultCurriculumSync';
 import { safeVaultActions } from './components/shell/vaultSafeActions';
 import { ensureAccessibleButtonBg } from './components/lesson/lessonHelpers';
@@ -31,6 +34,7 @@ import {
   type LanguageCode,
   type MapNode,
   type ProficiencyTier,
+  type VocabMasteryEntry,
 } from './types/contracts';
 
 const DARK_UI_THEMES = new Set<string>([
@@ -46,6 +50,7 @@ const DARK_UI_THEMES = new Set<string>([
 const AdaptiveAdventureMap = AdventureMap as ComponentType<
   AdventureMapProps & {
     onStartTierCheckpoint?: (targetTier: Exclude<ProficiencyTier, 'A1'>) => void;
+    onStartSrsQuest?: () => void;
   }
 >;
 
@@ -54,21 +59,34 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
 
-function AdultTrackLoadingCard({
+function TrackLoadingCardShell({
+  testId,
   language,
-  onReturnToKidAtlas,
+  badgeText,
+  subtitle,
+  loadError,
+  bodyText,
+  onRetry,
+  secondaryLabel,
+  onSecondaryAction,
 }: {
+  testId: string;
   language: LanguageCode;
-  onReturnToKidAtlas?: () => void;
+  badgeText: string;
+  subtitle?: string;
+  loadError: string | null;
+  bodyText: string;
+  onRetry: () => void;
+  secondaryLabel: string;
+  onSecondaryAction: () => void;
 }) {
   const meta = LANGUAGE_META[language];
-  const loadError = useAdultLoadError(language);
 
   return (
     <div
       role="status"
       aria-live="polite"
-      data-testid="adult-track-loading-card"
+      data-testid={testId}
       style={{
         height: '100%',
         minHeight: 0,
@@ -113,12 +131,12 @@ function AdultTrackLoadingCard({
           }}
         >
           <Sparkles size={13} />
-          <span>{loadError ? 'OFFLINE FALLBACK' : 'AFTER-HOURS ATLAS'}</span>
+          <span>{badgeText}</span>
         </div>
         <h2 style={{ margin: 0, fontSize: '1.22rem', fontWeight: 900, color: 'var(--text-main)' }}>
           {meta.landTitle}
         </h2>
-        {meta.pairDirectionBadge ? (
+        {subtitle ? (
           <div
             style={{
               padding: '3px 10px',
@@ -132,46 +150,110 @@ function AdultTrackLoadingCard({
               overflowWrap: 'break-word',
             }}
           >
-            {meta.pairDirectionBadge}
+            {subtitle}
           </div>
         ) : null}
         {loadError ? (
           <>
             <p style={{ margin: 0, fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-muted)', lineHeight: 1.45 }}>
-              You&apos;re offline right now and {meta.name} with {meta.companionName} hasn&apos;t been cached yet.
-              Reconnect to download this track, or hop back to the Kid Atlas anytime!
+              {bodyText}
             </p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 4 }}>
               <button
                 type="button"
                 className="tactile-btn tactile-btn-primary"
-                onClick={() => {
-                  playSfx('button_click');
-                  retryAdultCourseLoad(language);
-                }}
+                onClick={onRetry}
               >
                 Retry Loading
               </button>
               <button
                 type="button"
                 className="tactile-btn tactile-btn-soft"
-                onClick={() => {
-                  playSfx('whoosh_transition');
-                  safeVaultActions.setAdultModeActive(false);
-                  onReturnToKidAtlas?.();
-                }}
+                onClick={onSecondaryAction}
               >
-                Return to Kid Atlas
+                {secondaryLabel}
               </button>
             </div>
           </>
         ) : (
           <p style={{ margin: 0, fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-            Loading {meta.name} track with {meta.companionName}...
+            {bodyText}
           </p>
         )}
       </div>
     </div>
+  );
+}
+
+function AdultTrackLoadingCard({
+  language,
+  onReturnToKidAtlas,
+}: {
+  language: LanguageCode;
+  onReturnToKidAtlas?: () => void;
+}) {
+  const meta = LANGUAGE_META[language];
+  const loadError = useAdultLoadError(language);
+
+  return (
+    <TrackLoadingCardShell
+      testId="adult-track-loading-card"
+      language={language}
+      badgeText={loadError ? 'OFFLINE FALLBACK' : 'AFTER-HOURS ATLAS'}
+      subtitle={meta.pairDirectionBadge}
+      loadError={loadError}
+      bodyText={
+        loadError
+          ? `You're offline right now and ${meta.name} with ${meta.companionName} hasn't been cached yet. Reconnect to download this track, or hop back to the Kid Atlas anytime!`
+          : `Loading ${meta.name} track with ${meta.companionName}...`
+      }
+      onRetry={() => {
+        playSfx('button_click');
+        retryAdultCourseLoad(language);
+      }}
+      secondaryLabel="Return to Kid Atlas"
+      onSecondaryAction={() => {
+        playSfx('whoosh_transition');
+        safeVaultActions.setAdultModeActive(false);
+        onReturnToKidAtlas?.();
+      }}
+    />
+  );
+}
+
+function BaseTrackLoadingCard({
+  language,
+  onSwitchToSpanish,
+}: {
+  language: LanguageCode;
+  onSwitchToSpanish?: () => void;
+}) {
+  const meta = LANGUAGE_META[language];
+  const loadError = useBaseLoadError(language);
+
+  return (
+    <TrackLoadingCardShell
+      testId="base-track-loading-card"
+      language={language}
+      badgeText={loadError ? 'OFFLINE FALLBACK' : 'STARLIGHT ATLAS'}
+      subtitle={`${meta.name} · ${meta.nativeName}`}
+      loadError={loadError}
+      bodyText={
+        loadError
+          ? `You're offline right now and ${meta.name} with ${meta.companionName} hasn't been cached yet. Reconnect to download this track, or switch to Español anytime!`
+          : `Loading ${meta.name} trail with ${meta.companionName}...`
+      }
+      onRetry={() => {
+        playSfx('button_click');
+        retryBaseCourseLoad(language);
+      }}
+      secondaryLabel="Switch to Español"
+      onSecondaryAction={() => {
+        playSfx('whoosh_transition');
+        vaultActions.setActiveLanguage('es');
+        onSwitchToSpanish?.();
+      }}
+    />
   );
 }
 
@@ -276,27 +358,55 @@ export function App() {
       : activeProfile.activeLanguage;
 
   const adultRegistryVersion = useEnsureAdultCurriculum(isAdultModeActive, effectiveLanguage);
+  const baseRegistryVersion = useEnsureBaseCurriculum(effectiveLanguage);
 
   const course = useMemo(
     () => getCourse(effectiveLanguage),
-    [effectiveLanguage, adultRegistryVersion]
+    [effectiveLanguage, adultRegistryVersion, baseRegistryVersion]
   );
   const isAdultCourseHydrating =
     isAdultLanguage(effectiveLanguage) && (course?.units?.length ?? 0) === 0;
+  const isBaseCourseHydrating =
+    !isAdultLanguage(effectiveLanguage) && (course?.units?.length ?? 0) === 0;
+
+  const readOptionalCurriculumFn = <T,>(key: string): T | undefined => {
+    try {
+      if (!(key in curriculum)) return undefined;
+      return (curriculum as Record<string, unknown>)[key] as T | undefined;
+    } catch {
+      return undefined;
+    }
+  };
 
   const handleStartTierCheckpoint = (targetTier: Exclude<ProficiencyTier, 'A1'>) => {
-    if (isAdultCourseHydrating) return;
-    const buildCheckpoint = (
-      curriculum as {
-        buildTierCheckpointNode?: (
-          lang: LanguageCode,
-          tier: Exclude<ProficiencyTier, 'A1'>
-        ) => MapNode;
-      }
-    ).buildTierCheckpointNode;
+    if (isAdultCourseHydrating || isBaseCourseHydrating) return;
+    const buildCheckpoint = readOptionalCurriculumFn<
+      (lang: LanguageCode, tier: Exclude<ProficiencyTier, 'A1'>) => MapNode
+    >('buildTierCheckpointNode');
     if (typeof buildCheckpoint === 'function') {
       const checkpointNode = buildCheckpoint(effectiveLanguage, targetTier);
       setActiveNode(checkpointNode);
+    }
+  };
+
+  const handleStartSrsQuest = () => {
+    if (isAdultCourseHydrating || isBaseCourseHydrating) return;
+    const buildSrsQuest = readOptionalCurriculumFn<
+      (
+        lang: LanguageCode,
+        unlockedVocabIds: readonly string[],
+        vocabMastery?: Readonly<Record<string, VocabMasteryEntry>>,
+        dateSeed?: string
+      ) => MapNode | null
+    >('buildSrsReviewQuestNode');
+    if (typeof buildSrsQuest !== 'function') return;
+    const questNode = buildSrsQuest(
+      effectiveLanguage,
+      activeProgress.unlockedVocabIds,
+      activeProgress.vocabMastery
+    );
+    if (questNode) {
+      setActiveNode(questNode);
     }
   };
 
@@ -340,6 +450,17 @@ export function App() {
                 <AdultTrackLoadingCard
                   language={effectiveLanguage}
                   onReturnToKidAtlas={() => setActiveNode(null)}
+                />
+              </div>
+            </div>
+          </div>
+        ) : isBaseCourseHydrating ? (
+          <div className="lesson-arena-shell" style={{ zIndex: 45 }}>
+            <div className="lesson-arena-stage">
+              <div className="lesson-arena-stage-inner">
+                <BaseTrackLoadingCard
+                  language={effectiveLanguage}
+                  onSwitchToSpanish={() => setActiveNode(null)}
                 />
               </div>
             </div>
@@ -393,6 +514,8 @@ export function App() {
                 {activeTab === 'map' ? (
                   isAdultCourseHydrating ? (
                     <AdultTrackLoadingCard language={effectiveLanguage} />
+                  ) : isBaseCourseHydrating ? (
+                    <BaseTrackLoadingCard language={effectiveLanguage} />
                   ) : (
                     <AdaptiveAdventureMap
                       course={course}
@@ -403,17 +526,32 @@ export function App() {
                         vaultActions.setCurrentUnitIndex(effectiveLanguage, unitIndex)
                       }
                       onStartTierCheckpoint={handleStartTierCheckpoint}
+                      onStartSrsQuest={handleStartSrsQuest}
                     />
                   )
                 ) : null}
 
-                {activeTab === 'phrasebook' ? <PhrasebookVault /> : null}
+                {activeTab === 'phrasebook' ? (
+                  isAdultCourseHydrating ? (
+                    <AdultTrackLoadingCard language={effectiveLanguage} />
+                  ) : isBaseCourseHydrating ? (
+                    <BaseTrackLoadingCard language={effectiveLanguage} />
+                  ) : (
+                    <PhrasebookVault />
+                  )
+                ) : null}
 
                 {activeTab === 'arcade' ? (
-                  <ArcadeHub
-                    initialMode={arcadeInitialMode}
-                    onExitToMap={() => setActiveTab('map')}
-                  />
+                  isAdultCourseHydrating ? (
+                    <AdultTrackLoadingCard language={effectiveLanguage} />
+                  ) : isBaseCourseHydrating ? (
+                    <BaseTrackLoadingCard language={effectiveLanguage} />
+                  ) : (
+                    <ArcadeHub
+                      initialMode={arcadeInitialMode}
+                      onExitToMap={() => setActiveTab('map')}
+                    />
+                  )
                 ) : null}
 
                 {activeTab === 'leagues' ? <LeagueAndBadges /> : null}
