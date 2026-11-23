@@ -29,6 +29,8 @@ export const SPEECH_LOCALE_MAP: Record<LanguageCode | 'en', readonly string[]> =
   id: ['id-ID', 'in-ID', 'id'],
   vi: ['vi-VN', 'vi'],
   sw: ['sw-KE', 'sw-TZ', 'sw'],
+  ebonics: ['en-US', 'en'],
+  suburban: ['en-US', 'en'],
 };
 
 const WATCHDOG_TIMEOUT_MS = 4500;
