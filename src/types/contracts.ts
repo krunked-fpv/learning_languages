@@ -1,4 +1,4 @@
-export type LanguageCode =
+export type BaseLanguageCode =
   | 'es'
   | 'fr'
   | 'de'
@@ -15,6 +15,10 @@ export type LanguageCode =
   | 'id'
   | 'vi'
   | 'sw';
+
+export type AdultLanguageCode = 'ebonics' | 'suburban';
+
+export type LanguageCode = BaseLanguageCode | AdultLanguageCode;
 
 export type TextDirection = 'ltr' | 'rtl';
 
@@ -49,9 +53,12 @@ export interface LanguageMeta {
     surfaceTint: string;
   };
   helperAccents: readonly string[];
+  isAdultOnly?: boolean;
+  translationLanguageLabel?: string;
+  pairDirectionBadge?: string;
 }
 
-export const LANGUAGE_LIST: readonly LanguageCode[] = [
+export const VISIBLE_BASE_LANGUAGES: readonly BaseLanguageCode[] = [
   'es',
   'fr',
   'de',
@@ -69,6 +76,30 @@ export const LANGUAGE_LIST: readonly LanguageCode[] = [
   'vi',
   'sw',
 ] as const;
+
+export const LANGUAGE_LIST: readonly BaseLanguageCode[] = VISIBLE_BASE_LANGUAGES;
+
+export const ADULT_EASTER_EGG_LANGUAGES: readonly AdultLanguageCode[] = [
+  'ebonics',
+  'suburban',
+] as const;
+
+export const ALL_LANGUAGE_LIST: readonly LanguageCode[] = [
+  ...VISIBLE_BASE_LANGUAGES,
+  ...ADULT_EASTER_EGG_LANGUAGES,
+] as const;
+
+export const DEFAULT_KID_PROFILE_IDS: readonly string[] = ['kid-leo', 'kid-maya'] as const;
+export const ADULT_EASTER_EGG_CODES = ['AFTERHOURS', 'COOKOUT'] as const;
+export const ADULT_EASTER_EGG_TAP_COUNT = 7;
+
+export function isAdultLanguage(code: string): code is AdultLanguageCode {
+  return code === 'ebonics' || code === 'suburban';
+}
+
+export function isDefaultKidProfileId(profileId: string): boolean {
+  return profileId === 'kid-leo' || profileId === 'kid-maya';
+}
 
 export const LANGUAGE_META: Record<LanguageCode, LanguageMeta> = {
   es: {
@@ -413,6 +444,54 @@ export const LANGUAGE_META: Record<LanguageCode, LanguageMeta> = {
       surfaceTint: '#FFFBEB',
     },
     helperAccents: ["'", '-', '!'],
+  },
+  ebonics: {
+    code: 'ebonics',
+    name: 'AAVE / Ebonics',
+    nativeName: 'AAVE → Suburban',
+    dir: 'ltr',
+    scriptType: 'latin',
+    usesSpaces: true,
+    landTitle: 'The Block & Cookout Ave',
+    companionId: 'mateo',
+    companionName: 'Mateo',
+    companionRole: 'Block Party DJ & Grillmaster',
+    speechLocales: ['en-US', 'en'],
+    accentPalette: {
+      primary: '#7C3AED',
+      secondary: '#F59E0B',
+      glow: '#C4B5FD',
+      bevel: '#4C1D95',
+      surfaceTint: '#F5F3FF',
+    },
+    helperAccents: ["'", '-', '!', '?'],
+    isAdultOnly: true,
+    translationLanguageLabel: 'Suburban Vernacular',
+    pairDirectionBadge: 'AAVE → Suburban ("White Boy")',
+  },
+  suburban: {
+    code: 'suburban',
+    name: 'Suburban ("White Boy")',
+    nativeName: 'Suburban → AAVE',
+    dir: 'ltr',
+    scriptType: 'latin',
+    usesSpaces: true,
+    landTitle: 'The Cul-de-Sac & Craft Patio',
+    companionId: 'benni',
+    companionName: 'Benni',
+    companionRole: 'Cul-de-Sac Lawn & Patio Captain',
+    speechLocales: ['en-US', 'en'],
+    accentPalette: {
+      primary: '#0284C7',
+      secondary: '#EA580C',
+      glow: '#7DD3FC',
+      bevel: '#075985',
+      surfaceTint: '#F0F9FF',
+    },
+    helperAccents: ["'", '-', '!', '?'],
+    isAdultOnly: true,
+    translationLanguageLabel: 'AAVE / Ebonics',
+    pairDirectionBadge: 'Suburban ("White Boy") → AAVE',
   },
 };
 
@@ -1162,12 +1241,18 @@ export interface LanguageProgressState {
   unlockedTiers?: ProficiencyTier[];
 }
 
+export type LanguageProgressMap = Record<BaseLanguageCode, LanguageProgressState> &
+  Partial<Record<AdultLanguageCode, LanguageProgressState>>;
+
 export interface KidProfile {
   id: string;
   name: string;
   avatarId: AvatarId;
   bannerColor: string;
   activeLanguage: LanguageCode;
+  lastBaseLanguage?: BaseLanguageCode;
+  adultModeUnlocked?: boolean;
+  adultModeActive?: boolean;
   gems: number;
   hearts: number;
   maxHearts: number;
@@ -1199,7 +1284,7 @@ export interface KidProfile {
     checkpointsPassed?: number;
     clozeSolved?: number;
   };
-  languageProgress: Record<LanguageCode, LanguageProgressState>;
+  languageProgress: LanguageProgressMap;
 }
 
 export interface SaveVault {
@@ -1255,7 +1340,8 @@ export type SoundEffectId =
   | 'booster_spark'
   | 'free_recall_ace'
   | 'laureate_fanfare'
-  | 'equip_prop_pet';
+  | 'equip_prop_pet'
+  | 'adult_unlock';
 
 export type SpeechSpeed = 'normal' | 'slow' | 'fluent';
 
