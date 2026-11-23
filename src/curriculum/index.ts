@@ -1,12 +1,17 @@
-import type {
-  ArcadeLanternItem,
-  ArcadeProficiencyTier,
-  CourseUnit,
-  LanguageCode,
-  LanguageCourse,
-  MapNode,
-  VocabCard,
+import {
+  ALL_LANGUAGE_LIST,
+  VISIBLE_BASE_LANGUAGES,
+  isAdultLanguage,
+  type ArcadeLanternItem,
+  type ArcadeProficiencyTier,
+  type BaseLanguageCode,
+  type CourseUnit,
+  type LanguageCode,
+  type LanguageCourse,
+  type MapNode,
+  type VocabCard,
 } from '../types/contracts';
+import { getAdultCourse } from './adultRegistry';
 import { arabicCourse } from './ar';
 import { buildArcadeLexicon } from './arcadeLexicon';
 import { egyptianArabicCourse } from './arz';
@@ -25,7 +30,7 @@ import { swahiliCourse } from './sw';
 import { vietnameseCourse } from './vi';
 import { mandarinCourse } from './zh';
 
-export const COURSES: Record<LanguageCode, LanguageCourse> = {
+export const COURSES: Record<BaseLanguageCode, LanguageCourse> = {
   es: spanishCourse,
   fr: frenchCourse,
   de: germanCourse,
@@ -44,16 +49,23 @@ export const COURSES: Record<LanguageCode, LanguageCourse> = {
   sw: swahiliCourse,
 };
 
+/**
+ * Returns the language codes visible in UI pickers for the current Adult Mode state.
+ */
+export function getVisibleLanguageCodes(adultModeActive: boolean): readonly LanguageCode[] {
+  return adultModeActive ? ALL_LANGUAGE_LIST : VISIBLE_BASE_LANGUAGES;
+}
+
 export function getCourse(lang: LanguageCode): LanguageCourse {
-  return COURSES[lang];
+  return isAdultLanguage(lang) ? getAdultCourse(lang) : COURSES[lang];
 }
 
 export function getUnitById(lang: LanguageCode, unitId: string): CourseUnit | undefined {
-  return COURSES[lang].units.find((u) => u.id === unitId);
+  return getCourse(lang).units.find((u) => u.id === unitId);
 }
 
 export function getNodeById(lang: LanguageCode, nodeId: string): MapNode | undefined {
-  for (const unit of COURSES[lang].units) {
+  for (const unit of getCourse(lang).units) {
     const found = unit.nodes.find((n) => n.id === nodeId);
     if (found) return found;
   }
@@ -61,7 +73,7 @@ export function getNodeById(lang: LanguageCode, nodeId: string): MapNode | undef
 }
 
 export function getVocabCard(lang: LanguageCode, vocabId: string): VocabCard | undefined {
-  return COURSES[lang].vocabById[vocabId];
+  return getCourse(lang).vocabById[vocabId];
 }
 
 export function getArcadeLexicon(
@@ -70,8 +82,15 @@ export function getArcadeLexicon(
   currentUnitIndex: number,
   arcadeTier?: ArcadeProficiencyTier
 ): ArcadeLanternItem[] {
-  return buildArcadeLexicon(COURSES[lang], unlockedVocabIds, currentUnitIndex, arcadeTier);
+  return buildArcadeLexicon(getCourse(lang), unlockedVocabIds, currentUnitIndex, arcadeTier);
 }
+
+export {
+  getAdultCourse,
+  getAdultGlossary,
+  isAdultCurriculumLoaded,
+  registerAdultCourses,
+} from './adultRegistry';
 
 export {
   buildTierCheckpointNode,

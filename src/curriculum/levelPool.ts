@@ -1,9 +1,11 @@
 import {
   LANGUAGE_META,
   PROFICIENCY_TIER_META,
+  isAdultLanguage,
   resolveUnitProficiencyTier,
 } from '../types/contracts';
 import type {
+  BaseLanguageCode,
   BossGauntletExercise,
   BossTurn,
   ContextClozeExercise,
@@ -20,6 +22,11 @@ import type {
   VocabCard,
   WordBankExercise,
 } from '../types/contracts';
+import {
+  getAdultCourse,
+  getAdultGlossary,
+  getAdultRegistryVersion,
+} from './adultRegistry';
 import { arabicCourse, arabicGlossary } from './ar';
 import { egyptianArabicCourse, egyptianArabicGlossary } from './arz';
 import { bengaliCourse, bengaliGlossary } from './bn';
@@ -45,7 +52,7 @@ import { swahiliCourse, swahiliGlossary } from './sw';
 import { vietnameseCourse, vietnameseGlossary } from './vi';
 import { mandarinCourse, mandarinGlossary } from './zh';
 
-const GLOSSARIES: Record<LanguageCode, GlossaryMap> = {
+const GLOSSARIES: Record<BaseLanguageCode, GlossaryMap> = {
   es: spanishGlossary,
   fr: frenchGlossary,
   de: germanGlossary,
@@ -64,7 +71,7 @@ const GLOSSARIES: Record<LanguageCode, GlossaryMap> = {
   sw: swahiliGlossary,
 };
 
-const COURSES_MAP: Record<LanguageCode, LanguageCourse> = {
+const COURSES_MAP: Record<BaseLanguageCode, LanguageCourse> = {
   es: spanishCourse,
   fr: frenchCourse,
   de: germanCourse,
@@ -82,6 +89,14 @@ const COURSES_MAP: Record<LanguageCode, LanguageCourse> = {
   vi: vietnameseCourse,
   sw: swahiliCourse,
 };
+
+function resolveGlossary(lang: LanguageCode): GlossaryMap {
+  return isAdultLanguage(lang) ? getAdultGlossary(lang) : GLOSSARIES[lang];
+}
+
+function resolveCourse(lang: LanguageCode): LanguageCourse {
+  return isAdultLanguage(lang) ? getAdultCourse(lang) : COURSES_MAP[lang];
+}
 
 interface LessonPoolEntry {
   kind: 'lesson';
@@ -452,6 +467,24 @@ function makeDynamicListenAssemble(
   };
 }
 
+function findWholeWordIndex(sentence: string, bare: string): number {
+  let searchFrom = 0;
+  while (searchFrom <= sentence.length - bare.length) {
+    const candidateIdx = sentence.indexOf(bare, searchFrom);
+    if (candidateIdx < 0) return -1;
+    const prevChar = candidateIdx > 0 ? sentence[candidateIdx - 1] : '';
+    const nextChar =
+      candidateIdx + bare.length < sentence.length
+        ? sentence[candidateIdx + bare.length]
+        : '';
+    if (!/[A-Za-z0-9]/.test(prevChar) && !/[A-Za-z0-9]/.test(nextChar)) {
+      return candidateIdx;
+    }
+    searchFrom = candidateIdx + bare.length;
+  }
+  return -1;
+}
+
 function makeDynamicContextClozeFromCard(
   id: string,
   card: VocabCard,
@@ -466,7 +499,9 @@ function makeDynamicContextClozeFromCard(
   const hasExactToken = tokens.some((t) => normalizeLookupKey(t) === bareNorm);
   if (!hasExactToken) return undefined;
 
-  const idx = card.exampleForeign.indexOf(bare);
+  const idx = isAdultLanguage(unit.language)
+    ? findWholeWordIndex(card.exampleForeign, bare)
+    : card.exampleForeign.indexOf(bare);
   if (idx < 0) return undefined;
   const before = card.exampleForeign.slice(0, idx);
   const after = card.exampleForeign.slice(idx + bare.length);
@@ -507,7 +542,7 @@ function makeDynamicContextClozeFromCard(
 }
 
 function findUnitAndNode(lang: LanguageCode, nodeId: string): { unit: CourseUnit; node: MapNode } | undefined {
-  const course = COURSES_MAP[lang];
+  const course = resolveCourse(lang);
   for (const unit of course.units) {
     const node = unit.nodes.find((n) => n.id === nodeId);
     if (node) return { unit, node };
@@ -516,7 +551,7 @@ function findUnitAndNode(lang: LanguageCode, nodeId: string): { unit: CourseUnit
 }
 
 function buildLessonPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): LessonPoolEntry {
-  const glossary = GLOSSARIES[lang];
+  const glossary = resolveGlossary(lang);
   const unitTier = unit.proficiencyTier ?? resolveUnitProficiencyTier(unit.order);
   const discoveries: LessonExercise[] = [];
   const challenges: LessonExercise[] = [];
@@ -750,7 +785,7 @@ function buildLessonPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): L
 }
 
 function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): BossPoolEntry {
-  const glossary = GLOSSARIES[lang];
+  const glossary = resolveGlossary(lang);
   const baseExercise = node.exercises.find(
     (ex): ex is BossGauntletExercise => ex.type === 'boss_gauntlet'
   );
@@ -900,7 +935,7 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
 }
 
 function buildStoryPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): StoryPoolEntry {
-  const glossary = GLOSSARIES[lang];
+  const glossary = resolveGlossary(lang);
   const baseExercise = node.exercises.find(
     (ex): ex is MiniStoryExercise => ex.type === 'mini_story'
   );
@@ -932,7 +967,9 @@ function buildStoryPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): St
 }
 
 function getOrBuildPool(lang: LanguageCode, nodeId: string): NodePoolEntry | undefined {
-  const cacheKey = `${lang}:${nodeId}`;
+  const cacheKey = isAdultLanguage(lang)
+    ? `${lang}:v${getAdultRegistryVersion()}:${nodeId}`
+    : `${lang}:${nodeId}`;
   const cached = poolCache.get(cacheKey);
   if (cached) return cached;
 
@@ -979,8 +1016,13 @@ export function buildTierCheckpointNode(
   lang: LanguageCode,
   targetTier: Exclude<ProficiencyTier, 'A1'>
 ): MapNode {
-  const course = COURSES_MAP[lang];
-  const glossary = GLOSSARIES[lang];
+  const course = resolveCourse(lang);
+  const glossary = resolveGlossary(lang);
+  if (course.units.length === 0) {
+    throw new Error(
+      `Cannot build tier checkpoint "${targetTier}" for "${lang}" before curriculum units are registered.`
+    );
+  }
   const sourceTier = SOURCE_TIER_FOR_CHECKPOINT[targetTier];
   const tierMeta = PROFICIENCY_TIER_META[targetTier];
   const nodeId = `${lang}-checkpoint-${targetTier}`;
@@ -1149,7 +1191,7 @@ function selectChallengesWithoutRepeats<T extends { id: string }>(
 }
 
 export function getCourseGlossary(lang: LanguageCode): GlossaryMap {
-  return GLOSSARIES[lang];
+  return resolveGlossary(lang);
 }
 
 export function getNodePoolSize(lang: LanguageCode, nodeId: string): number {
