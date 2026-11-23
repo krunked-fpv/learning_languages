@@ -3538,7 +3538,7 @@ export function buildEgyptianArabicUnits9to16(G: GlossaryMap): CourseUnit[] {
             promptEnglish: 'Build: "Just as the maestro weaves a symphony, languages bring hearts together."',
             mode: 'word_bank',
             targetTokens: ['زي', 'ما', 'المايسترو', 'بيعمل', 'تنظيم', 'الأوركسترا', 'اللغات', 'بتجمع', 'القلوب', 'مع', 'بعض'],
-            distractorTokens: ['مع', 'امبارح', 'ميكروسكوب'],
+            distractorTokens: ['دفتر', 'امبارح', 'ميكروسكوب'],
             expectedAnswer: 'زي ما المايسترو بيعمل تنظيم الأوركسترا، اللغات بتجمع القلوب مع بعض.',
             acceptedAnswers: ['Zayy ma il-maystro biyimil tanzim il-orkestra il-lughat bitgamma il-qulub maa bad', 'Zayy mā il-maystro biyiʿmil tanẓīm il-orkestrā, il-lughāt bitgammaʿ il-ʾulūb maʿa baʿḍ'],
             phoneticAnswer: 'ZAYY maa il-MAYS-tro bi-YI-mil tan-ZEEM il-or-KES-tra, il-lu-GHAAT bit-GAM-ma il-qu-LOOB MA-a BA-ad.',

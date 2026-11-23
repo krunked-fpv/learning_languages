@@ -2555,7 +2555,7 @@ const units: CourseUnit[] = [
               promptText: 'The rabbit and the tree.',
               expectedSentence: 'O coelho e a árvore.',
               targetTokens: ['O', 'coelho', 'e', 'a', 'árvore'],
-              distractorTokens: ['borboleta', 'o', 'mar'],
+              distractorTokens: ['borboleta', 'flor', 'mar'],
               phoneticHint: 'oo koh-EH-lyoo ee ah AR-voh-ree',
               vocabIds: ['pt-u3-c8', 'pt-u3-c9'],
             }
@@ -2629,7 +2629,7 @@ const units: CourseUnit[] = [
               promptText: 'The flower and the sea.',
               expectedSentence: 'A flor e o mar.',
               targetTokens: ['A', 'flor', 'e', 'o', 'mar'],
-              distractorTokens: ['montanha', 'a', 'peixe'],
+              distractorTokens: ['montanha', 'árvore', 'peixe'],
               phoneticHint: 'ah flor ee oo mar',
               vocabIds: ['pt-u3-c10', 'pt-u3-c12'],
             }

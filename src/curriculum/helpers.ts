@@ -46,9 +46,10 @@ export interface GlossaryEntry {
 export type GlossaryMap = Record<string, GlossaryEntry>;
 
 const EDGE_PUNCTUATION_RE =
-  /^[¡!¿?.,;:()[\]«»"“”„。？！，、・「」『』（）【】《》〈〉؟،؛।॥…—–～·]+|[¡!¿?.,;:()[\]«»"“”„。？！，、・「」『』（）【】《》〈〉؟،؛।॥…—–～·]+$/g;
+  /^[¡!¿?.,;:()[\]«»‹›"“”„。？！，、・「」『』（）【】《》〈〉؟،؛।॥…—–―～·]+|[¡!¿?.,;:()[\]«»‹›"“”„。？！，、・「」『』（）【】《》〈〉؟،؛।॥…—–―～·]+$/g;
 const INTERNAL_PUNCT_SPLIT_RE =
-  /[¡!¿?.,;:()[\]«»"“”„。？！，、・「」『』（）【】《》〈〉؟،؛।॥…—–～·]+/;
+  /[¡!¿?.,;:()[\]«»‹›"“”„。？！，、・「」『』（）【】《》〈〉؟،؛।॥…—–―～·]+/;
+const APOSTROPHE_VARIANTS_RE = /[’‘\u02BC]/g;
 const CJK_CHAR_RE = /[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/;
 const ARABIC_DIACRITICS_RE = /[\u064B-\u065F\u0670\u0640]/g;
 
@@ -57,9 +58,9 @@ export function stripEdgePunctuation(word: string): string {
 }
 
 export function normalizeLookupKey(raw: string): string {
-  return stripEdgePunctuation(raw)
+  return stripEdgePunctuation(raw.trim())
     .trim()
-    .replace(/[’‘]/g, "'")
+    .replace(APOSTROPHE_VARIANTS_RE, "'")
     .toLowerCase()
     .replace(ARABIC_DIACRITICS_RE, '')
     .replace(/[أإآٱ]/g, 'ا')
@@ -94,13 +95,16 @@ export function lookupGlossaryEntry(
   overrides?: Record<string, GlossaryEntry>
 ): GlossaryEntry | undefined {
   if (!surface) return undefined;
-  const lower = surface.toLowerCase();
+  const lowerRaw = surface.toLowerCase();
+  const lower = surface.replace(APOSTROPHE_VARIANTS_RE, "'").toLowerCase();
   const normKey = normalizeLookupKey(surface);
   return (
     overrides?.[surface] ??
+    overrides?.[lowerRaw] ??
     overrides?.[lower] ??
     overrides?.[normKey] ??
     glossary?.[surface] ??
+    glossary?.[lowerRaw] ??
     glossary?.[lower] ??
     glossary?.[normKey]
   );
@@ -119,7 +123,7 @@ export function segmentSentenceTokens(
   const tokens: string[] = [];
 
   for (const raw of rawParts) {
-    const cleaned = stripEdgePunctuation(raw).replace(/[’‘]/g, "'");
+    const cleaned = stripEdgePunctuation(raw).replace(APOSTROPHE_VARIANTS_RE, "'");
     if (!cleaned) continue;
 
     const subParts = cleaned.split(INTERNAL_PUNCT_SPLIT_RE).filter(Boolean);
@@ -286,7 +290,7 @@ export function buildGlossaryFromCards(
   for (const c of cards) {
     const bareWords = c.bareForeign.split(/\s+/);
     if (bareWords.length === 1) {
-      const surface = stripEdgePunctuation(bareWords[0]).replace(/[’‘]/g, "'");
+      const surface = stripEdgePunctuation(bareWords[0]).replace(APOSTROPHE_VARIANTS_RE, "'");
       const entry: GlossaryEntry = {
         translation: c.english.replace(/^the\s+/i, ''),
         phonetic: c.phonetic,
@@ -308,7 +312,7 @@ export function buildGlossaryFromCards(
       if (!map[lower]) map[lower] = entry;
       if (!map[norm]) map[norm] = entry;
     } else if (c.bareForeign.includes("'") && !c.bareForeign.includes(' ')) {
-      const surface = stripEdgePunctuation(c.bareForeign).replace(/[’‘]/g, "'");
+      const surface = stripEdgePunctuation(c.bareForeign).replace(APOSTROPHE_VARIANTS_RE, "'");
       const entry: GlossaryEntry = {
         translation: c.english,
         phonetic: c.phonetic,
@@ -323,7 +327,7 @@ export function buildGlossaryFromCards(
     }
 
     if (c.foreignWithArticle.includes("'") && !c.foreignWithArticle.includes(' ')) {
-      const elided = stripEdgePunctuation(c.foreignWithArticle).replace(/[’‘]/g, "'");
+      const elided = stripEdgePunctuation(c.foreignWithArticle).replace(APOSTROPHE_VARIANTS_RE, "'");
       const elidedEntry: GlossaryEntry = {
         translation: c.english,
         phonetic: c.phonetic,
@@ -343,7 +347,9 @@ export function buildGlossaryFromCards(
 
   for (const [k, v] of Object.entries(extra)) {
     map[k] = v;
+    const lower = k.replace(APOSTROPHE_VARIANTS_RE, "'").toLowerCase();
     const norm = normalizeLookupKey(k);
+    if (!map[lower]) map[lower] = v;
     if (!map[norm]) map[norm] = v;
   }
 
