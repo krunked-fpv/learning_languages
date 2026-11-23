@@ -92,6 +92,8 @@ const SERVER_SPEECH_STATE: SpeechRuntimeState = {
   activeSpeed: null,
   fallbackActive: true,
   voicesReady: false,
+  watchdogTriggered: false,
+  watchdogRescueCount: 0,
 };
 
 const observedSynths = new WeakSet<object>();
@@ -155,6 +157,8 @@ let runtimeState: SpeechRuntimeState = (() => {
     activeSpeed: null,
     fallbackActive: !voicesReady,
     voicesReady,
+    watchdogTriggered: false,
+    watchdogRescueCount: 0,
   };
 })();
 
@@ -164,7 +168,9 @@ function areStatesEqual(a: SpeechRuntimeState, b: SpeechRuntimeState): boolean {
     a.activeText === b.activeText &&
     a.activeSpeed === b.activeSpeed &&
     a.fallbackActive === b.fallbackActive &&
-    a.voicesReady === b.voicesReady
+    a.voicesReady === b.voicesReady &&
+    a.watchdogTriggered === b.watchdogTriggered &&
+    a.watchdogRescueCount === b.watchdogRescueCount
   );
 }
 
@@ -422,6 +428,7 @@ async function runFallbackCadence(
       activeSpeed: resolvedSpeed,
       fallbackActive: true,
       voicesReady,
+      watchdogTriggered: false,
     },
     true
   );
@@ -480,6 +487,7 @@ export async function speakPhrase(req: SpeakRequest): Promise<SpeakOutcome> {
         activeSpeed: null,
         fallbackActive: !canUseNative,
         voicesReady,
+        watchdogTriggered: false,
       },
       true
     );
@@ -498,6 +506,7 @@ export async function speakPhrase(req: SpeakRequest): Promise<SpeakOutcome> {
         activeSpeed: null,
         fallbackActive: !canUseNative,
         voicesReady,
+        watchdogTriggered: false,
       },
       true
     );
@@ -521,12 +530,14 @@ export async function speakPhrase(req: SpeakRequest): Promise<SpeakOutcome> {
       activeSpeed: resolvedSpeed,
       fallbackActive: false,
       voicesReady: true,
+      watchdogTriggered: false,
     },
     true
   );
 
   return new Promise<SpeakOutcome>((resolve) => {
     let settled = false;
+    let rescuedByWatchdog = false;
 
     const settle = (outcome: SpeakOutcome, shouldEmit: boolean) => {
       if (settled) return;
@@ -534,6 +545,10 @@ export async function speakPhrase(req: SpeakRequest): Promise<SpeakOutcome> {
       if (token === activeToken) {
         clearActiveTimersAndRefs();
         activeAbortResolver = null;
+        const watchdogTriggered = Boolean(outcome.watchdogTriggered);
+        const nextRescueCount = watchdogTriggered
+          ? (runtimeState.watchdogRescueCount ?? 0) + 1
+          : (runtimeState.watchdogRescueCount ?? 0);
         commitRuntimeState(
           {
             isSpeaking: false,
@@ -541,6 +556,8 @@ export async function speakPhrase(req: SpeakRequest): Promise<SpeakOutcome> {
             activeSpeed: null,
             fallbackActive: outcome.fallbackActive,
             voicesReady: safeGetVoices(getSpeechSynthesisSafe()).length > 0,
+            watchdogTriggered,
+            watchdogRescueCount: nextRescueCount,
           },
           shouldEmit
         );
@@ -563,12 +580,12 @@ export async function speakPhrase(req: SpeakRequest): Promise<SpeakOutcome> {
       activeUtterance = utterance;
 
       utterance.onend = () => {
-        if (token !== activeToken) return;
+        if (token !== activeToken || settled || rescuedByWatchdog) return;
         settle({ usedNativeVoice: true, fallbackActive: false, localeUsed }, true);
       };
 
       utterance.onerror = (event: SpeechSynthesisErrorEvent) => {
-        if (token !== activeToken) return;
+        if (token !== activeToken || settled || rescuedByWatchdog) return;
         const errCode = event?.error;
         if (errCode === 'canceled' || errCode === 'interrupted') {
           settle({ usedNativeVoice: true, fallbackActive: false, localeUsed }, true);
@@ -582,9 +599,26 @@ export async function speakPhrase(req: SpeakRequest): Promise<SpeakOutcome> {
       };
 
       activeWatchdogTimer = setTimeout(() => {
-        if (token !== activeToken) return;
-        settle({ usedNativeVoice: true, fallbackActive: false, localeUsed }, true);
+        if (token !== activeToken || settled || rescuedByWatchdog) return;
+        rescuedByWatchdog = true;
+        clearActiveTimersAndRefs();
+        activeAbortResolver = null;
         safeCancelSynth(synth);
+        const cadenceSource = req.phonetic?.trim() ? req.phonetic : req.text;
+        try {
+          void playPhoneticCadence(cadenceSource, resolvedSpeed).catch(() => {});
+        } catch {
+          // Never propagate audio cadence failures.
+        }
+        settle(
+          {
+            usedNativeVoice: false,
+            fallbackActive: true,
+            localeUsed,
+            watchdogTriggered: true,
+          },
+          true
+        );
       }, WATCHDOG_TIMEOUT_MS);
 
       synth.speak(utterance);
