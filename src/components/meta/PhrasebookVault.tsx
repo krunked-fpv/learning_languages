@@ -20,11 +20,13 @@ import { useVaultStore, vaultActions } from '../../store/useVaultStore';
 import { useCompactViewport } from '../lesson/lessonHelpers';
 import { safeVaultActions } from '../shell/vaultSafeActions';
 import {
+  ALL_LANGUAGE_LIST,
   GENDER_BADGE_META,
   LANGUAGE_LIST,
   LANGUAGE_META,
   PROFICIENCY_TIERS,
   PROFICIENCY_TIER_META,
+  isAdultLanguage,
   resolveUnitProficiencyTier,
   type LanguageCode,
   type ProficiencyTier,
@@ -34,7 +36,12 @@ import {
 export function PhrasebookVault() {
   const { activeProfile } = useVaultStore();
   const compact = useCompactViewport();
-  const [viewLang, setViewLang] = useState<LanguageCode>(activeProfile.activeLanguage);
+  const isAdultModeActive = Boolean(activeProfile.adultModeActive);
+  const safeInitialLang: LanguageCode =
+    !isAdultModeActive && isAdultLanguage(activeProfile.activeLanguage)
+      ? (activeProfile.lastBaseLanguage ?? 'en')
+      : activeProfile.activeLanguage;
+  const [viewLang, setViewLang] = useState<LanguageCode>(safeInitialLang);
   const [tierFilter, setTierFilter] = useState<'all' | ProficiencyTier>('all');
   const [unitFilter, setUnitFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,15 +51,19 @@ export function PhrasebookVault() {
   const [shuffledOrder, setShuffledOrder] = useState<string[] | null>(null);
 
   useEffect(() => {
-    setViewLang(activeProfile.activeLanguage);
+    setViewLang(safeInitialLang);
     setTierFilter('all');
     setUnitFilter('all');
-  }, [activeProfile.activeLanguage]);
+  }, [safeInitialLang]);
 
-  const viewLangMeta = LANGUAGE_META[viewLang];
+  const effectiveViewLang: LanguageCode =
+    !isAdultModeActive && isAdultLanguage(viewLang) ? safeInitialLang : viewLang;
+  const visibleLanguages = isAdultModeActive ? ALL_LANGUAGE_LIST : LANGUAGE_LIST;
+
+  const viewLangMeta = LANGUAGE_META[effectiveViewLang];
   const langDir = viewLangMeta.dir;
-  const course = getCourse(viewLang);
-  const langProgress = activeProfile.languageProgress[viewLang];
+  const course = getCourse(effectiveViewLang);
+  const langProgress = activeProfile.languageProgress[effectiveViewLang];
   const unlockedSet = useMemo(
     () => new Set(langProgress?.unlockedVocabIds ?? []),
     [langProgress?.unlockedVocabIds]
@@ -190,6 +201,9 @@ export function PhrasebookVault() {
             </h1>
             <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
               {viewLangMeta.name}: {unlockedCards.length} / {allCards.length} Stickers Collected
+              {isAdultModeActive && viewLangMeta.pairDirectionBadge
+                ? ` · ${viewLangMeta.pairDirectionBadge}`
+                : ''}
             </div>
           </div>
         </div>
@@ -230,8 +244,8 @@ export function PhrasebookVault() {
             paddingBottom: 2,
           }}
         >
-          {LANGUAGE_LIST.map((lang) => {
-            const isSelected = lang === viewLang;
+          {visibleLanguages.map((lang) => {
+            const isSelected = lang === effectiveViewLang;
             const meta = LANGUAGE_META[lang];
             return (
               <button
@@ -452,7 +466,7 @@ export function PhrasebookVault() {
                             <div style={{ filter: 'grayscale(1)', opacity: 0.25 }}>
                               <VocabIllustration
                                 illustrationKey={card.illustrationKey}
-                                language={viewLang}
+                                language={effectiveViewLang}
                                 size={60}
                               />
                             </div>
@@ -498,7 +512,7 @@ export function PhrasebookVault() {
                                 onClick={() => {
                                   void speakPhrase({
                                     text: card.foreignWithArticle || card.bareForeign,
-                                    language: viewLang,
+                                    language: effectiveViewLang,
                                     phonetic: card.phonetic,
                                     speed: 'normal',
                                   });
@@ -515,7 +529,7 @@ export function PhrasebookVault() {
                                   vaultActions.recordTurtlePlay();
                                   void speakPhrase({
                                     text: card.foreignWithArticle || card.bareForeign,
-                                    language: viewLang,
+                                    language: effectiveViewLang,
                                     phonetic: card.phonetic,
                                     slow: true,
                                     speed: 'slow',
@@ -533,7 +547,7 @@ export function PhrasebookVault() {
                                   safeVaultActions.recordFluentPlay();
                                   void speakPhrase({
                                     text: card.foreignWithArticle || card.bareForeign,
-                                    language: viewLang,
+                                    language: effectiveViewLang,
                                     phonetic: card.phonetic,
                                     speed: 'fluent',
                                   });
@@ -547,7 +561,7 @@ export function PhrasebookVault() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <VocabIllustration
                               illustrationKey={card.illustrationKey}
-                              language={viewLang}
+                              language={effectiveViewLang}
                               size={64}
                             />
                             <div style={{ minWidth: 0, flex: 1 }}>
@@ -646,7 +660,7 @@ export function PhrasebookVault() {
             {!activeFlashcard ? (
               <div style={{ padding: 20, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ fontWeight: 800, fontSize: '1rem' }}>
-                  No {LANGUAGE_META[viewLang].name} stickers unlocked yet!
+                  No {viewLangMeta.name} stickers unlocked yet!
                 </div>
                 <div style={{ fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.88rem' }}>
                   Complete Lesson 1 on the Atlas Map to collect your first stickers and show them off
@@ -708,7 +722,7 @@ export function PhrasebookVault() {
                     <>
                       <VocabIllustration
                         illustrationKey={activeFlashcard.illustrationKey}
-                        language={viewLang}
+                        language={effectiveViewLang}
                         size={120}
                       />
                       <div
@@ -723,9 +737,11 @@ export function PhrasebookVault() {
                         {activeFlashcard.foreignWithArticle}
                       </div>
                       <div style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-muted)' }}>
-                        {viewLang === 'en'
+                        {effectiveViewLang === 'en'
                           ? 'Tap card to flip & reveal meaning clue!'
-                          : 'Tap card to flip & reveal English!'}
+                          : viewLangMeta.translationLanguageLabel
+                            ? `Tap card to flip & reveal ${viewLangMeta.translationLanguageLabel}!`
+                            : 'Tap card to flip & reveal English!'}
                       </div>
                     </>
                   ) : (
@@ -781,7 +797,7 @@ export function PhrasebookVault() {
                     onClick={() => {
                       void speakPhrase({
                         text: activeFlashcard.foreignWithArticle || activeFlashcard.bareForeign,
-                        language: viewLang,
+                        language: effectiveViewLang,
                         phonetic: activeFlashcard.phonetic,
                         speed: 'normal',
                       });
@@ -796,7 +812,7 @@ export function PhrasebookVault() {
                       vaultActions.recordTurtlePlay();
                       void speakPhrase({
                         text: activeFlashcard.foreignWithArticle || activeFlashcard.bareForeign,
-                        language: viewLang,
+                        language: effectiveViewLang,
                         phonetic: activeFlashcard.phonetic,
                         slow: true,
                         speed: 'slow',
@@ -812,7 +828,7 @@ export function PhrasebookVault() {
                       safeVaultActions.recordFluentPlay();
                       void speakPhrase({
                         text: activeFlashcard.foreignWithArticle || activeFlashcard.bareForeign,
-                        language: viewLang,
+                        language: effectiveViewLang,
                         phonetic: activeFlashcard.phonetic,
                         speed: 'fluent',
                       });

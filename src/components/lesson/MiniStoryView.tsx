@@ -57,7 +57,9 @@ export function MiniStoryView({
   );
   const allBubblesRevealed = visibleCount >= exercise.bubbles.length;
   const isFinished = allBubblesRevealed && !activeDecision;
-  const langDir = LANGUAGE_META[language].dir;
+  const langMeta = LANGUAGE_META[language];
+  const langDir = langMeta.dir;
+  const translationLabel = langMeta.translationLanguageLabel ?? 'English';
   const isGuided = scaffoldingMode === 'guided';
   const showPhoneticSupport = isGuided || peekPhonetics;
 
@@ -245,7 +247,7 @@ export function MiniStoryView({
                     type="button"
                     className="tactile-btn tactile-btn-soft"
                     style={{ padding: '3px 7px', borderRadius: 10, fontSize: '0.74rem' }}
-                    aria-label={showEnglish ? 'Hide English' : 'Peek English'}
+                    aria-label={showEnglish ? `Hide ${translationLabel}` : `Peek ${translationLabel}`}
                     onClick={() => toggleEnglish(bubble.id)}
                   >
                     {showEnglish ? <EyeOff size={13} /> : <Eye size={13} />}

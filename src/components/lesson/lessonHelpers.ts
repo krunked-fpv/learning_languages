@@ -16,7 +16,8 @@ import {
   type VocabCard,
 } from '../../types/contracts';
 
-export const NO_SPACE_AFTER_RE = /['’¡¿(«「『（」』），、。？！・-]$/;
+export const NO_SPACE_AFTER_RE =
+  /(?:[¡¿(«「『（」』），、。？！・-]$|(?:^|[\s¡¿(«“„\-])(?:c|d|j|l|m|n|s|t|v|qu|jusqu|lorsqu|puisqu|quelqu|presqu|aujourd|un|dell|all|dall|nell|sull|coll|pell|quest|quell|anch|ch|gl|bell|buon|sant|grand|pover|mezz|qualcos|nient|com|dov|cos|quant|tant|tutt|altr|molt|poc|senz|sott)['’]$)/i;
 export const NO_SPACE_BEFORE_RE = /^[.,!?;:)»。？！，、・「」『』（）؟،؛।॥]/;
 const EDGE_PUNCT_STRIP_RE =
   /[¡!¿?.,;:"'’‘“”„«»‹›()[\]。？！，、；：・「」『』（）【】《》〈〉؟،؛।॥…—–～·]/g;
