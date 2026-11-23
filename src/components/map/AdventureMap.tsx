@@ -17,7 +17,7 @@ import {
   type ProficiencyTier,
 } from '../../types/contracts';
 import { MascotStage } from '../characters/MascotStage';
-import { GoldStar, MapNodeIcon, PadlockBadge } from './NodeIcons';
+import { GoldStar, MapNodeIcon, PadlockBadge, StarlightGemIcon } from './NodeIcons';
 import { RegionalScenery } from './RegionalScenery';
 
 export interface AdventureMapProps {
@@ -27,6 +27,7 @@ export interface AdventureMapProps {
   onSelectNode: (node: MapNode) => void;
   onSelectUnit?: (unitIndex: number) => void;
   onStartTierCheckpoint?: (targetTier: Exclude<ProficiencyTier, 'A1'>) => void;
+  onStartSrsQuest?: () => void;
 }
 
 const COMPANION_AVATAR_MAP: Record<Exclude<CompanionId, 'pip'>, AvatarId> = {
@@ -114,6 +115,87 @@ function buildPercentCurveSegments(nodes: readonly MapNode[], isCompact: boolean
   });
 }
 
+const MS_PER_DAY = 86_400_000;
+
+function parseIsoDayMs(iso: string | undefined): number | null {
+  if (!iso) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso.trim());
+  if (match) {
+    const ms = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return Number.isNaN(ms) ? null : ms;
+  }
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate());
+}
+
+interface SrsQuestStatus {
+  visible: boolean;
+  dueCount: number;
+  completedToday: boolean;
+}
+
+function computeSrsQuestStatus(
+  progress: LanguageProgressState,
+  onStartSrsQuest?: () => void
+): SrsQuestStatus {
+  if (progress.unlockedVocabIds.length < 4 || typeof onStartSrsQuest !== 'function') {
+    return { visible: false, dueCount: 0, completedToday: false };
+  }
+
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayMs = parseIsoDayMs(todayISO) ?? Date.now();
+  const mastery = progress.vocabMastery;
+  const uniqueUnlockedIds = Array.from(new Set(progress.unlockedVocabIds));
+
+  let dueCount = 0;
+  for (const vocabId of uniqueUnlockedIds) {
+    const entry = mastery?.[vocabId];
+    if (!entry || entry.strength <= 2) {
+      dueCount += 1;
+      continue;
+    }
+    const reviewedMs = parseIsoDayMs(entry.lastReviewedISO);
+    if (reviewedMs === null || Math.floor((todayMs - reviewedMs) / MS_PER_DAY) > 2) {
+      dueCount += 1;
+    }
+  }
+
+  const lastCompletedDay = progress.lastSrsQuestCompletedISO?.trim().slice(0, 10);
+  return {
+    visible: true,
+    dueCount,
+    completedToday: lastCompletedDay === todayISO,
+  };
+}
+
+function getSrsQuestPresentation(status: SrsQuestStatus): {
+  badgeText: string;
+  badgeColors: { bg: string; ink: string; border: string };
+  ariaSummary: string;
+} {
+  if (status.completedToday) {
+    return {
+      badgeText: 'Refreshed Today · Replay',
+      badgeColors: { bg: '#D1FAE5', ink: '#064E3B', border: '#34D399' },
+      ariaSummary: 'Starlight Memory Quest — Refreshed Today, Replay',
+    };
+  }
+  if (status.dueCount > 0) {
+    const unitLabel = status.dueCount === 1 ? 'sticker' : 'stickers';
+    return {
+      badgeText: `${status.dueCount} ${unitLabel} due`,
+      badgeColors: { bg: '#FEF3C7', ink: '#1E1B4B', border: '#FBBF24' },
+      ariaSummary: `Starlight Memory Quest — ${status.dueCount} ${unitLabel} due`,
+    };
+  }
+  return {
+    badgeText: 'All Fresh · Replay',
+    badgeColors: { bg: '#E0E7FF', ink: '#1E1B4B', border: '#A5B4FC' },
+    ariaSummary: 'Starlight Memory Quest — All stickers fresh, Replay',
+  };
+}
+
 export function AdventureMap({
   course,
   progress,
@@ -121,6 +203,7 @@ export function AdventureMap({
   onSelectNode,
   onSelectUnit,
   onStartTierCheckpoint,
+  onStartSrsQuest,
 }: AdventureMapProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [isCompactWidth, setIsCompactWidth] = useState<boolean>(() =>
@@ -278,6 +361,15 @@ export function AdventureMap({
   const currentUnit = sortedUnits[safeUnitIdx];
   const palette = course.meta.accentPalette;
   const companionAvatar = COMPANION_AVATAR_MAP[course.meta.companionId];
+
+  const srsQuestStatus = useMemo(
+    () => computeSrsQuestStatus(progress, onStartSrsQuest),
+    [progress, onStartSrsQuest]
+  );
+  const srsQuestPresentation = useMemo(
+    () => getSrsQuestPresentation(srsQuestStatus),
+    [srsQuestStatus]
+  );
 
   // Keep the active chapter tab centered in horizontal scroll strip on small viewports
   useEffect(() => {
@@ -573,6 +665,123 @@ export function AdventureMap({
               {course.meta.pairDirectionBadge}
             </span>
           </div>
+        )}
+
+        {/* Adaptive SRS Starlight Memory Quest Banner CTA */}
+        {srsQuestStatus.visible && (
+          <motion.button
+            type="button"
+            data-testid="map-srs-quest-btn"
+            aria-label={srsQuestPresentation.ariaSummary}
+            whileHover={{ scale: 1.008, y: -1 }}
+            whileTap={{ scale: 0.985, y: 1 }}
+            transition={{ type: 'spring', stiffness: 460, damping: 26 }}
+            onClick={() => onStartSrsQuest?.()}
+            style={{
+              width: '100%',
+              marginTop: isCompactWidth ? 5 : 6,
+              padding: isCompactWidth ? '4px 9px' : '5px 12px',
+              borderRadius: 13,
+              backgroundColor: '#3730A3',
+              backgroundImage: 'linear-gradient(135deg, #312E81 0%, #4338CA 55%, #4F46E5 100%)',
+              color: '#FFFFFF',
+              borderStyle: 'solid',
+              borderWidth: '1.5px 1.5px 3.5px 1.5px',
+              borderTopColor: '#818CF8',
+              borderLeftColor: '#818CF8',
+              borderRightColor: '#818CF8',
+              borderBottomColor: '#1E1B4B',
+              boxShadow: '0 4px 12px rgba(49, 46, 129, 0.28)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: isCompactWidth ? 6 : 8,
+              rowGap: 3,
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: isCompactWidth ? 5 : 7,
+                minWidth: 0,
+                flex: '1 1 auto',
+              }}
+            >
+              <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                <StarlightGemIcon size={isCompactWidth ? 15 : 17} />
+              </span>
+              <span
+                style={{
+                  fontSize: isCompactWidth ? 11.5 : 12.5,
+                  fontWeight: 900,
+                  letterSpacing: '0.01em',
+                  color: '#FFFFFF',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Starlight Memory Quest
+              </span>
+              {!isCompactWidth && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: '#EEF2FF',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  · Strengthen fading stickers for bonus Gems
+                </span>
+              )}
+            </span>
+
+            <span
+              style={{
+                flexShrink: 0,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+              }}
+            >
+              <span
+                data-testid="map-srs-quest-badge"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: isCompactWidth ? '1px 7px' : '2px 9px',
+                  borderRadius: 999,
+                  backgroundColor: srsQuestPresentation.badgeColors.bg,
+                  color: srsQuestPresentation.badgeColors.ink,
+                  borderStyle: 'solid',
+                  borderWidth: 1.5,
+                  borderColor: srsQuestPresentation.badgeColors.border,
+                  fontSize: isCompactWidth ? 10 : 11,
+                  fontWeight: 900,
+                  whiteSpace: 'nowrap',
+                  lineHeight: 1.25,
+                }}
+              >
+                {srsQuestPresentation.badgeText}
+              </span>
+              {!isCompactWidth && (
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path
+                    d="M5.5 3.5L10.5 8L5.5 12.5"
+                    stroke="#EEF2FF"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+            </span>
+          </motion.button>
         )}
 
         {/* 5-Tier CEFR Atlas Ribbon (A1 Sprout · A2 Trailblazer · B1 Storyweaver · B2 Diplomat · C1+ Laureate) */}
@@ -1022,7 +1231,7 @@ export function AdventureMap({
                 position: 'relative',
                 flex: '1 1 0%',
                 width: '100%',
-                minHeight: 'min(220px, 32dvh)',
+                minHeight: isCompactWidth ? 'min(188px, 28dvh)' : 'min(220px, 32dvh)',
                 overflow: 'hidden',
               }}
             >
