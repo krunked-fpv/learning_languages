@@ -12,6 +12,7 @@ import {
   XP_BOOSTER_CHARGES_PER_BUY,
   XP_BOOSTER_COST_GEMS,
   applyDailyPracticeStreak,
+  computeUpdatedVocabMastery,
   evaluateUnlockedBadges,
   getCosmeticById,
   resolveLeagueTierForXp,
@@ -28,6 +29,8 @@ import {
   type AvatarId,
   type BadgeId,
   type BaseLanguageCode,
+  type CoopArcadeSessionParams,
+  type CoopArcadeSessionSummary,
   type CosmeticId,
   type CosmeticSlot,
   type EquippedCosmetics,
@@ -39,6 +42,7 @@ import {
   type LeagueTier,
   type ProficiencyTier,
   type SaveVault,
+  type VocabMasteryEntry,
 } from '../types/contracts';
 
 export const STORAGE_KEY = 'wanderling.vault.v1';
@@ -101,6 +105,7 @@ function emptyLangProgress(): LanguageProgressState {
     xpEarned: 0,
     seenExerciseIds: [],
     unlockedTiers: [],
+    vocabMastery: {},
   };
 }
 
@@ -255,6 +260,8 @@ function makeFreshProfile(params: {
       checkpointsPassed: 0,
       clozeSolved: 0,
       hintsUsedCount: 0,
+      srsQuestsCompleted: 0,
+      coopMatchesPlayed: 0,
     },
     languageProgress: buildLanguageProgressMap(undefined, adultModeUnlocked, false),
   };
@@ -315,9 +322,34 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string' && item.length > 0);
 }
 
+function cloneVocabMastery(
+  mastery: Readonly<Record<string, VocabMasteryEntry>> | undefined
+): Record<string, VocabMasteryEntry> {
+  const cloned: Record<string, VocabMasteryEntry> = {};
+  if (!mastery) return cloned;
+  for (const [vocabId, entry] of Object.entries(mastery)) {
+    if (vocabId && entry) {
+      cloned[vocabId] = {
+        strength: Number.isFinite(entry.strength)
+          ? Math.min(5, Math.max(0, entry.strength))
+          : 0,
+        lastReviewedISO: entry.lastReviewedISO,
+        reviewCount: Number.isFinite(entry.reviewCount)
+          ? Math.max(0, Math.floor(entry.reviewCount))
+          : 0,
+      };
+    }
+  }
+  return cloned;
+}
+
 function cloneLangProgress(lp: LanguageProgressState): LanguageProgressState {
   const hintCounts = lp.hintAssistedCounts;
   const hasHintCounts = Boolean(hintCounts && Object.keys(hintCounts).length > 0);
+  const lastSrsISO =
+    typeof lp.lastSrsQuestCompletedISO === 'string' && lp.lastSrsQuestCompletedISO.trim()
+      ? lp.lastSrsQuestCompletedISO.trim()
+      : undefined;
   return {
     completedNodeIds: [...lp.completedNodeIds],
     nodeStars: { ...lp.nodeStars },
@@ -327,6 +359,8 @@ function cloneLangProgress(lp: LanguageProgressState): LanguageProgressState {
     xpEarned: lp.xpEarned,
     seenExerciseIds: lp.seenExerciseIds ? [...lp.seenExerciseIds] : [],
     unlockedTiers: lp.unlockedTiers ? [...lp.unlockedTiers] : [],
+    vocabMastery: cloneVocabMastery(lp.vocabMastery),
+    ...(lastSrsISO ? { lastSrsQuestCompletedISO: lastSrsISO } : {}),
     ...(hasHintCounts ? { hintAssistedCounts: { ...hintCounts } } : {}),
   };
 }
@@ -374,6 +408,8 @@ function cloneProfile(profile: KidProfile): KidProfile {
       checkpointsPassed: profile.stats.checkpointsPassed ?? 0,
       clozeSolved: profile.stats.clozeSolved ?? 0,
       hintsUsedCount: profile.stats.hintsUsedCount ?? 0,
+      srsQuestsCompleted: profile.stats.srsQuestsCompleted ?? 0,
+      coopMatchesPlayed: profile.stats.coopMatchesPlayed ?? 0,
     },
     languageProgress,
   };
@@ -466,6 +502,8 @@ const PROFILE_STAT_KEYS = [
   'checkpointsPassed',
   'clozeSolved',
   'hintsUsedCount',
+  'srsQuestsCompleted',
+  'coopMatchesPlayed',
 ] as const;
 
 function validateProfileStats(
@@ -485,6 +523,8 @@ function validateProfileStats(
     checkpointsPassed: 0,
     clozeSolved: 0,
     hintsUsedCount: 0,
+    srsQuestsCompleted: 0,
+    coopMatchesPlayed: 0,
   };
   if (raw === undefined) return { ok: true, value: stats };
   if (!isPlainObject(raw)) {
@@ -563,6 +603,59 @@ function validateLangProgress(
     }
   }
 
+  const vocabMastery: Record<string, VocabMasteryEntry> = {};
+  if (raw.vocabMastery !== undefined) {
+    if (!isPlainObject(raw.vocabMastery)) {
+      return { ok: false, error: `${label}.vocabMastery must be an object.` };
+    }
+    for (const [vocabId, entryVal] of Object.entries(raw.vocabMastery)) {
+      const cleanId = vocabId.trim();
+      if (!cleanId) {
+        return { ok: false, error: `${label}.vocabMastery contains an empty vocabId.` };
+      }
+      if (!isPlainObject(entryVal)) {
+        return { ok: false, error: `${label}.vocabMastery["${vocabId}"] must be an object.` };
+      }
+      if (!isNonNegNumber(entryVal.strength)) {
+        return {
+          ok: false,
+          error: `${label}.vocabMastery["${vocabId}"].strength must be a non-negative number.`,
+        };
+      }
+      if (
+        typeof entryVal.lastReviewedISO !== 'string' ||
+        entryVal.lastReviewedISO.trim().length === 0
+      ) {
+        return {
+          ok: false,
+          error: `${label}.vocabMastery["${vocabId}"].lastReviewedISO must be a non-empty string.`,
+        };
+      }
+      if (!isNonNegNumber(entryVal.reviewCount)) {
+        return {
+          ok: false,
+          error: `${label}.vocabMastery["${vocabId}"].reviewCount must be a non-negative number.`,
+        };
+      }
+      vocabMastery[cleanId] = {
+        strength: Math.min(5, Math.max(0, entryVal.strength)),
+        lastReviewedISO: entryVal.lastReviewedISO.trim(),
+        reviewCount: Math.floor(entryVal.reviewCount),
+      };
+    }
+  }
+
+  let lastSrsQuestCompletedISO: string | undefined;
+  if (raw.lastSrsQuestCompletedISO !== undefined) {
+    if (typeof raw.lastSrsQuestCompletedISO !== 'string') {
+      return { ok: false, error: `${label}.lastSrsQuestCompletedISO must be a string.` };
+    }
+    const trimmedSrsIso = raw.lastSrsQuestCompletedISO.trim();
+    if (trimmedSrsIso.length > 0) {
+      lastSrsQuestCompletedISO = trimmedSrsIso;
+    }
+  }
+
   return {
     ok: true,
     value: {
@@ -574,6 +667,8 @@ function validateLangProgress(
       xpEarned: xpRes.value,
       seenExerciseIds,
       unlockedTiers: tiersRes.value,
+      vocabMastery,
+      ...(lastSrsQuestCompletedISO ? { lastSrsQuestCompletedISO } : {}),
       ...(Object.keys(hintAssistedCounts).length > 0 ? { hintAssistedCounts } : {}),
     },
   };
@@ -987,6 +1082,57 @@ function updateActiveProfile(updater: (profile: KidProfile) => KidProfile): void
   });
 }
 
+function pickNewestISO(a?: string, b?: string): string | undefined {
+  const ta = a?.trim();
+  const tb = b?.trim();
+  if (!ta) return tb || undefined;
+  if (!tb) return ta || undefined;
+  const ma = Date.parse(ta);
+  const mb = Date.parse(tb);
+  if (Number.isFinite(ma) && Number.isFinite(mb)) {
+    return mb > ma ? tb : ta;
+  }
+  return tb > ta ? tb : ta;
+}
+
+function mergeVocabMastery(
+  a?: Readonly<Record<string, VocabMasteryEntry>>,
+  b?: Readonly<Record<string, VocabMasteryEntry>>
+): Record<string, VocabMasteryEntry> {
+  const merged = cloneVocabMastery(a);
+  if (!b) return merged;
+  for (const [vocabId, incoming] of Object.entries(b)) {
+    if (!vocabId || !incoming) continue;
+    const existing = merged[vocabId];
+    if (!existing) {
+      merged[vocabId] = {
+        strength: Number.isFinite(incoming.strength)
+          ? Math.min(5, Math.max(0, incoming.strength))
+          : 0,
+        lastReviewedISO: incoming.lastReviewedISO,
+        reviewCount: Number.isFinite(incoming.reviewCount)
+          ? Math.max(0, Math.floor(incoming.reviewCount))
+          : 0,
+      };
+      continue;
+    }
+    const incomingStrength = Number.isFinite(incoming.strength)
+      ? Math.min(5, Math.max(0, incoming.strength))
+      : 0;
+    const incomingCount = Number.isFinite(incoming.reviewCount)
+      ? Math.max(0, Math.floor(incoming.reviewCount))
+      : 0;
+    merged[vocabId] = {
+      strength: Math.min(5, Math.max(existing.strength, incomingStrength)),
+      lastReviewedISO:
+        pickNewestISO(existing.lastReviewedISO, incoming.lastReviewedISO) ??
+        existing.lastReviewedISO,
+      reviewCount: Math.max(existing.reviewCount, incomingCount),
+    };
+  }
+  return merged;
+}
+
 function mergeTwoProfiles(existing: KidProfile, incoming: KidProfile): KidProfile {
   const isDefaultKid = isDefaultKidProfileId(existing.id);
   const adultModeUnlocked =
@@ -1026,6 +1172,9 @@ function mergeTwoProfiles(existing: KidProfile, incoming: KidProfile): KidProfil
       }
     }
 
+    const mergedVocabMastery = mergeVocabMastery(a.vocabMastery, b.vocabMastery);
+    const newestSrsISO = pickNewestISO(a.lastSrsQuestCompletedISO, b.lastSrsQuestCompletedISO);
+
     mergedLanguageProgress[lang] = {
       completedNodeIds: Array.from(new Set([...a.completedNodeIds, ...b.completedNodeIds])),
       nodeStars: mergedStars,
@@ -1039,6 +1188,8 @@ function mergeTwoProfiles(existing: KidProfile, incoming: KidProfile): KidProfil
       unlockedTiers: Array.from(
         new Set([...(a.unlockedTiers ?? []), ...(b.unlockedTiers ?? [])])
       ),
+      vocabMastery: mergedVocabMastery,
+      ...(newestSrsISO ? { lastSrsQuestCompletedISO: newestSrsISO } : {}),
       ...(Object.keys(mergedHintCounts).length > 0 ? { hintAssistedCounts: mergedHintCounts } : {}),
     };
   }
@@ -1131,6 +1282,14 @@ function mergeTwoProfiles(existing: KidProfile, incoming: KidProfile): KidProfil
       hintsUsedCount: Math.max(
         existing.stats.hintsUsedCount ?? 0,
         incoming.stats.hintsUsedCount ?? 0
+      ),
+      srsQuestsCompleted: Math.max(
+        existing.stats.srsQuestsCompleted ?? 0,
+        incoming.stats.srsQuestsCompleted ?? 0
+      ),
+      coopMatchesPlayed: Math.max(
+        existing.stats.coopMatchesPlayed ?? 0,
+        incoming.stats.coopMatchesPlayed ?? 0
       ),
     },
     languageProgress: mergedLanguageProgress,
@@ -1372,6 +1531,58 @@ function awardArcadeResultToProfile(params: {
       badges: evaluateUnlockedBadges(updated),
     };
   });
+}
+
+function applyCoopOutcomeToProfile(
+  profile: KidProfile,
+  params: {
+    gameId: string;
+    score: number;
+    gemsAwarded: number;
+    xpAwarded: number;
+    isWinnerOrTie: boolean;
+  }
+): KidProfile {
+  const prevScores = profile.arcadeHighScores ?? {};
+  const nextBest = Math.max(prevScores[params.gameId] ?? 0, params.score);
+  const nextWeeklyXp = profile.weeklyXp + params.xpAwarded;
+  const nextTotalXp = profile.totalXp + params.xpAwarded;
+  const targetLang: LanguageCode =
+    !isAdultLanguage(profile.activeLanguage) || canUseAdultMode(profile)
+      ? profile.activeLanguage
+      : resolveLastBaseLanguage(profile);
+  const langProg = profile.languageProgress[targetLang] ?? emptyLangProgress();
+
+  const updated: KidProfile = {
+    ...profile,
+    gems: profile.gems + params.gemsAwarded,
+    weeklyXp: nextWeeklyXp,
+    totalXp: nextTotalXp,
+    leagueTier: resolveLeagueTierForXp(nextWeeklyXp, profile.leagueTier),
+    arcadeHighScores: {
+      ...prevScores,
+      [params.gameId]: nextBest,
+    },
+    secretArcadeBestScore:
+      params.gameId === 'starlight_choir'
+        ? Math.max(profile.secretArcadeBestScore ?? 0, params.score)
+        : profile.secretArcadeBestScore,
+    stats: {
+      ...profile.stats,
+      arcadeGamesWon: profile.stats.arcadeGamesWon + (params.isWinnerOrTie ? 1 : 0),
+      coopMatchesPlayed: (profile.stats.coopMatchesPlayed ?? 0) + 1,
+    },
+    languageProgress: withUpdatedLanguageProgress(profile, targetLang, {
+      ...langProg,
+      xpEarned: langProg.xpEarned + params.xpAwarded,
+    }),
+  };
+
+  const withStreak = applyDailyPracticeStreak(updated);
+  return {
+    ...withStreak,
+    badges: evaluateUnlockedBadges(withStreak),
+  };
 }
 
 export const vaultActions = {
@@ -1722,6 +1933,9 @@ export const vaultActions = {
     isBoss?: boolean;
     isChest?: boolean;
     isCheckpoint?: boolean;
+    isSrsQuest?: boolean;
+    practicedVocabIds?: readonly string[];
+    mistakesCount?: number;
     checkpointUnlock?: {
       targetTier: Exclude<ProficiencyTier, 'A1'>;
       prerequisiteNodeIds?: readonly string[];
@@ -1745,6 +1959,27 @@ export const vaultActions = {
       const prevStars = langProg.nodeStars[params.nodeId] ?? 0;
       const nextStars = Math.max(prevStars, params.stars) as 1 | 2 | 3;
 
+      const isSrsQuest =
+        Boolean(params.isSrsQuest) || params.nodeId.includes('-srs-quest-');
+      const todayISO = new Date().toISOString().slice(0, 10);
+      const practicedIds =
+        params.practicedVocabIds !== undefined ? params.practicedVocabIds : params.unlockedVocabIds;
+      const inferredMistakes =
+        params.mistakesCount !== undefined
+          ? params.mistakesCount
+          : params.stars === 3
+            ? 0
+            : params.stars === 2
+              ? 1
+              : 3;
+      const nextVocabMastery = computeUpdatedVocabMastery(
+        langProg.vocabMastery,
+        practicedIds,
+        inferredMistakes,
+        todayISO
+      );
+      const nextLastSrsISO = isSrsQuest ? todayISO : langProg.lastSrsQuestCompletedISO;
+
       let nextLangProg: LanguageProgressState = {
         ...langProg,
         completedNodeIds: Array.from(new Set([...langProg.completedNodeIds, params.nodeId])),
@@ -1759,6 +1994,8 @@ export const vaultActions = {
           ? Array.from(new Set([...langProg.claimedChestIds, params.nodeId]))
           : langProg.claimedChestIds,
         xpEarned: langProg.xpEarned + earnedXp,
+        vocabMastery: nextVocabMastery,
+        ...(nextLastSrsISO ? { lastSrsQuestCompletedISO: nextLastSrsISO } : {}),
       };
 
       const checkpointUnlock =
@@ -1777,7 +2014,8 @@ export const vaultActions = {
         Boolean(params.isCheckpoint) ||
         params.nodeId.startsWith('checkpoint-') ||
         params.nodeId.includes('-checkpoint-');
-      const isLesson = !params.isStory && !params.isBoss && !params.isChest && !isCheckpoint;
+      const isLesson =
+        !params.isStory && !params.isBoss && !params.isChest && !isCheckpoint && !isSrsQuest;
       const nextLessonsCompleted = profile.stats.lessonsCompleted + (isLesson ? 1 : 0);
 
       const nextLanguageProgress = withUpdatedLanguageProgress(
@@ -1811,6 +2049,7 @@ export const vaultActions = {
           lessonsCompleted: nextLessonsCompleted,
           storiesCompleted: profile.stats.storiesCompleted + (params.isStory ? 1 : 0),
           bossesCleared: profile.stats.bossesCleared + (params.isBoss ? 1 : 0),
+          srsQuestsCompleted: (profile.stats.srsQuestsCompleted ?? 0) + (isSrsQuest ? 1 : 0),
           // Only increment checkpointsPassed here when unlockProficiencyTier isn't called separately
           checkpointsPassed:
             (profile.stats.checkpointsPassed ?? 0) + (checkpointUnlock ? 1 : 0),
@@ -1975,6 +2214,83 @@ export const vaultActions = {
       xpEarned: params.xpEarned,
       preserveXpBooster: params.preserveXpBooster,
     });
+  },
+
+  recordCoopArcadeSession(params: CoopArcadeSessionParams): CoopArcadeSessionSummary | null {
+    const cleanGameId = typeof params.gameId === 'string' ? params.gameId.trim() : '';
+    if (!cleanGameId) return null;
+    if (!params.playerOneId || !params.playerTwoId || params.playerOneId === params.playerTwoId) {
+      return null;
+    }
+
+    const playerOne = memoryVault.profiles.find((p) => p.id === params.playerOneId);
+    const playerTwo = memoryVault.profiles.find((p) => p.id === params.playerTwoId);
+    if (!playerOne || !playerTwo) return null;
+
+    const p1Score = Number.isFinite(params.playerOneScore)
+      ? Math.max(0, Math.floor(params.playerOneScore))
+      : 0;
+    const p2Score = Number.isFinite(params.playerTwoScore)
+      ? Math.max(0, Math.floor(params.playerTwoScore))
+      : 0;
+    const combinedScore = p1Score + p2Score;
+    const baseGems = Number.isFinite(params.bonusGems)
+      ? Math.max(0, Math.floor(params.bonusGems))
+      : 0;
+    const xpAwardedEach = Number.isFinite(params.xpEarned)
+      ? Math.max(0, Math.round(params.xpEarned))
+      : 0;
+
+    let winnerProfileId: string | 'tie' = 'tie';
+    let playerOneGemsAwarded = baseGems + 3;
+    let playerTwoGemsAwarded = baseGems + 3;
+    if (p1Score > p2Score) {
+      winnerProfileId = playerOne.id;
+      playerOneGemsAwarded = baseGems + 5;
+      playerTwoGemsAwarded = baseGems;
+    } else if (p2Score > p1Score) {
+      winnerProfileId = playerTwo.id;
+      playerOneGemsAwarded = baseGems;
+      playerTwoGemsAwarded = baseGems + 5;
+    }
+
+    const p1Won = winnerProfileId === 'tie' || winnerProfileId === playerOne.id;
+    const p2Won = winnerProfileId === 'tie' || winnerProfileId === playerTwo.id;
+
+    const nextProfiles = memoryVault.profiles.map((profile) => {
+      if (profile.id === playerOne.id) {
+        return applyCoopOutcomeToProfile(profile, {
+          gameId: cleanGameId,
+          score: p1Score,
+          gemsAwarded: playerOneGemsAwarded,
+          xpAwarded: xpAwardedEach,
+          isWinnerOrTie: p1Won,
+        });
+      }
+      if (profile.id === playerTwo.id) {
+        return applyCoopOutcomeToProfile(profile, {
+          gameId: cleanGameId,
+          score: p2Score,
+          gemsAwarded: playerTwoGemsAwarded,
+          xpAwarded: xpAwardedEach,
+          isWinnerOrTie: p2Won,
+        });
+      }
+      return profile;
+    });
+
+    commitVault({
+      ...memoryVault,
+      profiles: nextProfiles,
+    });
+
+    return {
+      winnerProfileId,
+      combinedScore,
+      playerOneGemsAwarded,
+      playerTwoGemsAwarded,
+      xpAwardedEach,
+    };
   },
 
   restoreHeartsFromArcade(params: { heartsWon: number; bonusGems: number }): void {

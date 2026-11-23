@@ -31,9 +31,11 @@ export {
   buildWeeklyLeaderboard,
   calculateComboMultiplier,
   calculateLessonRewards,
+  computeUpdatedVocabMastery,
   evaluateUnlockedBadges,
   getBadgeProgress,
   resolveLeagueTierForXp,
+  scoreSrsCandidates,
 } from './progression';
 export {
   AVATAR_SHOP_CATALOG,
@@ -52,4 +54,9 @@ export {
   getCosmeticById,
   type AvatarShopItem,
 } from './cosmetics';
-export type { CosmeticId } from '../types/contracts';
+export type {
+  CosmeticId,
+  FreeRecallToneCoaching,
+  SrsReviewCandidate,
+  VocabMasteryEntry,
+} from '../types/contracts';

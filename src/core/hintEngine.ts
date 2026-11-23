@@ -2,6 +2,7 @@ import {
   FREE_RECALL_BONUS_GEMS,
   FREE_RECALL_BONUS_XP,
   LANGUAGE_META,
+  type FreeRecallToneCoaching,
   type HintTier,
   type LanguageCode,
 } from '../types/contracts';
@@ -61,6 +62,8 @@ export interface FreeRecallHintPlan {
   slots: FreeRecallHintSlot[];
   nextWord: string | null;
   alreadyComplete: boolean;
+  isRomanizedMode?: boolean;
+  toneCoaching?: FreeRecallToneCoaching;
 }
 
 export interface ChoiceHintInput {
@@ -111,11 +114,62 @@ const NO_SPACE_AFTER_HINT_RE =
 const NO_SPACE_BEFORE_HINT_RE = /^[.,!?;:)»。？！，、・「」『』（）؟،؛।॥]/;
 const CJK_FULLWIDTH_HINT_RE =
   /[\u3005\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF。？！，、；：・「」『』（）【】《》〈〉]/;
-const CJK_KANA_LETTER_RE = /[\u3005\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/;
+const NON_LATIN_SCRIPT_RE =
+  /[\u3005\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\u0900-\u097F\u0980-\u09FF\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\u0400-\u04FF]/;
 const LATIN_LETTER_RE = /[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]/;
+const TONE_COACHING_LATIN_LANGUAGES = new Set<LanguageCode>([
+  'vi',
+  'es',
+  'fr',
+  'de',
+  'it',
+  'pt',
+]);
 
 function isRomanizedText(text: string): boolean {
-  return LATIN_LETTER_RE.test(text) && !CJK_KANA_LETTER_RE.test(text);
+  return LATIN_LETTER_RE.test(text) && !NON_LATIN_SCRIPT_RE.test(text);
+}
+
+function stripOuterPunct(word: string): string {
+  return word.trim().replace(EDGE_PUNCT_STRIP_RE, '');
+}
+
+function hasToneOrDiacritic(text: string): boolean {
+  const nfd = text.normalize('NFD');
+  return /[\u0300-\u036f]/.test(nfd) || /[đĐß\u02BE\u02BF]/.test(text);
+}
+
+function cleanExactWordForm(raw: string): string {
+  return stripOuterPunct(raw)
+    .normalize('NFC')
+    .replace(/[\u2018\u2019\u02BC\u201B\u2032]/g, "'")
+    .toLowerCase()
+    .replace(/['\-]/g, '');
+}
+
+function buildFreeRecallToneTip(
+  language: LanguageCode,
+  expectedWord: string,
+  typedWord: string
+): string {
+  if (!hasToneOrDiacritic(expectedWord)) {
+    return `Watch the tone marks: "${expectedWord}" uses plain letters (you typed "${typedWord}").`;
+  }
+  switch (language) {
+    case 'zh':
+      return `Tone tip: "${expectedWord}" uses Pinyin tone marks (you typed "${typedWord}") — keep going!`;
+    case 'ja':
+      return `Vowel tip: "${expectedWord}" uses a long-vowel macron (you typed "${typedWord}").`;
+    case 'vi':
+      return `Tone tip: "${expectedWord}" has a Vietnamese tone mark (you typed "${typedWord}").`;
+    case 'hi':
+    case 'bn':
+    case 'ar':
+    case 'arz':
+      return `Romanization tip: "${expectedWord}" includes vowel/letter marks (you typed "${typedWord}").`;
+    default:
+      return `Accent tip: "${expectedWord}" includes an accent mark (you typed "${typedWord}").`;
+  }
 }
 
 /**
@@ -468,16 +522,102 @@ function tokenizeSentenceForFreeRecall(
   return trimmed.split(/\s+/).filter(Boolean);
 }
 
+function resolveFreeRecallToneCoaching(params: {
+  language: LanguageCode;
+  typedWords: readonly string[];
+  bestWords: readonly string[];
+  completedPrefixCount: number;
+  hasActivePartial: boolean;
+  hasWrongSuffix: boolean;
+  isRomanizedMode: boolean;
+  compareWord: (w: string) => string;
+}): FreeRecallToneCoaching | undefined {
+  const {
+    language,
+    typedWords,
+    bestWords,
+    completedPrefixCount,
+    hasActivePartial,
+    hasWrongSuffix,
+    isRomanizedMode,
+    compareWord,
+  } = params;
+
+  if (hasWrongSuffix || typedWords.length === 0) return undefined;
+  if (!isRomanizedMode && !TONE_COACHING_LATIN_LANGUAGES.has(language)) return undefined;
+
+  let mismatchedPair: { expectedWord: string; typedWord: string } | null = null;
+  for (let i = 0; i < completedPrefixCount; i += 1) {
+    const typedDisplay = stripOuterPunct(typedWords[i]) || typedWords[i].trim();
+    const expectedDisplay = stripOuterPunct(bestWords[i]) || bestWords[i].trim();
+    if (
+      (hasToneOrDiacritic(expectedDisplay) || hasToneOrDiacritic(typedDisplay)) &&
+      cleanExactWordForm(typedDisplay) !== cleanExactWordForm(expectedDisplay)
+    ) {
+      mismatchedPair = { expectedWord: expectedDisplay, typedWord: typedDisplay };
+    }
+  }
+
+  if (
+    hasActivePartial &&
+    completedPrefixCount < bestWords.length &&
+    completedPrefixCount < typedWords.length
+  ) {
+    const typedDisplay =
+      stripOuterPunct(typedWords[completedPrefixCount]) || typedWords[completedPrefixCount].trim();
+    const expectedDisplay =
+      stripOuterPunct(bestWords[completedPrefixCount]) || bestWords[completedPrefixCount].trim();
+    const targetChars = splitGraphemes(expectedDisplay).filter((g) => !/['’‘\-]/.test(g));
+    const typedStrippedLen = compareWord(typedDisplay).replace(/['’‘\-]/g, '').length;
+    if (typedStrippedLen > 0) {
+      let alignedSlice = '';
+      for (const g of targetChars) {
+        if (compareWord(alignedSlice).replace(/['’‘\-]/g, '').length >= typedStrippedLen) {
+          break;
+        }
+        alignedSlice += g;
+      }
+      if (
+        alignedSlice &&
+        (hasToneOrDiacritic(alignedSlice) || hasToneOrDiacritic(typedDisplay)) &&
+        cleanExactWordForm(typedDisplay) !== cleanExactWordForm(alignedSlice)
+      ) {
+        mismatchedPair = { expectedWord: expectedDisplay, typedWord: typedDisplay };
+      }
+    }
+  }
+
+  if (!mismatchedPair) return undefined;
+  return {
+    hasToneMismatch: true,
+    expectedWord: mismatchedPair.expectedWord,
+    typedWord: mismatchedPair.typedWord,
+    tip: buildFreeRecallToneTip(
+      language,
+      mismatchedPair.expectedWord,
+      mismatchedPair.typedWord
+    ),
+  };
+}
+
+interface CandidateWordEntry {
+  words: string[];
+  isSplitVariant: boolean;
+  hasDiacritics: boolean;
+}
+
 /**
  * Expands a Latin/romanized candidate into space-delimited word forms, plus a
  * syllable-split variant when apostrophes or hyphens appear (e.g. "Wǎn'ān").
  */
-function buildRomanizedCandidateWordLists(candidate: string): string[][] {
+function buildRomanizedCandidateWordLists(candidate: string): CandidateWordEntry[] {
   const baseWords = candidate
     .trim()
     .split(/\s+/)
     .filter((w) => cleanCompareRomanizedWord(w).length > 0);
-  const variants: string[][] = baseWords.length > 0 ? [baseWords] : [];
+  const hasDiacritics = hasToneOrDiacritic(candidate);
+  const variants: CandidateWordEntry[] =
+    baseWords.length > 0 ? [{ words: baseWords, isSplitVariant: false, hasDiacritics }] : [];
   if (/['’‘\-]/.test(candidate)) {
     const splitWords = candidate
       .trim()
@@ -485,7 +625,7 @@ function buildRomanizedCandidateWordLists(candidate: string): string[][] {
       .split(/\s+/)
       .filter((w) => cleanCompareRomanizedWord(w).length > 0);
     if (splitWords.length > baseWords.length) {
-      variants.push(splitWords);
+      variants.push({ words: splitWords, isSplitVariant: true, hasDiacritics });
     }
   }
   return variants;
@@ -516,11 +656,13 @@ export function resolveFreeRecallHint(input: FreeRecallHintInput): FreeRecallHin
     uniqueCandidates.push('');
   }
 
-  const usesSpaces = LANGUAGE_META[language].usesSpaces;
+  const langMeta = LANGUAGE_META[language];
+  const usesSpaces = langMeta.usesSpaces;
+  const isNonLatinCourse = langMeta.scriptType !== 'latin';
   const trimmedTyped = typedText.trim();
   const endsWithSpace = /\s$/.test(typedText);
   const isRomanizedTyped =
-    !usesSpaces && trimmedTyped.length > 0 && isRomanizedText(trimmedTyped);
+    isNonLatinCourse && trimmedTyped.length > 0 && isRomanizedText(trimmedTyped);
 
   const typedWords = trimmedTyped
     ? usesSpaces || isRomanizedTyped
@@ -531,36 +673,43 @@ export function resolveFreeRecallHint(input: FreeRecallHintInput): FreeRecallHin
   const romanizedCandidates = isRomanizedTyped
     ? uniqueCandidates.filter(isRomanizedText)
     : [];
-  const candidatesToEvaluate =
-    isRomanizedTyped && romanizedCandidates.length > 0 ? romanizedCandidates : uniqueCandidates;
+  const isRomanizedMode = isRomanizedTyped && romanizedCandidates.length > 0;
+  const candidatesToEvaluate = isRomanizedMode ? romanizedCandidates : uniqueCandidates;
 
-  const candidateWordLists: string[][] = [];
-  if (isRomanizedTyped && romanizedCandidates.length > 0) {
+  const candidateWordLists: CandidateWordEntry[] = [];
+  if (isRomanizedMode) {
     for (const cand of candidatesToEvaluate) {
       candidateWordLists.push(...buildRomanizedCandidateWordLists(cand));
     }
   } else {
     for (const cand of candidatesToEvaluate) {
-      candidateWordLists.push(
-        tokenizeSentenceForFreeRecall(
+      candidateWordLists.push({
+        words: tokenizeSentenceForFreeRecall(
           cand,
           language,
           cand === expected.trim() ? targetTokens : undefined
-        )
-      );
+        ),
+        isSplitVariant: false,
+        hasDiacritics: hasToneOrDiacritic(cand),
+      });
     }
   }
 
-  const compareWord = isRomanizedTyped
+  const compareWord = isRomanizedMode
     ? cleanCompareRomanizedWord
     : (w: string) => cleanCompareWord(w, language);
 
-  let bestWords = candidateWordLists[0] ?? [];
+  let bestWords = candidateWordLists[0]?.words ?? [];
   let bestPrefixCount = -1;
   let bestHasWrongSuffix = false;
   let bestHasActivePartial = false;
+  let bestHasDiacritics = false;
+  let bestExactPrefixMatches = -1;
+  let bestIsSplitVariant = false;
+  let bestStrippedSig = '';
 
-  for (const candWords of candidateWordLists) {
+  for (const entry of candidateWordLists) {
+    const candWords = entry.words;
     let prefix = 0;
     const maxLen = Math.min(typedWords.length, candWords.length);
     while (prefix < maxLen) {
@@ -592,13 +741,37 @@ export function resolveFreeRecallHint(input: FreeRecallHintInput): FreeRecallHin
       }
     }
 
+    let exactPrefixMatches = 0;
+    for (let i = 0; i < prefix; i += 1) {
+      if (cleanExactWordForm(typedWords[i]) === cleanExactWordForm(candWords[i])) {
+        exactPrefixMatches += 1;
+      }
+    }
+    const strippedSig = candWords.map((w) => compareWord(w)).join(' ');
+
     const score = prefix * 2 + (wrongSuffix ? 0 : 1);
     const bestScore = bestPrefixCount * 2 + (bestHasWrongSuffix ? 0 : 1);
-    if (bestPrefixCount < 0 || score > bestScore) {
+    let shouldReplace = bestPrefixCount < 0 || score > bestScore;
+    if (!shouldReplace && score === bestScore) {
+      const sameStrippedDomain = isRomanizedMode || strippedSig === bestStrippedSig;
+      if (sameStrippedDomain && entry.hasDiacritics !== bestHasDiacritics) {
+        shouldReplace = entry.hasDiacritics;
+      } else if (exactPrefixMatches !== bestExactPrefixMatches) {
+        shouldReplace = exactPrefixMatches > bestExactPrefixMatches;
+      } else if (entry.isSplitVariant !== bestIsSplitVariant) {
+        shouldReplace = !entry.isSplitVariant;
+      }
+    }
+
+    if (shouldReplace) {
       bestPrefixCount = prefix;
       bestHasWrongSuffix = wrongSuffix;
       bestHasActivePartial = hasActivePartial;
       bestWords = candWords;
+      bestHasDiacritics = entry.hasDiacritics;
+      bestExactPrefixMatches = exactPrefixMatches;
+      bestIsSplitVariant = entry.isSplitVariant;
+      bestStrippedSig = strippedSig;
     }
   }
 
@@ -606,7 +779,7 @@ export function resolveFreeRecallHint(input: FreeRecallHintInput): FreeRecallHin
   // Count a valid active romanized opening prefix (e.g. "Ma" -> "Mǎtè'ào", "Oya" -> "oyasumi")
   // as progress without prematurely marking its uncompleted slot as matched or complete.
   const validWordPrefixCount =
-    isRomanizedTyped && completedPrefixCount === 0 && bestHasActivePartial
+    isRomanizedMode && completedPrefixCount === 0 && bestHasActivePartial
       ? 1
       : completedPrefixCount;
   const remainingCount = Math.max(0, bestWords.length - completedPrefixCount);
@@ -635,6 +808,17 @@ export function resolveFreeRecallHint(input: FreeRecallHintInput): FreeRecallHin
     };
   });
 
+  const toneCoaching = resolveFreeRecallToneCoaching({
+    language,
+    typedWords,
+    bestWords,
+    completedPrefixCount,
+    hasActivePartial: bestHasActivePartial,
+    hasWrongSuffix: bestHasWrongSuffix,
+    isRomanizedMode,
+    compareWord,
+  });
+
   const nextWord =
     completedPrefixCount < bestWords.length ? bestWords[completedPrefixCount] : null;
   const alreadyComplete =
@@ -647,6 +831,8 @@ export function resolveFreeRecallHint(input: FreeRecallHintInput): FreeRecallHin
     slots,
     nextWord,
     alreadyComplete,
+    isRomanizedMode,
+    ...(toneCoaching ? { toneCoaching } : {}),
   };
 }
 

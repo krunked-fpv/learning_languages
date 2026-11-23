@@ -14,6 +14,8 @@ import {
   type LanguageProgressState,
   type LeagueEntry,
   type LeagueTier,
+  type SrsReviewCandidate,
+  type VocabMasteryEntry,
 } from '../types/contracts';
 import { computeFreeRecallHintedBonus } from './hintEngine';
 
@@ -662,4 +664,135 @@ export function buildWeeklyLeaderboard(profile: KidProfile): LeagueEntry[] {
     ...entry,
     rank: idx + 1,
   }));
+}
+
+/**
+ * Scores unlocked vocabulary cards for adaptive SRS review priority, placing
+ * unreviewed, weaker, and older-reviewed cards first.
+ */
+export function scoreSrsCandidates(
+  unlockedVocabIds: readonly string[],
+  vocabMastery?: Readonly<Record<string, VocabMasteryEntry>>,
+  todayISO?: string
+): SrsReviewCandidate[] {
+  const fallbackToday = new Date().toISOString().slice(0, 10);
+  const todayParsed = parseCalendarDay(todayISO ?? fallbackToday);
+  const todayUtcMs = todayParsed?.utcMs ?? parseCalendarDay(fallbackToday)!.utcMs;
+
+  const seen = new Set<string>();
+  const uniqueIds: string[] = [];
+  for (const rawId of unlockedVocabIds) {
+    const id = rawId.trim();
+    if (id && !seen.has(id)) {
+      seen.add(id);
+      uniqueIds.push(id);
+    }
+  }
+
+  const candidates: Array<{ item: SrsReviewCandidate; isMissing: boolean; order: number }> =
+    uniqueIds.map((vocabId, order) => {
+      const entry = vocabMastery?.[vocabId];
+      if (!entry) {
+        return {
+          item: {
+            vocabId,
+            strength: 0,
+            daysSinceReview: 0,
+            priorityScore: 60,
+          },
+          isMissing: true,
+          order,
+        };
+      }
+
+      const strength = Number.isFinite(entry.strength)
+        ? Math.min(5, Math.max(0, entry.strength))
+        : 0;
+      const lastParsed = parseCalendarDay(entry.lastReviewedISO);
+      const daysSinceReview = lastParsed
+        ? Math.max(0, Math.round((todayUtcMs - lastParsed.utcMs) / MS_PER_DAY))
+        : 0;
+      const priorityScore = (5 - strength) * 10 + daysSinceReview * 2;
+
+      return {
+        item: {
+          vocabId,
+          strength,
+          daysSinceReview,
+          priorityScore,
+        },
+        isMissing: false,
+        order,
+      };
+    });
+
+  candidates.sort((a, b) => {
+    if (b.item.priorityScore !== a.item.priorityScore) {
+      return b.item.priorityScore - a.item.priorityScore;
+    }
+    if (a.isMissing !== b.isMissing) {
+      return a.isMissing ? -1 : 1;
+    }
+    if (a.item.strength !== b.item.strength) {
+      return a.item.strength - b.item.strength;
+    }
+    if (b.item.daysSinceReview !== a.item.daysSinceReview) {
+      return b.item.daysSinceReview - a.item.daysSinceReview;
+    }
+    return a.order - b.order;
+  });
+
+  return candidates.map((c) => c.item);
+}
+
+/**
+ * Computes updated SRS mastery entries for practiced vocabulary IDs, boosting
+ * strength within [0, 5] (higher on 0 mistakes) and incrementing reviewCount.
+ */
+export function computeUpdatedVocabMastery(
+  prevMastery: Readonly<Record<string, VocabMasteryEntry>> | undefined,
+  practicedVocabIds: readonly string[],
+  mistakesCount: number,
+  todayISO?: string
+): Record<string, VocabMasteryEntry> {
+  const fallbackToday = new Date().toISOString().slice(0, 10);
+  const todayDayStr = parseCalendarDay(todayISO ?? fallbackToday)?.dayStr ?? fallbackToday;
+  const safeMistakes = Number.isFinite(mistakesCount)
+    ? Math.max(0, Math.floor(mistakesCount))
+    : 0;
+  const strengthBoost = safeMistakes === 0 ? 2 : 1;
+
+  const next: Record<string, VocabMasteryEntry> = {};
+  if (prevMastery) {
+    for (const [id, entry] of Object.entries(prevMastery)) {
+      if (id && entry) {
+        next[id] = {
+          strength: Number.isFinite(entry.strength)
+            ? Math.min(5, Math.max(0, entry.strength))
+            : 0,
+          lastReviewedISO: entry.lastReviewedISO,
+          reviewCount: Number.isFinite(entry.reviewCount)
+            ? Math.max(0, Math.floor(entry.reviewCount))
+            : 0,
+        };
+      }
+    }
+  }
+
+  const seen = new Set<string>();
+  for (const rawId of practicedVocabIds) {
+    const vocabId = rawId.trim();
+    if (!vocabId || seen.has(vocabId)) continue;
+    seen.add(vocabId);
+    const prev = next[vocabId];
+    const prevStrength = prev ? prev.strength : 0;
+    const prevCount = prev ? prev.reviewCount : 0;
+    next[vocabId] = {
+      strength: Math.min(5, Math.max(0, prevStrength + strengthBoost)),
+      lastReviewedISO: todayDayStr,
+      reviewCount: prevCount + 1,
+    };
+  }
+
+  return next;
 }
