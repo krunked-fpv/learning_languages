@@ -43,6 +43,15 @@ const NODE_TYPE_LABELS: Record<MapNodeType, string> = {
   boss: 'Boss',
 };
 
+// Deepened tier fills ensure >= 5:1 contrast with #FFFFFF active pill text & dot across all themes.
+const TIER_ACTIVE_BG: Record<ProficiencyTier, string> = {
+  A1: '#047857',
+  A2: '#0369A1',
+  B1: '#6D28D9',
+  B2: '#B45309',
+  C1_C2: '#BE185D',
+};
+
 const DESKTOP_SLOTS: ReadonlyArray<{ x: number; y: number }> = [
   { x: 9, y: 36 },
   { x: 22.5, y: 64 },
@@ -616,15 +625,19 @@ export function AdventureMap({
                   cursor: hasUnits ? 'pointer' : 'not-allowed',
                   opacity: hasUnits ? 1 : 0.45,
                   backgroundColor: isActiveTier
-                    ? meta.badgeColor
+                    ? TIER_ACTIVE_BG[tier]
                     : isUnlocked
                       ? meta.surfaceTint
                       : 'var(--card-soft-bg, #f8fafc)',
-                  color: isActiveTier ? '#FFFFFF' : 'var(--text-main, #0f172a)',
+                  color: isActiveTier
+                    ? '#FFFFFF'
+                    : isUnlocked
+                      ? '#0F172A'
+                      : 'var(--text-main, #0f172a)',
                   borderStyle: 'solid',
                   borderWidth: '1.5px 1.5px 3px 1.5px',
                   borderColor: isActiveTier
-                    ? '#0F172A'
+                    ? 'var(--text-main, #0f172a)'
                     : isUnlocked
                       ? meta.badgeColor
                       : 'var(--card-border, #cbd5e1)',
@@ -882,7 +895,7 @@ export function AdventureMap({
                       flexShrink: 0,
                       padding: '1px 7px',
                       borderRadius: 999,
-                      backgroundColor: currentTierMeta.badgeColor,
+                      backgroundColor: TIER_ACTIVE_BG[currentUnitTier],
                       color: '#FFFFFF',
                       border: '1px solid rgba(255,255,255,0.45)',
                       fontSize: isCompactWidth ? 9.5 : 10,
