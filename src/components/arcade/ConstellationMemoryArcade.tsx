@@ -487,6 +487,7 @@ export function ConstellationMemoryArcade({
                     style={{
                       width: '100%',
                       height: '100%',
+                      minWidth: 0,
                       minHeight: 0,
                       padding: isCompact ? 4 : 8,
                       borderRadius: 16,
@@ -525,22 +526,25 @@ export function ConstellationMemoryArcade({
                             <VocabIllustration
                               illustrationKey={card.item.illustrationKey}
                               language={language}
-                              size={isCompact ? 28 : 46}
+                              size={isCompact ? (card.item.english.length > 22 ? 24 : 28) : 46}
                             />
                           </span>
                           <span
                             dir="ltr"
                             style={{
                               fontWeight: 900,
-                              fontSize:
-                                card.item.english.length > 20
-                                  ? isCompact
-                                    ? '0.6rem'
-                                    : '0.72rem'
-                                  : isCompact
-                                    ? '0.68rem'
+                              fontSize: isCompact
+                                ? card.item.english.length > 28
+                                  ? '0.54rem'
+                                  : card.item.english.length > 20
+                                    ? '0.59rem'
+                                    : '0.67rem'
+                                : card.item.english.length > 30
+                                  ? '0.65rem'
+                                  : card.item.english.length > 20
+                                    ? '0.72rem'
                                     : '0.8rem',
-                              lineHeight: 1.24,
+                              lineHeight: card.item.english.length > 20 ? 1.16 : 1.24,
                               color: '#1e1b4b',
                               textAlign: 'center',
                               maxWidth: '100%',

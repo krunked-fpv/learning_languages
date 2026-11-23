@@ -285,7 +285,7 @@ export function SkyCatcherArcade({
               uid: nextUidRef.current++,
               kind: 'lantern',
               item,
-              x: 21 + Math.random() * 58,
+              x: 22 + Math.random() * 56,
               y: -10,
               speed: (19 + Math.random() * 8) * paceMultiplier,
               swayOffset: Math.random() * Math.PI * 2,
@@ -302,8 +302,8 @@ export function SkyCatcherArcade({
         }
         const nextY = ent.y + ent.speed * dt;
         const swayX = Math.max(
-          18,
-          Math.min(82, ent.x + Math.sin(elapsedRef.current * 2 + ent.swayOffset) * 4 * dt)
+          21,
+          Math.min(79, ent.x + Math.sin(elapsedRef.current * 2 + ent.swayOffset) * 4 * dt)
         );
         const hitPip = nextY >= 72 && nextY <= 92 && Math.abs(swayX - pipXRef.current) <= 14;
 
@@ -511,7 +511,9 @@ export function SkyCatcherArcade({
                     display: 'flex',
                     alignItems: 'center',
                     gap: 5,
-                    maxWidth: isCompact ? '44%' : '34%',
+                    maxWidth: isCompact ? '40%' : '34%',
+                    minWidth: 0,
+                    overflow: 'hidden',
                     pointerEvents: 'none',
                   }}
                 >
@@ -524,11 +526,14 @@ export function SkyCatcherArcade({
                   </span>
                   <span
                     dir={langDir}
-                    style={getArcadeForeignTextStyle(language, ent.item.foreign, {
-                      isCompact,
-                      density: 'normal',
-                      color: '#1e1b4b',
-                    })}
+                    style={{
+                      ...getArcadeForeignTextStyle(language, ent.item.foreign, {
+                        isCompact,
+                        density: 'normal',
+                        color: '#1e1b4b',
+                      }),
+                      flex: '0 1 auto',
+                    }}
                   >
                     {ent.item.foreign}
                   </span>

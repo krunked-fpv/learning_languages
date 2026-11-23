@@ -5,6 +5,8 @@ import { getArcadeLexicon } from '../../curriculum';
 import { useVaultStore, vaultActions } from '../../store/useVaultStore';
 import {
   LANGUAGE_META,
+  isAdultLanguage,
+  isDefaultKidProfileId,
   type ArcadeLanternItem,
   type ArcadeProficiencyTier,
   type CompanionId,
@@ -175,6 +177,186 @@ export const FALLBACK_ARCADE_LEXICON: Record<LanguageCode, ArcadeLanternItem[]> 
     { id: 'fb-sw-7', language: 'sw', foreign: 'mwezi', english: 'the moon', phonetic: 'MWEH-zee', illustrationKey: 'crescent_moon' },
     { id: 'fb-sw-8', language: 'sw', foreign: 'treni', english: 'train', phonetic: 'TREH-nee', illustrationKey: 'express_train' },
   ],
+  ebonics: [
+    {
+      id: 'fb-eb-1',
+      language: 'ebonics',
+      foreign: "What's good?",
+      english: "How's it going, buddy?",
+      phonetic: 'wuhts GOOD',
+      illustrationKey: 'wave_hello',
+      exampleForeign: "Yo fam, what's good at the cookout?",
+      exampleEnglish: "Hey friend, how's everything going at the barbecue?",
+      examplePhonetic: 'yoh fam, wuhts GOOD at thuh COOK-owt',
+    },
+    {
+      id: 'fb-eb-2',
+      language: 'ebonics',
+      foreign: 'No cap',
+      english: 'Honestly, for real',
+      phonetic: 'noh KAP',
+      illustrationKey: 'thumbs_yes',
+      exampleForeign: 'That playlist was fire, no cap!',
+      exampleEnglish: 'Those songs were genuinely terrific!',
+      examplePhonetic: 'that PLAY-list wuz FYR, noh KAP',
+    },
+    {
+      id: 'fb-eb-3',
+      language: 'ebonics',
+      foreign: 'Say less',
+      english: 'Sounds like a plan!',
+      phonetic: 'say LESS',
+      illustrationKey: 'friendly_handshake',
+      exampleForeign: 'You bringing plates? Say less, I got you.',
+      exampleEnglish: 'Bringing tableware? Consider it handled!',
+      examplePhonetic: 'yoo BRING-in playts? say LESS, y gaht yoo',
+    },
+    {
+      id: 'fb-eb-4',
+      language: 'ebonics',
+      foreign: 'Low-key',
+      english: 'Quietly kinda nice',
+      phonetic: 'LOH-kee',
+      illustrationKey: 'calm_lotus',
+      exampleForeign: "I'm low-key excited for Sunday dinner.",
+      exampleEnglish: "I'm subtly looking forward to dinner on Sunday.",
+      examplePhonetic: 'ym LOH-kee ik-SY-ted for SUN-day DIN-er',
+    },
+    {
+      id: 'fb-eb-5',
+      language: 'ebonics',
+      foreign: 'My bad',
+      english: 'Whoopsie-daisy, sorry!',
+      phonetic: 'my BAD',
+      illustrationKey: 'helping_hands',
+      exampleForeign: 'Oh, my bad, I spilled the punch!',
+      exampleEnglish: 'Oh dear, pardon me for tipping the beverage!',
+      examplePhonetic: 'oh, my BAD, y spild thuh punch',
+    },
+    {
+      id: 'fb-eb-6',
+      language: 'ebonics',
+      foreign: "I'm dead",
+      english: 'That is hilarious!',
+      phonetic: 'ym DED',
+      illustrationKey: 'happy_smile',
+      exampleForeign: "Wait till you see that clip, I'm dead!",
+      exampleEnglish: 'Just wait until you see that video, what a hoot!',
+      examplePhonetic: 'wayt til yoo see that klip, ym DED',
+    },
+    {
+      id: 'fb-eb-7',
+      language: 'ebonics',
+      foreign: 'Finna bounce',
+      english: 'About to head out',
+      phonetic: 'FIN-uh BOWNSS',
+      illustrationKey: 'explorer_boots',
+      exampleForeign: 'Traffic picking up, so we finna bounce soon.',
+      exampleEnglish: 'Commute is building, so we are heading off shortly.',
+      examplePhonetic: 'TRAF-ik PIK-in up, soh wee FIN-uh BOWNSS soon',
+    },
+    {
+      id: 'fb-eb-8',
+      language: 'ebonics',
+      foreign: "Bussin'",
+      english: 'Remarkably scrumptious!',
+      phonetic: 'BUH-sin',
+      illustrationKey: 'delicious_sparkles',
+      exampleForeign: "Grandma's peach cobbler is straight bussin' today!",
+      exampleEnglish: "Nana's baked fruit dessert is out of this world!",
+      examplePhonetic: 'GRAN-mahz peech KAHB-ler iz strayt BUH-sin tuh-DAY',
+    },
+  ],
+  suburban: [
+    {
+      id: 'fb-sb-1',
+      language: 'suburban',
+      foreign: 'Howdy, neighbor!',
+      english: "What's good, fam?",
+      phonetic: 'HOW-dee NAY-ber',
+      illustrationKey: 'wave_hello',
+      exampleForeign: 'Howdy, neighbor, lovely morning for mowing!',
+      exampleEnglish: "What's good, fam, sun out early for the yard!",
+      examplePhonetic: 'HOW-dee NAY-ber, LUV-lee MOR-ning for MOH-ing',
+    },
+    {
+      id: 'fb-sb-2',
+      language: 'suburban',
+      foreign: 'Living the dream',
+      english: "Out here survivin'",
+      phonetic: 'LIV-ing thuh DREEM',
+      illustrationKey: 'sunny_weather',
+      exampleForeign: 'Just out here living the dream on a Tuesday.',
+      exampleEnglish: "Man, I'm just tryna make it through Tuesday.",
+      examplePhonetic: 'just owt heer LIV-ing thuh DREEM on uh TOOZ-day',
+    },
+    {
+      id: 'fb-sb-3',
+      language: 'suburban',
+      foreign: "Let's circle back",
+      english: "We gon' revisit that",
+      phonetic: 'lets SER-kul BAK',
+      illustrationKey: 'compass_map',
+      exampleForeign: "Great thought, let's circle back after lunch.",
+      exampleEnglish: "Bet, we gon' run that back after we eat.",
+      examplePhonetic: 'grayt thawt, lets SER-kul BAK AF-ter lunch',
+    },
+    {
+      id: 'fb-sb-4',
+      language: 'suburban',
+      foreign: 'Ope, scoot past ya',
+      english: 'My bad, tryna slide thru',
+      phonetic: 'ohp SKOOT past yuh',
+      illustrationKey: 'direction_left_right',
+      exampleForeign: 'Ope, scoot past ya right quick to grab ranch.',
+      exampleEnglish: 'My bad, let me squeeze right past for the sauce.',
+      examplePhonetic: 'ohp SKOOT past yuh ryt kwik too grab ranch',
+    },
+    {
+      id: 'fb-sb-5',
+      language: 'suburban',
+      foreign: 'That hits the spot',
+      english: "That right there is bussin'",
+      phonetic: 'that HITS thuh SPAHT',
+      illustrationKey: 'delicious_sparkles',
+      exampleForeign: 'Sparkling seltzer on the deck? That hits the spot!',
+      exampleEnglish: 'Cold fizzy drink on the porch? Straight bussin!',
+      examplePhonetic: 'SPARK-ling SELT-ser on thuh dek? that HITS thuh SPAHT',
+    },
+    {
+      id: 'fb-sb-6',
+      language: 'suburban',
+      foreign: 'Well, would ya look at that',
+      english: "Bruh, you seein' this?",
+      phonetic: 'wel WOOD yuh LOOK at that',
+      illustrationKey: 'magnifying_discovery',
+      exampleForeign: 'Well, would ya look at that lawn striping!',
+      exampleEnglish: 'Bruh, check out how clean that yard cut is!',
+      examplePhonetic: 'wel WOOD yuh LOOK at that lawn STRY-ping',
+    },
+    {
+      id: 'fb-sb-7',
+      language: 'suburban',
+      foreign: 'Time to hit the hay',
+      english: "I'm 'bout to crash",
+      phonetic: 'tym too HIT thuh HAY',
+      illustrationKey: 'cozy_bed',
+      exampleForeign: 'Early tee time tomorrow, time to hit the hay.',
+      exampleEnglish: "Got an early morning, I'm 'bout to crash.",
+      examplePhonetic: 'ER-lee tee tym tuh-MAR-oh, tym too HIT thuh HAY',
+    },
+    {
+      id: 'fb-sb-8',
+      language: 'suburban',
+      foreign: 'No worries at all, sport!',
+      english: 'You straight, my guy!',
+      phonetic: 'noh WUR-eez at AWL sport',
+      illustrationKey: 'friendly_handshake',
+      exampleForeign: 'No worries at all, sport, happens to the best!',
+      exampleEnglish: 'You straight, my guy, everybody slips up!',
+      examplePhonetic: 'noh WUR-eez at AWL sport, HAP-enz too thuh best',
+    },
+  ],
 };
 
 export function getArcadeForeignTextStyle(
@@ -205,40 +387,53 @@ export function getArcadeForeignTextStyle(
       if (effectiveLen <= 8) fontSize = isTallScript ? '0.78rem' : '0.74rem';
       else if (effectiveLen <= 14) fontSize = '0.68rem';
       else if (effectiveLen <= 22) fontSize = '0.62rem';
-      else fontSize = '0.58rem';
+      else if (effectiveLen <= 30) fontSize = '0.57rem';
+      else fontSize = '0.53rem';
     } else {
       if (effectiveLen <= 10) fontSize = isTallScript ? '0.96rem' : '0.9rem';
       else if (effectiveLen <= 16) fontSize = '0.82rem';
       else if (effectiveLen <= 24) fontSize = '0.74rem';
-      else fontSize = '0.68rem';
+      else if (effectiveLen <= 34) fontSize = '0.67rem';
+      else fontSize = '0.61rem';
     }
   } else if (density === 'large') {
     if (isCompact) {
       if (effectiveLen <= 10) fontSize = isTallScript ? '1rem' : '0.92rem';
       else if (effectiveLen <= 18) fontSize = '0.82rem';
-      else fontSize = '0.74rem';
+      else if (effectiveLen <= 26) fontSize = '0.72rem';
+      else if (effectiveLen <= 34) fontSize = '0.66rem';
+      else fontSize = '0.6rem';
     } else {
       if (effectiveLen <= 12) fontSize = isTallScript ? '1.18rem' : '1.08rem';
       else if (effectiveLen <= 20) fontSize = '0.96rem';
-      else fontSize = '0.86rem';
+      else if (effectiveLen <= 28) fontSize = '0.85rem';
+      else if (effectiveLen <= 38) fontSize = '0.76rem';
+      else fontSize = '0.7rem';
     }
   } else {
     if (isCompact) {
       if (effectiveLen <= 10) fontSize = isTallScript ? '0.84rem' : '0.78rem';
       else if (effectiveLen <= 18) fontSize = '0.72rem';
-      else fontSize = '0.66rem';
+      else if (effectiveLen <= 26) fontSize = '0.65rem';
+      else if (effectiveLen <= 34) fontSize = '0.6rem';
+      else fontSize = '0.55rem';
     } else {
       if (effectiveLen <= 12) fontSize = isTallScript ? '0.94rem' : '0.88rem';
       else if (effectiveLen <= 20) fontSize = '0.8rem';
-      else fontSize = '0.74rem';
+      else if (effectiveLen <= 28) fontSize = '0.73rem';
+      else if (effectiveLen <= 38) fontSize = '0.67rem';
+      else fontSize = '0.62rem';
     }
   }
+
+  const isMultiLineLatin =
+    meta.scriptType === 'latin' && language !== 'vi' && effectiveLen > 20;
 
   return {
     fontFamily: 'var(--font-display)',
     fontWeight: 900,
     fontSize,
-    lineHeight: 1.35,
+    lineHeight: isMultiLineLatin ? 1.22 : 1.35,
     color,
     textAlign,
     maxWidth: '100%',
@@ -373,10 +568,18 @@ export function useArcadeDeck(arcadeTier: ArcadeProficiencyTier = 'sprout'): {
   rewardMultiplier: number;
 } {
   const { activeProfile, activeProgress } = useVaultStore();
-  const language = activeProfile.activeLanguage;
+  const rawLang = activeProfile.activeLanguage;
+  const isBlockedAdultAccess =
+    isAdultLanguage(rawLang) &&
+    (isDefaultKidProfileId(activeProfile.id) || activeProfile.adultModeUnlocked === false);
+  const language: LanguageCode = isBlockedAdultAccess
+    ? activeProfile.lastBaseLanguage ?? 'es'
+    : rawLang;
+  const progressForLanguage = activeProfile.languageProgress?.[language] ?? activeProgress;
   const tierMeta = ARCADE_TIER_META[arcadeTier];
 
   const rawLexicon = useMemo(() => {
+    const fallbackItems = FALLBACK_ARCADE_LEXICON[language] ?? FALLBACK_ARCADE_LEXICON.es;
     try {
       type GetArcadeLexiconCompat = (
         lang: LanguageCode,
@@ -387,15 +590,20 @@ export function useArcadeDeck(arcadeTier: ArcadeProficiencyTier = 'sprout'): {
 
       const items = (getArcadeLexicon as GetArcadeLexiconCompat)(
         language,
-        activeProgress?.unlockedVocabIds ?? [],
-        activeProgress?.currentUnitIndex ?? 0,
+        progressForLanguage?.unlockedVocabIds ?? [],
+        progressForLanguage?.currentUnitIndex ?? 0,
         arcadeTier
       );
-      return items.length >= 8 ? items : FALLBACK_ARCADE_LEXICON[language];
+      const isolatedItems = items.filter(
+        (item) =>
+          item.language === language &&
+          (isAdultLanguage(language) || !isAdultLanguage(item.language))
+      );
+      return isolatedItems.length >= 8 ? isolatedItems : fallbackItems;
     } catch {
-      return FALLBACK_ARCADE_LEXICON[language];
+      return fallbackItems;
     }
-  }, [language, activeProgress?.unlockedVocabIds, activeProgress?.currentUnitIndex, arcadeTier]);
+  }, [language, progressForLanguage?.unlockedVocabIds, progressForLanguage?.currentUnitIndex, arcadeTier]);
 
   const { lexicon, targetLexicon } = useMemo(() => {
     const hasTierTags = rawLexicon.some((item) => item.proficiencyTier !== undefined);
@@ -409,8 +617,8 @@ export function useArcadeDeck(arcadeTier: ArcadeProficiencyTier = 'sprout'): {
 
       if (matched.length >= 8) {
         const paddedLexicon = matched.length >= 12 ? matched : [...matched, ...rest.slice(0, 12 - matched.length)];
-        const unitIdx = activeProgress?.currentUnitIndex ?? 0;
-        const unlockedCount = activeProgress?.unlockedVocabIds?.length ?? 0;
+        const unitIdx = progressForLanguage?.currentUnitIndex ?? 0;
+        const unlockedCount = progressForLanguage?.unlockedVocabIds?.length ?? 0;
         const targets =
           arcadeTier === 'sprout' && unitIdx === 0 && unlockedCount < 13
             ? matched.slice(0, Math.min(13, matched.length))
@@ -427,8 +635,8 @@ export function useArcadeDeck(arcadeTier: ArcadeProficiencyTier = 'sprout'): {
       }
     }
 
-    const unitIdx = activeProgress?.currentUnitIndex ?? 0;
-    const unlockedCount = activeProgress?.unlockedVocabIds?.length ?? 0;
+    const unitIdx = progressForLanguage?.currentUnitIndex ?? 0;
+    const unlockedCount = progressForLanguage?.unlockedVocabIds?.length ?? 0;
     if (arcadeTier === 'sprout' && unitIdx === 0 && unlockedCount < 13) {
       return {
         lexicon: rawLexicon,
@@ -436,7 +644,7 @@ export function useArcadeDeck(arcadeTier: ArcadeProficiencyTier = 'sprout'): {
       };
     }
     return { lexicon: rawLexicon, targetLexicon: rawLexicon };
-  }, [rawLexicon, arcadeTier, activeProgress?.currentUnitIndex, activeProgress?.unlockedVocabIds?.length]);
+  }, [rawLexicon, arcadeTier, progressForLanguage?.currentUnitIndex, progressForLanguage?.unlockedVocabIds?.length]);
 
   const bestScoreFor = (gameId: string): number => {
     const mapScore = activeProfile.arcadeHighScores?.[gameId] ?? 0;
@@ -811,11 +1019,11 @@ export function TargetPromptBar({
         width: '100%',
         maxWidth: '100%',
         minWidth: 0,
-        padding: isCompact ? '6px 10px' : '8px 14px',
+        padding: isCompact ? '5px 9px' : '8px 14px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: isCompact ? 6 : 8,
+        gap: isCompact ? 5 : 8,
         flexWrap: 'wrap',
         borderRadius: 16,
         borderColor: borderColor ?? 'var(--lang-primary, #f59e0b)',
@@ -836,7 +1044,7 @@ export function TargetPromptBar({
           dir="ltr"
           style={{
             fontFamily: 'var(--font-display)',
-            fontSize: isCompact ? '0.7rem' : '0.8rem',
+            fontSize: isCompact ? '0.68rem' : '0.8rem',
             fontWeight: 900,
             color: 'var(--tint-amber-ink, #b45309)',
             letterSpacing: '0.03em',
@@ -850,11 +1058,17 @@ export function TargetPromptBar({
           style={{
             fontFamily: 'var(--font-display)',
             fontSize: isCompact
-              ? targetItem.english.length > 22
-                ? '0.86rem'
-                : '0.96rem'
-              : '1.1rem',
-            lineHeight: 1.25,
+              ? targetItem.english.length > 32
+                ? '0.78rem'
+                : targetItem.english.length > 22
+                  ? '0.85rem'
+                  : '0.94rem'
+              : targetItem.english.length > 34
+                ? '0.95rem'
+                : targetItem.english.length > 24
+                  ? '1.02rem'
+                  : '1.1rem',
+            lineHeight: 1.22,
             color: 'var(--text-main, #1e1b4b)',
             maxWidth: '100%',
             overflowWrap: 'break-word',

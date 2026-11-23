@@ -691,10 +691,14 @@ export function MeteorBlasterArcade({
                     borderColor: '#c084fc',
                     color: '#f8fafc',
                     display: 'flex',
+                    flexDirection:
+                      isCompact && ast.item.foreign.length > 12 ? 'column' : 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: isCompact ? 4 : 5,
+                    gap: isCompact ? 3 : 5,
                     maxWidth: isCompact ? '31%' : '32%',
+                    minWidth: 0,
+                    overflow: 'hidden',
                     cursor: 'pointer',
                     zIndex: 7,
                     boxShadow: '0 0 16px rgba(168, 85, 247, 0.4)',
@@ -704,16 +708,19 @@ export function MeteorBlasterArcade({
                     <VocabIllustration
                       illustrationKey={ast.item.illustrationKey}
                       language={language}
-                      size={isCompact ? 20 : 26}
+                      size={isCompact ? (ast.item.foreign.length > 12 ? 18 : 20) : 26}
                     />
                   </span>
                   <span
                     dir={langDir}
-                    style={getArcadeForeignTextStyle(language, ast.item.foreign, {
-                      isCompact,
-                      density: 'tight',
-                      color: '#f8fafc',
-                    })}
+                    style={{
+                      ...getArcadeForeignTextStyle(language, ast.item.foreign, {
+                        isCompact,
+                        density: 'tight',
+                        color: '#f8fafc',
+                      }),
+                      flex: '0 1 auto',
+                    }}
                   >
                     {ast.item.foreign}
                   </span>

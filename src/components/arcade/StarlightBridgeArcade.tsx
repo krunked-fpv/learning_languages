@@ -434,6 +434,8 @@ export function StarlightBridgeArcade({
   const bestScore = bestScoreFor('starlight_bridge');
   const waitingAtGap = !plankLocked && pipX >= GAP_EDGE_X - 0.5;
   const cloze = round.cloze;
+  const clozeSentenceLen =
+    cloze.beforeBlank.length + cloze.blankLabel.length + cloze.afterBlank.length;
 
   return (
     <section
@@ -545,7 +547,7 @@ export function StarlightBridgeArcade({
               flex: 1,
               minHeight: 0,
               width: '100%',
-              padding: isCompact ? 8 : 14,
+              padding: isCompact ? 7 : 14,
               borderRadius: 22,
               borderTopWidth: 3,
               borderRightWidth: 3,
@@ -557,7 +559,7 @@ export function StarlightBridgeArcade({
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              gap: isCompact ? 6 : 10,
+              gap: isCompact ? 5 : 10,
               overflow: 'hidden',
               userSelect: 'none',
             }}
@@ -567,7 +569,8 @@ export function StarlightBridgeArcade({
               style={{
                 position: 'relative',
                 zIndex: 6,
-                padding: isCompact ? '8px 10px' : '10px 16px',
+                flexShrink: 0,
+                padding: isCompact ? '6px 9px' : '10px 16px',
                 borderRadius: 18,
                 background: 'rgba(255, 255, 255, 0.95)',
                 borderTopWidth: 2,
@@ -579,7 +582,7 @@ export function StarlightBridgeArcade({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                gap: isCompact ? 8 : 12,
+                gap: isCompact ? 6 : 12,
                 boxShadow: '0 8px 22px rgba(2, 6, 23, 0.35)',
               }}
             >
@@ -587,14 +590,14 @@ export function StarlightBridgeArcade({
                 <VocabIllustration
                   illustrationKey={round.target.illustrationKey}
                   language={language}
-                  size={isCompact ? 34 : 46}
+                  size={isCompact ? 28 : 46}
                 />
               </span>
 
-              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: isCompact ? 2 : 3 }}>
                 <span
                   style={{
-                    fontSize: isCompact ? '0.62rem' : '0.68rem',
+                    fontSize: isCompact ? '0.6rem' : '0.68rem',
                     fontWeight: 900,
                     letterSpacing: '0.04em',
                     color: '#4f46e5',
@@ -610,12 +613,20 @@ export function StarlightBridgeArcade({
                       display: 'flex',
                       alignItems: 'center',
                       flexWrap: 'wrap',
-                      gap: 5,
+                      gap: isCompact ? 4 : 5,
                       fontFamily: 'var(--font-display)',
-                      fontSize: isCompact ? '0.88rem' : '1.08rem',
+                      fontSize: isCompact
+                        ? clozeSentenceLen > 38
+                          ? '0.74rem'
+                          : clozeSentenceLen > 24
+                            ? '0.8rem'
+                            : '0.86rem'
+                        : clozeSentenceLen > 40
+                          ? '0.96rem'
+                          : '1.08rem',
                       fontWeight: 900,
                       color: '#1e1b4b',
-                      lineHeight: 1.4,
+                      lineHeight: isCompact ? 1.26 : 1.38,
                     }}
                   >
                     {cloze.beforeBlank ? <span>{cloze.beforeBlank}</span> : null}
@@ -629,6 +640,9 @@ export function StarlightBridgeArcade({
                         border: `2px dashed ${plankLocked ? '#10b981' : '#f59e0b'}`,
                         color: plankLocked ? '#065f46' : '#b45309',
                         minWidth: 54,
+                        maxWidth: '100%',
+                        textAlign: 'center',
+                        overflowWrap: 'break-word',
                         justifyContent: 'center',
                       }}
                     >
@@ -642,9 +656,15 @@ export function StarlightBridgeArcade({
                       dir="ltr"
                       style={{
                         fontFamily: 'var(--font-display)',
-                        fontSize: isCompact ? '0.9rem' : '1.08rem',
+                        fontSize: isCompact
+                          ? cloze.englishClue.length > 26
+                            ? '0.78rem'
+                            : '0.88rem'
+                          : '1.08rem',
                         fontWeight: 900,
                         color: '#1e1b4b',
+                        maxWidth: '100%',
+                        overflowWrap: 'break-word',
                       }}
                     >
                       {cloze.englishClue}
@@ -658,8 +678,10 @@ export function StarlightBridgeArcade({
                         border: `2px dashed ${plankLocked ? '#10b981' : '#f59e0b'}`,
                         color: plankLocked ? '#065f46' : '#b45309',
                         fontFamily: 'var(--font-display)',
-                        fontSize: isCompact ? '0.82rem' : '0.96rem',
+                        fontSize: isCompact ? '0.8rem' : '0.96rem',
                         fontWeight: 900,
+                        maxWidth: '100%',
+                        overflowWrap: 'break-word',
                       }}
                     >
                       {plankLocked ? cloze.blankLabel : '____'}
@@ -667,14 +689,17 @@ export function StarlightBridgeArcade({
                   </div>
                 )}
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                   {cloze.mode === 'sentence_cloze' ? (
                     <span
                       dir="ltr"
                       style={{
-                        fontSize: isCompact ? '0.72rem' : '0.8rem',
+                        fontSize: isCompact ? '0.68rem' : '0.8rem',
                         fontWeight: 800,
+                        lineHeight: 1.2,
                         color: '#475569',
+                        maxWidth: '100%',
+                        overflowWrap: 'break-word',
                       }}
                     >
                       {cloze.englishClue}
@@ -689,8 +714,10 @@ export function StarlightBridgeArcade({
                         background: '#eef2ff',
                         border: '1px solid #c7d2fe',
                         color: '#3730a3',
-                        fontSize: isCompact ? '0.66rem' : '0.74rem',
+                        fontSize: isCompact ? '0.62rem' : '0.74rem',
                         fontWeight: 800,
+                        maxWidth: '100%',
+                        overflowWrap: 'break-word',
                       }}
                     >
                       {cloze.romanizedHint}
@@ -703,8 +730,11 @@ export function StarlightBridgeArcade({
                       borderRadius: 999,
                       background: '#f1f5f9',
                       color: '#475569',
-                      fontSize: isCompact ? '0.66rem' : '0.74rem',
+                      fontSize: isCompact ? '0.62rem' : '0.74rem',
                       fontWeight: 800,
+                      lineHeight: 1.2,
+                      maxWidth: '100%',
+                      overflowWrap: 'break-word',
                     }}
                   >
                     {cloze.phoneticHint}
@@ -741,7 +771,7 @@ export function StarlightBridgeArcade({
               style={{
                 position: 'relative',
                 flex: 1,
-                minHeight: isCompact ? 82 : 120,
+                minHeight: isCompact ? 74 : 112,
                 width: '100%',
               }}
             >
@@ -841,7 +871,7 @@ export function StarlightBridgeArcade({
                   companionId="pip"
                   pose={pipPose}
                   equippedCosmetics={activeProfile.equippedCosmetics}
-                  size={isCompact ? 54 : 74}
+                  size={isCompact ? 46 : 74}
                 />
               </div>
             </div>
@@ -876,7 +906,7 @@ export function StarlightBridgeArcade({
                     style={{
                       gridColumn: isLastOdd ? '1 / -1' : undefined,
                       position: 'relative',
-                      padding: isCompact ? '8px 10px' : '11px 12px',
+                      padding: isCompact ? '6px 8px' : '11px 12px',
                       borderRadius: 16,
                       background: isTargetLocked
                         ? '#d1fae5'
@@ -900,6 +930,7 @@ export function StarlightBridgeArcade({
                       justifyContent: 'center',
                       gap: 2,
                       minWidth: 0,
+                      overflow: 'hidden',
                       cursor: plankLocked ? 'default' : 'pointer',
                       boxShadow: '0 6px 16px rgba(2, 6, 23, 0.28)',
                     }}
@@ -907,9 +938,9 @@ export function StarlightBridgeArcade({
                     <span
                       style={{
                         position: 'absolute',
-                        top: 4,
+                        top: isCompact ? 3 : 4,
                         left: 7,
-                        fontSize: '0.62rem',
+                        fontSize: isCompact ? '0.58rem' : '0.62rem',
                         fontWeight: 900,
                         color: '#0369a1',
                       }}
@@ -922,10 +953,10 @@ export function StarlightBridgeArcade({
                       style={{
                         ...getArcadeForeignTextStyle(language, plankText, {
                           isCompact,
-                          density: 'normal',
+                          density: isCompact && plankText.length > 18 ? 'tight' : 'normal',
                           color: '#1e1b4b',
                         }),
-                        marginTop: 6,
+                        marginTop: isCompact ? 7 : 6,
                       }}
                     >
                       {plankText}

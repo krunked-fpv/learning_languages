@@ -131,8 +131,8 @@ export function TowerStackArcade({
       // Position matching scoop near 38-62% or start cleanly oscillating
       const flipOrder = Math.random() < 0.5;
       phaseAngleRef.current = flipOrder ? Math.PI * 0.15 : Math.PI * 0.85;
-      const xA = 50 + Math.sin(phaseAngleRef.current) * 31;
-      const xB = 50 + Math.sin(phaseAngleRef.current + Math.PI) * 31;
+      const xA = 50 + Math.sin(phaseAngleRef.current) * 29;
+      const xB = 50 + Math.sin(phaseAngleRef.current + Math.PI) * 29;
 
       const pair: GlidingScoop[] = [
         { uid: nextUidRef.current++, item: chosen, x: xA, color: colorA },
@@ -318,7 +318,7 @@ export function TowerStackArcade({
 
       const updated = scoopsRef.current.map((s, idx) => ({
         ...s,
-        x: 50 + Math.sin(phaseAngleRef.current + idx * Math.PI) * 31,
+        x: 50 + Math.sin(phaseAngleRef.current + idx * Math.PI) * 29,
       }));
       scoopsRef.current = updated;
       setGlidingScoops(updated);
@@ -332,7 +332,7 @@ export function TowerStackArcade({
   const targetOverZone = glidingScoops.some(
     (s) => s.item.id === targetItem.id && Math.abs(s.x - 50) <= 18
   );
-  const visibleStack = stackedScoops.slice(-5);
+  const visibleStack = stackedScoops.slice(isCompact ? -3 : -5);
   const bestScore = bestScoreFor('tower_stack');
 
   return (
@@ -532,6 +532,8 @@ export function TowerStackArcade({
                     alignItems: 'center',
                     gap: 5,
                     maxWidth: isCompact ? '40%' : '240px',
+                    minWidth: 0,
+                    overflow: 'hidden',
                     pointerEvents: 'none',
                     zIndex: 6,
                   }}
@@ -545,11 +547,14 @@ export function TowerStackArcade({
                   </span>
                   <span
                     dir={langDir}
-                    style={getArcadeForeignTextStyle(language, s.item.foreign, {
-                      isCompact,
-                      density: 'normal',
-                      color: '#1e1b4b',
-                    })}
+                    style={{
+                      ...getArcadeForeignTextStyle(language, s.item.foreign, {
+                        isCompact,
+                        density: 'normal',
+                        color: '#1e1b4b',
+                      }),
+                      flex: '0 1 auto',
+                    }}
                   >
                     {s.item.foreign}
                   </span>
