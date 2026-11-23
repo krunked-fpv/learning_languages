@@ -11,6 +11,17 @@ const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0
 const WOFF2_SIGNATURE = Buffer.from('wOF2', 'ascii');
 const UNICODE_FLAG_REGEX = /[\u{1F1E6}-\u{1F1FF}]/u;
 const TEXT_FILE_EXT_REGEX = /\.(html|htm|js|mjs|cjs|css|json|webmanifest|svg|txt|xml|md|map)$/i;
+const JS_EXTERNAL_URL_REGEX = /https?:\/\/[^\s'"`<>\\)\]}]*/gi;
+// React DOM & Lucide embed standard W3C XML/DOM namespace URIs, and React 18's
+// production runtime includes its invariant decoder URL template in minified builds.
+const ALLOWED_JS_EXTERNAL_URLS = new Set([
+  'http://www.w3.org/2000/svg',
+  'http://www.w3.org/1998/Math/MathML',
+  'http://www.w3.org/1999/xhtml',
+  'http://www.w3.org/1999/xlink',
+  'http://www.w3.org/XML/1998/namespace',
+  'https://reactjs.org/docs/error-decoder.html?invariant=',
+]);
 
 const CRC_TABLE = new Uint32Array(256);
 for (let n = 0; n < 256; n += 1) {
@@ -474,6 +485,26 @@ function verifyCssFontReference(cssFullPath, cssRelLabel, rawRef) {
   }
 }
 
+function verifyJsChunkNoExternalUrls(relLabel, content, decodedChunk) {
+  const sources = decodedChunk ? [content, decodedChunk] : [content];
+  const disallowed = new Set();
+
+  for (const source of sources) {
+    JS_EXTERNAL_URL_REGEX.lastIndex = 0;
+    let match;
+    while ((match = JS_EXTERNAL_URL_REGEX.exec(source)) !== null) {
+      const url = match[0];
+      if (!ALLOWED_JS_EXTERNAL_URLS.has(url)) {
+        disallowed.add(url);
+      }
+    }
+  }
+
+  for (const url of disallowed) {
+    fail(`${relLabel} contains forbidden external runtime URL: ${url}`);
+  }
+}
+
 function verifyAssetsAndFonts() {
   const assetsDir = resolve(DIST_DIR, 'assets');
   if (!existsSync(assetsDir)) {
@@ -515,6 +546,9 @@ function verifyAssetsAndFonts() {
         fail(`${relLabel} contains forbidden root-relative asset path.`);
       }
 
+      const decodedChunk = /\\(?:u|x)/.test(content) ? decodeJsEscapes(content) : null;
+      verifyJsChunkNoExternalUrls(relLabel, content, decodedChunk);
+
       const missingLiterals = [];
       for (const landmark of EXPECTED_LANDMARKS) {
         if (foundLandmarks.has(landmark)) continue;
@@ -525,8 +559,7 @@ function verifyAssetsAndFonts() {
         }
       }
 
-      if (missingLiterals.length > 0 && /\\(?:u|x)/.test(content)) {
-        const decodedChunk = decodeJsEscapes(content);
+      if (missingLiterals.length > 0 && decodedChunk) {
         for (const landmark of missingLiterals) {
           if (decodedChunk.includes(landmark)) {
             foundLandmarks.add(landmark);
@@ -597,5 +630,5 @@ if (errors.length > 0) {
 }
 
 console.log(
-  `[verify-build-artifacts] PASS: dist/index.html, dist/manifest.json, dist/sw.js, all 5 RGBA PNG icons, ${verifiedWoff2Count} relative ./assets/*.woff2 font(s), ${jsChunkCount} JS chunk(s) (${(totalJsBytes / 1024).toFixed(1)} KiB), ${EXPECTED_LANDMARKS.length} cultural landmarks, and ${verifiedTextFileCount} dist/ text file(s) verified.`
+  `[verify-build-artifacts] PASS: dist/index.html, dist/manifest.json, dist/sw.js, all 5 RGBA PNG icons, ${verifiedWoff2Count} relative ./assets/*.woff2 font(s), ${jsChunkCount} JS chunk(s) (${(totalJsBytes / 1024).toFixed(1)} KiB) with zero leaked external URLs, ${EXPECTED_LANDMARKS.length} cultural landmarks, and ${verifiedTextFileCount} dist/ text file(s) verified.`
 );

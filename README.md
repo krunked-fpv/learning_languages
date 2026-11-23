@@ -51,7 +51,7 @@ Every one of the 16 courses spans **16 symmetrical cultural units** (**256 units
   - **Keyboard Free-Recall Mode:** Optional typing mode on word-bank and boss turns complete with clickable virtual accent buttons (`LANGUAGE_META[lang].helperAccents`) awarding `+10` bonus XP and `+3` bonus Gems per free-recall solve.
   - **Tier Placement Checkpoints:** Jump straight into `A2`, `B1`, `B2`, or `C1+` from the 5-tier **Adventure Map** ribbon by clearing a 5-exercise placement checkpoint (`unlockProficiencyTier`), unlocking prerequisite nodes cleanly.
 - **Multi-Script & Multi-Clause Polyglot Grader (`src/core/grader.ts`):** Normalizes international and multi-clause `B2/C1/C2` punctuation (`¡!¿?.,;:-—"“”`, CJK `。？！，；、・「」『』（）`, Arabic `،؟؛` + tatweel `\u0640`, Indic danda `।॥`), forgives unaccented Latin/Vietnamese/German/Russian free-recall answers with **Accent Spotlight** coaching, strips optional Arabic harakat/tashkeel, collapses spaces between adjacent CJK/Kana characters, accepts romanized answers, and surfaces **Article & Grammar Coaching** across all 16 languages.
-- **16-Locale Web Speech (`1.12x` Fluent Mode) & 23 Web Audio SFX (`src/audio/`):** Supports `0.95x` Normal, `0.65x` Slow Turtle, and **`1.12x` Fluent** native cadence (`SpeechSpeed`: `'normal' | 'slow' | 'fluent'`), backed by a `4500ms` hung-utterance watchdog, offline Web Audio sine/triangle marimba syllable cadence (`playPhoneticCadence`), and **23 acoustic Web Audio sound effects** (including `'tier_unlock'`, `'booster_spark'`, `'free_recall_ace'`, `'laureate_fanfare'`, and `'equip_prop_pet'`).
+- **16-Locale Web Speech (`1.12x` Fluent Mode) & 24 Web Audio SFX (`src/audio/`):** Supports `0.95x` Normal, `0.65x` Slow Turtle, and **`1.12x` Fluent** native cadence (`SpeechSpeed`: `'normal' | 'slow' | 'fluent'`), backed by a `4500ms` hung-utterance watchdog, offline Web Audio sine/triangle marimba syllable cadence (`playPhoneticCadence`), and **24 acoustic Web Audio sound effects** (including `'tier_unlock'`, `'booster_spark'`, `'free_recall_ace'`, `'laureate_fanfare'`, `'equip_prop_pet'`, and `'adult_unlock'`).
 - **Grand Emporium — 50 Cosmetics, Props & Pets, Power-Ups & 10 Avatars (`src/core/cosmetics.ts`, `src/components/meta/CompanionShop.tsx`):**
   - **Companion Pedestal Switcher:** Preview `Pip`, `Mateo`, `Colette`, `Benni`, and `Luca` wearing gear across **7 cosmetic slots** (`hat` [9], `glasses` [5], `cape` [4], `aura` [5], handheld `prop` [7], animated mini sidekick `pet` [6], and `theme` [14] — **50 total cosmetics**).
   - **Power-Ups & Upgrades:** *Streak Freeze Shield* (`45` Gems), *Heart Refill Elixir* (`35` Gems — refills immediately or saves for mid-lesson zero-heart recovery), *Heart Container Crystal* (`110` Gems — expands max hearts up to `8`), and *2x XP Starlight Booster* (`65` Gems for `3` double-XP charges).
@@ -70,6 +70,28 @@ Every one of the 16 courses spans **16 symmetrical cultural units** (**256 units
 - **24 Achievement Badges, 8 Weekly Leagues & Phrasebook Tier Filters:** Earn **24 badges** across exploration, streaks, accents, checkpoints, cloze solving, free-recall mastery, fluent listening, wardrobe styling, crystal hearts, and arcade triumphs; climb **8 weekly leagues** from *Bronze Acorn* (`0` XP) through *Emerald Diplomat* (`2,200`), *Amethyst Symposium* (`3,200`), and *Grand Polyglot Laureate* (`4,500`); and filter the **Phrasebook Vault** by CEFR tier (`All · A1 · A2 · B1 · B2 · C1+`).
 - **Multi-Kid Save Vault v1 Migration & SVG Flags (`src/store/useVaultStore.ts`):** Isolated `localStorage` profiles (`wanderling.vault.v1`) with strict schema-validated JSON export/import (`replace` and `merge`) and seamless legacy v1 migration hydrating new fields (`heartElixirs`, `xpBoosterCharges`, `unlockedAvatars`, `unlockedTiers`, and new stats counters) without wiping progress. Renders all 16 flags via crisp inline SVGs (zero Unicode country flag emojis).
 - **Zero-Scroll `100dvh` Game Console & Self-Hosted Fonts:** Locked `100dvh` viewport across `375x667`, `768x1024`, and `1440x900`, bundling `@fontsource-variable/fredoka` and `@fontsource-variable/nunito` `.woff2` fonts in `dist/assets/` alongside offline system font fallback stacks (zero external CDN requests).
+
+---
+
+## Hidden 18+ Easter Egg: The After-Hours Atlas
+
+Hidden beneath Wanderling 2.0's kid-first shell is **After-Hours Atlas**, an optional 18+ adult colloquial vernacular bonus mode (`src/curriculum/adultMode/`) guarded by strict profile quarantine and zero external network calls:
+
+- **Strict Kid-Safe Quarantine (100% Invisible by Default):**
+  - Default profiles start with `adultModeUnlocked: false` and `adultModeActive: false`. Until unlocked, Adult Mode is completely hidden across the Top HUD language switcher, Phrasebook Vault, Profile Vault, and 9-Cabinet Arcade.
+  - Default kid explorers (**Leo** `kid-leo` and **Maya** `kid-maya`) are permanently quarantined to the 16 base languages (`LANGUAGE_LIST`). Save validation, `localStorage` loading (`wanderling.vault.v1`), and JSON `.wanderling-save.json` imports (`replace` and `merge`) strip or reject Adult Mode flags and tracks on default kid profiles.
+- **How to Unlock (7-Tap Version Badge or Keycode + 18+ Gate):**
+  - Open **Profile Vault** and either tap the `Wanderling Atlas v2.0` footer badge **7 times** (`ADULT_EASTER_EGG_TAP_COUNT`) or enter a secret keycode (`AFTERHOURS` or `COOKOUT`, case-insensitive) to trigger the **After-Hours Atlas 18+ Confirmation** dialog.
+  - Unlocking while on *Leo* or *Maya* automatically creates or switches to a separate Adult Explorer profile (default name `After-Hours`), keeping kid profiles untouched.
+  - While active, a **1-tap Return to Kid Atlas** button (`Kid Atlas`) in the Top HUD and language popover immediately sets `adultModeActive: false`, exits any active lesson cleanly, and restores the explorer's previous base language (`lastBaseLanguage`).
+- **Two Bidirectional Colloquial Tracks (16 Units & 112 Nodes Each):**
+  - **`ebonics` (AAVE / Ebonics -> Suburban Vernacular):** *The Block & Cookout Ave* with companion **Mateo** (*Block Party DJ & Grillmaster*).
+  - **`suburban` (Suburban ("White Boy") -> AAVE / Ebonics):** *The Cul-de-Sac & Craft Patio* with companion **Benni** (*Cul-de-Sac Lawn & Patio Captain*).
+  - Both tracks mirror full 16-unit (`A1`–`C1+`) depth (`4` lessons, `1` mini-story, `1` treasure chest, `1` companion boss per unit = `112` nodes and `150+` unique cards per track), context cloze nuance cards, and keyboard free-recall.
+- **Slang-Aware Grading, Audio & On-Demand Chunk Splitting:**
+  - `src/core/grader.ts` enables colloquial apostrophe (`ain't`/`aint`, `y'all`/`yall`, `gon'`/`gon`) and compound (`low-key`/`lowkey`/`low key`, `cul-de-sac`/`cul de sac`) forgiveness strictly for `'ebonics'` and `'suburban'` while keeping all 16 base languages untouched.
+  - `src/audio/` routes `'ebonics'` and `'suburban'` through `en-US`/`en` Web Speech voices (with the `4500ms` watchdog and marimba phonetic cadence fallback) and synthesizes the warm `'adult_unlock'` Web Audio shimmer using sine/triangle oscillators.
+  - [`vite.config.ts`](./vite.config.ts) splits `src/curriculum/adultMode/` into an isolated `adult-atlas` Rollup chunk that stays unloaded in kid mode and is cached on demand by `public/sw.js` (`wanderling-cache-v5`) once unlocked.
 
 ---
 
@@ -99,7 +121,7 @@ npm run build
 
 # Verify dist/ PWA manifest, Service Worker, PNG IHDR/CRC32/IDAT binaries,
 # relative .woff2 fonts, multi-chunk JS bundles, all 16 cultural landmarks,
-# and zero Unicode flag emojis or root-relative/external hotlinks across dist/
+# zero leaked external HTTP/HTTPS URLs in JS chunks, and zero Unicode flag emojis
 npm run verify:artifacts
 
 # Serve dist/ under /wanderling-subpath/ on an ephemeral or custom port
@@ -111,15 +133,15 @@ node scripts/serve-subpath.mjs --port 4173
 
 ## PWA & Subpath Hosting Architecture
 
-Wanderling uses strictly relative `./` paths throughout ([`vite.config.ts`](./vite.config.ts) `base: './'`, [`index.html`](./index.html), [`public/manifest.json`](./public/manifest.json), and [`public/sw.js`](./public/sw.js)) so the exact same `dist/` build runs seamlessly at domain root or any nested subpath such as `/<repo-name>/` on GitHub Pages or `/wanderling-subpath/` locally.
+Wanderling uses strictly relative `./` paths throughout ([`vite.config.ts`](./vite.config.ts) `base: './'`, [`index.html`](./index.html), [`public/manifest.json`](./public/manifest.json), and [`public/sw.js`](./public/sw.js)) so the exact same `dist/` build runs seamlessly at domain root or any nested subpath such as `/<repo-name>/` on GitHub Pages or `/wanderling-subpath/` locally. All 16 base languages and both After-Hours tracks use custom inline SVG emblems (zero Unicode flag emojis `U+1F1E6–U+1F1FF`) and self-hosted `.woff2` fonts with zero external CDN or runtime API requests.
 
 | File | Purpose |
 | :--- | :--- |
 | [`index.html`](./index.html) | Links `./manifest.json`, `./icons/icon-192.png`, `./icons/apple-touch-icon.png`, sets `#1e1b4b` theme color, documents the Beginner-to-Fluent (`A1`–`C2`) Grand Atlas, and registers `./sw.js` with `{ scope: './' }`. |
 | [`public/manifest.json`](./public/manifest.json) | Configures standalone PWA metadata, `#1e1b4b` theme/background colors, `./` start/scope URLs, and both `any` and `maskable` icon entries. |
-| [`public/sw.js`](./public/sw.js) | Service Worker (`wanderling-cache-v3`) pre-caching core relative `./` shell & icon assets, purging stale caches via `caches.delete` on `activate`, and serving same-origin GET requests network-first with cache write-back and offline fallback. |
+| [`public/sw.js`](./public/sw.js) | Service Worker (`wanderling-cache-v5`) pre-caching core relative `./` shell & icon assets, purging stale caches via `caches.delete` on `activate`, and serving same-origin GET requests (including the code-split `adult-atlas` chunk on demand) network-first with cache write-back and offline fallback. |
 | [`scripts/generate-pwa-icons.mjs`](./scripts/generate-pwa-icons.mjs) | Zero-dependency Node ESM PNG encoder (`node:zlib` `deflateSync` + IEEE 802.3 CRC32) rendering anti-aliased 8-bit RGBA icons (`192x192`, `512x512`, maskable safe-zone variants, and `180x180` Apple touch icon). |
-| [`scripts/verify-build-artifacts.mjs`](./scripts/verify-build-artifacts.mjs) | Automated release gate verifying `dist/index.html` asset links, `dist/manifest.json`, `dist/sw.js`, PNG signatures + `IHDR` + chunk `CRC32` + `IDAT` inflation, relative `./assets/*.woff2` bundled fonts, all 16 cultural landmarks across single or multi-chunk `dist/assets/*.js` bundles, and zero root-relative `/assets/`, external hotlinks, or Unicode flag emojis across `dist/`. |
+| [`scripts/verify-build-artifacts.mjs`](./scripts/verify-build-artifacts.mjs) | Automated release gate verifying `dist/index.html` asset links, `dist/manifest.json`, `dist/sw.js`, PNG signatures + `IHDR` + chunk `CRC32` + `IDAT` inflation, relative `./assets/*.woff2` bundled fonts, all 16 cultural landmarks across `dist/assets/*.js` / `*.mjs` chunks, zero leaked external `http://`/`https://` runtime URLs in JS chunks (permitting only W3C XML/DOM namespaces and React's production invariant template), and zero root-relative `/assets/`, external hotlinks, or Unicode flag emojis across `dist/`. |
 | [`scripts/serve-subpath.mjs`](./scripts/serve-subpath.mjs) | Zero-dependency Node HTTP preview server mounting `dist/` at `/wanderling-subpath/`, redirecting `/`, and printing `READY http://127.0.0.1:<port>/wanderling-subpath/`. |
 
 ---
