@@ -993,32 +993,32 @@ select {
 }
 
 .tactile-btn-primary {
-  background: var(--lang-primary);
+  background: var(--lang-btn-bg, var(--lang-primary));
   border-color: var(--lang-bevel);
   color: #ffffff;
 }
 
 .tactile-btn-success {
-  background: #10b981;
-  border-color: #047857;
+  background: #047857;
+  border-color: #064e3b;
   color: #ffffff;
 }
 
 .tactile-btn-amber {
   background: #f59e0b;
   border-color: #b45309;
-  color: #ffffff;
+  color: #0f172a;
 }
 
 .tactile-btn-indigo {
-  background: #6366f1;
-  border-color: #3730a3;
+  background: #4f46e5;
+  border-color: #312e81;
   color: #ffffff;
 }
 
 .tactile-btn-rose {
-  background: #f43f5e;
-  border-color: #be123c;
+  background: #be123c;
+  border-color: #881337;
   color: #ffffff;
 }
 
@@ -1297,10 +1297,11 @@ select {
   }
 
   .shop-pedestal-col {
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: stretch;
-    overflow-x: auto;
-    overflow-y: hidden;
+    gap: 8px;
+    overflow: visible;
   }
 
   .leagues-mobile-tabs {
@@ -1315,6 +1316,19 @@ select {
 
   .leagues-pane-card.is-hidden-mobile {
     display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .shop-pedestal-col {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow: visible;
+  }
+
+  .floating-pop-toast-stack {
+    top: 10px !important;
   }
 }
 

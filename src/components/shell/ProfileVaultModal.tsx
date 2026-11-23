@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import {
   AlertCircle,
   ArrowLeftRight,
@@ -108,6 +108,14 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
   const [adultConfirmOpen, setAdultConfirmOpen] = useState(false);
   const [selectedAdultTrack, setSelectedAdultTrack] = useState<AdultLanguageCode>('ebonics');
   const [adultProfileName, setAdultProfileName] = useState('After-Hours');
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const canDelete = vault.profiles.length > 1;
   const isOnDefaultKid = isDefaultKidProfileId(activeProfile.id);
@@ -226,8 +234,10 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
     if (!file) return;
     try {
       const text = await file.text();
+      if (!isMountedRef.current) return;
       applyImportText(text);
     } catch {
+      if (!isMountedRef.current) return;
       setVaultFeedback({ kind: 'err', message: 'Unable to read selected file.' });
     }
   };

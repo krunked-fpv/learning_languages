@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle2, Clock, Sparkles, Volume2 } from 'lucide-react';
 import { playSfx, speakPhrase } from '../../audio';
@@ -31,8 +31,26 @@ export function PairMatchRushView({
   const [mismatchPair, setMismatchPair] = useState<{ left: string; right: string } | null>(null);
   const [rushCombo, setRushCombo] = useState(0);
   const [maxRushCombo, setMaxRushCombo] = useState(0);
+  const mismatchTimerRef = useRef<number | null>(null);
+  const mismatchLockRef = useRef(false);
+  const completeLockRef = useRef(false);
 
   useEffect(() => {
+    return () => {
+      if (mismatchTimerRef.current !== null) {
+        window.clearTimeout(mismatchTimerRef.current);
+        mismatchTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (mismatchTimerRef.current !== null) {
+      window.clearTimeout(mismatchTimerRef.current);
+      mismatchTimerRef.current = null;
+    }
+    mismatchLockRef.current = false;
+    completeLockRef.current = false;
     setTimeLeftMs(Math.max(10, exercise.timeBonusSeconds) * 1000);
     setSelectedLeftId(null);
     setSelectedRightId(null);
@@ -101,10 +119,16 @@ export function PairMatchRushView({
       else if (nextCombo >= 2) playSfx('combo_3x', nextCombo);
       else playSfx('correct_chime');
     } else {
+      mismatchLockRef.current = true;
       setRushCombo(0);
       setMismatchPair({ left: leftId, right: rightId });
       playSfx('gentle_nudge');
-      window.setTimeout(() => {
+      if (mismatchTimerRef.current !== null) {
+        window.clearTimeout(mismatchTimerRef.current);
+      }
+      mismatchTimerRef.current = window.setTimeout(() => {
+        mismatchTimerRef.current = null;
+        mismatchLockRef.current = false;
         setMismatchPair(null);
         setSelectedLeftId(null);
         setSelectedRightId(null);
@@ -113,7 +137,7 @@ export function PairMatchRushView({
   };
 
   const handleSelectLeft = (id: string) => {
-    if (matchedSet.has(id) || mismatchPair) return;
+    if (matchedSet.has(id) || mismatchPair || mismatchLockRef.current) return;
     cancelHint();
     playSfx('tile_tap');
     const nextLeft = selectedLeftId === id ? null : id;
@@ -124,7 +148,7 @@ export function PairMatchRushView({
   };
 
   const handleSelectRight = (id: string) => {
-    if (matchedSet.has(id) || mismatchPair) return;
+    if (matchedSet.has(id) || mismatchPair || mismatchLockRef.current) return;
     cancelHint();
     playSfx('tile_tap');
     const nextRight = selectedRightId === id ? null : id;
@@ -443,9 +467,14 @@ export function PairMatchRushView({
             </span>
           </div>
           <button
+            key="pair-match-continue-btn"
             type="button"
             className="tactile-btn tactile-btn-hero tactile-btn-success"
-            onClick={() => onComplete({ bonusEarned: timeLeftMs > 0, maxRushCombo })}
+            onClick={() => {
+              if (completeLockRef.current) return;
+              completeLockRef.current = true;
+              onComplete({ bonusEarned: timeLeftMs > 0, maxRushCombo });
+            }}
           >
             Continue
           </button>

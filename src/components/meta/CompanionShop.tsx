@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
   Eye,
@@ -64,6 +64,19 @@ export function CompanionShop() {
   const [previewItem, setPreviewItem] = useState<CosmeticItem | null>(null);
   const [pose, setPose] = useState<CharacterPose>('happy');
   const [shopNotice, setShopNotice] = useState<string | null>(null);
+  const [txNonce, setTxNonce] = useState(0);
+  const actionLockRef = useRef(false);
+
+  useEffect(() => {
+    actionLockRef.current = false;
+  }, [txNonce, activeProfile]);
+
+  const acquireShopActionLock = () => {
+    if (actionLockRef.current) return false;
+    actionLockRef.current = true;
+    setTxNonce((n) => n + 1);
+    return true;
+  };
 
   const unlockedSet = useMemo(
     () => new Set(activeProfile.unlockedCosmetics),
@@ -104,6 +117,7 @@ export function CompanionShop() {
   const showAvatarsSection = slotFilter === 'all' || slotFilter === 'avatars';
 
   const handleBuyShield = () => {
+    if (!acquireShopActionLock()) return;
     const ok = vaultActions.buyStreakShield();
     if (ok) {
       playSfx('heart_win');
@@ -116,6 +130,7 @@ export function CompanionShop() {
   };
 
   const handleBuyHeartElixir = () => {
+    if (!acquireShopActionLock()) return;
     const neededRefill = activeProfile.hearts < activeProfile.maxHearts;
     const ok = safeVaultActions.buyHeartElixir();
     if (ok) {
@@ -133,6 +148,7 @@ export function CompanionShop() {
   };
 
   const handleUseHeartElixir = () => {
+    if (!acquireShopActionLock()) return;
     const ok = safeVaultActions.useHeartElixir();
     if (ok) {
       playSfx('heart_win');
@@ -145,6 +161,7 @@ export function CompanionShop() {
   };
 
   const handleBuyHeartCrystal = () => {
+    if (!acquireShopActionLock()) return;
     const ok = safeVaultActions.buyHeartCrystal();
     if (ok) {
       playSfx('tier_unlock');
@@ -163,6 +180,7 @@ export function CompanionShop() {
   };
 
   const handleBuyXpBooster = () => {
+    if (!acquireShopActionLock()) return;
     const ok = safeVaultActions.buyXpBooster();
     if (ok) {
       playSfx('booster_spark');
@@ -177,6 +195,7 @@ export function CompanionShop() {
   };
 
   const handleSelectOrBuyAvatar = (avatarId: (typeof avatarCatalog)[number]) => {
+    if (!acquireShopActionLock()) return;
     const alreadyUnlocked =
       unlockedAvatarSet.has(avatarId.id) || STARTER_AVATAR_IDS.includes(avatarId.id);
     const ok = safeVaultActions.buyAndSelectAvatar(avatarId.id);
@@ -197,6 +216,7 @@ export function CompanionShop() {
   };
 
   const handleBuyOrEquip = (item: CosmeticItem) => {
+    if (!acquireShopActionLock()) return;
     const isEquipped = activeProfile.equippedCosmetics[item.slot] === item.id;
     const isUnlocked = unlockedSet.has(item.id);
     const isPropOrPet = item.slot === 'prop' || item.slot === 'pet';
@@ -238,9 +258,9 @@ export function CompanionShop() {
       {/* Left Console Pedestal: Live Companion Wardrobe + Switcher + Streak Freeze Shield */}
       <div className="shop-pedestal-col">
         <div
-          className="tactile-card"
+          className="tactile-card shop-wardrobe-card"
           style={{
-            padding: compact ? 10 : 15,
+            padding: compact ? '9px 10px' : 15,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -248,12 +268,13 @@ export function CompanionShop() {
             textAlign: 'center',
             background: 'var(--card-bg)',
             flexShrink: 0,
-            minWidth: compact ? 236 : 'auto',
+            minWidth: 0,
+            width: '100%',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 8 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 900, fontSize: '0.9rem' }}>
-              <ShoppingBag size={16} /> {activeCompanionName}’s Wardrobe
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 900, fontSize: compact ? '0.84rem' : '0.9rem' }}>
+              <ShoppingBag size={compact ? 14 : 16} /> {activeCompanionName}’s Wardrobe
             </span>
             <span
               className="hud-pill hud-pill-static"
@@ -268,75 +289,151 @@ export function CompanionShop() {
             </span>
           </div>
 
-          {/* Companion Pedestal Switcher */}
-          <div
-            role="group"
-            aria-label="Preview companion switcher"
-            style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'center' }}
-          >
-            {COMPANION_SWITCHERS.map((comp) => {
-              const isSelected = previewCompanion === comp.id;
-              return (
+          {compact ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', minWidth: 0 }}>
+              <div style={{ flex: '0 0 auto' }}>
+                <MascotStage
+                  companionId={previewCompanion}
+                  pose={pose}
+                  equippedCosmetics={previewCosmetics}
+                  size={74}
+                  badgeText={previewItem ? `Trying: ${previewItem.name}` : 'Live Outfit'}
+                />
+              </div>
+              <div
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                  alignItems: 'center',
+                }}
+              >
+                <div
+                  role="group"
+                  aria-label="Preview companion switcher"
+                  style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'center' }}
+                >
+                  {COMPANION_SWITCHERS.map((comp) => {
+                    const isSelected = previewCompanion === comp.id;
+                    return (
+                      <button
+                        key={comp.id}
+                        type="button"
+                        aria-pressed={isSelected}
+                        className={`tactile-tile ${isSelected ? 'is-selected' : ''}`}
+                        style={{ padding: '3px 7px', fontSize: '0.68rem', borderRadius: 10 }}
+                        onClick={() => {
+                          playSfx('tile_tap');
+                          setPreviewCompanion(comp.id);
+                        }}
+                      >
+                        {comp.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <button
+                    type="button"
+                    className="tactile-btn tactile-btn-soft"
+                    style={{ padding: '4px 9px', fontSize: '0.72rem' }}
+                    onClick={() => {
+                      playSfx('button_click');
+                      setPose((p) => (p === 'victory_dance' ? 'happy' : 'victory_dance'));
+                    }}
+                  >
+                    <Sparkles size={12} /> Dance
+                  </button>
+                  {previewItem ? (
+                    <button
+                      type="button"
+                      className="tactile-btn tactile-btn-soft"
+                      style={{ padding: '4px 9px', fontSize: '0.72rem' }}
+                      onClick={() => setPreviewItem(null)}
+                    >
+                      Reset
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Companion Pedestal Switcher */}
+              <div
+                role="group"
+                aria-label="Preview companion switcher"
+                style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'center' }}
+              >
+                {COMPANION_SWITCHERS.map((comp) => {
+                  const isSelected = previewCompanion === comp.id;
+                  return (
+                    <button
+                      key={comp.id}
+                      type="button"
+                      aria-pressed={isSelected}
+                      className={`tactile-tile ${isSelected ? 'is-selected' : ''}`}
+                      style={{ padding: '3px 7px', fontSize: '0.7rem', borderRadius: 10 }}
+                      onClick={() => {
+                        playSfx('tile_tap');
+                        setPreviewCompanion(comp.id);
+                      }}
+                    >
+                      {comp.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <MascotStage
+                companionId={previewCompanion}
+                pose={pose}
+                equippedCosmetics={previewCosmetics}
+                size={142}
+                badgeText={previewItem ? `Trying: ${previewItem.name}` : 'Live Outfit'}
+              />
+
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
                 <button
-                  key={comp.id}
                   type="button"
-                  aria-pressed={isSelected}
-                  className={`tactile-tile ${isSelected ? 'is-selected' : ''}`}
-                  style={{ padding: '3px 7px', fontSize: '0.7rem', borderRadius: 10 }}
+                  className="tactile-btn tactile-btn-soft"
+                  style={{ padding: '4px 9px', fontSize: '0.76rem' }}
                   onClick={() => {
-                    playSfx('tile_tap');
-                    setPreviewCompanion(comp.id);
+                    playSfx('button_click');
+                    setPose((p) => (p === 'victory_dance' ? 'happy' : 'victory_dance'));
                   }}
                 >
-                  {comp.label}
+                  <Sparkles size={13} /> Dance
                 </button>
-              );
-            })}
-          </div>
-
-          <MascotStage
-            companionId={previewCompanion}
-            pose={pose}
-            equippedCosmetics={previewCosmetics}
-            size={compact ? 92 : 142}
-            badgeText={previewItem ? `Trying: ${previewItem.name}` : 'Live Outfit'}
-          />
-
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <button
-              type="button"
-              className="tactile-btn tactile-btn-soft"
-              style={{ padding: '4px 9px', fontSize: '0.76rem' }}
-              onClick={() => {
-                playSfx('button_click');
-                setPose((p) => (p === 'victory_dance' ? 'happy' : 'victory_dance'));
-              }}
-            >
-              <Sparkles size={13} /> Dance
-            </button>
-            {previewItem ? (
-              <button
-                type="button"
-                className="tactile-btn tactile-btn-soft"
-                style={{ padding: '4px 9px', fontSize: '0.76rem' }}
-                onClick={() => setPreviewItem(null)}
-              >
-                Reset
-              </button>
-            ) : null}
-          </div>
+                {previewItem ? (
+                  <button
+                    type="button"
+                    className="tactile-btn tactile-btn-soft"
+                    style={{ padding: '4px 9px', fontSize: '0.76rem' }}
+                    onClick={() => setPreviewItem(null)}
+                  >
+                    Reset
+                  </button>
+                ) : null}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Compact Streak Freeze Shield Power-Up */}
         <div
-          className="tactile-card"
+          className="tactile-card shop-shield-card"
           style={{
-            padding: compact ? 10 : 14,
+            padding: compact ? '8px 10px' : 14,
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            gap: 8,
-            minWidth: compact ? 210 : 'auto',
+            gap: compact ? 6 : 8,
+            minWidth: 0,
+            width: '100%',
             flexShrink: 0,
           }}
         >
@@ -351,35 +448,54 @@ export function CompanionShop() {
                 background: 'var(--tint-indigo-bg)',
                 color: 'var(--tint-indigo-ink)',
                 fontWeight: 900,
-                fontSize: '0.74rem',
+                fontSize: '0.72rem',
               }}
             >
-              <Shield size={13} /> Power-Up
+              <Shield size={12} /> Power-Up
             </span>
-            <span style={{ fontWeight: 900, color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+            <span style={{ fontWeight: 900, color: 'var(--text-muted)', fontSize: '0.76rem' }}>
               Owned: {activeProfile.streakShields}
             </span>
           </div>
 
-          <div>
-            <h2 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 900 }}>
-              Streak Freeze Shield
-            </h2>
-            <p style={{ margin: '3px 0 0', fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-              Protects your daily streak if you miss 1 day!
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className="tactile-btn tactile-btn-primary"
-            style={{ width: '100%', padding: '8px 12px', fontSize: '0.82rem' }}
-            disabled={activeProfile.gems < STREAK_SHIELD_COST_GEMS}
-            onClick={handleBuyShield}
+          <div
+            style={
+              compact
+                ? {
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                    flexWrap: 'wrap',
+                  }
+                : { display: 'flex', flexDirection: 'column', gap: 8 }
+            }
           >
-            <Shield size={16} />
-            <span>Buy Shield ({STREAK_SHIELD_COST_GEMS} Gems)</span>
-          </button>
+            <div style={{ minWidth: 0, flex: compact ? '1 1 140px' : undefined }}>
+              <h2 style={{ margin: 0, fontSize: compact ? '0.92rem' : '1.02rem', fontWeight: 900 }}>
+                Streak Freeze Shield
+              </h2>
+              <p style={{ margin: '2px 0 0', fontSize: compact ? '0.72rem' : '0.76rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                Protects your daily streak if you miss 1 day!
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className="tactile-btn tactile-btn-primary"
+              style={{
+                width: compact ? 'auto' : '100%',
+                flex: compact ? '0 0 auto' : undefined,
+                padding: compact ? '6px 10px' : '8px 12px',
+                fontSize: compact ? '0.76rem' : '0.82rem',
+              }}
+              disabled={activeProfile.gems < STREAK_SHIELD_COST_GEMS}
+              onClick={handleBuyShield}
+            >
+              <Shield size={compact ? 14 : 16} />
+              <span>Buy Shield ({STREAK_SHIELD_COST_GEMS} Gems)</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -448,7 +564,7 @@ export function CompanionShop() {
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(215px, 1fr))',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(min(215px, 100%), 1fr))',
                     gap: 10,
                   }}
                 >
@@ -524,7 +640,7 @@ export function CompanionShop() {
                                     gap: 4,
                                     padding: '2px 8px',
                                     borderRadius: 999,
-                                    background: '#10b981',
+                                    background: '#047857',
                                     color: '#ffffff',
                                     fontSize: '0.7rem',
                                     fontWeight: 900,
@@ -577,6 +693,7 @@ export function CompanionShop() {
                           </button>
 
                           <button
+                            key={`shop-cosmetic-btn-${item.id}-${isEquipped ? 'eq' : isUnlocked ? 'un' : 'buy'}`}
                             type="button"
                             className={`tactile-btn ${
                               isEquipped
@@ -620,7 +737,7 @@ export function CompanionShop() {
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(225px, 1fr))',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(min(225px, 100%), 1fr))',
                     gap: 10,
                   }}
                 >
@@ -758,7 +875,7 @@ export function CompanionShop() {
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(215px, 1fr))',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(min(215px, 100%), 1fr))',
                     gap: 10,
                   }}
                 >
@@ -795,6 +912,7 @@ export function CompanionShop() {
                         </div>
 
                         <button
+                          key={`shop-avatar-btn-${av.id}-${isActive ? 'active' : isUnlocked ? 'sel' : 'buy'}`}
                           type="button"
                           className={`tactile-btn ${
                             isActive

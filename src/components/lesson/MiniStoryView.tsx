@@ -39,6 +39,9 @@ export function MiniStoryView({
   const [englishRevealedIds, setEnglishRevealedIds] = useState<string[]>([]);
   const [peekPhonetics, setPeekPhonetics] = useState(false);
   const scrollEndRef = useRef<HTMLDivElement | null>(null);
+  const advanceLockRef = useRef(false);
+  const completedRef = useRef(false);
+  const decisionLockRef = useRef(false);
 
   useEffect(() => {
     setVisibleCount(1);
@@ -46,7 +49,15 @@ export function MiniStoryView({
     setDecisionNote(null);
     setEnglishRevealedIds([]);
     setPeekPhonetics(false);
+    advanceLockRef.current = false;
+    completedRef.current = false;
+    decisionLockRef.current = false;
   }, [exercise.id]);
+
+  useEffect(() => {
+    advanceLockRef.current = false;
+    decisionLockRef.current = false;
+  }, [visibleCount, resolvedDecisionIdx.length]);
 
   useEffect(() => {
     if (typeof scrollEndRef.current?.scrollIntoView === 'function') {
@@ -119,6 +130,8 @@ export function MiniStoryView({
   };
 
   const handleAdvance = () => {
+    if (advanceLockRef.current || completedRef.current || activeDecision) return;
+    advanceLockRef.current = true;
     cancelHint({ clearAssists: true });
     playSfx('button_click');
     setDecisionNote(null);
@@ -134,8 +147,11 @@ export function MiniStoryView({
         });
       }
     } else if (isFinished) {
+      completedRef.current = true;
       playSfx('correct_chime');
       onComplete();
+    } else {
+      advanceLockRef.current = false;
     }
   };
 
@@ -414,10 +430,16 @@ export function MiniStoryView({
                       fontSize: '0.9rem',
                     }}
                     onClick={() => {
+                      if (decisionLockRef.current) return;
                       cancelHint({ clearAssists: opt.isCorrect });
                       if (opt.isCorrect) {
+                        decisionLockRef.current = true;
                         playSfx('correct_chime');
-                        setResolvedDecisionIdx((prev) => [...prev, activeDecision.afterBubbleIndex]);
+                        setResolvedDecisionIdx((prev) =>
+                          prev.includes(activeDecision.afterBubbleIndex)
+                            ? prev
+                            : [...prev, activeDecision.afterBubbleIndex]
+                        );
                         setDecisionNote({
                           ok: true,
                           english: opt.reactionEnglish,
@@ -469,6 +491,7 @@ export function MiniStoryView({
       {/* Pinned Advance / Finish Button */}
       <div style={{ flex: '0 0 auto', display: 'flex', justifyContent: 'flex-end', paddingTop: 4 }}>
         <button
+          key={isFinished ? 'story-finish-btn' : 'story-next-btn'}
           type="button"
           className={`tactile-btn tactile-btn-hero ${isFinished ? 'tactile-btn-success' : 'tactile-btn-primary'}`}
           disabled={Boolean(activeDecision)}

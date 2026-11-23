@@ -108,6 +108,13 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
 
   const savedNodeRef = useRef(false);
   const toastCounterRef = useRef(0);
+  const checkLockRef = useRef(false);
+  const advanceLockRef = useRef(false);
+  const discoveryLockRef = useRef(false);
+  const chestLockRef = useRef(false);
+  const zeroHeartActionLockRef = useRef(false);
+  const toastTimersRef = useRef<Set<number>>(new Set());
+  const confettiTimersRef = useRef<Set<number>>(new Set());
   const seenAtStartRef = useRef<readonly string[] | undefined>(activeProgress.seenExerciseIds);
   const hintAssistedAtStartRef = useRef<Record<string, number> | undefined>(
     activeProgress.hintAssistedCounts
@@ -121,13 +128,21 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
   claimedAtStartRef.current = activeProgress.claimedChestIds;
   boosterChargesRef.current = activeProfile.xpBoosterCharges ?? 0;
 
-  // Play whoosh transition when entering arena & stop lingering speech on unmount
+  const clearArenaTimers = useCallback(() => {
+    toastTimersRef.current.forEach((t) => window.clearTimeout(t));
+    toastTimersRef.current.clear();
+    confettiTimersRef.current.forEach((t) => window.clearTimeout(t));
+    confettiTimersRef.current.clear();
+  }, []);
+
+  // Play whoosh transition when entering arena & stop lingering speech / timers on unmount
   useEffect(() => {
     playSfx('whoosh_transition');
     return () => {
       stopSpeech();
+      clearArenaTimers();
     };
-  }, []);
+  }, [clearArenaTimers]);
 
   // Re-initialize run state & pull fresh non-repeating exercises when node/language/replayNonce changes
   useEffect(() => {
@@ -139,6 +154,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
       isReplay,
       hintAssistedAtStartRef.current
     );
+    clearArenaTimers();
     setSessionExercises(pooled.length > 0 ? pooled : node.exercises);
     setChestWasAlreadyClaimed(claimedAtStartRef.current.includes(node.id));
     setExerciseIndex(0);
@@ -157,24 +173,56 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
     setLessonWon(false);
     setChestClaimed(false);
     setInRecoveryArcade(false);
+    setPopToasts([]);
     setBurstActive(false);
     setRevealedStars(0);
     savedNodeRef.current = false;
+    checkLockRef.current = false;
+    advanceLockRef.current = false;
+    discoveryLockRef.current = false;
+    chestLockRef.current = false;
+    zeroHeartActionLockRef.current = false;
     exerciseHintsRef.current = {};
-  }, [node.id, node.exercises, language, replayNonce]);
+  }, [node.id, node.exercises, language, replayNonce, clearArenaTimers]);
+
+  // Release per-exercise action locks once React commits the next exercise
+  useEffect(() => {
+    advanceLockRef.current = false;
+    discoveryLockRef.current = false;
+    checkLockRef.current = false;
+    zeroHeartActionLockRef.current = false;
+  }, [exerciseIndex, node.id, replayNonce]);
+
+  useEffect(() => {
+    if (!feedback) {
+      checkLockRef.current = false;
+    }
+  }, [feedback]);
 
   const pushPopToast = useCallback((label: string, tone: PopToastItem['tone']) => {
     const id = `toast-${++toastCounterRef.current}`;
     setPopToasts((prev) => [...prev.slice(-2), { id, label, tone }]);
-    window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
+      toastTimersRef.current.delete(timer);
       setPopToasts((prev) => prev.filter((item) => item.id !== id));
     }, 1150);
+    toastTimersRef.current.add(timer);
   }, []);
 
   const triggerMiniConfetti = useCallback(() => {
+    confettiTimersRef.current.forEach((t) => window.clearTimeout(t));
+    confettiTimersRef.current.clear();
     setBurstActive(false);
-    window.setTimeout(() => setBurstActive(true), 10);
-    window.setTimeout(() => setBurstActive(false), 1200);
+    const t1 = window.setTimeout(() => {
+      confettiTimersRef.current.delete(t1);
+      setBurstActive(true);
+    }, 10);
+    const t2 = window.setTimeout(() => {
+      confettiTimersRef.current.delete(t2);
+      setBurstActive(false);
+    }, 1200);
+    confettiTimersRef.current.add(t1);
+    confettiTimersRef.current.add(t2);
   }, []);
 
   const exercises = sessionExercises;
@@ -183,6 +231,12 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
   const requiresHearts = node.nodeType === 'lesson' || node.nodeType === 'boss';
   const showZeroHeartModal =
     requiresHearts && activeProfile.hearts <= 0 && !lessonWon && !inRecoveryArcade && !isChestNode;
+
+  useEffect(() => {
+    if (!showZeroHeartModal) {
+      zeroHeartActionLockRef.current = false;
+    }
+  }, [showZeroHeartModal]);
 
   const victoryRewards = useMemo(() => {
     const raw = calculateLessonRewards({
@@ -263,6 +317,26 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
           exercises.map((ex) => ex.id),
           exerciseHintsRef.current
         );
+        const checkpointUnlock = node.checkpointTargetTier
+          ? (() => {
+              const course = getCourse(language);
+              const sortedUnits = [...course.units].sort((a, b) => a.order - b.order);
+              const targetOrder = PROFICIENCY_TIER_META[node.checkpointTargetTier].unitRange[0];
+              const targetUnitIndex = Math.max(
+                0,
+                sortedUnits.findIndex((u) => u.order >= targetOrder)
+              );
+              const prerequisiteNodeIds = sortedUnits
+                .filter((u) => u.order < targetOrder)
+                .flatMap((u) => u.nodes.map((n) => n.id));
+              return {
+                targetTier: node.checkpointTargetTier,
+                prerequisiteNodeIds,
+                targetUnitIndex,
+              };
+            })()
+          : undefined;
+
         vaultActions.completeMapNode({
           language,
           nodeId: node.id,
@@ -274,25 +348,10 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
           isStory: node.nodeType === 'story',
           isBoss: node.nodeType === 'boss',
           isChest: node.nodeType === 'chest',
+          ...(checkpointUnlock ? { checkpointUnlock } : {}),
         });
 
-        if (node.checkpointTargetTier) {
-          const course = getCourse(language);
-          const sortedUnits = [...course.units].sort((a, b) => a.order - b.order);
-          const targetOrder = PROFICIENCY_TIER_META[node.checkpointTargetTier].unitRange[0];
-          const targetUnitIndex = Math.max(
-            0,
-            sortedUnits.findIndex((u) => u.order >= targetOrder)
-          );
-          const prerequisiteNodeIds = sortedUnits
-            .filter((u) => u.order < targetOrder)
-            .flatMap((u) => u.nodes.map((n) => n.id));
-          safeVaultActions.unlockProficiencyTier({
-            language,
-            targetTier: node.checkpointTargetTier,
-            prerequisiteNodeIds,
-            targetUnitIndex,
-          });
+        if (checkpointUnlock) {
           playSfx('tier_unlock');
         } else if (isUnit16Boss) {
           playSfx('laureate_fanfare');
@@ -324,6 +383,8 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
       overrideFreeRecallHintTiers?: HintTier[],
       overrideMaxHintTier?: HintTier
     ) => {
+      if (advanceLockRef.current) return;
+      advanceLockRef.current = true;
       setDraft(null);
       setFeedback(null);
       setBossTurnIndex(0);
@@ -337,7 +398,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
           overrideMaxHintTier
         );
       } else {
-        setExerciseIndex((i) => i + 1);
+        setExerciseIndex((i) => (i + 1 < exercises.length ? i + 1 : i));
       }
     },
     [
@@ -352,7 +413,8 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
   );
 
   const handleCheck = useCallback(() => {
-    if (!draft || feedback) return;
+    if (!draft || feedback || checkLockRef.current || advanceLockRef.current) return;
+    checkLockRef.current = true;
     const isReverseDirection =
       (currentExercise?.type === 'word_bank' && currentExercise.direction === 'to_english') ||
       (currentExercise?.type === 'listen_decode' && currentExercise.mode === 'select_meaning');
@@ -482,7 +544,9 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
   }, [draft, feedback, language, comboCount, maxCombo, currentExercise, pushPopToast, triggerMiniConfetti]);
 
   const handleDiscoveryCollect = () => {
+    if (discoveryLockRef.current || advanceLockRef.current) return;
     if (!currentExercise || currentExercise.type !== 'discovery_card') return;
+    discoveryLockRef.current = true;
     const card = getVocabCard(language, currentExercise.vocabId);
     playSfx('flip_card');
     if (card) {
@@ -502,7 +566,8 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
   };
 
   const handleOpenChest = () => {
-    if (chestClaimed) return;
+    if (chestClaimed || chestLockRef.current) return;
+    chestLockRef.current = true;
     setChestClaimed(true);
     playSfx('chest_open');
     playSfx('unit_fanfare');
@@ -1218,6 +1283,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                   Listen & tap any word to peek, then collect your sticker!
                 </span>
                 <button
+                  key={`lesson-discovery-collect-btn-${currentExercise.id}`}
                   type="button"
                   className="tactile-btn tactile-btn-hero tactile-btn-success"
                   style={{ marginLeft: 'auto' }}
@@ -1310,6 +1376,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                 </div>
 
                 <button
+                  key="lesson-continue-btn"
                   type="button"
                   className={`tactile-btn tactile-btn-hero ${
                     feedback.kind === 'nudge' ? 'tactile-btn-rose' : 'tactile-btn-success'
@@ -1331,6 +1398,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                   Assemble your answer, then check!
                 </span>
                 <button
+                  key="lesson-check-btn"
                   type="button"
                   className="tactile-btn tactile-btn-hero tactile-btn-primary"
                   style={{ marginLeft: 'auto' }}
@@ -1378,11 +1446,15 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                   type="button"
                   className="tactile-btn tactile-btn-hero tactile-btn-success"
                   onClick={() => {
+                    if (zeroHeartActionLockRef.current) return;
+                    zeroHeartActionLockRef.current = true;
                     const ok = safeVaultActions.useHeartElixir();
                     if (ok) {
                       playSfx('heart_win');
                       pushPopToast('Hearts Refilled!', 'bonus');
                       setFeedback(null);
+                    } else {
+                      zeroHeartActionLockRef.current = false;
                     }
                   }}
                 >
@@ -1396,12 +1468,15 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                 className="tactile-btn tactile-btn-hero tactile-btn-rose"
                 disabled={activeProfile.gems < HEART_ELIXIR_COST_GEMS}
                 onClick={() => {
+                  if (zeroHeartActionLockRef.current) return;
+                  zeroHeartActionLockRef.current = true;
                   const ok = safeVaultActions.buyHeartElixir();
                   if (ok) {
                     playSfx('heart_win');
                     pushPopToast('Elixir Refilled Hearts!', 'bonus');
                     setFeedback(null);
                   } else {
+                    zeroHeartActionLockRef.current = false;
                     playSfx('gentle_nudge');
                   }
                 }}
@@ -1418,7 +1493,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                   setInRecoveryArcade(true);
                 }}
               >
-                <Heart size={18} fill="#ffffff" />
+                <Heart size={18} fill="#be123c" color="#be123c" />
                 <span>Play Sky-Catcher Fiesta to Recharge Hearts!</span>
               </button>
               <button
