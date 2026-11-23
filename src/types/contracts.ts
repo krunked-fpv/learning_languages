@@ -966,6 +966,8 @@ export interface VocabCard {
   exampleEnglish: string;
   examplePhonetic: string;
   exampleRomanized?: string;
+  plainEnglish?: string;
+  examplePlainEnglish?: string;
 }
 
 export interface DiscoveryCardExercise {
@@ -993,6 +995,7 @@ export interface WordBankExercise {
   nuanceNote?: string;
   registerTag?: RegisterNuanceTag;
   allowFreeRecall?: boolean;
+  plainEnglish?: string;
   vocabIds: string[];
 }
 
@@ -1011,6 +1014,7 @@ export interface ContextClozeExercise {
   nuanceNote: string;
   registerTag?: RegisterNuanceTag;
   tapHints: TapHintToken[];
+  plainEnglish?: string;
   vocabIds: string[];
 }
 
@@ -1028,6 +1032,7 @@ export interface ListenDecodeExercise {
   distractorTokens?: string[];
   acceptedAnswers: string[];
   tapHints: TapHintToken[];
+  plainEnglish?: string;
   vocabIds: string[];
 }
 
@@ -1037,6 +1042,7 @@ export interface PairMatchItem {
   english: string;
   phonetic: string;
   romanized?: string;
+  plainEnglish?: string;
   vocabId?: string;
 }
 
@@ -1057,6 +1063,7 @@ export interface StoryBubble {
   englishText: string;
   phonetic: string;
   romanized?: string;
+  plainEnglish?: string;
   tapHints: TapHintToken[];
 }
 
@@ -1104,6 +1111,7 @@ export interface BossTurn {
   nuanceNote?: string;
   registerTag?: RegisterNuanceTag;
   allowFreeRecall?: boolean;
+  plainEnglish?: string;
 }
 
 export interface BossGauntletExercise {
@@ -1179,6 +1187,7 @@ export interface ArcadeLanternItem {
   exampleEnglish?: string;
   examplePhonetic?: string;
   exampleRomanized?: string;
+  plainEnglish?: string;
 }
 
 // ==========================================
