@@ -52,6 +52,227 @@ const INTERNAL_PUNCT_SPLIT_RE =
 const APOSTROPHE_VARIANTS_RE = /[’‘\u02BC]/g;
 const CJK_CHAR_RE = /[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/;
 const ARABIC_DIACRITICS_RE = /[\u064B-\u065F\u0670\u0640]/g;
+const ARABIC_LETTER_RE = /[\u0621-\u063A\u0641-\u064A\u0671-\u06D3]/;
+const ARABIC_LETTER_GLOBAL_RE = /[\u0621-\u063A\u0641-\u064A\u0671-\u06D3]/g;
+
+interface StemPrefixRule {
+  prefix: string;
+  gloss: string;
+  phoneticPrefix: string;
+  romanizedPrefix?: string;
+  grammarNote: string;
+}
+
+// Ordered longest-first so multi-character elisions match before single-letter ones.
+const ELISION_PREFIX_RULES: readonly StemPrefixRule[] = [
+  {
+    prefix: "jusqu'",
+    gloss: 'until / up to',
+    phoneticPrefix: 'zhoosk-',
+    grammarNote: 'Elided preposition/conjunction "jusque" ("jusqu\'") before a vowel or silent h.',
+  },
+  {
+    prefix: "lorsqu'",
+    gloss: 'when',
+    phoneticPrefix: 'lohrsk-',
+    grammarNote: 'Elided conjunction "lorsque" ("lorsqu\'") before a vowel.',
+  },
+  {
+    prefix: "puisqu'",
+    gloss: 'since / because',
+    phoneticPrefix: 'pweesk-',
+    grammarNote: 'Elided conjunction "puisque" ("puisqu\'") before a vowel.',
+  },
+  {
+    prefix: "quest'",
+    gloss: 'this',
+    phoneticPrefix: 'kwehst-',
+    grammarNote: 'Elided demonstrative "questo/questa" ("quest\'") before a vowel.',
+  },
+  {
+    prefix: "quell'",
+    gloss: 'that',
+    phoneticPrefix: 'kwehl-',
+    grammarNote: 'Elided demonstrative "quello/quella" ("quell\'") before a vowel.',
+  },
+  {
+    prefix: "dell'",
+    gloss: 'of the',
+    phoneticPrefix: 'dehl-',
+    grammarNote: 'Elided articulated preposition "della/dello" ("dell\'") before a vowel.',
+  },
+  {
+    prefix: "dall'",
+    gloss: 'from the',
+    phoneticPrefix: 'dahl-',
+    grammarNote: 'Elided articulated preposition "dalla/dallo" ("dall\'") before a vowel.',
+  },
+  {
+    prefix: "nell'",
+    gloss: 'in the',
+    phoneticPrefix: 'nehl-',
+    grammarNote: 'Elided articulated preposition "nella/nello" ("nell\'") before a vowel.',
+  },
+  {
+    prefix: "sull'",
+    gloss: 'on the',
+    phoneticPrefix: 'sool-',
+    grammarNote: 'Elided articulated preposition "sulla/sullo" ("sull\'") before a vowel.',
+  },
+  {
+    prefix: "coll'",
+    gloss: 'with the',
+    phoneticPrefix: 'kohl-',
+    grammarNote: 'Elided articulated preposition "colla/collo" ("coll\'") before a vowel.',
+  },
+  {
+    prefix: "all'",
+    gloss: 'to/at the',
+    phoneticPrefix: 'ahl-',
+    grammarNote: 'Elided articulated preposition "alla/allo" ("all\'") before a vowel.',
+  },
+  {
+    prefix: "qu'",
+    gloss: 'that / what',
+    phoneticPrefix: 'k-',
+    grammarNote: 'Elided conjunction/pronoun "que" ("qu\'") before a vowel or silent h.',
+  },
+  {
+    prefix: "un'",
+    gloss: 'a / an',
+    phoneticPrefix: 'oon-',
+    grammarNote: 'Elided feminine indefinite article "una" ("un\'") before a vowel.',
+  },
+  {
+    prefix: "l'",
+    gloss: 'the/it',
+    phoneticPrefix: 'l-',
+    grammarNote: 'Elided article or pronoun "le/la/lo" ("l\'") before a vowel or silent h.',
+  },
+  {
+    prefix: "d'",
+    gloss: 'of / from',
+    phoneticPrefix: 'd-',
+    grammarNote: 'Elided preposition "de/di" ("d\'") before a vowel or silent h.',
+  },
+  {
+    prefix: "j'",
+    gloss: 'I',
+    phoneticPrefix: 'zh-',
+    grammarNote: 'Elided subject pronoun "je" ("j\'") before a vowel or silent h.',
+  },
+  {
+    prefix: "s'",
+    gloss: 'self / if',
+    phoneticPrefix: 's-',
+    grammarNote: 'Elided reflexive pronoun "se" or conjunction "si" ("s\'") before a vowel.',
+  },
+  {
+    prefix: "c'",
+    gloss: 'it / that',
+    phoneticPrefix: 's-',
+    grammarNote: 'Elided demonstrative pronoun "ce/ci" ("c\'") before a vowel.',
+  },
+  {
+    prefix: "n'",
+    gloss: 'not',
+    phoneticPrefix: 'n-',
+    grammarNote: 'Elided negation particle "ne" ("n\'") before a vowel or silent h.',
+  },
+  {
+    prefix: "m'",
+    gloss: 'me / myself',
+    phoneticPrefix: 'm-',
+    grammarNote: 'Elided object/reflexive pronoun "me/mi" ("m\'") before a vowel or silent h.',
+  },
+  {
+    prefix: "t'",
+    gloss: 'you / yourself',
+    phoneticPrefix: 't-',
+    grammarNote: 'Elided object/reflexive pronoun "te/ti" ("t\'") before a vowel or silent h.',
+  },
+];
+
+// Ordered longest-first so compound proclitic+article prefixes strip before single proclitics.
+const ARABIC_PROCLITIC_RULES: readonly StemPrefixRule[] = [
+  {
+    prefix: 'وال',
+    gloss: 'and the',
+    phoneticPrefix: 'wal-',
+    romanizedPrefix: 'wal-',
+    grammarNote: 'Bound proclitic "و" (and) + definite article "ال" (the) attached to stem.',
+  },
+  {
+    prefix: 'بال',
+    gloss: 'with/by the',
+    phoneticPrefix: 'bil-',
+    romanizedPrefix: 'bil-',
+    grammarNote: 'Bound proclitic "ب" (with/by) + definite article "ال" (the) attached to stem.',
+  },
+  {
+    prefix: 'فال',
+    gloss: 'so/then the',
+    phoneticPrefix: 'fal-',
+    romanizedPrefix: 'fal-',
+    grammarNote: 'Bound proclitic "ف" (so/then) + definite article "ال" (the) attached to stem.',
+  },
+  {
+    prefix: 'كال',
+    gloss: 'like/as the',
+    phoneticPrefix: 'kal-',
+    romanizedPrefix: 'kal-',
+    grammarNote: 'Bound proclitic "ك" (like/as) + definite article "ال" (the) attached to stem.',
+  },
+  {
+    prefix: 'لال',
+    gloss: 'for/to the',
+    phoneticPrefix: 'lil-',
+    romanizedPrefix: 'lil-',
+    grammarNote: 'Bound proclitic "ل" (for/to) + definite article "ال" (the) attached to stem.',
+  },
+  {
+    prefix: 'لل',
+    gloss: 'for/to the',
+    phoneticPrefix: 'lil-',
+    romanizedPrefix: 'lil-',
+    grammarNote: 'Bound proclitic "ل" (for/to) + contracted definite article "ال" (the) attached to stem.',
+  },
+  {
+    prefix: 'و',
+    gloss: 'and',
+    phoneticPrefix: 'wa-',
+    romanizedPrefix: 'wa-',
+    grammarNote: 'Bound proclitic conjunction "و" (and) attached to stem.',
+  },
+  {
+    prefix: 'ف',
+    gloss: 'so/then',
+    phoneticPrefix: 'fa-',
+    romanizedPrefix: 'fa-',
+    grammarNote: 'Bound proclitic conjunction "ف" (so/then) attached to stem.',
+  },
+  {
+    prefix: 'ب',
+    gloss: 'with/by',
+    phoneticPrefix: 'bi-',
+    romanizedPrefix: 'bi-',
+    grammarNote: 'Bound proclitic preposition "ب" (with/by) attached to stem.',
+  },
+  {
+    prefix: 'ل',
+    gloss: 'for/to',
+    phoneticPrefix: 'li-',
+    romanizedPrefix: 'li-',
+    grammarNote: 'Bound proclitic preposition "ل" (for/to) attached to stem.',
+  },
+  {
+    prefix: 'ك',
+    gloss: 'like/as',
+    phoneticPrefix: 'ka-',
+    romanizedPrefix: 'ka-',
+    grammarNote: 'Bound proclitic preposition "ك" (like/as) attached to stem.',
+  },
+];
 
 export function stripEdgePunctuation(word: string): string {
   return word.replace(EDGE_PUNCTUATION_RE, '');
@@ -89,7 +310,7 @@ function dedupeStrings(items: readonly string[]): string[] {
   return out;
 }
 
-export function lookupGlossaryEntry(
+function lookupExactGlossaryEntry(
   surface: string,
   glossary?: GlossaryMap,
   overrides?: Record<string, GlossaryEntry>
@@ -107,6 +328,90 @@ export function lookupGlossaryEntry(
     glossary?.[lowerRaw] ??
     glossary?.[lower] ??
     glossary?.[normKey]
+  );
+}
+
+function synthesizeCliticEntry(
+  cleanedSurface: string,
+  rule: StemPrefixRule,
+  stemEntry: GlossaryEntry,
+  includeRomanizedPrefix: boolean
+): GlossaryEntry {
+  return {
+    translation: `${rule.gloss} + ${stemEntry.translation}`,
+    phonetic: `${rule.phoneticPrefix}${stemEntry.phonetic}`,
+    ...(stemEntry.romanized
+      ? {
+          romanized:
+            includeRomanizedPrefix && rule.romanizedPrefix
+              ? `${rule.romanizedPrefix}${stemEntry.romanized}`
+              : stemEntry.romanized,
+        }
+      : {}),
+    ...(stemEntry.articleNote ? { articleNote: stemEntry.articleNote } : {}),
+    ...(stemEntry.accentNote ? { accentNote: stemEntry.accentNote } : {}),
+    ...(stemEntry.registerNote ? { registerNote: stemEntry.registerNote } : {}),
+    grammarNote: stemEntry.grammarNote
+      ? `${rule.grammarNote} ${stemEntry.grammarNote}`
+      : rule.grammarNote,
+    speakText: cleanedSurface,
+  };
+}
+
+function lookupElisionFallback(
+  cleanedSurface: string,
+  glossary?: GlossaryMap,
+  overrides?: Record<string, GlossaryEntry>
+): GlossaryEntry | undefined {
+  const cleanedLower = cleanedSurface.toLowerCase();
+  for (const rule of ELISION_PREFIX_RULES) {
+    if (!cleanedLower.startsWith(rule.prefix)) continue;
+    const stem = cleanedSurface.slice(rule.prefix.length);
+    if (!stem || /^\s/.test(stem) || !normalizeLookupKey(stem)) continue;
+    const stemEntry = lookupExactGlossaryEntry(stem, glossary, overrides);
+    if (stemEntry) {
+      return synthesizeCliticEntry(cleanedSurface, rule, stemEntry, false);
+    }
+  }
+  return undefined;
+}
+
+function lookupArabicProcliticFallback(
+  cleanedSurface: string,
+  glossary?: GlossaryMap,
+  overrides?: Record<string, GlossaryEntry>
+): GlossaryEntry | undefined {
+  const arabicClean = cleanedSurface.replace(ARABIC_DIACRITICS_RE, '');
+  if (!ARABIC_LETTER_RE.test(arabicClean)) return undefined;
+
+  for (const rule of ARABIC_PROCLITIC_RULES) {
+    if (!arabicClean.startsWith(rule.prefix)) continue;
+    const stem = arabicClean.slice(rule.prefix.length);
+    const arabicLetterCount = (stem.match(ARABIC_LETTER_GLOBAL_RE) ?? []).length;
+    if (arabicLetterCount < 3) continue;
+    const stemEntry = lookupExactGlossaryEntry(stem, glossary, overrides);
+    if (stemEntry) {
+      return synthesizeCliticEntry(cleanedSurface, rule, stemEntry, true);
+    }
+  }
+  return undefined;
+}
+
+export function lookupGlossaryEntry(
+  surface: string,
+  glossary?: GlossaryMap,
+  overrides?: Record<string, GlossaryEntry>
+): GlossaryEntry | undefined {
+  if (!surface || (!glossary && !overrides)) return undefined;
+  const exact = lookupExactGlossaryEntry(surface, glossary, overrides);
+  if (exact) return exact;
+
+  const cleanedSurface = stripEdgePunctuation(surface.trim()).replace(APOSTROPHE_VARIANTS_RE, "'");
+  if (!cleanedSurface || /\s/.test(cleanedSurface)) return undefined;
+
+  return (
+    lookupElisionFallback(cleanedSurface, glossary, overrides) ??
+    lookupArabicProcliticFallback(cleanedSurface, glossary, overrides)
   );
 }
 

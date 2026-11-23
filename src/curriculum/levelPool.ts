@@ -5,7 +5,6 @@ import {
   resolveUnitProficiencyTier,
 } from '../types/contracts';
 import type {
-  BaseLanguageCode,
   BossGauntletExercise,
   BossTurn,
   ContextClozeExercise,
@@ -20,6 +19,7 @@ import type {
   ProficiencyTier,
   StoryDecision,
   VocabCard,
+  VocabMasteryEntry,
   WordBankExercise,
 } from '../types/contracts';
 import {
@@ -27,13 +27,11 @@ import {
   getAdultGlossary,
   getAdultRegistryVersion,
 } from './adultRegistry';
-import { arabicCourse, arabicGlossary } from './ar';
-import { egyptianArabicCourse, egyptianArabicGlossary } from './arz';
-import { bengaliCourse, bengaliGlossary } from './bn';
-import { germanCourse, germanGlossary } from './de';
-import { englishCourse, englishGlossary } from './en';
-import { spanishCourse, spanishGlossary } from './es';
-import { frenchCourse, frenchGlossary } from './fr';
+import {
+  getBaseCourse,
+  getBaseGlossary,
+  getBaseRegistryVersion,
+} from './baseRegistry';
 import {
   buildTapHints,
   normalizeLookupKey,
@@ -42,60 +40,13 @@ import {
   stripEdgePunctuation,
 } from './helpers';
 import type { GlossaryMap } from './helpers';
-import { hindiCourse, hindiGlossary } from './hi';
-import { indonesianCourse, indonesianGlossary } from './id';
-import { italianCourse, italianGlossary } from './it';
-import { japaneseCourse, japaneseGlossary } from './ja';
-import { portugueseCourse, portugueseGlossary } from './pt';
-import { russianCourse, russianGlossary } from './ru';
-import { swahiliCourse, swahiliGlossary } from './sw';
-import { vietnameseCourse, vietnameseGlossary } from './vi';
-import { mandarinCourse, mandarinGlossary } from './zh';
-
-const GLOSSARIES: Record<BaseLanguageCode, GlossaryMap> = {
-  es: spanishGlossary,
-  fr: frenchGlossary,
-  de: germanGlossary,
-  it: italianGlossary,
-  pt: portugueseGlossary,
-  en: englishGlossary,
-  zh: mandarinGlossary,
-  ja: japaneseGlossary,
-  hi: hindiGlossary,
-  bn: bengaliGlossary,
-  ar: arabicGlossary,
-  arz: egyptianArabicGlossary,
-  ru: russianGlossary,
-  id: indonesianGlossary,
-  vi: vietnameseGlossary,
-  sw: swahiliGlossary,
-};
-
-const COURSES_MAP: Record<BaseLanguageCode, LanguageCourse> = {
-  es: spanishCourse,
-  fr: frenchCourse,
-  de: germanCourse,
-  it: italianCourse,
-  pt: portugueseCourse,
-  en: englishCourse,
-  zh: mandarinCourse,
-  ja: japaneseCourse,
-  hi: hindiCourse,
-  bn: bengaliCourse,
-  ar: arabicCourse,
-  arz: egyptianArabicCourse,
-  ru: russianCourse,
-  id: indonesianCourse,
-  vi: vietnameseCourse,
-  sw: swahiliCourse,
-};
 
 function resolveGlossary(lang: LanguageCode): GlossaryMap {
-  return isAdultLanguage(lang) ? getAdultGlossary(lang) : GLOSSARIES[lang];
+  return isAdultLanguage(lang) ? getAdultGlossary(lang) : getBaseGlossary(lang);
 }
 
 function resolveCourse(lang: LanguageCode): LanguageCourse {
-  return isAdultLanguage(lang) ? getAdultCourse(lang) : COURSES_MAP[lang];
+  return isAdultLanguage(lang) ? getAdultCourse(lang) : getBaseCourse(lang);
 }
 
 interface LessonPoolEntry {
@@ -1058,7 +1009,7 @@ function getOrBuildPool(lang: LanguageCode, nodeId: string): NodePoolEntry | und
 
   const cacheKey = isAdultLanguage(lang)
     ? `${lang}:v${getAdultRegistryVersion()}:${nodeId}`
-    : `${lang}:${nodeId}`;
+    : `${lang}:bv${getBaseRegistryVersion()}:${nodeId}`;
   const cached = poolCache.get(cacheKey);
   if (cached) return cached;
 
@@ -1264,6 +1215,180 @@ export function buildTierCheckpointNode(
     gemReward: 40,
     exercises: [ex1, ex2, ex3, ex4, ex5],
     rewardVocabIds: pairCards.slice(0, 3).map((c) => c.id),
+  };
+}
+
+function parseMasteryTimestampMs(iso: string | undefined): number {
+  if (!iso || !iso.trim()) return Number.NEGATIVE_INFINITY;
+  const parsed = Date.parse(iso);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * Builds an adaptive 5-exercise Starlight Memory Quest (`isSrsReviewQuest: true`)
+ * prioritizing up to 6 unlocked VocabCards with lowest mastery strength or oldest review date.
+ * Returns `null` if the course is not yet loaded or fewer than 4 unlocked cards are available.
+ */
+export function buildSrsReviewQuestNode(
+  lang: LanguageCode,
+  unlockedVocabIds: readonly string[],
+  vocabMastery?: Readonly<Record<string, VocabMasteryEntry>>,
+  dateSeed?: string
+): MapNode | null {
+  const course = resolveCourse(lang);
+  if (course.units.length === 0 || unlockedVocabIds.length < 4) {
+    return null;
+  }
+
+  const seenUnlocked = new Set<string>();
+  const candidates: Array<{
+    card: VocabCard;
+    strength: number;
+    reviewedMs: number;
+    index: number;
+  }> = [];
+
+  for (let i = 0; i < unlockedVocabIds.length; i++) {
+    const id = unlockedVocabIds[i];
+    if (seenUnlocked.has(id)) continue;
+    const card = course.vocabById[id];
+    if (!card) continue;
+    seenUnlocked.add(id);
+    const entry = vocabMastery?.[id];
+    const strength =
+      entry && typeof entry.strength === 'number' && Number.isFinite(entry.strength)
+        ? entry.strength
+        : 0;
+    const reviewedMs = parseMasteryTimestampMs(entry?.lastReviewedISO);
+    candidates.push({ card, strength, reviewedMs, index: i });
+  }
+
+  if (candidates.length < 4) {
+    return null;
+  }
+
+  candidates.sort((a, b) => {
+    if (a.strength !== b.strength) return a.strength - b.strength;
+    if (a.reviewedMs !== b.reviewedMs) return a.reviewedMs - b.reviewedMs;
+    return a.index - b.index;
+  });
+
+  const picked = candidates.slice(0, 6).map((entry) => entry.card);
+  const glossary = resolveGlossary(lang);
+  const unitById = new Map<string, CourseUnit>(course.units.map((u) => [u.id, u]));
+  const unitFor = (card: VocabCard): CourseUnit => unitById.get(card.unitId) ?? course.units[0];
+
+  const cleanSeed = dateSeed?.trim() || 'daily';
+  const nodeId = `${lang}-srs-quest-${cleanSeed}`;
+  const primaryUnit = unitFor(picked[0]);
+
+  const card0 = picked[0];
+  const card1 = picked[1 % picked.length];
+  const card2 = picked[2 % picked.length];
+  const card3 = picked[3 % picked.length];
+
+  const ex1: WordBankExercise = {
+    ...makeDynamicWordBankToEn(`${nodeId}-e1`, card0, unitFor(card0), glossary, 1),
+    ...(lang !== 'en' ? { allowFreeRecall: true } : {}),
+  };
+
+  const ex2: ListenDecodeExercise = makeDynamicListenMeaning(
+    `${nodeId}-e2`,
+    card1,
+    unitFor(card1),
+    glossary,
+    true
+  );
+
+  // Prefer a context_cloze from picked cards (dynamic first, then authored covering picked vocab),
+  // otherwise fall back to a word_bank challenge on card2.
+  const clozeCandidateCards = [card2, ...picked.slice(4), card0, card1, card3];
+  let clozeEx: ContextClozeExercise | undefined;
+  for (const cand of clozeCandidateCards) {
+    clozeEx = makeDynamicContextClozeFromCard(`${nodeId}-e3`, cand, unitFor(cand), glossary);
+    if (clozeEx) break;
+  }
+  if (!clozeEx) {
+    const pickedIdSet = new Set(picked.map((c) => c.id));
+    for (const cand of clozeCandidateCards) {
+      const u = unitFor(cand);
+      for (const n of u.nodes) {
+        const authored = n.exercises.find(
+          (ex): ex is ContextClozeExercise =>
+            ex.type === 'context_cloze' && ex.vocabIds.some((vid) => pickedIdSet.has(vid))
+        );
+        if (authored) {
+          clozeEx = { ...authored, id: `${nodeId}-e3` };
+          break;
+        }
+      }
+      if (clozeEx) break;
+    }
+  }
+
+  const ex3: LessonExercise =
+    clozeEx ??
+    ({
+      ...makeDynamicWordBankToEn(`${nodeId}-e3`, card2, unitFor(card2), glossary, 5),
+      ...(lang !== 'en' ? { allowFreeRecall: true } : {}),
+    } satisfies WordBankExercise);
+
+  const ex4: WordBankExercise = {
+    ...makeDynamicWordBankToForeign(`${nodeId}-e4`, card3, unitFor(card3), glossary, 7),
+    allowFreeRecall: true,
+  };
+
+  const rotatedForPairs =
+    picked.length > 4 ? [...picked.slice(4), ...picked.slice(0, 4)] : picked;
+  const pairCards: VocabCard[] = [];
+  const usedPairEng = new Set<string>();
+  const usedPairIds = new Set<string>();
+  const isAdult = isAdultLanguage(lang);
+  for (const card of rotatedForPairs) {
+    if (usedPairIds.has(card.id)) continue;
+    const keys = cardEnglishKeySet(card, isAdult);
+    let overlaps = false;
+    for (const k of keys) {
+      if (usedPairEng.has(k)) {
+        overlaps = true;
+        break;
+      }
+    }
+    if (overlaps) continue;
+    usedPairIds.add(card.id);
+    for (const k of keys) usedPairEng.add(k);
+    pairCards.push(card);
+    if (pairCards.length >= 5) break;
+  }
+  if (pairCards.length < 4) {
+    for (const card of rotatedForPairs) {
+      if (usedPairIds.has(card.id)) continue;
+      usedPairIds.add(card.id);
+      pairCards.push(card);
+      if (pairCards.length >= 4) break;
+    }
+  }
+
+  const ex5 = pairMatchFromCards(
+    `${nodeId}-e5`,
+    'Starlight Memory Match',
+    pairCards,
+    45
+  );
+
+  return {
+    id: nodeId,
+    unitId: primaryUnit.id,
+    order: 0,
+    nodeType: 'lesson',
+    proficiencyTier: primaryUnit.proficiencyTier ?? resolveUnitProficiencyTier(primaryUnit.order),
+    isSrsReviewQuest: true,
+    title: 'Starlight Memory Quest',
+    subtitle: 'Strengthen your fading stickers for bonus Gems!',
+    xpReward: 35,
+    gemReward: 12,
+    exercises: [ex1, ex2, ex3, ex4, ex5],
+    rewardVocabIds: picked.map((c) => c.id),
   };
 }
 
