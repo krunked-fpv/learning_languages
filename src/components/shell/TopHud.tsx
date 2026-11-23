@@ -25,12 +25,15 @@ import { playSfx, setAudioPreferences } from '../../audio';
 import { COSMETIC_CATALOG } from '../../core';
 import { useVaultStore, vaultActions } from '../../store/useVaultStore';
 import {
-  ADULT_EASTER_EGG_LANGUAGES,
+  ADULT_MASHUP_LANGUAGES,
+  CLASSIC_ADULT_LANGUAGES,
   LANGUAGE_LIST,
   LANGUAGE_META,
   MAX_HEART_CONTAINERS,
   isAdultLanguage,
+  isAdultMashupLanguage,
   type AdultLanguageCode,
+  type BaseLanguageCode,
   type CosmeticId,
   type LanguageCode,
 } from '../../types/contracts';
@@ -149,9 +152,14 @@ export function TopHud({
 
   const activeThemeId = activeProfile.equippedCosmetics.theme ?? 'default';
   const isAdultModeActive = Boolean(activeProfile.adultModeActive);
+  const baseLang: BaseLanguageCode =
+    activeProfile.lastBaseLanguage && !isAdultLanguage(activeProfile.lastBaseLanguage)
+      ? activeProfile.lastBaseLanguage
+      : 'es';
+  const baseLangMeta = LANGUAGE_META[baseLang];
   const displayLanguage: LanguageCode =
     !isAdultModeActive && isAdultLanguage(activeProfile.activeLanguage)
-      ? (activeProfile.lastBaseLanguage ?? 'en')
+      ? baseLang
       : activeProfile.activeLanguage;
   const activeLangMeta = LANGUAGE_META[displayLanguage];
   const { volume, muted } = vault.audioSettings;
@@ -164,7 +172,26 @@ export function TopHud({
   const handleSelectLanguage = (lang: LanguageCode) => {
     playSfx('whoosh_transition');
     vaultActions.setActiveLanguage(lang);
+    if (isAdultModeActive && !isAdultLanguage(lang)) {
+      safeVaultActions.setAdultModeActive(false);
+    }
     setOpenPopover(null);
+  };
+
+  const handleFlipAdultDirection = () => {
+    const current = activeProfile.activeLanguage;
+    let nextTrack: AdultLanguageCode;
+    if (current === 'ebonics') {
+      nextTrack = 'suburban';
+    } else if (current === 'suburban') {
+      nextTrack = 'ebonics';
+    } else if (isAdultMashupLanguage(current)) {
+      const idx = ADULT_MASHUP_LANGUAGES.indexOf(current);
+      nextTrack = ADULT_MASHUP_LANGUAGES[(idx + 1) % ADULT_MASHUP_LANGUAGES.length];
+    } else {
+      nextTrack = 'ebonics';
+    }
+    handleSelectLanguage(nextTrack);
   };
 
   const handleReturnToKidAtlas = () => {
@@ -226,7 +253,7 @@ export function TopHud({
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 7,
+                  gap: 8,
                   padding: '8px 9px',
                   borderRadius: 14,
                   background: 'var(--tint-indigo-bg)',
@@ -259,11 +286,7 @@ export function TopHud({
                       type="button"
                       className="tactile-btn tactile-btn-amber"
                       style={{ padding: '4px 9px', fontSize: '0.72rem', borderRadius: 10 }}
-                      onClick={() => {
-                        const flipped: AdultLanguageCode =
-                          activeProfile.activeLanguage === 'ebonics' ? 'suburban' : 'ebonics';
-                        handleSelectLanguage(flipped);
-                      }}
+                      onClick={handleFlipAdultDirection}
                     >
                       <ArrowLeftRight size={13} />
                       <span>Flip Direction</span>
@@ -277,69 +300,101 @@ export function TopHud({
                       onClick={handleReturnToKidAtlas}
                     >
                       <ArrowLeft size={13} />
-                      <span>Kid Atlas</span>
+                      <FlagIcon language={baseLang} size={16} />
+                      <span>Back to {baseLangMeta.name}</span>
                     </button>
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                    gap: 6,
-                  }}
-                >
-                  {ADULT_EASTER_EGG_LANGUAGES.map((lang) => {
-                    const meta = LANGUAGE_META[lang];
-                    const isSelected = lang === activeProfile.activeLanguage;
-                    return (
-                      <button
-                        key={lang}
-                        type="button"
-                        className="tactile-btn"
-                        style={{
-                          justifyContent: 'flex-start',
-                          padding: '7px 8px',
-                          gap: 7,
-                          minWidth: 0,
-                          background: isSelected ? 'var(--tile-selected-bg)' : 'var(--tile-bg)',
-                          borderColor: isSelected ? meta.accentPalette.primary : 'var(--card-border)',
-                          color: isSelected ? 'var(--tile-selected-ink)' : 'var(--text-main)',
-                        }}
-                        onClick={() => handleSelectLanguage(lang)}
-                      >
-                        <span style={{ flexShrink: 0, display: 'inline-flex' }}>
-                          <FlagIcon language={lang} size={24} />
-                        </span>
-                        <div style={{ textAlign: 'left', minWidth: 0, flex: 1 }}>
-                          <div
+                {(
+                  [
+                    {
+                      heading: 'Original Pair',
+                      tracks: CLASSIC_ADULT_LANGUAGES as readonly AdultLanguageCode[],
+                      columns: 'repeat(2, minmax(0, 1fr))',
+                    },
+                    {
+                      heading: 'American Culture Clash (5 Mashups)',
+                      tracks: ADULT_MASHUP_LANGUAGES as readonly AdultLanguageCode[],
+                      columns: 'repeat(auto-fit, minmax(195px, 1fr))',
+                    },
+                  ] as const
+                ).map((section) => (
+                  <div key={section.heading} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <div
+                      style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 900,
+                        color: 'var(--tint-indigo-ink)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.03em',
+                        opacity: 0.9,
+                      }}
+                    >
+                      {section.heading}
+                    </div>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: section.columns,
+                        gap: 6,
+                      }}
+                    >
+                      {section.tracks.map((lang) => {
+                        const meta = LANGUAGE_META[lang];
+                        const isSelected = lang === activeProfile.activeLanguage;
+                        const matchupTag =
+                          meta.dialectA && meta.dialectB
+                            ? `${meta.dialectA} <-> ${meta.dialectB}`
+                            : meta.nativeName;
+                        return (
+                          <button
+                            key={lang}
+                            type="button"
+                            className="tactile-btn"
                             style={{
-                              fontSize: '0.78rem',
-                              fontWeight: 800,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
+                              justifyContent: 'flex-start',
+                              padding: '7px 8px',
+                              gap: 7,
+                              minWidth: 0,
+                              background: isSelected ? 'var(--tile-selected-bg)' : 'var(--tile-bg)',
+                              borderColor: isSelected ? meta.accentPalette.primary : 'var(--card-border)',
+                              color: isSelected ? 'var(--tile-selected-ink)' : 'var(--text-main)',
                             }}
+                            onClick={() => handleSelectLanguage(lang)}
                           >
-                            {meta.name}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: '0.68rem',
-                              fontWeight: 700,
-                              color: 'var(--text-muted)',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {meta.nativeName}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                            <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                              <FlagIcon language={lang} size={24} />
+                            </span>
+                            <div style={{ textAlign: 'left', minWidth: 0, flex: 1 }}>
+                              <div
+                                style={{
+                                  fontSize: '0.78rem',
+                                  fontWeight: 800,
+                                  lineHeight: 1.15,
+                                  overflowWrap: 'break-word',
+                                }}
+                              >
+                                {meta.name}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: '0.67rem',
+                                  fontWeight: 700,
+                                  color: 'var(--text-muted)',
+                                  lineHeight: 1.2,
+                                  overflowWrap: 'break-word',
+                                }}
+                              >
+                                {matchupTag}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : null}
 
@@ -618,6 +673,7 @@ export function TopHud({
               className="hud-pill"
               aria-label="Return to Kid Atlas"
               data-testid="return-to-kid-atlas-btn"
+              title={`Study Break: Back to ${baseLangMeta.name}`}
               style={{
                 background: 'var(--tint-emerald-bg)',
                 borderColor: 'var(--tint-emerald-border)',
@@ -627,7 +683,8 @@ export function TopHud({
               onClick={handleReturnToKidAtlas}
             >
               <ArrowLeft size={14} />
-              <span>Kid Atlas</span>
+              <FlagIcon language={baseLang} size={16} />
+              <span className="hud-hide-xs">Back to {baseLangMeta.name}</span>
             </button>
           ) : null}
 

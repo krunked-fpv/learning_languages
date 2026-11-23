@@ -16,7 +16,6 @@ import { getCourse } from '../../curriculum';
 import { useVaultStore } from '../../store/useVaultStore';
 import {
   LANGUAGE_META,
-  isDefaultKidProfileId,
   type ArcadeProficiencyTier,
   type LanguageMeta,
 } from '../../types/contracts';
@@ -34,8 +33,12 @@ import {
 import {
   ARCADE_TIER_LIST,
   ARCADE_TIER_META,
+  ArcadePlainEnglishCallout,
+  ArcadeSayItNormallyButton,
   CARD_SURFACE_STYLE,
   SOFT_BTN_STYLE,
+  isAdultArcadeActive,
+  resolveArcadePlainEnglish,
   useArcadeContainerMetrics,
   useArcadeDeck,
 } from './arcadeShared';
@@ -163,7 +166,7 @@ const STANDARD_CABINETS: readonly CabinetSpec[] = [
 export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) {
   const { activeProfile } = useVaultStore();
   const [arcadeTier, setArcadeTier] = useState<ArcadeProficiencyTier>('sprout');
-  const { language, bestScoreFor, tierMeta } = useArcadeDeck(arcadeTier);
+  const { language, targetLexicon, bestScoreFor, tierMeta } = useArcadeDeck(arcadeTier);
   const { containerRef, width, height, isNarrow, isCompact } = useArcadeContainerMetrics();
   const langMeta = LANGUAGE_META[language];
   let courseMeta: LanguageMeta = langMeta;
@@ -177,10 +180,16 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
   }
   const showAdultDirectionBadge =
     Boolean(courseMeta.isAdultOnly && courseMeta.pairDirectionBadge) &&
-    activeProfile.adultModeActive !== false &&
-    !isDefaultKidProfileId(activeProfile.id);
+    isAdultArcadeActive(language, activeProfile);
   const [mode, setMode] = useState<ArcadeGameMode>(initialMode);
   const [page, setPage] = useState<0 | 1 | 2>(0);
+  const [plainOpen, setPlainOpen] = useState(false);
+
+  const hubSampleItem = targetLexicon[0];
+  const hubPlainResult =
+    plainOpen && showAdultDirectionBadge && hubSampleItem
+      ? resolveArcadePlainEnglish(hubSampleItem)
+      : null;
 
   useEffect(() => {
     setMode(initialMode);
@@ -314,14 +323,18 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                     background: 'var(--card-soft-bg, #f8fafc)',
                     border: '1px solid var(--card-border, #cbd5e1)',
                     color: 'var(--text-main, #1e1b4b)',
-                    fontSize: isCompact ? '0.66rem' : '0.72rem',
+                    fontSize: isCompact ? 'clamp(0.58rem, 1.9vw, 0.66rem)' : '0.72rem',
                     fontWeight: 800,
-                    lineHeight: 1.35,
+                    lineHeight: 1.3,
                     maxWidth: '100%',
+                    minWidth: 0,
                   }}
                 >
                   <FlagIcon language={language} size={isCompact ? 14 : 17} />
-                  <span dir={courseMeta.dir} style={{ lineHeight: 1.35 }}>
+                  <span
+                    dir={courseMeta.dir}
+                    style={{ lineHeight: 1.28, whiteSpace: 'normal', overflowWrap: 'anywhere' }}
+                  >
                     {courseMeta.nativeName}
                   </span>
                 </span>
@@ -346,17 +359,26 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                       background: 'var(--tint-indigo-bg, #eef2ff)',
                       border: '1px solid var(--lang-primary, #7c3aed)',
                       color: 'var(--tint-indigo-ink, #312e81)',
-                      fontSize: isCompact ? '0.64rem' : '0.7rem',
+                      fontSize: isCompact ? 'clamp(0.56rem, 1.85vw, 0.64rem)' : 'clamp(0.66rem, 1.1vw, 0.72rem)',
                       fontWeight: 900,
-                      lineHeight: 1.3,
+                      lineHeight: 1.24,
                       maxWidth: '100%',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
+                      minWidth: 0,
+                      whiteSpace: 'normal',
+                      overflowWrap: 'anywhere',
                     }}
                   >
                     {courseMeta.pairDirectionBadge}
                   </span>
+                  {hubSampleItem ? (
+                    <ArcadeSayItNormallyButton
+                      item={hubSampleItem}
+                      language={language}
+                      isCompact={isCompact}
+                      open={plainOpen}
+                      onToggle={(nextOpen) => setPlainOpen(nextOpen)}
+                    />
+                  ) : null}
                   {!isCompact ? (
                     <span
                       style={{
@@ -472,6 +494,14 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
             </button>
           </div>
         </div>
+
+        {hubPlainResult ? (
+          <ArcadePlainEnglishCallout
+            result={hubPlainResult}
+            isCompact={isCompact}
+            onClose={() => setPlainOpen(false)}
+          />
+        ) : null}
 
         {/* Narrow Mobile Tier Selector Strip */}
         {isNarrow ? (

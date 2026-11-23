@@ -243,7 +243,42 @@ function pickEnglishDistractors(
   return candidates;
 }
 
-function cardEnglishKeySet(card: VocabCard): Set<string> {
+const DROPPED_G_SLANG_BASES = new Set([
+  'fixin',
+  'doin',
+  'goin',
+  'workin',
+  'talkin',
+  'trippin',
+  'chillin',
+  'movin',
+  'cookin',
+  'livin',
+  'nothin',
+  'somethin',
+]);
+
+function adultTokenCollisionKey(raw: string): string {
+  const norm = normalizeLookupKey(raw);
+  const hadTrailingInApostrophe = /in'$/.test(norm);
+  const bare = norm.replace(/['’-]/g, '');
+  if (hadTrailingInApostrophe || DROPPED_G_SLANG_BASES.has(bare)) {
+    return `${bare}g`;
+  }
+  return bare;
+}
+
+function adultPhraseCollisionKeys(raw: string, glossary?: GlossaryMap): string[] {
+  const clean = normalizeSentenceKey(raw, glossary);
+  if (!clean) return [];
+  const noApos = clean.replace(/['’]/g, '');
+  const spaced = noApos.replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
+  const hyphenClosed = noApos.replace(/-/g, '').replace(/\s+/g, ' ').trim();
+  const spaceClosed = spaced.split(' ').length <= 3 ? spaced.replace(/\s+/g, '') : hyphenClosed;
+  return dedupeAccepted([clean, spaced, hyphenClosed, spaceClosed]);
+}
+
+function cardEnglishKeySet(card: VocabCard, isAdult = false): Set<string> {
   const keys = new Set<string>();
   const add = (s: string) => {
     const clean = normalizeSentenceKey(s);
@@ -251,17 +286,23 @@ function cardEnglishKeySet(card: VocabCard): Set<string> {
     keys.add(clean);
     const bare = clean.replace(/^(?:the|a|an)\s+/, '');
     if (bare) keys.add(bare);
+    if (isAdult) {
+      for (const ak of adultPhraseCollisionKeys(s)) keys.add(ak);
+    }
   };
   add(card.english);
   for (const ae of card.acceptedEnglish) add(ae);
   return keys;
 }
 
-function cardForeignKeySet(card: VocabCard, glossary?: GlossaryMap): Set<string> {
+function cardForeignKeySet(card: VocabCard, glossary?: GlossaryMap, isAdult = false): Set<string> {
   const keys = new Set<string>();
   for (const s of [card.foreignWithArticle, card.bareForeign, ...card.acceptedForeign]) {
     const clean = normalizeSentenceKey(s, glossary);
     if (clean) keys.add(clean);
+    if (isAdult) {
+      for (const ak of adultPhraseCollisionKeys(s, glossary)) keys.add(ak);
+    }
   }
   return keys;
 }
@@ -273,13 +314,17 @@ function pickEnglishChoices(
   useExamples: boolean,
   seed: string
 ): string[] {
+  const isAdult = isAdultLanguage(unit.language);
   const choices = [correct];
   const wrongForbidden = new Set([
     normalizeSentenceKey(correct),
     normalizeSentenceKey(correct).replace(/^(?:the|a|an)\s+/, ''),
   ]);
+  if (isAdult) {
+    for (const ak of adultPhraseCollisionKeys(correct)) wrongForbidden.add(ak);
+  }
   if (!useExamples) {
-    for (const k of cardEnglishKeySet(targetCard)) wrongForbidden.add(k);
+    for (const k of cardEnglishKeySet(targetCard, isAdult)) wrongForbidden.add(k);
   }
   const seen = new Set([correct.toLowerCase()]);
   const shuffled = deterministicShuffle(unit.vocabCards, `${seed}-eng-choices`);
@@ -290,9 +335,12 @@ function pickEnglishChoices(
     const candKey = normalizeSentenceKey(candidate);
     const candBare = candKey.replace(/^(?:the|a|an)\s+/, '');
     if (wrongForbidden.has(candKey) || wrongForbidden.has(candBare)) continue;
+    if (isAdult && adultPhraseCollisionKeys(candidate).some((ak) => wrongForbidden.has(ak))) {
+      continue;
+    }
     if (!useExamples) {
       let overlapsTarget = false;
-      for (const ck of cardEnglishKeySet(c)) {
+      for (const ck of cardEnglishKeySet(c, isAdult)) {
         if (wrongForbidden.has(ck)) {
           overlapsTarget = true;
           break;
@@ -320,6 +368,7 @@ function makeDynamicWordBankToEn(
   const joined = targetTokens.join(' ');
   const distractorTokens = pickEnglishDistractors(unit, targetTokens, seedOffset);
   const nuance = card.registerNote ?? card.grammarNote;
+  const plain = card.examplePlainEnglish ?? card.plainEnglish;
   return {
     type: 'word_bank',
     id,
@@ -342,6 +391,7 @@ function makeDynamicWordBankToEn(
     ...(card.article ? { articleHint: `Spot "${card.article}" (${card.gender}) with "${card.bareForeign}".` } : {}),
     ...(nuance ? { nuanceNote: nuance } : {}),
     ...(enableFreeRecall ? { allowFreeRecall: true } : {}),
+    ...(plain ? { plainEnglish: plain } : {}),
     vocabIds: [card.id],
   };
 }
@@ -363,6 +413,7 @@ function makeDynamicWordBankToForeign(
   const joined = targetTokens.join(' ');
   const distractorTokens = pickForeignDistractors(unit, targetTokens, seedOffset, glossary);
   const nuance = card.registerNote ?? card.grammarNote;
+  const plain = card.examplePlainEnglish ?? card.plainEnglish;
   return {
     type: 'word_bank',
     id,
@@ -384,6 +435,7 @@ function makeDynamicWordBankToForeign(
     ...(card.article ? { articleHint: `Remember "${card.article}" (${card.gender}) for "${card.bareForeign}".` } : {}),
     ...(nuance ? { nuanceNote: nuance } : {}),
     ...(enableFreeRecall ? { allowFreeRecall: true } : {}),
+    ...(plain ? { plainEnglish: plain } : {}),
     vocabIds: [card.id],
   };
 }
@@ -399,6 +451,9 @@ function makeDynamicListenMeaning(
   const phonetic = useExample ? card.examplePhonetic : card.phonetic;
   const romanized = useExample ? card.exampleRomanized : card.romanized;
   const englishMeaning = useExample ? card.exampleEnglish : card.english;
+  const plain = useExample
+    ? (card.examplePlainEnglish ?? card.plainEnglish)
+    : (card.plainEnglish ?? card.examplePlainEnglish);
   const wordCount = tokenizeCleanWords(audioText, glossary).length;
   const generatedChoices = pickEnglishChoices(unit, card, englishMeaning, useExample, id);
   const wrongLower = new Set(
@@ -425,6 +480,7 @@ function makeDynamicListenMeaning(
       ...expanded,
     ]),
     tapHints: buildTapHints(audioText, glossary),
+    ...(plain ? { plainEnglish: plain } : {}),
     vocabIds: [card.id],
   };
 }
@@ -443,6 +499,7 @@ function makeDynamicListenAssemble(
   }
   const joined = targetTokens.join(' ');
   const distractorTokens = pickForeignDistractors(unit, targetTokens, seedOffset, glossary);
+  const plain = card.examplePlainEnglish ?? card.plainEnglish;
   return {
     type: 'listen_decode',
     id,
@@ -463,24 +520,33 @@ function makeDynamicListenAssemble(
       ...(card.exampleRomanized ? [card.exampleRomanized] : []),
     ]),
     tapHints: buildTapHints(card.exampleForeign, glossary),
+    ...(plain ? { plainEnglish: plain } : {}),
     vocabIds: [card.id],
   };
 }
 
-function findWholeWordIndex(sentence: string, bare: string): number {
+function findWholeWordIndex(sentence: string, bare: string, adultMode = false): number {
+  const normalizedSentence = sentence.replace(/[’‘]/g, "'");
+  const normalizedBare = bare.replace(/[’‘]/g, "'");
+  const loweredSentence = adultMode ? normalizedSentence.toLowerCase() : normalizedSentence;
+  const useLower = adultMode && loweredSentence.length === sentence.length;
+  const haystack = useLower ? loweredSentence : normalizedSentence;
+  const needle = useLower ? normalizedBare.toLowerCase() : normalizedBare;
+  const boundaryRe = adultMode ? /[A-Za-z0-9'’-]/ : /[A-Za-z0-9]/;
+
   let searchFrom = 0;
-  while (searchFrom <= sentence.length - bare.length) {
-    const candidateIdx = sentence.indexOf(bare, searchFrom);
+  while (searchFrom <= haystack.length - needle.length) {
+    const candidateIdx = haystack.indexOf(needle, searchFrom);
     if (candidateIdx < 0) return -1;
     const prevChar = candidateIdx > 0 ? sentence[candidateIdx - 1] : '';
     const nextChar =
-      candidateIdx + bare.length < sentence.length
-        ? sentence[candidateIdx + bare.length]
+      candidateIdx + needle.length < sentence.length
+        ? sentence[candidateIdx + needle.length]
         : '';
-    if (!/[A-Za-z0-9]/.test(prevChar) && !/[A-Za-z0-9]/.test(nextChar)) {
+    if (!boundaryRe.test(prevChar) && !boundaryRe.test(nextChar)) {
       return candidateIdx;
     }
-    searchFrom = candidateIdx + bare.length;
+    searchFrom = candidateIdx + needle.length;
   }
   return -1;
 }
@@ -499,26 +565,37 @@ function makeDynamicContextClozeFromCard(
   const hasExactToken = tokens.some((t) => normalizeLookupKey(t) === bareNorm);
   if (!hasExactToken) return undefined;
 
-  const idx = isAdultLanguage(unit.language)
-    ? findWholeWordIndex(card.exampleForeign, bare)
+  const isAdult = isAdultLanguage(unit.language);
+  const idx = isAdult
+    ? findWholeWordIndex(card.exampleForeign, bare, true)
     : card.exampleForeign.indexOf(bare);
   if (idx < 0) return undefined;
+  const matchedBlank = card.exampleForeign.slice(idx, idx + bare.length);
   const before = card.exampleForeign.slice(0, idx);
-  const after = card.exampleForeign.slice(idx + bare.length);
+  const after = card.exampleForeign.slice(idx + matchedBlank.length);
   if (!before.trim() && !after.trim()) return undefined;
 
-  const choiceList = [bare];
+  const choiceList = [matchedBlank];
   const seenNorm = new Set<string>([bareNorm]);
+  const seenAdultCollision = new Set<string>(
+    isAdult ? [adultTokenCollisionKey(matchedBlank)] : []
+  );
   for (const other of deterministicShuffle(unit.vocabCards, `${id}-cc-choices`)) {
     const otherBare = stripEdgePunctuation(other.bareForeign).trim();
     const otherNorm = normalizeLookupKey(otherBare);
     if (!otherBare || /\s/.test(otherBare) || !otherNorm || seenNorm.has(otherNorm)) continue;
+    if (isAdult) {
+      const colKey = adultTokenCollisionKey(otherBare);
+      if (seenAdultCollision.has(colKey)) continue;
+      seenAdultCollision.add(colKey);
+    }
     seenNorm.add(otherNorm);
     choiceList.push(otherBare);
     if (choiceList.length >= 4) break;
   }
   if (choiceList.length < 3) return undefined;
 
+  const plain = card.examplePlainEnglish ?? card.plainEnglish;
   return {
     type: 'context_cloze',
     id,
@@ -529,14 +606,15 @@ function makeDynamicContextClozeFromCard(
     phonetic: card.examplePhonetic,
     ...(card.exampleRomanized ? { romanized: card.exampleRomanized } : {}),
     choices: deterministicShuffle(choiceList, id),
-    expectedBlank: bare,
-    acceptedBlanks: [bare],
+    expectedBlank: matchedBlank,
+    acceptedBlanks: [matchedBlank],
     nuanceNote:
       card.registerNote ??
       card.grammarNote ??
       `"${card.foreignWithArticle}" (${card.english}) fits this context naturally.`,
     registerTag: card.registerNote ? 'polite' : 'grammar',
     tapHints: buildTapHints(card.exampleForeign, glossary),
+    ...(plain ? { plainEnglish: plain } : {}),
     vocabIds: [card.id],
   };
 }
@@ -826,24 +904,26 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
 
     usedSay.add(sayKey);
     usedExpected.add(ansKey);
+    const sayPlain = sayCard.examplePlainEnglish ?? sayCard.plainEnglish;
 
     if (isChoiceTurn) {
+      const isAdult = isAdultLanguage(lang);
       const choiceList = [answerCard.foreignWithArticle];
       const seenChoices = new Set([answerCard.foreignWithArticle.toLowerCase()]);
-      const forbiddenForeign = cardForeignKeySet(answerCard, glossary);
-      const forbiddenEng = cardEnglishKeySet(answerCard);
+      const forbiddenForeign = cardForeignKeySet(answerCard, glossary, isAdult);
+      const forbiddenEng = cardEnglishKeySet(answerCard, isAdult);
       const shuffledChoicesPool = deterministicShuffle(cards, `${baseExercise.id}-pool-t${seq}-pool`);
       for (const c of shuffledChoicesPool) {
         if (seenChoices.has(c.foreignWithArticle.toLowerCase())) continue;
         let collides = false;
-        for (const fk of cardForeignKeySet(c, glossary)) {
+        for (const fk of cardForeignKeySet(c, glossary, isAdult)) {
           if (forbiddenForeign.has(fk)) {
             collides = true;
             break;
           }
         }
         if (!collides) {
-          for (const ek of cardEnglishKeySet(c)) {
+          for (const ek of cardEnglishKeySet(c, isAdult)) {
             if (forbiddenEng.has(ek)) {
               collides = true;
               break;
@@ -885,6 +965,7 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
         ...(answerCard.romanized ? { romanizedAnswer: answerCard.romanized } : {}),
         victoryReplyForeign: answerCard.exampleForeign,
         victoryReplyEnglish: answerCard.exampleEnglish,
+        ...(sayPlain ? { plainEnglish: sayPlain } : {}),
       });
     } else {
       let targetTokens = tokenizeCleanWords(answerCard.exampleForeign, glossary);
@@ -921,6 +1002,7 @@ function buildBossPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): Bos
         victoryReplyForeign: answerCard.foreignWithArticle,
         victoryReplyEnglish: answerCard.english,
         ...(enableFreeRecall ? { allowFreeRecall: true } : {}),
+        ...(sayPlain ? { plainEnglish: sayPlain } : {}),
       });
     }
     seq++;
@@ -946,18 +1028,20 @@ function buildStoryPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): St
   const bonusChallenges: LessonExercise[] = [];
   const storyCards = unit.vocabCards;
 
-  // 4 distinct comprehension bonus challenges from the unit cards
-  const c1 = storyCards[0];
-  const c2 = storyCards[3 % storyCards.length];
-  const c3 = storyCards[6 % storyCards.length];
-  const c4 = storyCards[9 % storyCards.length];
+  if (storyCards.length > 0) {
+    // 4 distinct comprehension bonus challenges from the unit cards
+    const c1 = storyCards[0];
+    const c2 = storyCards[3 % storyCards.length];
+    const c3 = storyCards[6 % storyCards.length];
+    const c4 = storyCards[9 % storyCards.length];
 
-  bonusChallenges.push(
-    makeDynamicWordBankToEn(`${node.id}-pool-bonus-1`, c1, unit, glossary, 2),
-    makeDynamicListenMeaning(`${node.id}-pool-bonus-2`, c2, unit, glossary, true),
-    makeDynamicWordBankToForeign(`${node.id}-pool-bonus-3`, c3, unit, glossary, 5),
-    makeDynamicListenAssemble(`${node.id}-pool-bonus-4`, c4, unit, glossary, 7)
-  );
+    bonusChallenges.push(
+      makeDynamicWordBankToEn(`${node.id}-pool-bonus-1`, c1, unit, glossary, 2),
+      makeDynamicListenMeaning(`${node.id}-pool-bonus-2`, c2, unit, glossary, true),
+      makeDynamicWordBankToForeign(`${node.id}-pool-bonus-3`, c3, unit, glossary, 5),
+      makeDynamicListenAssemble(`${node.id}-pool-bonus-4`, c4, unit, glossary, 7)
+    );
+  }
 
   return {
     kind: 'story',
@@ -967,6 +1051,11 @@ function buildStoryPool(lang: LanguageCode, unit: CourseUnit, node: MapNode): St
 }
 
 function getOrBuildPool(lang: LanguageCode, nodeId: string): NodePoolEntry | undefined {
+  // Never build or cache node pools from an unloaded fallback course (units.length === 0).
+  if (resolveCourse(lang).units.length === 0) {
+    return undefined;
+  }
+
   const cacheKey = isAdultLanguage(lang)
     ? `${lang}:v${getAdultRegistryVersion()}:${nodeId}`
     : `${lang}:${nodeId}`;
@@ -978,7 +1067,9 @@ function getOrBuildPool(lang: LanguageCode, nodeId: string): NodePoolEntry | und
     const targetTier = checkpointMatch[1] as Exclude<ProficiencyTier, 'A1'>;
     const cpNode = buildTierCheckpointNode(lang, targetTier);
     const entry: NodePoolEntry = { kind: 'static', exercises: [...cpNode.exercises] };
-    poolCache.set(cacheKey, entry);
+    if (resolveCourse(lang).units.length > 0) {
+      poolCache.set(cacheKey, entry);
+    }
     return entry;
   }
 
@@ -995,6 +1086,10 @@ function getOrBuildPool(lang: LanguageCode, nodeId: string): NodePoolEntry | und
     entry = buildStoryPool(lang, unit, node);
   } else {
     entry = { kind: 'static', exercises: [...node.exercises] };
+  }
+
+  if (resolveCourse(lang).units.length === 0) {
+    return undefined;
   }
 
   poolCache.set(cacheKey, entry);
@@ -1041,12 +1136,17 @@ export function buildTierCheckpointNode(
   // Sample across source units, prioritizing the upper units of the prerequisite tier
   const orderedUnits = [...sourceUnits].reverse();
   const unitCardEntries: { unit: CourseUnit; card: VocabCard }[] = [];
-  const maxCardCount = Math.max(...orderedUnits.map((u) => u.vocabCards.length));
+  const maxCardCount = Math.max(0, ...orderedUnits.map((u) => u.vocabCards.length));
   for (let cIdx = 0; cIdx < maxCardCount; cIdx++) {
     for (const u of orderedUnits) {
       const card = u.vocabCards[cIdx];
       if (card) unitCardEntries.push({ unit: u, card });
     }
+  }
+  if (unitCardEntries.length === 0) {
+    throw new Error(
+      `Cannot build tier checkpoint "${targetTier}" for "${lang}" without prerequisite vocab cards.`
+    );
   }
 
   const pickDistinctEntry = (

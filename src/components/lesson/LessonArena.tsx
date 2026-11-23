@@ -21,6 +21,7 @@ import {
   HEART_ELIXIR_COST_GEMS,
   LANGUAGE_META,
   PROFICIENCY_TIER_META,
+  isAdultLanguage,
   type AccentCoaching,
   type ArticleCoaching,
   type CharacterPose,
@@ -313,15 +314,18 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
 
   const handleCheck = useCallback(() => {
     if (!draft || feedback) return;
-    const gradingLanguage: LanguageCode =
+    const isReverseDirection =
       (currentExercise?.type === 'word_bank' && currentExercise.direction === 'to_english') ||
-      (currentExercise?.type === 'listen_decode' && currentExercise.mode === 'select_meaning')
-        ? language === 'ebonics'
-          ? 'suburban'
-          : language === 'suburban'
-            ? 'ebonics'
+      (currentExercise?.type === 'listen_decode' && currentExercise.mode === 'select_meaning');
+    const gradingLanguage: LanguageCode = isReverseDirection
+      ? language === 'ebonics'
+        ? 'suburban'
+        : language === 'suburban'
+          ? 'ebonics'
+          : isAdultLanguage(language)
+            ? language
             : 'en'
-        : language;
+      : language;
     const result = gradeAnswer({
       submitted: draft.submitted,
       expected: draft.expected,
@@ -1168,12 +1172,13 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
               </>
             ) : feedback ? (
               <>
-                <div style={{ flex: '1 1 220px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <div style={{ flex: '1 1 220px', minWidth: 0, overflowWrap: 'break-word', display: 'flex', flexDirection: 'column', gap: 3 }}>
                   <div
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: 8,
+                      flexWrap: 'wrap',
                       fontWeight: 900,
                       fontSize: '1rem',
                       color:

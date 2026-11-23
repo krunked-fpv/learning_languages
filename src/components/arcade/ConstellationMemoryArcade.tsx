@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Volume2 } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
+import { useVaultStore } from '../../store/useVaultStore';
 import {
   LANGUAGE_META,
   type ArcadeLanternItem,
@@ -12,11 +13,16 @@ import { ConstellationMemoryEmblem } from './ArcadeEmblems';
 import {
   ARCADE_SHELL_STYLE,
   ArcadeHeaderBar,
+  ArcadePlainEnglishCallout,
   ArcadeReadyCard,
+  ArcadeSayItNormallyButton,
   ArcadeSummaryCard,
   computeScaledArcadeRewards,
+  getArcadeClueTextStyle,
   getArcadeForeignTextStyle,
+  isAdultArcadeActive,
   recordArcadeRunResult,
+  resolveArcadePlainEnglish,
   useArcadeContainerMetrics,
   useArcadeDeck,
 } from './arcadeShared';
@@ -60,12 +66,15 @@ export function ConstellationMemoryArcade({
   arcadeTier = 'sprout',
   onExit,
 }: ConstellationMemoryArcadeProps) {
+  const { activeProfile } = useVaultStore();
   const { language, lexicon, bestScoreFor, paceMultiplier } = useArcadeDeck(arcadeTier);
   const { containerRef, isCompact, isNarrow } = useArcadeContainerMetrics();
   const langDir = LANGUAGE_META[language].dir;
   const roundDuration = Math.round(ROUND_DURATION_SECONDS / Math.pow(paceMultiplier, 0.5));
+  const showPlainButton = isAdultArcadeActive(language, activeProfile);
 
   const [phase, setPhase] = useState<'ready' | 'playing' | 'summary'>('ready');
+  const [plainOpen, setPlainOpen] = useState(false);
   const [timeLeft, setTimeLeft] = useState(roundDuration);
   const [score, setScore] = useState(0);
   const [combo, setCombo] = useState(0);
@@ -73,6 +82,32 @@ export function ConstellationMemoryArcade({
   const [pairsMatched, setPairsMatched] = useState(0);
   const [cards, setCards] = useState<MemoryCard[]>([]);
   const [flippedIndices, setFlippedIndices] = useState<number[]>([]);
+  const activePlainCard =
+    flippedIndices.length > 0 ? cards[flippedIndices[flippedIndices.length - 1]] : undefined;
+  const activePlainItem = activePlainCard?.item ?? cards[0]?.item ?? lexicon[0];
+  const plainAvoidTerms = useMemo(
+    () =>
+      activePlainCard
+        ? [
+            activePlainCard.side === 'phrase'
+              ? activePlainCard.item.english
+              : activePlainCard.item.foreign,
+          ]
+        : activePlainItem
+          ? [activePlainItem.foreign, activePlainItem.english]
+          : undefined,
+    [activePlainCard, activePlainItem]
+  );
+  useEffect(() => {
+    setPlainOpen(false);
+  }, [wave, phase, activePlainItem?.id]);
+  const plainResult = useMemo(
+    () =>
+      plainOpen && showPlainButton && activePlainItem
+        ? resolveArcadePlainEnglish(activePlainItem, { avoidTerms: plainAvoidTerms })
+        : null,
+    [plainOpen, showPlainButton, activePlainItem, plainAvoidTerms]
+  );
   const [matchedPairIds, setMatchedPairIds] = useState<string[]>([]);
   const [constellationLinks, setConstellationLinks] = useState<
     Array<{ id: string; aIdx: number; bIdx: number }>
@@ -332,9 +367,8 @@ export function ConstellationMemoryArcade({
             style={{
               flexShrink: 0,
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 8,
+              flexDirection: 'column',
+              gap: isCompact ? 4 : 6,
               padding: isCompact ? '5px 10px' : '7px 14px',
               borderRadius: 16,
               background: 'var(--card-bg, #ffffff)',
@@ -347,48 +381,80 @@ export function ConstellationMemoryArcade({
               color: 'var(--text-main, #1e1b4b)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
-              <span
-                style={{
-                  padding: '2px 9px',
-                  borderRadius: 999,
-                  background: '#f3e8ff',
-                  color: '#6b21a8',
-                  fontSize: '0.76rem',
-                  fontWeight: 900,
-                  fontFamily: 'var(--font-display)',
-                  flexShrink: 0,
-                }}
-              >
-                Wave {wave} • Pairs: {pairsMatched}
-              </span>
-              <span
-                style={{
-                  fontSize: isCompact ? '0.76rem' : '0.84rem',
-                  fontWeight: 800,
-                  color: 'var(--text-muted, #475569)',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {toast}
-              </span>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: isCompact ? 6 : 8,
+                flexWrap: 'wrap',
+                width: '100%',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: '1 1 160px' }}>
+                <span
+                  style={{
+                    padding: '2px 9px',
+                    borderRadius: 999,
+                    background: '#f3e8ff',
+                    color: '#6b21a8',
+                    fontSize: '0.76rem',
+                    fontWeight: 900,
+                    fontFamily: 'var(--font-display)',
+                    flexShrink: 0,
+                  }}
+                >
+                  Wave {wave} • Pairs: {pairsMatched}
+                </span>
+                <span
+                  style={{
+                    fontSize: isCompact ? '0.76rem' : '0.84rem',
+                    fontWeight: 800,
+                    color: 'var(--text-muted, #475569)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {toast}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                {showPlainButton && activePlainItem ? (
+                  <ArcadeSayItNormallyButton
+                    item={activePlainItem}
+                    language={language}
+                    isCompact={isCompact}
+                    open={plainOpen}
+                    avoidTerms={plainAvoidTerms}
+                    onToggle={(nextOpen) => setPlainOpen(nextOpen)}
+                  />
+                ) : null}
+
+                <button
+                  type="button"
+                  className="tactile-btn tactile-btn-success"
+                  style={{
+                    padding: isCompact ? '4px 9px' : '5px 11px',
+                    fontSize: '0.76rem',
+                    borderRadius: 10,
+                    flexShrink: 0,
+                  }}
+                  onClick={finishRound}
+                >
+                  Claim Rewards
+                </button>
+              </div>
             </div>
 
-            <button
-              type="button"
-              className="tactile-btn tactile-btn-success"
-              style={{
-                padding: isCompact ? '4px 9px' : '5px 11px',
-                fontSize: '0.76rem',
-                borderRadius: 10,
-                flexShrink: 0,
-              }}
-              onClick={finishRound}
-            >
-              Claim Rewards
-            </button>
+            {plainResult ? (
+              <ArcadePlainEnglishCallout
+                result={plainResult}
+                isCompact={isCompact}
+                onClose={() => setPlainOpen(false)}
+              />
+            ) : null}
           </div>
 
           {/* Cosmic Star-Chart Grid */}
@@ -526,29 +592,26 @@ export function ConstellationMemoryArcade({
                             <VocabIllustration
                               illustrationKey={card.item.illustrationKey}
                               language={language}
-                              size={isCompact ? (card.item.english.length > 22 ? 24 : 28) : 46}
+                              size={
+                                isCompact
+                                  ? card.item.english.length > 26
+                                    ? 20
+                                    : card.item.english.length > 18
+                                      ? 24
+                                      : 28
+                                  : 46
+                              }
                             />
                           </span>
                           <span
                             dir="ltr"
                             style={{
-                              fontWeight: 900,
-                              fontSize: isCompact
-                                ? card.item.english.length > 28
-                                  ? '0.54rem'
-                                  : card.item.english.length > 20
-                                    ? '0.59rem'
-                                    : '0.67rem'
-                                : card.item.english.length > 30
-                                  ? '0.65rem'
-                                  : card.item.english.length > 20
-                                    ? '0.72rem'
-                                    : '0.8rem',
-                              lineHeight: card.item.english.length > 20 ? 1.16 : 1.24,
-                              color: '#1e1b4b',
-                              textAlign: 'center',
-                              maxWidth: '100%',
-                              overflowWrap: 'break-word',
+                              ...getArcadeClueTextStyle(card.item.english, {
+                                isCompact,
+                                variant: 'card',
+                                color: '#1e1b4b',
+                              }),
+                              width: '100%',
                             }}
                           >
                             {card.item.english}
@@ -557,15 +620,18 @@ export function ConstellationMemoryArcade({
                       ) : (
                         <>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 3, color: '#4f46e5', flexShrink: 0 }}>
-                            <Volume2 size={isCompact ? 12 : 14} />
+                            <Volume2 size={isCompact ? 11 : 14} />
                           </div>
                           <span
                             dir={langDir}
-                            style={getArcadeForeignTextStyle(language, card.item.foreign, {
-                              isCompact,
-                              density: 'tight',
-                              color: '#1e1b4b',
-                            })}
+                            style={{
+                              ...getArcadeForeignTextStyle(language, card.item.foreign, {
+                                isCompact,
+                                density: 'tight',
+                                color: '#1e1b4b',
+                              }),
+                              width: '100%',
+                            }}
                           >
                             {card.item.foreign}
                           </span>
@@ -573,12 +639,16 @@ export function ConstellationMemoryArcade({
                             <span
                               dir="ltr"
                               style={{
-                                fontSize: '0.66rem',
+                                fontSize:
+                                  card.item.phonetic.length > 28
+                                    ? 'clamp(0.54rem, 0.82vw, 0.62rem)'
+                                    : '0.66rem',
                                 fontWeight: 700,
-                                lineHeight: 1.25,
+                                lineHeight: 1.18,
                                 color: '#64748b',
+                                width: '100%',
                                 maxWidth: '100%',
-                                overflowWrap: 'break-word',
+                                overflowWrap: 'anywhere',
                                 textAlign: 'center',
                               }}
                             >

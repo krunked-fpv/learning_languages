@@ -692,7 +692,10 @@ export function MeteorBlasterArcade({
                     color: '#f8fafc',
                     display: 'flex',
                     flexDirection:
-                      isCompact && ast.item.foreign.length > 12 ? 'column' : 'row',
+                      (isCompact && ast.item.foreign.length > 12) ||
+                      ast.item.foreign.length > 26
+                        ? 'column'
+                        : 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: isCompact ? 3 : 5,
@@ -708,7 +711,15 @@ export function MeteorBlasterArcade({
                     <VocabIllustration
                       illustrationKey={ast.item.illustrationKey}
                       language={language}
-                      size={isCompact ? (ast.item.foreign.length > 12 ? 18 : 20) : 26}
+                      size={
+                        isCompact
+                          ? ast.item.foreign.length > 12
+                            ? 17
+                            : 20
+                          : ast.item.foreign.length > 26
+                            ? 20
+                            : 26
+                      }
                     />
                   </span>
                   <span
@@ -720,6 +731,11 @@ export function MeteorBlasterArcade({
                         color: '#f8fafc',
                       }),
                       flex: '0 1 auto',
+                      width:
+                        (isCompact && ast.item.foreign.length > 12) ||
+                        ast.item.foreign.length > 26
+                          ? '100%'
+                          : undefined,
                     }}
                   >
                     {ast.item.foreign}

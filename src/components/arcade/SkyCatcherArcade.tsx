@@ -498,7 +498,7 @@ export function SkyCatcherArcade({
                     top: `${ent.y}%`,
                     transform: 'translate(-50%, -50%)',
                     willChange: 'left, top',
-                    padding: isCompact ? '4px 8px' : '5px 10px',
+                    padding: isCompact ? '4px 7px' : '5px 10px',
                     borderRadius: 14,
                     background: '#ffffff',
                     borderTopWidth: 2,
@@ -509,9 +509,12 @@ export function SkyCatcherArcade({
                     borderColor: '#f59e0b',
                     boxShadow: '0 8px 18px rgba(30, 27, 75, 0.22)',
                     display: 'flex',
+                    flexDirection:
+                      isCompact && ent.item.foreign.length > 16 ? 'column' : 'row',
                     alignItems: 'center',
-                    gap: 5,
-                    maxWidth: isCompact ? '40%' : '34%',
+                    justifyContent: 'center',
+                    gap: isCompact && ent.item.foreign.length > 16 ? 2 : 5,
+                    maxWidth: isCompact ? '42%' : '36%',
                     minWidth: 0,
                     overflow: 'hidden',
                     pointerEvents: 'none',
@@ -521,7 +524,7 @@ export function SkyCatcherArcade({
                     <VocabIllustration
                       illustrationKey={ent.item.illustrationKey}
                       language={language}
-                      size={isCompact ? 22 : 28}
+                      size={isCompact ? (ent.item.foreign.length > 16 ? 18 : 22) : 28}
                     />
                   </span>
                   <span
@@ -529,10 +532,15 @@ export function SkyCatcherArcade({
                     style={{
                       ...getArcadeForeignTextStyle(language, ent.item.foreign, {
                         isCompact,
-                        density: 'normal',
+                        density:
+                          (isCompact && ent.item.foreign.length > 16) ||
+                          ent.item.foreign.length > 26
+                            ? 'tight'
+                            : 'normal',
                         color: '#1e1b4b',
                       }),
                       flex: '0 1 auto',
+                      width: isCompact && ent.item.foreign.length > 16 ? '100%' : undefined,
                     }}
                   >
                     {ent.item.foreign}

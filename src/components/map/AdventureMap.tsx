@@ -333,6 +333,8 @@ export function AdventureMap({
             style={{
               display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
+              maxWidth: '100%',
               marginBottom: 6,
               padding: '2px 10px',
               borderRadius: 999,
@@ -343,6 +345,7 @@ export function AdventureMap({
               color: palette.bevel,
               fontSize: 11,
               fontWeight: 900,
+              textAlign: 'center',
             }}
           >
             {course.meta.pairDirectionBadge}
@@ -373,7 +376,7 @@ export function AdventureMap({
         minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
-        gap: 8,
+        gap: isCompactWidth ? 6 : 8,
         overflow: 'hidden',
         maxWidth: 960,
         margin: '0 auto',
@@ -385,7 +388,7 @@ export function AdventureMap({
         style={{
           flexShrink: 0,
           borderRadius: 20,
-          padding: isCompactWidth ? '8px 10px' : '10px 14px',
+          padding: isCompactWidth ? '7px 10px' : '10px 14px',
           background: 'var(--card-bg, #ffffff)',
           color: 'var(--text-main, #0f172a)',
           borderStyle: 'solid',
@@ -422,7 +425,8 @@ export function AdventureMap({
                   display: 'flex',
                   alignItems: 'center',
                   gap: isCompactWidth ? 5 : 6,
-                  flexWrap: 'nowrap',
+                  rowGap: 3,
+                  flexWrap: !isCompactWidth && course.meta.isAdultOnly ? 'wrap' : 'nowrap',
                   minWidth: 0,
                 }}
               >
@@ -433,11 +437,12 @@ export function AdventureMap({
                   title={course.meta.landTitle}
                   style={{
                     margin: 0,
-                    fontSize: isCompactWidth ? '0.94rem' : 'clamp(0.98rem, 1.6vw, 1.15rem)',
+                    fontSize: isCompactWidth ? '0.92rem' : 'clamp(0.95rem, 1.5vw, 1.12rem)',
                     fontWeight: 900,
                     color: 'var(--text-main, #0f172a)',
                     lineHeight: 1.15,
                     minWidth: 0,
+                    maxWidth: '100%',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
@@ -450,8 +455,9 @@ export function AdventureMap({
                     data-pair-direction-badge="true"
                     title={course.meta.pairDirectionBadge}
                     style={{
-                      flexShrink: 0,
-                      maxWidth: '50%',
+                      flexShrink: 1,
+                      minWidth: 0,
+                      maxWidth: '100%',
                       display: 'inline-flex',
                       alignItems: 'center',
                       padding: '2px 8px',

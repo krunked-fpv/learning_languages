@@ -104,6 +104,7 @@ export function TapHintText({
           justifyContent: 'space-between',
           gap: 8,
           marginBottom: 6,
+          minWidth: 0,
         }}
       >
         <strong
@@ -112,11 +113,14 @@ export function TapHintText({
             fontSize: '1.05rem',
             color: 'var(--lang-primary)',
             lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
+            minWidth: 0,
+            flex: 1,
+            overflowWrap: 'anywhere',
           }}
         >
           {activeToken.surface}
         </strong>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
           <button
             type="button"
             className="tactile-btn tactile-btn-soft"

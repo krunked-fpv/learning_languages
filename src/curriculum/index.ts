@@ -86,10 +86,15 @@ export function getArcadeLexicon(
 }
 
 export {
+  ensureAdultCourseLoaded,
+  ensureAllAdultCoursesLoaded,
   getAdultCourse,
   getAdultGlossary,
+  getAdultRegistryVersion,
   isAdultCurriculumLoaded,
+  isAdultTrackLoaded,
   registerAdultCourses,
+  subscribeAdultRegistry,
 } from './adultRegistry';
 
 export {

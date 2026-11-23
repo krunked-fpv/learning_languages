@@ -18,7 +18,9 @@ import { getCourse } from '../../curriculum';
 import { playSfx, speakPhrase } from '../../audio';
 import { useVaultStore, vaultActions } from '../../store/useVaultStore';
 import { useCompactViewport } from '../lesson/lessonHelpers';
+import { SayItNormallyButton } from '../lesson/SayItNormallyButton';
 import { safeVaultActions } from '../shell/vaultSafeActions';
+import { useEnsureAdultCurriculum } from '../shell/adultCurriculumSync';
 import {
   ALL_LANGUAGE_LIST,
   GENDER_BADGE_META,
@@ -60,9 +62,14 @@ export function PhrasebookVault() {
     !isAdultModeActive && isAdultLanguage(viewLang) ? safeInitialLang : viewLang;
   const visibleLanguages = isAdultModeActive ? ALL_LANGUAGE_LIST : LANGUAGE_LIST;
 
+  const adultRegistryVersion = useEnsureAdultCurriculum(isAdultModeActive, effectiveViewLang);
   const viewLangMeta = LANGUAGE_META[effectiveViewLang];
   const langDir = viewLangMeta.dir;
-  const course = getCourse(effectiveViewLang);
+  const course = useMemo(
+    () => getCourse(effectiveViewLang),
+    [effectiveViewLang, adultRegistryVersion]
+  );
+  const courseUnits = useMemo(() => course?.units ?? [], [course]);
   const langProgress = activeProfile.languageProgress[effectiveViewLang];
   const unlockedSet = useMemo(
     () => new Set(langProgress?.unlockedVocabIds ?? []),
@@ -70,23 +77,23 @@ export function PhrasebookVault() {
   );
 
   const allCards = useMemo(
-    () => course.units.flatMap((unit) => unit.vocabCards),
-    [course]
+    () => courseUnits.flatMap((unit) => unit.vocabCards),
+    [courseUnits]
   );
 
   const visibleUnitTabs = useMemo(
     () =>
-      course.units.filter((u) => {
+      courseUnits.filter((u) => {
         if (tierFilter === 'all') return true;
         const unitTier = u.proficiencyTier ?? resolveUnitProficiencyTier(u.order);
         return unitTier === tierFilter;
       }),
-    [course.units, tierFilter]
+    [courseUnits, tierFilter]
   );
 
   const filteredUnits = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return course.units
+    return courseUnits
       .filter((u) => {
         const unitTier = u.proficiencyTier ?? resolveUnitProficiencyTier(u.order);
         if (tierFilter !== 'all' && unitTier !== tierFilter) return false;
@@ -178,7 +185,7 @@ export function PhrasebookVault() {
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '1 1 200px', minWidth: 0 }}>
           <div
             style={{
               width: compact ? 32 : 40,
@@ -195,11 +202,18 @@ export function PhrasebookVault() {
           >
             <BookOpen size={compact ? 17 : 20} />
           </div>
-          <div>
+          <div style={{ minWidth: 0, flex: 1 }}>
             <h1 style={{ margin: 0, fontSize: compact ? '0.98rem' : '1.2rem', fontWeight: 900, color: 'var(--text-main)' }}>
               Living Phrasebook Sticker-Book
             </h1>
-            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+            <div
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                color: 'var(--text-muted)',
+                overflowWrap: 'break-word',
+              }}
+            >
               {viewLangMeta.name}: {unlockedCards.length} / {allCards.length} Stickers Collected
               {isAdultModeActive && viewLangMeta.pairDirectionBadge
                 ? ` · ${viewLangMeta.pairDirectionBadge}`
@@ -393,7 +407,9 @@ export function PhrasebookVault() {
         {filteredUnits.length === 0 ? (
           <div className="tactile-card" style={{ padding: 24, textAlign: 'center', fontWeight: 700, color: 'var(--text-muted)' }}>
             {allCards.length === 0
-              ? 'No vocabulary stickers loaded for this course yet.'
+              ? isAdultLanguage(effectiveViewLang)
+                ? `Loading ${viewLangMeta.name} stickers...`
+                : 'No vocabulary stickers loaded for this course yet.'
               : 'No stickers matched your search filter.'}
           </div>
         ) : (
@@ -490,9 +506,10 @@ export function PhrasebookVault() {
                             flexDirection: 'column',
                             gap: 8,
                             background: 'var(--card-bg)',
+                            minWidth: 0,
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, flexWrap: 'wrap' }}>
                             <span
                               className="gender-pill"
                               style={{
@@ -558,13 +575,15 @@ export function PhrasebookVault() {
                             </div>
                           </div>
 
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <VocabIllustration
-                              illustrationKey={card.illustrationKey}
-                              language={effectiveViewLang}
-                              size={64}
-                            />
-                            <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                            <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                              <VocabIllustration
+                                illustrationKey={card.illustrationKey}
+                                language={effectiveViewLang}
+                                size={64}
+                              />
+                            </span>
+                            <div style={{ minWidth: 0, flex: 1, overflowWrap: 'break-word' }}>
                               <div
                                 dir={langDir}
                                 style={{
@@ -572,19 +591,20 @@ export function PhrasebookVault() {
                                   fontWeight: 900,
                                   color: 'var(--text-main)',
                                   lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
+                                  overflowWrap: 'break-word',
                                 }}
                               >
                                 {card.foreignWithArticle}
                               </div>
-                              <div style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                              <div style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-main)', overflowWrap: 'break-word' }}>
                                 {card.english}
                               </div>
                               {card.romanized ? (
-                                <div style={{ fontSize: '0.77rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                                <div style={{ fontSize: '0.77rem', fontWeight: 700, color: 'var(--text-muted)', overflowWrap: 'break-word' }}>
                                   {card.romanized}
                                 </div>
                               ) : null}
-                              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--lang-primary)' }}>
+                              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--lang-primary)', overflowWrap: 'break-word' }}>
                                 {card.phonetic}
                               </div>
                             </div>
@@ -597,6 +617,8 @@ export function PhrasebookVault() {
                               background: 'var(--card-soft-bg)',
                               border: '1px solid var(--card-border)',
                               fontSize: '0.76rem',
+                              minWidth: 0,
+                              overflowWrap: 'break-word',
                             }}
                           >
                             <div
@@ -618,6 +640,19 @@ export function PhrasebookVault() {
                               {card.exampleEnglish}
                             </div>
                           </div>
+
+                          <SayItNormallyButton
+                            language={effectiveViewLang}
+                            dialectAText={card.foreignWithArticle}
+                            dialectBText={card.english}
+                            explicitPlain={card.plainEnglish}
+                            registerNote={card.registerNote}
+                            secondaryDialectAText={card.exampleForeign}
+                            secondaryDialectBText={card.exampleEnglish}
+                            secondaryExplicitPlain={card.examplePlainEnglish}
+                            resetKey={card.id}
+                            size="sm"
+                          />
                         </div>
                       );
                     })}
@@ -700,7 +735,7 @@ export function PhrasebookVault() {
                   }}
                   style={{
                     cursor: 'pointer',
-                    padding: 22,
+                    padding: compact ? 14 : 22,
                     borderRadius: 24,
                     borderTopWidth: 3,
                     borderRightWidth: 3,
@@ -712,10 +747,12 @@ export function PhrasebookVault() {
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 10,
+                    gap: compact ? 8 : 10,
                     textAlign: 'center',
-                    minHeight: 240,
+                    minHeight: compact ? 188 : 240,
                     justifyContent: 'center',
+                    overflowWrap: 'break-word',
+                    minWidth: 0,
                   }}
                 >
                   {!cardFlipped ? (
@@ -723,15 +760,17 @@ export function PhrasebookVault() {
                       <VocabIllustration
                         illustrationKey={activeFlashcard.illustrationKey}
                         language={effectiveViewLang}
-                        size={120}
+                        size={compact ? 92 : 120}
                       />
                       <div
                         dir={langDir}
                         style={{
-                          fontSize: '1.65rem',
+                          fontSize: compact ? '1.3rem' : '1.65rem',
                           fontWeight: 900,
                           color: 'var(--text-main)',
                           lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
+                          maxWidth: '100%',
+                          overflowWrap: 'break-word',
                         }}
                       >
                         {activeFlashcard.foreignWithArticle}
@@ -756,7 +795,15 @@ export function PhrasebookVault() {
                       >
                         {GENDER_BADGE_META[activeFlashcard.gender].label}
                       </span>
-                      <div style={{ fontSize: '1.55rem', fontWeight: 900, color: 'var(--tint-amber-ink)' }}>
+                      <div
+                        style={{
+                          fontSize: compact ? '1.22rem' : '1.55rem',
+                          fontWeight: 900,
+                          color: 'var(--tint-amber-ink)',
+                          maxWidth: '100%',
+                          overflowWrap: 'break-word',
+                        }}
+                      >
                         {activeFlashcard.english}
                       </div>
                       {activeFlashcard.romanized ? (
@@ -775,6 +822,8 @@ export function PhrasebookVault() {
                           background: 'var(--card-bg)',
                           fontSize: '0.86rem',
                           fontWeight: 800,
+                          maxWidth: '100%',
+                          overflowWrap: 'break-word',
                         }}
                       >
                         <div dir={langDir}>{activeFlashcard.exampleForeign}</div>
@@ -788,6 +837,19 @@ export function PhrasebookVault() {
                     </>
                   )}
                 </div>
+
+                <SayItNormallyButton
+                  language={effectiveViewLang}
+                  dialectAText={activeFlashcard.foreignWithArticle}
+                  dialectBText={activeFlashcard.english}
+                  explicitPlain={activeFlashcard.plainEnglish}
+                  registerNote={activeFlashcard.registerNote}
+                  secondaryDialectAText={activeFlashcard.exampleForeign}
+                  secondaryDialectBText={activeFlashcard.exampleEnglish}
+                  secondaryExplicitPlain={activeFlashcard.examplePlainEnglish}
+                  resetKey={activeFlashcard.id}
+                  size="sm"
+                />
 
                 {/* Audio + Navigation Controls */}
                 <div style={{ display: 'flex', justifyContent: 'center', gap: 7, flexWrap: 'wrap' }}>

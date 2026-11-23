@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useId } from 'react';
 import {
+  isAdultLanguage,
   resolveUnitProficiencyTier,
   type AdultLanguageCode,
   type LanguageCode,
@@ -28,6 +29,11 @@ const LANGUAGE_ACCENTS: Record<LanguageCode, { roof: string; glow: string; hill:
   sw: { roof: '#D97706', glow: '#38BDF8', hill: '#FEF3C7' },
   ebonics: { roof: '#7C3AED', glow: '#FBBF24', hill: '#EDE9FE' },
   suburban: { roof: '#0284C7', glow: '#FB923C', hill: '#E0F2FE' },
+  corp_trades: { roof: '#0F766E', glow: '#5EEAD4', hill: '#CCFBF1' },
+  midwest_northeast: { roof: '#B91C1C', glow: '#93C5FD', hill: '#DBEAFE' },
+  south_genz: { roof: '#C026D3', glow: '#FDE047', hill: '#FAE8FF' },
+  cali_country: { roof: '#059669', glow: '#6EE7B7', hill: '#FFEDD5' },
+  stoner_tactical: { roof: '#4D7C0F', glow: '#BEF264', hill: '#E0E7FF' },
 };
 
 const SCENERY_SVG_STYLE = {
@@ -602,112 +608,553 @@ function AdultCulturalDiorama({
     );
   }
 
-  // Suburban (suburban — The Cul-de-Sac & Craft Patio: striped lawn, pergola, kettle grill, string lights, white-picket fence)
-  const skyColors =
-    tier === 'C1_C2'
-      ? { top: '#1E1B4B', mid: '#075985', bottom: '#38BDF8' }
-      : tier === 'B2'
-        ? { top: '#0284C7', mid: '#FDBA74', bottom: '#E0F2FE' }
-        : tier === 'B1'
-          ? { top: '#7DD3FC', mid: '#FED7AA', bottom: '#D1FAE5' }
-          : tier === 'A2'
-            ? { top: '#BAE6FD', mid: '#FEF3C7', bottom: '#BBF7D0' }
-            : { top: '#E0F2FE', mid: '#BAE6FD', bottom: '#DCFCE7' };
+  if (language === 'suburban') {
+    // Suburban (suburban — The Cul-de-Sac & Craft Patio: striped lawn, pergola, kettle grill, string lights, white-picket fence)
+    const skyColors =
+      tier === 'C1_C2'
+        ? { top: '#1E1B4B', mid: '#075985', bottom: '#38BDF8' }
+        : tier === 'B2'
+          ? { top: '#0284C7', mid: '#FDBA74', bottom: '#E0F2FE' }
+          : tier === 'B1'
+            ? { top: '#7DD3FC', mid: '#FED7AA', bottom: '#D1FAE5' }
+            : tier === 'A2'
+              ? { top: '#BAE6FD', mid: '#FEF3C7', bottom: '#BBF7D0' }
+              : { top: '#E0F2FE', mid: '#BAE6FD', bottom: '#DCFCE7' };
+
+    return (
+      <DioramaSvg
+        unitOrder={unitOrder}
+        skyId={`sb-sky-${uid}`}
+        skyTop={skyColors.top}
+        skyMid={skyColors.mid}
+        skyBottom={skyColors.bottom}
+      >
+        <TierAtmosphereAccents tier={tier} />
+
+        {/* Warm Sun & Fluffy Clouds (placed inside widescreen & mobile safe-zone) */}
+        <circle cx={flip ? 102 : 498} cy="136" r="24" fill="#FDE047" opacity={tier === 'C1_C2' ? 0.3 : 0.78} />
+        <g fill="#FFFFFF" opacity={tier === 'C1_C2' ? 0.25 : 0.8}>
+          <ellipse cx="220" cy="128" rx="34" ry="13" />
+          <ellipse cx="242" cy="122" rx="22" ry="11" />
+          <ellipse cx="388" cy="132" rx="30" ry="12" />
+        </g>
+
+        {/* Rolling Manicured Striped Lawn */}
+        <path d="M0 272Q160 256 320 272T600 268V420H0Z" fill="#4ADE80" opacity="0.88" />
+        {[0, 96, 192, 288, 384, 480, 576].map((sx) => (
+          <polygon
+            key={sx}
+            points={`${sx},266 ${sx + 48},266 ${sx + 16},420 ${sx - 32},420`}
+            fill="#22C55E"
+            opacity="0.52"
+          />
+        ))}
+
+        {/* White-Picket Fence across Lawn Horizon */}
+        <rect x="0" y="254" width="600" height="6" fill="#FFFFFF" stroke="#94A3B8" strokeWidth="1" />
+        <rect x="0" y="272" width="600" height="6" fill="#FFFFFF" stroke="#94A3B8" strokeWidth="1" />
+        {Array.from({ length: 24 }, (_, idx) => idx * 26 + 4).map((px) => (
+          <path
+            key={px}
+            d={`M${px} 288V244L${px + 7} 235L${px + 14} 244V288Z`}
+            fill="#FFFFFF"
+            stroke="#64748B"
+            strokeWidth="1.2"
+          />
+        ))}
+
+        {/* Overhead Edison Patio String Lights */}
+        <path d="M0 86Q150 124 300 88Q450 124 600 86" fill="none" stroke="#78350F" strokeWidth="2.1" opacity="0.7" />
+        {[
+          [54, 97.3],
+          [150, 105.5],
+          [246, 98.6],
+          [354, 98.6],
+          [450, 105.5],
+          [546, 97.3],
+        ].map(([x, y]) => (
+          <g key={x} transform={`translate(${x}, ${y})`}>
+            <rect x="-2" y="-1" width="4" height="4" rx="1" fill="#78350F" />
+            <circle cx="0" cy="7.5" r="13" fill="#FDE047" opacity="0.34" />
+            <circle cx="0" cy="7.5" r="5" fill="#FEF08A" stroke={INK} strokeWidth="1.4" />
+          </g>
+        ))}
+
+        {/* Craft Timber Pergola & Cozy Patio */}
+        <g transform={flip ? 'translate(436, 158)' : 'translate(16, 158)'} opacity="0.94">
+          {/* Stone Patio Deck */}
+          <rect x="4" y="138" width="144" height="22" rx="5" fill="#E2E8F0" stroke={INK} strokeWidth="1.8" />
+          {/* Timber Columns & Slatted Pergola Roof */}
+          <rect x="18" y="34" width="12" height="106" fill="#92400E" stroke={INK} strokeWidth="1.8" />
+          <rect x="122" y="34" width="12" height="106" fill="#92400E" stroke={INK} strokeWidth="1.8" />
+          <rect x="2" y="22" width="148" height="14" rx="4" fill="#B45309" stroke={INK} strokeWidth="2" />
+          {[26, 48, 70, 92, 114].map((rx) => (
+            <rect key={rx} x={rx} y="14" width="10" height="10" rx="2" fill="#D97706" stroke={INK} strokeWidth="1.4" />
+          ))}
+          {/* Pergola String Lights */}
+          <path d="M24 38Q76 56 128 38" fill="none" stroke={INK} strokeWidth="1.6" />
+          {[46, 76, 106].map((lx) => (
+            <circle key={lx} cx={lx} cy={47} r="4.5" fill="#FDE047" stroke={INK} strokeWidth="1.2" />
+          ))}
+          {/* Adirondack Patio Chair */}
+          <path d="M46 96L54 128H92L100 96" fill="#0284C7" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+          <rect x="42" y="120" width="62" height="10" rx="3" fill="#38BDF8" stroke={INK} strokeWidth="1.6" />
+          <line x1="50" y1="130" x2="48" y2="142" stroke={INK} strokeWidth="2.5" strokeLinecap="round" />
+          <line x1="96" y1="130" x2="98" y2="142" stroke={INK} strokeWidth="2.5" strokeLinecap="round" />
+        </g>
+
+        {/* Coral-Red Kettle Grill & Curling Charcoal Smoke */}
+        <g transform={flip ? 'translate(34, 218)' : 'translate(474, 218)'} opacity="0.95">
+          <path d="M52 24C46 14 58 6 51 -4" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" opacity="0.82" />
+          <path d="M66 28C60 18 72 10 65 0" fill="none" stroke="#E0F2FE" strokeWidth="2.6" strokeLinecap="round" opacity="0.7" />
+          <line x1="34" y1="74" x2="24" y2="104" stroke="#64748B" strokeWidth="3.2" strokeLinecap="round" />
+          <line x1="62" y1="74" x2="72" y2="104" stroke="#64748B" strokeWidth="3.2" strokeLinecap="round" />
+          <line x1="48" y1="76" x2="48" y2="104" stroke="#94A3B8" strokeWidth="2.8" strokeLinecap="round" />
+          <circle cx="24" cy="102" r="5" fill="#1E293B" stroke="#E2E8F0" strokeWidth="1.4" />
+          <path d="M22 56H74C74 71 62 79 48 79C34 79 22 71 22 56Z" fill="#EA580C" stroke={INK} strokeWidth="2" />
+          <path d="M20 54C20 39 32 32 48 32C64 32 76 39 76 54Z" fill="#F97316" stroke={INK} strokeWidth="2" />
+          <line x1="18" y1="55" x2="78" y2="55" stroke="#F8FAFC" strokeWidth="2.2" strokeLinecap="round" />
+          <rect x="41" y="25" width="14" height="7" rx="2.5" fill="#FFFFFF" stroke={INK} strokeWidth="1.6" />
+        </g>
+      </DioramaSvg>
+    );
+  }
+
+  if (language === 'corp_trades') {
+    // The Synergy Cubicle & Drywall Frontier: LinkedIn glass cubicle left <-> caution drywall jobsite right
+    const sky = {
+      A1: { top: '#ECFEFF', mid: '#E0F2FE', bottom: '#FEF3C7' },
+      A2: { top: '#CCFBF1', mid: '#F0FDFA', bottom: '#FDE68A' },
+      B1: { top: '#99F6E4', mid: '#FDE68A', bottom: '#FDBA74' },
+      B2: { top: '#0F766E', mid: '#1E3A8A', bottom: '#F59E0B' },
+      C1_C2: { top: '#0F172A', mid: '#115E59', bottom: '#78350F' },
+    }[tier];
+
+    return (
+      <DioramaSvg
+        unitOrder={unitOrder}
+        skyId={`ct-sky-${uid}`}
+        skyTop={sky.top}
+        skyMid={sky.mid}
+        skyBottom={sky.bottom}
+      >
+        <TierAtmosphereAccents tier={tier} />
+        <g data-adult-diorama="corp_trades">
+          {/* Left Skyscraper Glass Silhouettes vs Right Steel Crane Boom */}
+          <path
+            d="M0 288V158H54V186H98V134H152V208H206V170H264V288Z"
+            fill="#0F766E"
+            opacity="0.24"
+          />
+          <g stroke="#B45309" strokeWidth="3.5" opacity="0.45">
+            <line x1="538" y1="92" x2="538" y2="290" />
+            <line x1="368" y1="108" x2="574" y2="92" />
+            <line x1="418" y1="104" x2="418" y2="152" strokeWidth="2.2" />
+            <path d="M412 152C412 162 424 162 424 152" fill="none" strokeWidth="2.5" />
+          </g>
+
+          {/* Split Floor: Cool Office Carpet Left | Amber Jobsite Plywood Right */}
+          <path d="M0 290H300V420H0Z" fill="#0F766E" opacity="0.22" />
+          <path d="M300 290H600V420H300Z" fill="#D97706" opacity="0.28" />
+          <path d="M0 330H300V420H0Z" fill="#334155" opacity="0.26" />
+          <path d="M300 330H600V420H300Z" fill="#78350F" opacity="0.26" />
+
+          {/* Center Hazard-Stripe Seam & Synergy-to-Drywall Bridge */}
+          <rect x="292" y="290" width="16" height="130" fill="#F59E0B" opacity="0.72" />
+          {[300, 326, 352, 378, 404].map((hy) => (
+            <polygon
+              key={hy}
+              points={`292,${hy} 308,${hy + 12} 308,${hy + 22} 292,${hy + 10}`}
+              fill="#1E293B"
+              opacity="0.65"
+            />
+          ))}
+
+          {/* Overhead Dual Lighting: Sleek Office Pendant Left & Amber Cage Drop-Lights Right */}
+          <path d="M18 92Q146 118 286 92" fill="none" stroke="#0F766E" strokeWidth="2" opacity="0.65" />
+          {[68, 152, 236].map((lx) => (
+            <g key={lx} transform={`translate(${lx}, 103)`}>
+              <rect x="-12" y="0" width="24" height="7" rx="3" fill="#0F766E" stroke={INK} strokeWidth="1.3" />
+              <circle cx="0" cy="11" r="10" fill="#5EEAD4" opacity="0.34" />
+            </g>
+          ))}
+          <path d="M314 92Q452 118 582 92" fill="none" stroke="#78350F" strokeWidth="2" opacity="0.65" />
+          {[364, 448, 532].map((lx) => (
+            <g key={lx} transform={`translate(${lx}, 103)`}>
+              <circle cx="0" cy="8" r="13" fill="#FDE047" opacity="0.36" />
+              <circle cx="0" cy="8" r="5.5" fill="#FACC15" stroke={INK} strokeWidth="1.4" />
+            </g>
+          ))}
+
+          {/* Left World: The Synergy Cubicle Desk, Dual Monitors & "in" Plaque */}
+          <g transform={flip ? 'translate(34, 184)' : 'translate(16, 184)'} opacity="0.95">
+            <rect x="6" y="18" width="146" height="96" rx="6" fill="#E0F2FE" stroke={INK} strokeWidth="2" />
+            <rect x="14" y="26" width="38" height="24" rx="4" fill="#0284C7" stroke={INK} strokeWidth="1.6" />
+            <circle cx="25" cy="34" r="2.6" fill="#FFFFFF" />
+            <rect x="23" y="38" width="4" height="9" rx="1" fill="#FFFFFF" />
+            <path d="M31 47V38H35V40C37 37 43 37 43 42V47H39V42C39 40 35 40 35 43V47Z" fill="#FFFFFF" />
+            {/* Dual Synergy Monitors */}
+            <rect x="62" y="24" width="76" height="44" rx="5" fill="#1E293B" stroke={INK} strokeWidth="2" />
+            <rect x="68" y="30" width="64" height="32" rx="2" fill="#ECFEFF" />
+            <path d="M74 56L90 44L104 49L122 35" stroke="#0F766E" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            <rect x="94" y="68" width="12" height="10" fill="#64748B" />
+            {/* Standing Desk & Oat-Latte Mug */}
+            <rect x="2" y="78" width="154" height="14" rx="4" fill="#FFFFFF" stroke={INK} strokeWidth="2" />
+            <rect x="18" y="92" width="10" height="44" fill="#334155" />
+            <rect x="132" y="92" width="10" height="44" fill="#334155" />
+            <rect x="26" y="58" width="16" height="20" rx="3" fill="#0F766E" stroke={INK} strokeWidth="1.6" />
+          </g>
+
+          {/* Right World: Drywall Timber Framing, Yellow Hard Hat & Amber Caution Sawhorse */}
+          <g transform={flip ? 'translate(418, 174)' : 'translate(432, 174)'} opacity="0.95">
+            {/* Stud Framing Wall */}
+            <rect x="14" y="14" width="134" height="104" rx="4" fill="#FEF3C7" stroke={INK} strokeWidth="2" />
+            <rect x="10" y="10" width="142" height="10" rx="2" fill="#B45309" stroke={INK} strokeWidth="1.8" />
+            {[28, 60, 92, 124].map((sx) => (
+              <rect key={sx} x={sx} y="20" width="9" height="96" fill="#D97706" stroke={INK} strokeWidth="1.5" />
+            ))}
+            {/* Caution Sawhorse & Red Toolbox */}
+            <line x1="22" y1="114" x2="10" y2="148" stroke="#78350F" strokeWidth="4.5" strokeLinecap="round" />
+            <line x1="126" y1="114" x2="138" y2="148" stroke="#78350F" strokeWidth="4.5" strokeLinecap="round" />
+            <rect x="8" y="104" width="134" height="14" rx="3" fill="#F59E0B" stroke={INK} strokeWidth="2" />
+            {/* Hard Hat perched cleanly */}
+            <path d="M24 104C24 85 37 78 52 78C67 78 80 85 80 104Z" fill="#FACC15" stroke={INK} strokeWidth="2" />
+            <rect x="49" y="76" width="6" height="18" rx="2" fill="#FEF08A" stroke={INK} strokeWidth="1.4" />
+            <rect x="18" y="101" width="68" height="6" rx="3" fill="#EAB308" stroke={INK} strokeWidth="1.8" />
+            {/* Toolbox & Energy Can */}
+            <rect x="92" y="82" width="42" height="22" rx="4" fill="#DC2626" stroke={INK} strokeWidth="1.9" />
+            <rect x="104" y="75" width="18" height="7" rx="2" fill="none" stroke={INK} strokeWidth="2" />
+          </g>
+        </g>
+      </DioramaSvg>
+    );
+  }
+
+  if (language === 'midwest_northeast') {
+    // The Ope-to-Fuggedaboutit Turnpike: Snowy Midwest pine porch left <-> Red-brick NYC bodega & taxi right
+    const sky = {
+      A1: { top: '#DBEAFE', mid: '#EFF6FF', bottom: '#FCE7F3' },
+      A2: { top: '#BAE6FD', mid: '#F0F9FF', bottom: '#FEE2E2' },
+      B1: { top: '#93C5FD', mid: '#FCA5A5', bottom: '#FEF3C7' },
+      B2: { top: '#1E3A8A', mid: '#991B1B', bottom: '#FDBA74' },
+      C1_C2: { top: '#1E1B4B', mid: '#7F1D1D', bottom: '#312E81' },
+    }[tier];
+
+    return (
+      <DioramaSvg
+        unitOrder={unitOrder}
+        skyId={`mn-sky-${uid}`}
+        skyTop={sky.top}
+        skyMid={sky.mid}
+        skyBottom={sky.bottom}
+      >
+        <TierAtmosphereAccents tier={tier} />
+        <g data-adult-diorama="midwest_northeast">
+          {/* Drifting Snowflakes Left vs Distant Suspension Bridge Towers Right */}
+          {[
+            [62, 126],
+            [118, 94],
+            [176, 142],
+            [228, 108],
+            [86, 174],
+          ].map(([sx, sy], i) => (
+            <circle key={i} cx={sx} cy={sy} r="3.2" fill="#FFFFFF" opacity="0.86" />
+          ))}
+          <path
+            d="M342 260V146L354 146V260M508 260V146L520 146V260M300 220Q430 148 598 214"
+            fill="none"
+            stroke="#991B1B"
+            strokeWidth="3.5"
+            opacity="0.34"
+          />
+
+          {/* Ground: Crisp Snowbanks Left | Brick Sidewalk & Asphalt Turnpike Center-Right */}
+          <path d="M0 278Q145 256 290 284V420H0Z" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1.5" />
+          <path d="M276 284H600V420H276Z" fill="#475569" opacity="0.65" />
+          <path d="M350 284H600V334H350Z" fill="#CBD5E1" opacity="0.7" />
+          {/* Dashed Turnpike Divider */}
+          <path d="M294 286V418" stroke="#FACC15" strokeWidth="4" strokeDasharray="12 10" strokeLinecap="round" />
+
+          {/* Left World: Snow-Dusted Pine & Cozy Clapboard Porch with Steaming Casserole */}
+          <g transform={flip ? 'translate(26, 174)' : 'translate(14, 174)'} opacity="0.95">
+            {/* Evergreen Pine with Snow Cap */}
+            <rect x="26" y="100" width="10" height="32" fill="#78350F" />
+            <polygon points="31,14 6,62 56,62" fill="#059669" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+            <polygon points="31,42 2,98 60,98" fill="#10B981" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+            <polygon points="31,14 19,36 43,36" fill="#FFFFFF" />
+            {/* Porch Cabin & Casserole Table */}
+            <rect x="64" y="42" width="90" height="86" rx="4" fill="#EFF6FF" stroke={INK} strokeWidth="2" />
+            <polygon points="56,44 109,8 162,44" fill="#60A5FA" stroke={INK} strokeWidth="2" strokeLinejoin="round" />
+            <rect x="78" y="60" width="24" height="24" rx="3" fill="#FEF08A" stroke={INK} strokeWidth="1.8" />
+            <rect x="116" y="64" width="24" height="64" rx="3" fill="#92400E" stroke={INK} strokeWidth="1.8" />
+            {/* Casserole Dish */}
+            <rect x="70" y="108" width="38" height="16" rx="5" fill="#FB7185" stroke={INK} strokeWidth="1.8" />
+            <ellipse cx="89" cy="108" rx="17" ry="5" fill="#FDE047" stroke="#D97706" strokeWidth="1.4" />
+          </g>
+
+          {/* Right World: Red-Brick NYC Bodega, Awning & Yellow Taxi */}
+          <g transform={flip ? 'translate(414, 162)' : 'translate(424, 162)'} opacity="0.95">
+            <rect x="14" y="16" width="136" height="128" rx="4" fill="#B91C1C" stroke={INK} strokeWidth="2" />
+            <rect x="8" y="10" width="148" height="12" rx="3" fill="#7F1D1D" stroke={INK} strokeWidth="1.8" />
+            {/* Glowing Upper Windows */}
+            <rect x="28" y="32" width="24" height="26" rx="3" fill="#FEF08A" stroke={INK} strokeWidth="1.7" />
+            <rect x="68" y="32" width="24" height="26" rx="3" fill="#FEF08A" stroke={INK} strokeWidth="1.7" />
+            <rect x="108" y="32" width="24" height="26" rx="3" fill="#FDE68A" stroke={INK} strokeWidth="1.7" />
+            {/* Striped Bodega Awning */}
+            <path d="M10 72H154L160 92H4Z" fill="#FACC15" stroke={INK} strokeWidth="2" strokeLinejoin="round" />
+            {[28, 62, 96, 130].map((ax) => (
+              <rect key={ax} x={ax} y="73" width="16" height="18" fill="#DC2626" />
+            ))}
+            {/* Parked Yellow NYC Taxi */}
+            <g transform="translate(-8, 108)">
+              <rect x="44" y="-8" width="22" height="9" rx="3" fill="#FEF08A" stroke={INK} strokeWidth="1.6" />
+              <path d="M12 12L24 -1H86L98 12H112V36H4V12Z" fill="#FACC15" stroke={INK} strokeWidth="2" strokeLinejoin="round" />
+              <rect x="18" y="18" width="76" height="6" fill="#111827" />
+              {[22, 34, 46, 58, 70, 82].map((cx) => (
+                <rect key={cx} x={cx} y="18" width="6" height="6" fill="#FFFFFF" />
+              ))}
+              <circle cx="24" cy="36" r="9" fill="#0F172A" stroke="#E2E8F0" strokeWidth="1.8" />
+              <circle cx="88" cy="36" r="9" fill="#0F172A" stroke="#E2E8F0" strokeWidth="1.8" />
+            </g>
+          </g>
+        </g>
+      </DioramaSvg>
+    );
+  }
+
+  if (language === 'south_genz') {
+    // Front Porch Sweet Tea & The For-You Swamp: Magnolia porch left <-> neon ring-light creator dock right
+    const sky = {
+      A1: { top: '#FEF3C7', mid: '#FDE68A', bottom: '#FCE7F3' },
+      A2: { top: '#FDE68A', mid: '#FED7AA', bottom: '#F5D0FE' },
+      B1: { top: '#FDBA74', mid: '#F472B6', bottom: '#C084FC' },
+      B2: { top: '#7E22CE', mid: '#BE185D', bottom: '#F59E0B' },
+      C1_C2: { top: '#1E1B4B', mid: '#701A75', bottom: '#4C1D95' },
+    }[tier];
+
+    return (
+      <DioramaSvg
+        unitOrder={unitOrder}
+        skyId={`sg-sky-${uid}`}
+        skyTop={sky.top}
+        skyMid={sky.mid}
+        skyBottom={sky.bottom}
+      >
+        <TierAtmosphereAccents tier={tier} />
+        <g data-adult-diorama="south_genz">
+          {/* Golden Peach Porch Sun Left vs Neon For-You Aura Right */}
+          <circle cx={flip ? 112 : 96} cy="118" r="28" fill="#FBBF24" opacity="0.7" />
+          <path d="M446 112A54 54 0 0 1 554 112" fill="none" stroke="#EC4899" strokeWidth="5" opacity="0.4" />
+          <path d="M466 116A34 34 0 0 1 534 116" fill="none" stroke="#22D3EE" strokeWidth="4" opacity="0.45" />
+
+          {/* Rolling Southern Lawn Left & Bioluminescent Swamp Water Right */}
+          <path d="M0 284Q150 264 300 292V420H0Z" fill="#4ADE80" opacity="0.42" />
+          <path d="M270 292Q435 276 600 292V420H270Z" fill="#4C1D95" opacity="0.52" />
+          <path d="M312 342Q456 332 580 348" stroke="#22D3EE" strokeWidth="2.8" strokeLinecap="round" opacity="0.55" fill="none" />
+
+          {/* Hanging Spanish Moss & Neon Fireflies */}
+          <path d="M0 78Q140 108 286 82" fill="none" stroke="#15803D" strokeWidth="4" opacity="0.45" />
+          {[42, 92, 148, 210].map((mx) => (
+            <path key={mx} d={`M${mx} 88C${mx - 6} 112 ${mx + 6} 124 ${mx} 144`} stroke="#86EFAC" strokeWidth="4.5" strokeLinecap="round" opacity="0.55" fill="none" />
+          ))}
+          {[196, 252, 344, 412].map((fx, i) => (
+            <circle key={fx} cx={fx} cy={222 + (i % 2) * 24} r="4" fill={i < 2 ? '#FDE047' : '#F0ABFC'} opacity="0.82" />
+          ))}
+
+          {/* Left World: White-Column Southern Porch & Sweet Tea Mason Jar */}
+          <g transform={flip ? 'translate(22, 166)' : 'translate(14, 166)'} opacity="0.95">
+            <rect x="6" y="18" width="144" height="122" rx="4" fill="#FFFBEB" stroke={INK} strokeWidth="2" />
+            <polygon points="0,20 78,-10 156,20" fill="#D97706" stroke={INK} strokeWidth="2" strokeLinejoin="round" />
+            {/* White Fluted Porch Columns */}
+            <rect x="16" y="20" width="16" height="114" fill="#FFFFFF" stroke={INK} strokeWidth="1.8" />
+            <rect x="124" y="20" width="16" height="114" fill="#FFFFFF" stroke={INK} strokeWidth="1.8" />
+            <rect x="0" y="134" width="156" height="16" rx="4" fill="#B45309" stroke={INK} strokeWidth="2" />
+            {/* Sweet Tea Jar on Porch Table */}
+            <rect x="52" y="108" width="52" height="26" rx="4" fill="#FDE68A" stroke={INK} strokeWidth="1.8" />
+            <rect x="66" y="74" width="24" height="34" rx="5" fill="#D97706" stroke={INK} strokeWidth="1.8" />
+            <circle cx="72" cy="76" r="5" fill="#FACC15" stroke={INK} strokeWidth="1.3" />
+          </g>
+
+          {/* Right World: Swamp Boardwalk & Glowing Ring-Light / Smartphone Rig */}
+          <g transform={flip ? 'translate(418, 174)' : 'translate(426, 174)'} opacity="0.95">
+            <rect x="4" y="122" width="152" height="18" rx="4" fill="#78350F" stroke={INK} strokeWidth="2" />
+            <rect x="20" y="140" width="12" height="26" fill="#451A03" />
+            <rect x="124" y="140" width="12" height="26" fill="#451A03" />
+            {/* Neon Ring-Light Tripod */}
+            <line x1="56" y1="68" x2="36" y2="122" stroke="#CBD5E1" strokeWidth="3.5" strokeLinecap="round" />
+            <line x1="56" y1="68" x2="76" y2="122" stroke="#CBD5E1" strokeWidth="3.5" strokeLinecap="round" />
+            <circle cx="56" cy="44" r="24" fill="none" stroke="#EC4899" strokeWidth="8" opacity="0.4" />
+            <circle cx="56" cy="44" r="21" fill="none" stroke="#F0ABFC" strokeWidth="5" />
+            <circle cx="56" cy="44" r="21" fill="none" stroke="#FFFFFF" strokeWidth="1.8" />
+            {/* Giant Glowing For-You Phone */}
+            <rect x="92" y="34" width="46" height="84" rx="8" fill="#0F172A" stroke="#22D3EE" strokeWidth="2.4" />
+            <rect x="98" y="42" width="34" height="66" rx="4" fill="#3B0764" />
+            <polygon points="116,56 107,74 114,74 110,90 124,70 117,70" fill="#E879F9" />
+          </g>
+        </g>
+      </DioramaSvg>
+    );
+  }
+
+  if (language === 'cali_country') {
+    // The Erewhon Juice Bar & Holler Creek: Malibu matcha/surfboard left <-> cedar cabin & tailgate right
+    const sky = {
+      A1: { top: '#ECFDF5', mid: '#CCFBF1', bottom: '#FEF3C7' },
+      A2: { top: '#A7F3D0', mid: '#FEF9C3', bottom: '#FED7AA' },
+      B1: { top: '#6EE7B7', mid: '#FDBA74', bottom: '#FB923C' },
+      B2: { top: '#065F46', mid: '#9A3412', bottom: '#F59E0B' },
+      C1_C2: { top: '#064E3B', mid: '#1E1B4B', bottom: '#7C2D12' },
+    }[tier];
+
+    return (
+      <DioramaSvg
+        unitOrder={unitOrder}
+        skyId={`cc-sky-${uid}`}
+        skyTop={sky.top}
+        skyMid={sky.mid}
+        skyBottom={sky.bottom}
+      >
+        <TierAtmosphereAccents tier={tier} />
+        <g data-adult-diorama="cali_country">
+          {/* California Sun & Palm Silhouettes Left vs Blue Ridge Peaks Right */}
+          <circle cx={flip ? 114 : 92} cy="116" r="26" fill="#FDE047" opacity="0.8" />
+          <path d="M276 286L364 196L448 264L526 186L600 258V310H276Z" fill="#047857" opacity="0.48" />
+
+          {/* Center Sparkling Creek & Stepping Stones */}
+          <path d="M0 296H270V420H0Z" fill="#FEF3C7" opacity="0.58" />
+          <path d="M330 296H600V420H330Z" fill="#15803D" opacity="0.42" />
+          <path d="M255 292Q298 340 278 420H342Q360 340 318 292Z" fill="#38BDF8" opacity="0.72" />
+          {[312, 344, 378].map((sy, idx) => (
+            <ellipse key={sy} cx={idx % 2 === 0 ? 296 : 316} cy={sy} rx="16" ry="7" fill="#CBD5E1" stroke={INK} strokeWidth="1.4" />
+          ))}
+
+          {/* Left World: Erewhon Juice Bar Kiosk, Surfboard & Cold-Plunge Tub */}
+          <g transform={flip ? 'translate(22, 174)' : 'translate(14, 174)'} opacity="0.95">
+            <rect x="20" y="34" width="118" height="96" rx="6" fill="#FFFFFF" stroke={INK} strokeWidth="2" />
+            <path d="M12 36H146L152 54H6Z" fill="#059669" stroke={INK} strokeWidth="2" strokeLinejoin="round" />
+            {[30, 66, 102].map((ax) => (
+              <rect key={ax} x={ax} y="37" width="18" height="16" fill="#A7F3D0" />
+            ))}
+            {/* Matcha Blender Counter */}
+            <rect x="44" y="64" width="26" height="28" rx="4" fill="#10B981" stroke={INK} strokeWidth="1.8" />
+            <rect x="86" y="70" width="24" height="22" rx="4" fill="#D97706" stroke={INK} strokeWidth="1.8" />
+            {/* Leaning Surfboard */}
+            <g transform="translate(14, 86) rotate(-14)">
+              <ellipse cx="0" cy="0" rx="11" ry="38" fill="#38BDF8" stroke={INK} strokeWidth="1.9" />
+              <line x1="0" y1="-34" x2="0" y2="34" stroke="#F472B6" strokeWidth="4" />
+            </g>
+            {/* Copper Cold-Plunge Tub */}
+            <rect x="92" y="102" width="54" height="28" rx="8" fill="#EA580C" stroke={INK} strokeWidth="1.9" />
+            <ellipse cx="119" cy="102" rx="25" ry="6" fill="#BAE6FD" stroke={INK} strokeWidth="1.6" />
+          </g>
+
+          {/* Right World: Cedar Holler Cabin & Pickup Tailgate */}
+          <g transform={flip ? 'translate(418, 172)' : 'translate(426, 172)'} opacity="0.95">
+            <rect x="116" y="10" width="14" height="28" fill="#78350F" stroke={INK} strokeWidth="1.8" />
+            <path d="M123 4C118 -4 128 -10 123 -18" stroke="#FFFFFF" strokeWidth="2.8" strokeLinecap="round" fill="none" opacity="0.8" />
+            <rect x="20" y="40" width="124" height="84" rx="4" fill="#92400E" stroke={INK} strokeWidth="2" />
+            <path d="M20 58H144M20 78H144M20 98H144" stroke="#78350F" strokeWidth="2" />
+            <polygon points="8,42 82,4 156,42" fill="#B45309" stroke={INK} strokeWidth="2" strokeLinejoin="round" />
+            <rect x="34" y="56" width="26" height="26" rx="3" fill="#FEF08A" stroke={INK} strokeWidth="1.8" />
+            {/* Tailgate & Duct Tape */}
+            <rect x="74" y="92" width="74" height="36" rx="5" fill="#EA580C" stroke={INK} strokeWidth="2" />
+            <circle cx="96" cy="110" r="11" fill="#CBD5E1" stroke={INK} strokeWidth="1.7" />
+            <circle cx="96" cy="110" r="4.5" fill="#475569" />
+          </g>
+        </g>
+      </DioramaSvg>
+    );
+  }
+
+  // stoner_tactical — The Half-Pipe Hotbox & Perimeter Cul-de-Sac
+  const sky = {
+    A1: { top: '#ECFCCB', mid: '#D9F99D', bottom: '#E0E7FF' },
+    A2: { top: '#BEF264', mid: '#ECFCCB', bottom: '#C7D2FE' },
+    B1: { top: '#A3E635', mid: '#FDE68A', bottom: '#818CF8' },
+    B2: { top: '#365314', mid: '#312E81', bottom: '#4338CA' },
+    C1_C2: { top: '#1A2E05', mid: '#1E1B4B', bottom: '#0F172A' },
+  }[tier];
 
   return (
     <DioramaSvg
       unitOrder={unitOrder}
-      skyId={`sb-sky-${uid}`}
-      skyTop={skyColors.top}
-      skyMid={skyColors.mid}
-      skyBottom={skyColors.bottom}
+      skyId={`st-sky-${uid}`}
+      skyTop={sky.top}
+      skyMid={sky.mid}
+      skyBottom={sky.bottom}
     >
       <TierAtmosphereAccents tier={tier} />
-
-      {/* Warm Sun & Fluffy Clouds (placed inside widescreen & mobile safe-zone) */}
-      <circle cx={flip ? 102 : 498} cy="136" r="24" fill="#FDE047" opacity={tier === 'C1_C2' ? 0.3 : 0.78} />
-      <g fill="#FFFFFF" opacity={tier === 'C1_C2' ? 0.25 : 0.8}>
-        <ellipse cx="220" cy="128" rx="34" ry="13" />
-        <ellipse cx="242" cy="122" rx="22" ry="11" />
-        <ellipse cx="388" cy="132" rx="30" ry="12" />
-      </g>
-
-      {/* Rolling Manicured Striped Lawn */}
-      <path d="M0 272Q160 256 320 272T600 268V420H0Z" fill="#4ADE80" opacity="0.88" />
-      {[0, 96, 192, 288, 384, 480, 576].map((sx) => (
-        <polygon
-          key={sx}
-          points={`${sx},266 ${sx + 48},266 ${sx + 16},420 ${sx - 32},420`}
-          fill="#22C55E"
-          opacity="0.52"
-        />
-      ))}
-
-      {/* White-Picket Fence across Lawn Horizon */}
-      <rect x="0" y="254" width="600" height="6" fill="#FFFFFF" stroke="#94A3B8" strokeWidth="1" />
-      <rect x="0" y="272" width="600" height="6" fill="#FFFFFF" stroke="#94A3B8" strokeWidth="1" />
-      {Array.from({ length: 24 }, (_, idx) => idx * 26 + 4).map((px) => (
-        <path
-          key={px}
-          d={`M${px} 288V244L${px + 7} 235L${px + 14} 244V288Z`}
-          fill="#FFFFFF"
-          stroke="#64748B"
-          strokeWidth="1.2"
-        />
-      ))}
-
-      {/* Overhead Edison Patio String Lights */}
-      <path d="M0 86Q150 124 300 88Q450 124 600 86" fill="none" stroke="#78350F" strokeWidth="2.1" opacity="0.7" />
-      {[
-        [54, 97.3],
-        [150, 105.5],
-        [246, 98.6],
-        [354, 98.6],
-        [450, 105.5],
-        [546, 97.3],
-      ].map(([x, y]) => (
-        <g key={x} transform={`translate(${x}, ${y})`}>
-          <rect x="-2" y="-1" width="4" height="4" rx="1" fill="#78350F" />
-          <circle cx="0" cy="7.5" r="13" fill="#FDE047" opacity="0.34" />
-          <circle cx="0" cy="7.5" r="5" fill="#FEF08A" stroke={INK} strokeWidth="1.4" />
+      <g data-adult-diorama="stoner_tactical">
+        {/* Dreamy Swirling Clouds Left vs Laser Rangefinder Arc Right */}
+        <g transform={`translate(${flip ? 116 : 92}, 116)`} opacity="0.88">
+          <path
+            d="M-36 12C-44 12 -50 4 -48 -4C-46 -12 -38 -16 -30 -14C-24 -32 -4 -38 14 -30C28 -36 48 -28 50 -12C60 -12 68 -2 66 8C64 16 56 18 48 18H-30Z"
+            fill="#FFFFFF"
+            stroke="#4D7C0F"
+            strokeWidth="2"
+          />
+          <path
+            d="M6 -4C6 -9 12 -11 15 -8C19 -3 15 5 7 6C-3 7 -9 -2 -6 -11"
+            stroke="#84CC16"
+            strokeWidth="2.8"
+            strokeLinecap="round"
+            fill="none"
+          />
         </g>
-      ))}
 
-      {/* Craft Timber Pergola & Cozy Patio */}
-      <g transform={flip ? 'translate(436, 158)' : 'translate(16, 158)'} opacity="0.94">
-        {/* Stone Patio Deck */}
-        <rect x="4" y="138" width="144" height="22" rx="5" fill="#E2E8F0" stroke={INK} strokeWidth="1.8" />
-        {/* Timber Columns & Slatted Pergola Roof */}
-        <rect x="18" y="34" width="12" height="106" fill="#92400E" stroke={INK} strokeWidth="1.8" />
-        <rect x="122" y="34" width="12" height="106" fill="#92400E" stroke={INK} strokeWidth="1.8" />
-        <rect x="2" y="22" width="148" height="14" rx="4" fill="#B45309" stroke={INK} strokeWidth="2" />
-        {[26, 48, 70, 92, 114].map((rx) => (
-          <rect key={rx} x={rx} y="14" width="10" height="10" rx="2" fill="#D97706" stroke={INK} strokeWidth="1.4" />
+        {/* Ground: Concrete Skate Bowl Left | Precision Bermuda Mower Stripes Right */}
+        <path d="M0 286H300V420H0Z" fill="#CBD5E1" opacity="0.65" />
+        <path d="M300 286H600V420H300Z" fill="#22C55E" opacity="0.84" />
+        {[300, 368, 436, 504, 572].map((mx) => (
+          <polygon
+            key={mx}
+            points={`${mx},286 ${mx + 34},286 ${mx + 12},420 ${mx - 22},420`}
+            fill="#15803D"
+            opacity="0.55"
+          />
         ))}
-        {/* Pergola String Lights */}
-        <path d="M24 38Q76 56 128 38" fill="none" stroke={INK} strokeWidth="1.6" />
-        {[46, 76, 106].map((lx) => (
-          <circle key={lx} cx={lx} cy={47} r="4.5" fill="#FDE047" stroke={INK} strokeWidth="1.2" />
-        ))}
-        {/* Adirondack Patio Chair */}
-        <path d="M46 96L54 128H92L100 96" fill="#0284C7" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
-        <rect x="42" y="120" width="62" height="10" rx="3" fill="#38BDF8" stroke={INK} strokeWidth="1.6" />
-        <line x1="50" y1="130" x2="48" y2="142" stroke={INK} strokeWidth="2.5" strokeLinecap="round" />
-        <line x1="96" y1="130" x2="98" y2="142" stroke={INK} strokeWidth="2.5" strokeLinecap="round" />
-      </g>
 
-      {/* Coral-Red Kettle Grill & Curling Charcoal Smoke */}
-      <g transform={flip ? 'translate(34, 218)' : 'translate(474, 218)'} opacity="0.95">
-        <path d="M52 24C46 14 58 6 51 -4" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" opacity="0.82" />
-        <path d="M66 28C60 18 72 10 65 0" fill="none" stroke="#E0F2FE" strokeWidth="2.6" strokeLinecap="round" opacity="0.7" />
-        <line x1="34" y1="74" x2="24" y2="104" stroke="#64748B" strokeWidth="3.2" strokeLinecap="round" />
-        <line x1="62" y1="74" x2="72" y2="104" stroke="#64748B" strokeWidth="3.2" strokeLinecap="round" />
-        <line x1="48" y1="76" x2="48" y2="104" stroke="#94A3B8" strokeWidth="2.8" strokeLinecap="round" />
-        <circle cx="24" cy="102" r="5" fill="#1E293B" stroke="#E2E8F0" strokeWidth="1.4" />
-        <path d="M22 56H74C74 71 62 79 48 79C34 79 22 71 22 56Z" fill="#EA580C" stroke={INK} strokeWidth="2" />
-        <path d="M20 54C20 39 32 32 48 32C64 32 76 39 76 54Z" fill="#F97316" stroke={INK} strokeWidth="2" />
-        <line x1="18" y1="55" x2="78" y2="55" stroke="#F8FAFC" strokeWidth="2.2" strokeLinecap="round" />
-        <rect x="41" y="25" width="14" height="7" rx="2.5" fill="#FFFFFF" stroke={INK} strokeWidth="1.6" />
+        {/* Orange Perimeter Safety Cones along Center Curb */}
+        {[304, 360].map((cy, idx) => (
+          <g key={cy} transform={`translate(298, ${cy})`}>
+            <polygon points="-9,14 0,-12 9,14" fill="#F97316" stroke={INK} strokeWidth="1.6" strokeLinejoin="round" />
+            <rect x="-12" y="12" width="24" height="5" rx="2" fill="#EA580C" stroke={INK} strokeWidth="1.4" />
+            {idx === 0 && <line x1="-5" y1="2" x2="5" y2="2" stroke="#FFFFFF" strokeWidth="2.4" />}
+          </g>
+        ))}
+
+        {/* Left World: Lime-Green Half-Pipe Ramp & Skateboard */}
+        <g transform={flip ? 'translate(22, 184)' : 'translate(14, 184)'} opacity="0.95">
+          <path d="M8 22C24 92 78 106 148 104V136H8Z" fill="#14B8A6" stroke={INK} strokeWidth="2.2" />
+          <path d="M8 22C24 92 78 106 148 104" fill="none" stroke="#BEF264" strokeWidth="5" strokeLinecap="round" />
+          {/* Skateboard on Coping */}
+          <g transform="translate(88, 72) rotate(-18)">
+            <rect x="-32" y="-6" width="64" height="11" rx="5.5" fill="#84CC16" stroke={INK} strokeWidth="2" />
+            <circle cx="-18" cy="9" r="5" fill="#EC4899" stroke={INK} strokeWidth="1.6" />
+            <circle cx="18" cy="9" r="5" fill="#EC4899" stroke={INK} strokeWidth="1.6" />
+          </g>
+          {/* Striped Late-Night Taco Bag */}
+          <rect x="24" y="102" width="32" height="32" rx="4" fill="#FEF3C7" stroke={INK} strokeWidth="1.8" />
+          <path d="M24 114H56" stroke="#C026D3" strokeWidth="4" />
+        </g>
+
+        {/* Right World: Tactical Cul-de-Sac Command Gazebo, Rangefinder Tripod & Mower */}
+        <g transform={flip ? 'translate(418, 174)' : 'translate(426, 174)'} opacity="0.95">
+          {/* Rangefinder Radar Shed */}
+          <rect x="34" y="34" width="96" height="86" rx="5" fill="#312E81" stroke={INK} strokeWidth="2" />
+          <polygon points="24,36 82,6 140,36" fill="#4338CA" stroke={INK} strokeWidth="2" strokeLinejoin="round" />
+          {/* Glowing Cyan Rangefinder Reticle Window */}
+          <circle cx="82" cy="70" r="20" fill="#0F172A" stroke="#38BDF8" strokeWidth="2.2" />
+          <circle cx="82" cy="70" r="11" stroke="#38BDF8" strokeWidth="1.4" strokeDasharray="4 3" />
+          <line x1="82" y1="48" x2="82" y2="92" stroke="#38BDF8" strokeWidth="1.5" />
+          <line x1="60" y1="70" x2="104" y2="70" stroke="#38BDF8" strokeWidth="1.5" />
+          <circle cx="82" cy="70" r="3" fill="#BEF264" />
+          {/* Tactical Riding Lawn-Mower */}
+          <rect x="4" y="102" width="52" height="24" rx="6" fill="#4D7C0F" stroke={INK} strokeWidth="2" />
+          <rect x="14" y="88" width="22" height="14" rx="4" fill="#1E293B" stroke={INK} strokeWidth="1.8" />
+          <circle cx="14" cy="126" r="9" fill="#0F172A" stroke="#E2E8F0" strokeWidth="1.8" />
+          <circle cx="48" cy="127" r="7" fill="#0F172A" stroke="#E2E8F0" strokeWidth="1.6" />
+        </g>
       </g>
     </DioramaSvg>
   );
@@ -725,7 +1172,7 @@ export function RegionalScenery({
   const uid = useId().replace(/:/g, '');
   const resolvedTier = proficiencyTier ?? resolveUnitProficiencyTier(unitOrder);
 
-  if (language === 'ebonics' || language === 'suburban') {
+  if (isAdultLanguage(language)) {
     return (
       <AdultCulturalDiorama
         language={language}

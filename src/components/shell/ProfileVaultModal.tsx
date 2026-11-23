@@ -28,6 +28,8 @@ import {
 } from '../../store/useVaultStore';
 import {
   ADULT_EASTER_EGG_TAP_COUNT,
+  ADULT_MASHUP_LANGUAGES,
+  CLASSIC_ADULT_LANGUAGES,
   LANGUAGE_LIST,
   LANGUAGE_META,
   MAX_HEART_CONTAINERS,
@@ -37,6 +39,7 @@ import {
   type AdultLanguageCode,
   type AvatarId,
   type BaseLanguageCode,
+  type ClassicAdultLanguageCode,
   type LanguageCode,
 } from '../../types/contracts';
 import { safeVaultActions } from './vaultSafeActions';
@@ -66,6 +69,17 @@ const BANNER_PALETTE = [
   '#E11D48',
   '#D97706',
 ] as const;
+
+const CLASSIC_TRACK_COPY: Record<ClassicAdultLanguageCode, { title: string; subtitle: string }> = {
+  ebonics: {
+    title: 'AAVE -> Suburban',
+    subtitle: 'AAVE <-> Suburban',
+  },
+  suburban: {
+    title: 'Suburban -> AAVE',
+    subtitle: 'Suburban <-> AAVE',
+  },
+};
 
 export interface ProfileVaultModalProps {
   onClose: () => void;
@@ -911,13 +925,15 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
         <div
           className="modal-card"
           style={{
-            maxWidth: 480,
+            maxWidth: 540,
+            maxHeight: 'calc(100dvh - 28px)',
+            overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
-            gap: 12,
+            gap: 10,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span
                 style={{
@@ -947,107 +963,137 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
             </button>
           </div>
 
-          <p style={{ margin: 0, fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-muted)', lineHeight: 1.45 }}>
-            Unlock bidirectional adult colloquial slang &amp; cultural vernacular tracks (AAVE / Ebonics
-            &amp; Suburban Vernacular). Default kid profiles (<strong>Leo</strong> &amp;{' '}
-            <strong>Maya</strong>) stay 100% kid-safe and untouched — you can switch back to the Kid
-            Atlas with 1 tap anytime.
-          </p>
+          <div
+            className="console-scroll-pane"
+            style={{
+              flex: '1 1 auto',
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+              paddingRight: 2,
+            }}
+          >
+            <p style={{ margin: 0, fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-muted)', lineHeight: 1.45 }}>
+              Unlock bidirectional adult colloquial slang &amp; American subculture clash tracks.
+              Default kid profiles (<strong>Leo</strong> &amp; <strong>Maya</strong>) stay 100%
+              kid-safe and untouched — you can switch back to the Kid Atlas with 1 tap anytime.
+            </p>
 
-          <div>
-            <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: 6 }}>
-              Choose Initial Track Direction:
-            </div>
-            <div
-              role="group"
-              aria-label="Choose Initial Track Direction"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                gap: 8,
-              }}
-            >
+            <div role="group" aria-label="Choose Initial Track Direction" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {(
                 [
                   {
-                    code: 'ebonics' as const,
-                    title: 'AAVE -> Suburban',
-                    subtitle: 'Learn Suburban equivalents',
+                    heading: 'Original Vernacular',
+                    tracks: CLASSIC_ADULT_LANGUAGES as readonly AdultLanguageCode[],
+                    columns: 'repeat(2, minmax(0, 1fr))',
                   },
                   {
-                    code: 'suburban' as const,
-                    title: 'Suburban -> AAVE',
-                    subtitle: 'Learn AAVE / Ebonics equivalents',
+                    heading: 'American Culture Clash (5 Mashups)',
+                    tracks: ADULT_MASHUP_LANGUAGES as readonly AdultLanguageCode[],
+                    columns: 'repeat(auto-fit, minmax(195px, 1fr))',
                   },
                 ] as const
-              ).map((opt) => {
-                const selected = selectedAdultTrack === opt.code;
-                const meta = LANGUAGE_META[opt.code];
-                return (
-                  <button
-                    key={opt.code}
-                    type="button"
-                    aria-pressed={selected}
-                    className="tactile-btn"
+              ).map((section) => (
+                <div key={section.heading}>
+                  <div
                     style={{
-                      flexDirection: 'column',
-                      alignItems: 'flex-start',
-                      gap: 4,
-                      padding: '9px 10px',
-                      minWidth: 0,
-                      textAlign: 'left',
-                      background: selected ? 'var(--tile-selected-bg)' : 'var(--tile-bg)',
-                      borderColor: selected ? meta.accentPalette.primary : 'var(--card-border)',
-                      color: selected ? 'var(--tile-selected-ink)' : 'var(--text-main)',
-                    }}
-                    onClick={() => {
-                      playSfx('tile_tap');
-                      setSelectedAdultTrack(opt.code);
+                      fontSize: '0.74rem',
+                      fontWeight: 900,
+                      color: 'var(--text-muted)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.03em',
+                      marginBottom: 6,
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
-                      <FlagIcon language={opt.code} size={22} />
-                      <ArrowLeftRight size={13} style={{ opacity: 0.7 }} />
-                    </div>
-                    <div style={{ fontSize: '0.84rem', fontWeight: 900 }}>{opt.title}</div>
-                    <div style={{ fontSize: '0.71rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-                      {opt.subtitle}
-                    </div>
-                  </button>
-                );
-              })}
+                    {section.heading}
+                  </div>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: section.columns,
+                      gap: 7,
+                    }}
+                  >
+                    {section.tracks.map((code) => {
+                      const selected = selectedAdultTrack === code;
+                      const meta = LANGUAGE_META[code];
+                      const classicCopy =
+                        code === 'ebonics' || code === 'suburban' ? CLASSIC_TRACK_COPY[code] : null;
+                      const title = classicCopy ? classicCopy.title : meta.name;
+                      const clashTag = classicCopy
+                        ? classicCopy.subtitle
+                        : `${meta.dialectA ?? meta.name} <-> ${meta.dialectB ?? meta.translationLanguageLabel ?? ''}`;
+                      return (
+                        <button
+                          key={code}
+                          type="button"
+                          aria-pressed={selected}
+                          className="tactile-btn"
+                          style={{
+                            flexDirection: 'column',
+                            alignItems: 'flex-start',
+                            gap: 4,
+                            padding: '8px 10px',
+                            minWidth: 0,
+                            textAlign: 'left',
+                            background: selected ? 'var(--tile-selected-bg)' : 'var(--tile-bg)',
+                            borderColor: selected ? meta.accentPalette.primary : 'var(--card-border)',
+                            color: selected ? 'var(--tile-selected-ink)' : 'var(--text-main)',
+                          }}
+                          onClick={() => {
+                            playSfx('tile_tap');
+                            setSelectedAdultTrack(code);
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+                            <FlagIcon language={code} size={22} />
+                            <ArrowLeftRight size={13} style={{ opacity: 0.7 }} />
+                          </div>
+                          <div style={{ fontSize: '0.82rem', fontWeight: 900, overflowWrap: 'break-word', width: '100%' }}>
+                            {title}
+                          </div>
+                          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', overflowWrap: 'break-word', width: '100%' }}>
+                            {clashTag}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
+
+            {isOnDefaultKid ? (
+              <div>
+                <label
+                  htmlFor="adult-profile-name-input"
+                  style={{
+                    display: 'block',
+                    fontSize: '0.78rem',
+                    fontWeight: 800,
+                    color: 'var(--text-muted)',
+                    marginBottom: 5,
+                  }}
+                >
+                  Adult Profile Name (optional — keeps {activeProfile.name} untouched)
+                </label>
+                <input
+                  id="adult-profile-name-input"
+                  type="text"
+                  className="themed-input"
+                  value={adultProfileName}
+                  maxLength={20}
+                  onChange={(e) => setAdultProfileName(e.target.value)}
+                  placeholder="After-Hours"
+                  aria-label="Adult Profile Name"
+                  style={{ width: '100%', padding: '8px 12px', fontSize: '0.9rem' }}
+                />
+              </div>
+            ) : null}
           </div>
 
-          {isOnDefaultKid ? (
-            <div>
-              <label
-                htmlFor="adult-profile-name-input"
-                style={{
-                  display: 'block',
-                  fontSize: '0.78rem',
-                  fontWeight: 800,
-                  color: 'var(--text-muted)',
-                  marginBottom: 5,
-                }}
-              >
-                Adult Profile Name (optional — keeps {activeProfile.name} untouched)
-              </label>
-              <input
-                id="adult-profile-name-input"
-                type="text"
-                className="themed-input"
-                value={adultProfileName}
-                maxLength={20}
-                onChange={(e) => setAdultProfileName(e.target.value)}
-                placeholder="After-Hours"
-                aria-label="Adult Profile Name"
-                style={{ width: '100%', padding: '8px 12px', fontSize: '0.9rem' }}
-              />
-            </div>
-          ) : null}
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 2 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7, flexShrink: 0, paddingTop: 2 }}>
             <button
               type="button"
               className="tactile-btn tactile-btn-hero tactile-btn-indigo"

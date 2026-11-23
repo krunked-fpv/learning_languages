@@ -11,6 +11,7 @@ import {
   type WordBankExercise,
 } from '../../types/contracts';
 import { TapHintText } from './TapHintText';
+import { SayItNormallyButton } from './SayItNormallyButton';
 import { WordBankTray, buildWordBankPool, getAssembledText } from './WordBankTray';
 import { REGISTER_TAG_META } from './lessonHelpers';
 
@@ -153,7 +154,7 @@ export function WordBankView({
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0, maxWidth: '100%' }}>
           <span
             style={{
               padding: '4px 10px',
@@ -163,6 +164,9 @@ export function WordBankView({
               fontSize: '0.74rem',
               fontWeight: 900,
               textTransform: 'uppercase',
+              maxWidth: '100%',
+              overflowWrap: 'break-word',
+              textAlign: 'left',
             }}
           >
             {language === 'en'
@@ -171,7 +175,7 @@ export function WordBankView({
                 : 'Build the English Phrase'
               : exercise.direction === 'to_english'
                 ? `Translate to ${langMeta.translationLanguageLabel ?? 'English'}`
-                : `Translate to ${langMeta.name}`}
+                : `Translate to ${langMeta.dialectA ?? langMeta.name}`}
           </span>
 
           {registerBadge ? (
@@ -263,7 +267,7 @@ export function WordBankView({
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+        <div style={{ flex: '1 1 200px', minWidth: 0, overflowWrap: 'break-word' }}>
           <div
             dir={promptDir}
             style={{
@@ -271,6 +275,7 @@ export function WordBankView({
               fontWeight: 900,
               color: 'var(--text-main)',
               lineHeight: promptDir === 'rtl' ? 1.5 : 1.3,
+              overflowWrap: 'break-word',
             }}
           >
             {exercise.direction === 'to_english' && exercise.promptTokens.length > 0 ? (
@@ -310,6 +315,18 @@ export function WordBankView({
               Tap any dotted word to peek!
             </div>
           ) : null}
+          <div style={{ marginTop: 6 }}>
+            <SayItNormallyButton
+              language={language}
+              dialectAText={exercise.direction === 'to_english' ? exercise.promptText : undefined}
+              dialectBText={exercise.direction === 'to_foreign' ? exercise.promptText : undefined}
+              explicitPlain={exercise.plainEnglish}
+              nuanceNote={exercise.nuanceNote}
+              avoidTerms={locked ? undefined : exercise.targetTokens}
+              resetKey={exercise.id}
+              size="sm"
+            />
+          </div>
         </div>
 
         {speakPromptText ? (
@@ -397,6 +414,7 @@ export function WordBankView({
               alignItems: 'center',
               justifyContent: 'space-between',
               gap: 6,
+              flexWrap: 'wrap',
               padding: '4px 10px',
               borderRadius: 12,
               background: 'var(--tint-amber-bg)',
@@ -436,7 +454,7 @@ export function WordBankView({
                 ? language === 'en'
                   ? 'Type the English phrase...'
                   : langMeta.isAdultOnly
-                    ? `Type in ${langMeta.name}...`
+                    ? `Type in ${langMeta.dialectA ?? langMeta.name}...`
                     : isNonLatinCourse
                       ? `Type in ${langMeta.name} or romanized`
                       : `Type in ${langMeta.name} (accents optional, or tap keys below!)`

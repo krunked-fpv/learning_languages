@@ -115,6 +115,24 @@ function walkFiles(dir) {
   return out;
 }
 
+function verifyNoLazyMashupModulepreload(html) {
+  const linkTagRegex = /<link\b[^>]*>/gi;
+  let linkMatch;
+  while ((linkMatch = linkTagRegex.exec(html)) !== null) {
+    const tag = linkMatch[0];
+    const relMatch = tag.match(/\brel\s*=\s*(?:(["'])([^"']*)\1|([^\s>]+))/i);
+    const relValue = (relMatch?.[2] ?? relMatch?.[3] ?? '').toLowerCase();
+    const relTokens = relValue.split(/\s+/).filter(Boolean);
+    if (!relTokens.includes('modulepreload')) continue;
+
+    const hrefMatch = tag.match(/\bhref\s*=\s*(?:(["'])([^"']*)\1|([^\s>]+))/i);
+    const hrefValue = (hrefMatch?.[2] ?? hrefMatch?.[3] ?? '').trim();
+    if (/adult-mashup-/i.test(hrefValue)) {
+      fail(`dist/index.html must NOT <link rel="modulepreload"> lazy mashup chunk: ${hrefValue}`);
+    }
+  }
+}
+
 function verifyIndexHtml() {
   const indexPath = resolve(DIST_DIR, 'index.html');
   if (!existsSync(indexPath)) {
@@ -168,6 +186,7 @@ function verifyIndexHtml() {
   if (!/scope\s*:\s*['"]\.\/['"]/.test(html)) {
     fail(`dist/index.html must register Service Worker with relative scope './'.`);
   }
+  verifyNoLazyMashupModulepreload(html);
 
   const attrRefRegex = /<(script|link|img|source)\b[^>]*?\b(?:src|href)\s*=\s*(["'])([^"']+)\2[^>]*>/gi;
   let hasEntryJsAsset = false;
@@ -175,6 +194,7 @@ function verifyIndexHtml() {
   let attrMatch;
 
   while ((attrMatch = attrRefRegex.exec(html)) !== null) {
+    const tagName = attrMatch[1].toLowerCase();
     const rawRef = attrMatch[3].trim();
     if (!rawRef || rawRef.startsWith('#') || rawRef.startsWith('data:') || rawRef.startsWith('blob:')) {
       continue;
@@ -188,6 +208,9 @@ function verifyIndexHtml() {
     }
 
     const cleanRel = rawRef.split(/[?#]/)[0];
+    if (tagName === 'script' && /adult-mashup-/i.test(cleanRel)) {
+      fail(`dist/index.html must not eagerly reference lazy mashup script chunk: ${rawRef}`);
+    }
     if (/^\.\/assets\/.+\.m?js$/i.test(cleanRel)) {
       hasEntryJsAsset = true;
     }
@@ -630,5 +653,5 @@ if (errors.length > 0) {
 }
 
 console.log(
-  `[verify-build-artifacts] PASS: dist/index.html, dist/manifest.json, dist/sw.js, all 5 RGBA PNG icons, ${verifiedWoff2Count} relative ./assets/*.woff2 font(s), ${jsChunkCount} JS chunk(s) (${(totalJsBytes / 1024).toFixed(1)} KiB) with zero leaked external URLs, ${EXPECTED_LANDMARKS.length} cultural landmarks, and ${verifiedTextFileCount} dist/ text file(s) verified.`
+  `[verify-build-artifacts] PASS: dist/index.html (zero eager adult-mashup- modulepreloads), dist/manifest.json, dist/sw.js, all 5 RGBA PNG icons, ${verifiedWoff2Count} relative ./assets/*.woff2 font(s), ${jsChunkCount} JS chunk(s) (${(totalJsBytes / 1024).toFixed(1)} KiB) with zero leaked external URLs, ${EXPECTED_LANDMARKS.length} cultural landmarks, and ${verifiedTextFileCount} dist/ text file(s) verified.`
 );

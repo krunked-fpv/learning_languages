@@ -4,6 +4,7 @@ import {
   FREE_RECALL_BONUS_XP,
   LANGUAGE_LIST,
   MAX_HEART_CONTAINERS,
+  isDefaultKidProfileId,
   type AvatarId,
   type BadgeDefinition,
   type BadgeId,
@@ -347,9 +348,10 @@ function getMaxTierOrUnitReached(langProg: LanguageProgressState | undefined): n
 }
 
 function getRawBadgeProgress(badgeId: BadgeId, profile: KidProfile): number {
-  const trackedLanguages: readonly LanguageCode[] = profile.adultModeUnlocked
-    ? [...LANGUAGE_LIST, ...ADULT_EASTER_EGG_LANGUAGES]
-    : LANGUAGE_LIST;
+  const trackedLanguages: readonly LanguageCode[] =
+    profile.adultModeUnlocked && !isDefaultKidProfileId(profile.id)
+      ? [...LANGUAGE_LIST, ...ADULT_EASTER_EGG_LANGUAGES]
+      : LANGUAGE_LIST;
 
   const languagesPracticed = trackedLanguages.filter(
     (lang) =>

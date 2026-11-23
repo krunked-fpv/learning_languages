@@ -92,20 +92,161 @@ const AFTER_HOURS_CLOSED_COMPOUNDS: Readonly<Record<string, string>> = {
   lawncare: 'lawn care',
   frontporch: 'front porch',
   weekendwarrior: 'weekend warrior',
+  coldplunge: 'cold plunge',
+  coldplunges: 'cold plunges',
+  drivethru: 'drive thru',
+  drivethrus: 'drive thrus',
+  halfpipe: 'half pipe',
+  halfpipes: 'half pipes',
+  soundbath: 'sound bath',
+  soundbaths: 'sound baths',
+  bluecollar: 'blue collar',
+  crossfunctional: 'cross functional',
+  fourway: 'four way',
+  woowoo: 'woo woo',
+  yeeyee: 'yee yee',
+  genz: 'gen z',
+  brainrot: 'brain rot',
+  pushback: 'push back',
+  pushbacks: 'push backs',
+  buyin: 'buy in',
+  buyins: 'buy ins',
+  '0darkthirty': 'zero dark thirty',
+  zerodarkthirty: 'zero dark thirty',
+};
+
+const AFTER_HOURS_DROPPED_G_WORDS: Readonly<Record<string, string>> = {
+  fixin: 'fixing',
+  doin: 'doing',
+  goin: 'going',
+  workin: 'working',
+  talkin: 'talking',
+  trippin: 'tripping',
+  chillin: 'chilling',
+  movin: 'moving',
+  cookin: 'cooking',
+  livin: 'living',
+  nothin: 'nothing',
+  somethin: 'something',
+  anythin: 'anything',
+  everythin: 'everything',
+  bussin: 'bussing',
+  wildin: 'wilding',
+  smokin: 'smoking',
+  comin: 'coming',
+  gettin: 'getting',
+  makin: 'making',
+  takin: 'taking',
+  lookin: 'looking',
+  runnin: 'running',
+  rollin: 'rolling',
+  vibin: 'vibing',
+  grindin: 'grinding',
+  hustlin: 'hustling',
+  feelin: 'feeling',
+  sayin: 'saying',
+  tryin: 'trying',
+  playin: 'playing',
+  waitin: 'waiting',
+  stayin: 'staying',
+  walkin: 'walking',
+  sittin: 'sitting',
+  puttin: 'putting',
+  drivin: 'driving',
+  eatin: 'eating',
+  hangin: 'hanging',
+  havin: 'having',
+  holdin: 'holding',
+  keepin: 'keeping',
+  messin: 'messing',
+  missin: 'missing',
+  ridin: 'riding',
+  seein: 'seeing',
+  sleepin: 'sleeping',
+  standin: 'standing',
+  tellin: 'telling',
+  thinkin: 'thinking',
+  turnin: 'turning',
+  watchin: 'watching',
+  winnin: 'winning',
+  grillin: 'grilling',
+  mowin: 'mowing',
+  fishin: 'fishing',
+  huntin: 'hunting',
+  truckin: 'trucking',
+  tailgatin: 'tailgating',
+  scrollin: 'scrolling',
+  ghostin: 'ghosting',
+  clockin: 'clocking',
+  slackin: 'slacking',
+  manifestin: 'manifesting',
+  flexin: 'flexing',
+  frontin: 'fronting',
+  ballin: 'balling',
+  stressin: 'stressing',
+  steppin: 'stepping',
+  jokin: 'joking',
+  smilin: 'smiling',
+  slidin: 'sliding',
+  speakin: 'speaking',
+  laughin: 'laughing',
+  leavin: 'leaving',
+  breakin: 'breaking',
+  bringin: 'bringing',
+  callin: 'calling',
+  findin: 'finding',
+  kickin: 'kicking',
+  packin: 'packing',
+  passin: 'passing',
+  payin: 'paying',
+  pullin: 'pulling',
+  pushin: 'pushing',
+  sellin: 'selling',
+  showin: 'showing',
+  throwin: 'throwing',
+  wearin: 'wearing',
+  wishin: 'wishing',
+  wonderin: 'wondering',
+  yellin: 'yelling',
+  askin: 'asking',
+};
+
+const AFTER_HOURS_CONTRACTIONS: Readonly<Record<string, string>> = {
+  gon: 'gonna',
+  lemme: 'let me',
+  gimme: 'give me',
+  wanna: 'want to',
+  outta: 'out of',
+  kinda: 'kind of',
+  sorta: 'sort of',
+  fuggedaboutit: 'forget about it',
+  fuhgeddaboudit: 'forget about it',
+  fuhgeddaboutit: 'forget about it',
+  forgetaboutit: 'forget about it',
 };
 
 function expandAfterHoursCompounds(text: string): string {
   return text
     .split(' ')
     .filter(Boolean)
-    .map((word) => AFTER_HOURS_CLOSED_COMPOUNDS[word] ?? word)
-    .join(' ');
+    .map(
+      (word) =>
+        AFTER_HOURS_CLOSED_COMPOUNDS[word] ??
+        AFTER_HOURS_DROPPED_G_WORDS[word] ??
+        AFTER_HOURS_CONTRACTIONS[word] ??
+        word
+    )
+    .join(' ')
+    .replace(/\b0\s+dark\s+thirty\b/g, 'zero dark thirty')
+    .replace(/\bfugged\s+about\s+it\b/g, 'forget about it')
+    .replace(/\bfuhgedda\s*boud\s*it\b/g, 'forget about it');
 }
 
 function normalizeAfterHoursBase(input: string): string {
   return stripSentencePunctuation(
     normalizeAnswer(input, { stripAccents: true }).replace(/`/g, "'")
   )
+    .replace(/\b([a-z]{2,})in'(?=\s|$|-)/g, '$1ing')
     .replace(/['"]/g, '')
     .replace(AFTER_HOURS_CASUAL_PUNCT_REGEX, ' ')
     .replace(/(?<=^|\s)-+|-(?=\s|$)/g, ' ')
@@ -476,24 +617,36 @@ function buildAfterHoursCoaching(
     }
   }
 
+  const meta = LANGUAGE_META[language];
+  const trackLabel = meta.dialectA ? `${meta.name} (${meta.dialectA})` : meta.name;
+
   let friendlyTip: string;
   if (hasApostropheDiff && hasCompoundOrHyphenDiff) {
     friendlyTip =
       language === 'ebonics'
         ? `Right on! You nailed the meaning — standard spelling writes "${expectedCandidate}" with its apostrophe and compound spacing.`
-        : `Spot on! You got the vibe — standard suburban phrasing spells it "${expectedCandidate}" with its apostrophe and compound spacing.`;
+        : language === 'suburban'
+          ? `Spot on! You got the vibe — standard suburban phrasing spells it "${expectedCandidate}" with its apostrophe and compound spacing.`
+          : `Spot on! In ${trackLabel}, casual spelling and apostrophes flex naturally — the polished phrasing writes "${expectedCandidate}".`;
   } else if (hasApostropheDiff) {
     friendlyTip =
       language === 'ebonics'
         ? `Smooth! Dropping or shifting apostrophes works in everyday chat, while the classic spelling is "${expectedCandidate}".`
-        : `Nice! Casual messages often drop apostrophes, while the polished spelling is "${expectedCandidate}".`;
+        : language === 'suburban'
+          ? `Nice! Casual messages often drop apostrophes, while the polished spelling is "${expectedCandidate}".`
+          : `Smooth! In ${trackLabel}, everyday chat often drops or shifts apostrophes, while the classic spelling is "${expectedCandidate}".`;
   } else if (hasCompoundOrHyphenDiff) {
     friendlyTip =
       language === 'ebonics'
         ? `Clean! Hyphenated, spaced, or closed all read naturally — the textbook phrasing writes "${expectedCandidate}".`
-        : `Love it! Compound phrases like "${expectedCandidate}" appear hyphenated, spaced, or closed in everyday notes.`;
+        : language === 'suburban'
+          ? `Love it! Compound phrases like "${expectedCandidate}" appear hyphenated, spaced, or closed in everyday notes.`
+          : `Clean! In ${trackLabel}, hyphenated, spaced, closed, or casual variants all read naturally — the textbook phrasing writes "${expectedCandidate}".`;
   } else {
-    friendlyTip = `Spot on! Casual punctuation varies in everyday messages — the polished form is "${expectedCandidate}".`;
+    friendlyTip =
+      language === 'ebonics' || language === 'suburban'
+        ? `Spot on! Casual punctuation varies in everyday messages — the polished form is "${expectedCandidate}".`
+        : `Spot on! In ${trackLabel}, casual punctuation varies in everyday messages — the polished form is "${expectedCandidate}".`;
   }
 
   return {
@@ -1072,6 +1225,276 @@ const ARTICLE_META: Record<
     zero: {
       gender: 'invariant',
       note: '"zero" serves as an emphatic determiner ("zero bandwidth").',
+    },
+  },
+  corp_trades: {
+    the: {
+      gender: 'invariant',
+      note: '"the" anchors both corporate slide decks ("the deliverable") and jobsite reality ("the breaker").',
+    },
+    a: {
+      gender: 'invariant',
+      note: '"a" introduces a singular noun — e.g., "a quick sync" vs. "a cold Monster."',
+    },
+    an: {
+      gender: 'invariant',
+      note: '"an" smooths into a vowel sound ("an EOD action item" or "an impact driver").',
+    },
+    some: {
+      gender: 'plural',
+      note: '"some" introduces plural or uncountable nouns ("some bandwidth" or "some wire nuts").',
+    },
+    per: {
+      gender: 'invariant',
+      note: '"per" is the passive-aggressive LinkedIn connector ("per my last email") — tradespeople translate it as "read the blueprint again."',
+    },
+    re: {
+      gender: 'invariant',
+      note: '"re" opens corporate email threads ("re: Q4 synergy") where the jobsite just yells across the trench.',
+    },
+    fyi: {
+      gender: 'invariant',
+      note: '"FYI" softens a corporate directive; on a jobsite, it means "heads up, steel coming through."',
+    },
+    eod: {
+      gender: 'invariant',
+      note: '"EOD" (end of day) in LinkedIn-speak means 4:59 PM urgent; on the jobsite, quitting time is 3:30 sharp.',
+    },
+    boss: {
+      gender: 'invariant',
+      note: '"boss" is the universal tradesman address — equal parts respect and polite warning before a Friday 4:45 PM sync.',
+    },
+    them: {
+      gender: 'plural',
+      note: '"them" works as a brisk jobsite plural determiner ("grab them toggle bolts").',
+    },
+    this: {
+      gender: 'invariant',
+      note: '"this" spotlights a slide-deck KPI or a stubborn conduit bend.',
+    },
+    that: {
+      gender: 'invariant',
+      note: '"that" singles out a specific deliverable or tagged-out panel.',
+    },
+    our: {
+      gender: 'plural',
+      note: '"our" signals cross-functional alignment in Slack or union crew solidarity on site.',
+    },
+  },
+  midwest_northeast: {
+    the: {
+      gender: 'invariant',
+      note: '"the" points straight to the four-way stop or the bodega counter.',
+    },
+    a: {
+      gender: 'invariant',
+      note: '"a" introduces a singular noun ("a hotdish" or "a bacon-egg-and-cheese").',
+    },
+    an: {
+      gender: 'invariant',
+      note: '"an" glides before vowel sounds ("an interesting parking job" — Midwest for a felony).',
+    },
+    some: {
+      gender: 'plural',
+      note: '"some" introduces plural or uncountable items ("some ranch" or "some attitude").',
+    },
+    ope: {
+      gender: 'invariant',
+      note: '"ope" is the mandatory Midwest collision-avoidance particle — Northeast translates it as zero syllables and a shoulder check.',
+    },
+    welp: {
+      gender: 'invariant',
+      note: '"welp" pairs with a knee-slap to launch Phase 1 of a 45-minute Midwest goodbye.',
+    },
+    ya: {
+      gender: 'invariant',
+      note: '"ya" softens direct address in the Midwest ("sneak right past ya"), whereas Northeast prefers "yous" or "pal."',
+    },
+    yous: {
+      gender: 'plural',
+      note: '"yous" is the classic Philly/Northeast plural "you" ("did yous eat yet?").',
+    },
+    pal: {
+      gender: 'invariant',
+      note: '"pal" on an East Coast turnpike is rarely friendly — it translates to Midwest "interesting choice there, friend."',
+    },
+    yo: {
+      gender: 'invariant',
+      note: '"yo" is the crisp Northeast attention particle — worth three polite Midwest "opes."',
+    },
+    just: {
+      gender: 'invariant',
+      note: '"just" is a Midwest politeness cushion ("let me just scooch right by") that softens every request.',
+    },
+    this: {
+      gender: 'invariant',
+      note: '"this" points at a lukewarm diner soup or a double-parked sedan.',
+    },
+    that: {
+      gender: 'invariant',
+      note: '"that" singles out the casserole dish or the turnpike lane-hog.',
+    },
+  },
+  south_genz: {
+    the: {
+      gender: 'invariant',
+      note: '"the" introduces the porch pitcher or the For-You Page algorithm.',
+    },
+    a: {
+      gender: 'invariant',
+      note: '"a" introduces a singular noun ("a sweet tea" or "a lowkey L").',
+    },
+    an: {
+      gender: 'invariant',
+      note: '"an" precedes vowel sounds ("an NPC" or "an honest-to-goodness blessing").',
+    },
+    some: {
+      gender: 'plural',
+      note: '"some" introduces plural or uncountable nouns ("some biscuits" or "some aura").',
+    },
+    "y'all": {
+      gender: 'plural',
+      note: '"y\'all" is the warm Southern second-person plural — Gen-Z translates it as "chat" or "gang."',
+    },
+    chat: {
+      gender: 'plural',
+      note: '"chat" is chronically-online Gen-Z plural address — treating bystanders like a livestream audience.',
+    },
+    bro: {
+      gender: 'invariant',
+      note: '"bro" is Gen-Z\'s universal pronoun and reaction particle ("bro is cooked").',
+    },
+    bless: {
+      gender: 'invariant',
+      note: '"bless" opens classic Southern polite-shade ("well bless his heart") — the porch twin of "bro is delulu."',
+    },
+    sugar: {
+      gender: 'invariant',
+      note: '"sugar" is Southern endearment that can either warm your soul or deliver velvet-gloved devastation.',
+    },
+    lowkey: {
+      gender: 'invariant',
+      note: '"lowkey" (or "low-key") hedges an opinion quietly — Southern translates it as "between you and the fencepost."',
+    },
+    no: {
+      gender: 'invariant',
+      note: '"no" anchors Gen-Z "no cap" (pure truth), matching Southern "Lord knows I\'m tellin\' no tale."',
+    },
+    this: {
+      gender: 'invariant',
+      note: '"this" spotlights the Sunday gossip or today\'s chaotic TikTok storytime.',
+    },
+    that: {
+      gender: 'invariant',
+      note: '"that" points out questionable porch manners or unhinged NPC behavior.',
+    },
+  },
+  cali_country: {
+    the: {
+      gender: 'invariant',
+      note: '"the" frames both the Erewhon tonic aisle and the holler creek.',
+    },
+    a: {
+      gender: 'invariant',
+      note: '"a" introduces a singular noun ("a cold-plunge" or "a tailgate cooler").',
+    },
+    an: {
+      gender: 'invariant',
+      note: '"an" glides before vowels ("an adaptogen" or "an old pickup").',
+    },
+    some: {
+      gender: 'plural',
+      note: '"some" introduces plural or uncountable items ("some sea moss" or "some firewood").',
+    },
+    "y'all": {
+      gender: 'plural',
+      note: '"y\'all" is warm Appalachian plural — Cali Wellness translates it as "the collective."',
+    },
+    our: {
+      gender: 'plural',
+      note: '"our" signals shared space — "our nervous-system alignment" vs. "our holler supper table."',
+    },
+    raw: {
+      gender: 'invariant',
+      note: '"raw" in Cali means unpasteurized cacao; in the holler, it means icy creek water or plain truth.',
+    },
+    yonder: {
+      gender: 'invariant',
+      note: '"yonder" is Appalachian spatial direction ("over yonder") — Cali calls it "holding space across the canyon."',
+    },
+    reckon: {
+      gender: 'invariant',
+      note: '"reckon" is the Appalachian connector for grounded intuition — the rugged cousin of "my aura is sensing."',
+    },
+    like: {
+      gender: 'invariant',
+      note: '"like" is the Cali conversational cushion padding every breathwork debrief.',
+    },
+    them: {
+      gender: 'plural',
+      note: '"them" acts as a brisk country plural determiner ("them mud boots").',
+    },
+    this: {
+      gender: 'invariant',
+      note: '"this" spotlights a sound-bath bowl or a fresh cast-iron skillet.',
+    },
+    that: {
+      gender: 'invariant',
+      note: '"that" points across the yoga deck or out past the barn.',
+    },
+  },
+  stoner_tactical: {
+    the: {
+      gender: 'invariant',
+      note: '"the" specifies either the skatepark half-pipe or the freshly edged perimeter.',
+    },
+    a: {
+      gender: 'invariant',
+      note: '"a" introduces a singular noun ("a kickflip" or "a tactical flashlight").',
+    },
+    an: {
+      gender: 'invariant',
+      note: '"an" smooths before vowel sounds ("an oat-milk edible" or "an early-morning perimeter sweep").',
+    },
+    some: {
+      gender: 'plural',
+      note: '"some" introduces plural or uncountable nouns ("some munchies" or "some crabgrass").',
+    },
+    dude: {
+      gender: 'invariant',
+      note: '"dude" is universal Skater Chill address — Tactical Dad translates it as "operator" or "son."',
+    },
+    copy: {
+      gender: 'invariant',
+      note: '"copy" (from "copy that") is Tactical Dad radio confirmation — Skater Chill just says "for sure, bro."',
+    },
+    zero: {
+      gender: 'invariant',
+      note: '"zero" marks Tactical Dad precision ("0-dark-thirty" / "zero perimeter breach") vs. Skater "zero stress."',
+    },
+    perimeter: {
+      gender: 'invariant',
+      note: '"perimeter" is Tactical Dad for the front yard — Skater Chill calls it "the curb spot."',
+    },
+    bro: {
+      gender: 'invariant',
+      note: '"bro" bridges relaxed couch-vibe camaraderie with garage-workbench logistics.',
+    },
+    tactical: {
+      gender: 'invariant',
+      note: '"tactical" upgrades any suburban chore (cargo shorts, mowing, grill tongs) into a classified lawn operation.',
+    },
+    gnarly: {
+      gender: 'invariant',
+      note: '"gnarly" in Skater Chill means impressively wild; Tactical Dad calls it a "high-threat terrain anomaly."',
+    },
+    this: {
+      gender: 'invariant',
+      note: '"this" points to a clean ledge trick or a calibrated weed-whacker.',
+    },
+    that: {
+      gender: 'invariant',
+      note: '"that" singles out a sketchy handrail or a rogue dandelion sector.',
     },
   },
 };

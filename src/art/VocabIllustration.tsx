@@ -51,6 +51,11 @@ const STICKER_BACKGROUNDS: Record<
   sw: { top: '#FFFBEB', bottom: '#E0F2FE', ring: '#FBBF24' },
   ebonics: { top: '#F5F3FF', bottom: '#FEF3C7', ring: '#8B5CF6' },
   suburban: { top: '#F0F9FF', bottom: '#FFEDD5', ring: '#0EA5E9' },
+  corp_trades: { top: '#F0FDFA', bottom: '#FEF3C7', ring: '#0F766E' },
+  midwest_northeast: { top: '#EFF6FF', bottom: '#FEE2E2', ring: '#B91C1C' },
+  south_genz: { top: '#FEF3C7', bottom: '#FAE8FF', ring: '#C026D3' },
+  cali_country: { top: '#ECFDF5', bottom: '#FFEDD5', ring: '#059669' },
+  stoner_tactical: { top: '#F7FEE7', bottom: '#E0E7FF', ring: '#4D7C0F' },
   default: { top: '#F0F9FF', bottom: '#E0F2FE', ring: '#BAE6FD' },
 };
 

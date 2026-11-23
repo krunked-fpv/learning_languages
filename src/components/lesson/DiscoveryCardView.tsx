@@ -10,6 +10,7 @@ import {
   type VocabCard,
 } from '../../types/contracts';
 import { TapHintText } from './TapHintText';
+import { SayItNormallyButton } from './SayItNormallyButton';
 import { buildTapHintsFromExample } from './lessonHelpers';
 
 export interface DiscoveryCardViewProps {
@@ -124,14 +125,15 @@ export function DiscoveryCardView({
       </div>
 
       {/* Foreign Word + English + Romanized + Phonetics */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%', minWidth: 0, overflowWrap: 'break-word' }}>
         <div
           dir={langDir}
           style={{
-            fontSize: compact ? '1.4rem' : '1.85rem',
+            fontSize: compact ? '1.3rem' : '1.85rem',
             fontWeight: 900,
             color: 'var(--lang-primary)',
             lineHeight: langDir === 'rtl' ? 1.5 : 1.18,
+            overflowWrap: 'break-word',
           }}
         >
           {vocabCard.foreignWithArticle}
@@ -286,6 +288,19 @@ export function DiscoveryCardView({
           {vocabCard.exampleEnglish}
         </div>
       </div>
+
+      <SayItNormallyButton
+        language={language}
+        dialectAText={vocabCard.foreignWithArticle}
+        dialectBText={vocabCard.english}
+        explicitPlain={vocabCard.plainEnglish}
+        registerNote={vocabCard.registerNote}
+        secondaryDialectAText={vocabCard.exampleForeign}
+        secondaryDialectBText={vocabCard.exampleEnglish}
+        secondaryExplicitPlain={vocabCard.examplePlainEnglish}
+        resetKey={exercise.id}
+        size={compact ? 'sm' : 'md'}
+      />
 
       {exercise.promptHint ? (
         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>
