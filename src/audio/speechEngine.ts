@@ -1,10 +1,12 @@
 import { useSyncExternalStore } from 'react';
-import type {
-  LanguageCode,
-  SpeakOutcome,
-  SpeakRequest,
-  SpeechRuntimeState,
-  SpeechSpeed,
+import {
+  isAdultMashupLanguage,
+  type AdultMashupLanguageCode,
+  type LanguageCode,
+  type SpeakOutcome,
+  type SpeakRequest,
+  type SpeechRuntimeState,
+  type SpeechSpeed,
 } from '../types/contracts';
 import {
   getAudioPreferences,
@@ -31,7 +33,39 @@ export const SPEECH_LOCALE_MAP: Record<LanguageCode | 'en', readonly string[]> =
   sw: ['sw-KE', 'sw-TZ', 'sw'],
   ebonics: ['en-US', 'en'],
   suburban: ['en-US', 'en'],
+  corp_trades: ['en-US', 'en'],
+  midwest_northeast: ['en-US', 'en'],
+  south_genz: ['en-US', 'en'],
+  cali_country: ['en-US', 'en'],
+  stoner_tactical: ['en-US', 'en'],
 };
+
+const DEFAULT_SPEECH_PITCH = 1.0;
+const MIN_SAFE_SPEECH_PITCH = 0.94;
+const MAX_SAFE_SPEECH_PITCH = 1.06;
+
+export const ADULT_MASHUP_PITCH_MAP: Readonly<Record<AdultMashupLanguageCode, number>> = {
+  corp_trades: 0.97,
+  midwest_northeast: 1.04,
+  south_genz: 1.06,
+  cali_country: 1.02,
+  stoner_tactical: 0.94,
+};
+
+/**
+ * Resolves a safe Web Speech API utterance pitch (`0.94`–`1.06`).
+ * Base languages and classic Vol. 1 tracks remain at `1.0`, while Vol. 2
+ * subculture mashups get subtle tonal personality without risking TTS stalls.
+ */
+export function resolveSpeechPitch(lang: LanguageCode | 'en'): number {
+  const configured = isAdultMashupLanguage(lang)
+    ? ADULT_MASHUP_PITCH_MAP[lang]
+    : DEFAULT_SPEECH_PITCH;
+  if (!Number.isFinite(configured)) {
+    return DEFAULT_SPEECH_PITCH;
+  }
+  return Math.min(MAX_SAFE_SPEECH_PITCH, Math.max(MIN_SAFE_SPEECH_PITCH, configured));
+}
 
 const WATCHDOG_TIMEOUT_MS = 4500;
 const SLOW_SPEECH_RATE = 0.65;
@@ -478,7 +512,7 @@ export async function speakPhrase(req: SpeakRequest): Promise<SpeakOutcome> {
   }
 
   const resolvedSpeed = resolveSpeechSpeed(req);
-  const localeUsed = matchedVoice.lang || SPEECH_LOCALE_MAP[req.language][0];
+  const localeUsed = matchedVoice.lang || SPEECH_LOCALE_MAP[req.language]?.[0] || 'en-US';
 
   commitRuntimeState(
     {
@@ -523,7 +557,7 @@ export async function speakPhrase(req: SpeakRequest): Promise<SpeakOutcome> {
       utterance.voice = matchedVoice;
       utterance.lang = localeUsed;
       utterance.rate = SPEECH_RATE_MAP[resolvedSpeed];
-      utterance.pitch = 1.0;
+      utterance.pitch = resolveSpeechPitch(req.language);
       utterance.volume = audioPrefs.volume;
 
       activeUtterance = utterance;
