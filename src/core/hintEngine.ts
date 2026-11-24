@@ -144,12 +144,13 @@ function hasToneOrDiacritic(text: string): boolean {
   return /[\u0300-\u036f]/.test(nfd) || /[đĐß\u02BE\u02BF]/.test(text);
 }
 
-function cleanExactWordForm(raw: string): string {
-  return stripOuterPunct(raw)
+function cleanExactWordForm(raw: string, collapseSpaces = false): string {
+  const cleaned = stripOuterPunct(raw)
     .normalize('NFC')
     .replace(/[\u2018\u2019\u02BC\u201B\u2032]/g, "'")
     .toLowerCase()
     .replace(/['\-]/g, '');
+  return collapseSpaces ? cleaned.replace(/\s+/g, '') : cleaned;
 }
 
 function buildFreeRecallToneTip(
@@ -177,16 +178,26 @@ function buildFreeRecallToneTip(
   }
 }
 
-const PARTIAL_NUMERIC_PINYIN_SPLIT_RE = /^([A-Za-z\u00C0-\u024F\u1E00-\u1EFF:]+[0-5])([A-Za-z]+)$/;
+const PARTIAL_NUMERIC_PINYIN_TOKEN_RE = /(?:[A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9]|(?<=[uU]):)+/g;
+const PARTIAL_NUMERIC_PINYIN_TAIL_RE = /^(.+[0-5])([A-Za-z]+)$/;
+const PINYIN_COMPACT_STRIP_RE = /[\s'’‘\-¡!¿?.,;:"“”„«»()[\]—–―…]+/g;
+const PINYIN_SEPARATOR_CHAR_RE = /[\s'’‘\-¡!¿?.,;:"“”„«»()[\]—–―…]/;
+const PINYIN_TONE_VOWEL_CHAR_RE = /[aeiouüāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/i;
 
-function stripChineseNumericTonesForCompare(raw: string): string {
+function convertNumericPinyinWithPartialTail(raw: string): string {
   const converted = convertNumericPinyin(raw);
-  if (converted !== raw) return converted;
-  const partialSplit = PARTIAL_NUMERIC_PINYIN_SPLIT_RE.exec(raw);
-  if (partialSplit && hasNumericPinyinSyllable(partialSplit[1])) {
-    return `${convertNumericPinyin(partialSplit[1])}${partialSplit[2]}`;
-  }
-  return raw;
+  return converted.replace(PARTIAL_NUMERIC_PINYIN_TOKEN_RE, (token) => {
+    if (!/[0-5]/.test(token)) return token;
+    const partialSplit = PARTIAL_NUMERIC_PINYIN_TAIL_RE.exec(token);
+    if (partialSplit && hasNumericPinyinSyllable(partialSplit[1])) {
+      return `${convertNumericPinyin(partialSplit[1])}${partialSplit[2]}`;
+    }
+    return token;
+  });
+}
+
+function stripPinyinPunctAndSpaces(text: string): string {
+  return text.replace(PINYIN_COMPACT_STRIP_RE, '');
 }
 
 /**
@@ -196,7 +207,7 @@ function stripChineseNumericTonesForCompare(raw: string): string {
 function cleanCompareRomanizedWord(raw: string, language?: LanguageCode): string {
   const preNormalized =
     language === 'zh'
-      ? stripChineseNumericTonesForCompare(raw)
+      ? convertNumericPinyinWithPartialTail(raw)
           .replace(/u:/gi, 'ü')
           .replace(/([nl])v/gi, '$1ü')
       : raw;
@@ -545,6 +556,98 @@ function tokenizeSentenceForFreeRecall(
   return trimmed.split(/\s+/).filter(Boolean);
 }
 
+/**
+ * Slices a spaced or unspaced Mandarin Pinyin input string into per-word chunks
+ * aligned with `words.slice(0, completedCount)` plus an optional active partial tail.
+ */
+function sliceZhPinyinInputForWords(
+  trimmedInput: string,
+  words: readonly string[],
+  completedCount: number,
+  includePartial: boolean
+): { chunks: string[]; partialChunk?: string } {
+  const src = trimmedInput.normalize('NFC');
+  let cursor = 0;
+  const chunks: string[] = [];
+
+  const skipSeparators = () => {
+    while (cursor < src.length && PINYIN_SEPARATOR_CHAR_RE.test(src[cursor])) {
+      cursor += 1;
+    }
+  };
+
+  for (let i = 0; i < completedCount && i < words.length; i += 1) {
+    skipSeparators();
+    const targetLen = stripPinyinPunctAndSpaces(cleanCompareRomanizedWord(words[i], 'zh')).length;
+    if (targetLen === 0) {
+      chunks.push('');
+      continue;
+    }
+    const chunkStart = cursor;
+    let chunkEnd = cursor;
+    let collectedBase = 0;
+
+    while (cursor < src.length && collectedBase < targetLen) {
+      if ((src[cursor] === 'u' || src[cursor] === 'U') && src[cursor + 1] === ':') {
+        collectedBase += 1;
+        cursor += 2;
+        chunkEnd = cursor;
+        continue;
+      }
+      const ch = src[cursor];
+      if (/[0-5]/.test(ch)) {
+        cursor += 1;
+        chunkEnd = cursor;
+      } else if (PINYIN_SEPARATOR_CHAR_RE.test(ch)) {
+        cursor += 1;
+      } else {
+        collectedBase += 1;
+        cursor += 1;
+        chunkEnd = cursor;
+      }
+    }
+
+    while (cursor < src.length && /[0-5]/.test(src[cursor])) {
+      cursor += 1;
+      chunkEnd = cursor;
+    }
+    chunks.push(src.slice(chunkStart, chunkEnd).trim());
+  }
+
+  if (!includePartial) {
+    return { chunks };
+  }
+  skipSeparators();
+  const partial = src.slice(cursor).trim();
+  return partial ? { chunks, partialChunk: partial } : { chunks };
+}
+
+function isIncompleteTrailingZhSyllable(
+  partialRaw: string,
+  comparablePartial: string,
+  alignedSlice: string
+): boolean {
+  if (/[0-5]$/.test(partialRaw)) return false;
+  const alignedChars = Array.from(cleanExactWordForm(alignedSlice, true));
+  const compChars = Array.from(cleanExactWordForm(comparablePartial, true));
+  if (alignedChars.length === 0 || alignedChars.length !== compChars.length) return false;
+
+  let lastVowelIdx = -1;
+  for (let i = 0; i < alignedChars.length; i += 1) {
+    if (PINYIN_TONE_VOWEL_CHAR_RE.test(alignedChars[i])) {
+      lastVowelIdx = i;
+    }
+  }
+  if (lastVowelIdx < 0) return false;
+
+  for (let i = 0; i < alignedChars.length; i += 1) {
+    if (alignedChars[i] !== compChars[i] && i < lastVowelIdx) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function resolveFreeRecallToneCoaching(params: {
   language: LanguageCode;
   typedText: string;
@@ -571,56 +674,71 @@ function resolveFreeRecallToneCoaching(params: {
   if (hasWrongSuffix || typedWords.length === 0) return undefined;
   if (!isRomanizedMode && !TONE_COACHING_LATIN_LANGUAGES.has(language)) return undefined;
 
+  const isZhRomanized = language === 'zh' && isRomanizedMode;
   const trimmedInput = typedText.trim();
+  const convertedWithPartial = isZhRomanized
+    ? convertNumericPinyinWithPartialTail(trimmedInput)
+    : trimmedInput;
   const hasNumericPinyin =
-    language === 'zh' && isRomanizedMode && hasNumericPinyinSyllable(trimmedInput);
-  const convertedNumericPinyin = hasNumericPinyin
-    ? convertNumericPinyin(trimmedInput)
-    : undefined;
+    isZhRomanized &&
+    (hasNumericPinyinSyllable(trimmedInput) || convertedWithPartial !== trimmedInput);
+  const convertedNumericPinyin = hasNumericPinyin ? convertedWithPartial : undefined;
+
+  const slicedZh = isZhRomanized
+    ? sliceZhPinyinInputForWords(trimmedInput, bestWords, completedPrefixCount, hasActivePartial)
+    : null;
 
   let mismatchedPair: { expectedWord: string; typedWord: string } | null = null;
   let lastNumericPair: { expectedWord: string; typedWord: string } | null = null;
 
   for (let i = 0; i < completedPrefixCount; i += 1) {
-    const typedDisplay = stripOuterPunct(typedWords[i]) || typedWords[i].trim();
+    const rawTypedWord = slicedZh ? slicedZh.chunks[i] : typedWords[i];
+    if (!rawTypedWord) continue;
+    const typedDisplay = stripOuterPunct(rawTypedWord) || rawTypedWord.trim();
     const expectedDisplay = stripOuterPunct(bestWords[i]) || bestWords[i].trim();
-    const comparableTyped =
-      hasNumericPinyin && hasNumericPinyinSyllable(typedDisplay)
-        ? convertNumericPinyin(typedDisplay)
-        : typedDisplay;
-    if (hasNumericPinyin && hasNumericPinyinSyllable(typedDisplay)) {
+    const convertedChunk = isZhRomanized
+      ? convertNumericPinyinWithPartialTail(typedDisplay)
+      : typedDisplay;
+    const chunkHasNumeric =
+      hasNumericPinyin && (hasNumericPinyinSyllable(typedDisplay) || convertedChunk !== typedDisplay);
+    const comparableTyped = chunkHasNumeric ? convertedChunk : typedDisplay;
+    if (chunkHasNumeric) {
       lastNumericPair = { expectedWord: expectedDisplay, typedWord: typedDisplay };
     }
     if (
       (hasToneOrDiacritic(expectedDisplay) || hasToneOrDiacritic(comparableTyped)) &&
-      cleanExactWordForm(comparableTyped) !== cleanExactWordForm(expectedDisplay)
+      cleanExactWordForm(comparableTyped, isZhRomanized) !==
+        cleanExactWordForm(expectedDisplay, isZhRomanized)
     ) {
       mismatchedPair = { expectedWord: expectedDisplay, typedWord: typedDisplay };
     }
   }
 
-  if (
-    hasActivePartial &&
-    completedPrefixCount < bestWords.length &&
-    completedPrefixCount < typedWords.length
-  ) {
-    const typedDisplay =
-      stripOuterPunct(typedWords[completedPrefixCount]) || typedWords[completedPrefixCount].trim();
+  const rawPartialTyped = slicedZh ? slicedZh.partialChunk : typedWords[completedPrefixCount];
+  if (hasActivePartial && completedPrefixCount < bestWords.length && rawPartialTyped) {
+    const typedDisplay = stripOuterPunct(rawPartialTyped) || rawPartialTyped.trim();
     const expectedDisplay =
       stripOuterPunct(bestWords[completedPrefixCount]) || bestWords[completedPrefixCount].trim();
-    const comparableTyped =
-      hasNumericPinyin && hasNumericPinyinSyllable(typedDisplay)
-        ? convertNumericPinyin(typedDisplay)
-        : typedDisplay;
-    if (hasNumericPinyin && hasNumericPinyinSyllable(typedDisplay)) {
+    const convertedChunk = isZhRomanized
+      ? convertNumericPinyinWithPartialTail(typedDisplay)
+      : typedDisplay;
+    const chunkHasNumeric =
+      hasNumericPinyin && (hasNumericPinyinSyllable(typedDisplay) || convertedChunk !== typedDisplay);
+    const comparableTyped = chunkHasNumeric ? convertedChunk : typedDisplay;
+    if (chunkHasNumeric) {
       lastNumericPair = { expectedWord: expectedDisplay, typedWord: typedDisplay };
     }
     const targetChars = splitGraphemes(expectedDisplay).filter((g) => !/['’‘\-]/.test(g));
-    const typedStrippedLen = compareWord(typedDisplay).replace(/['’‘\-]/g, '').length;
+    const typedStrippedLen = stripPinyinPunctAndSpaces(
+      compareWord(typedDisplay).replace(/['’‘\-]/g, '')
+    ).length;
     if (typedStrippedLen > 0) {
       let alignedSlice = '';
       for (const g of targetChars) {
-        if (compareWord(alignedSlice).replace(/['’‘\-]/g, '').length >= typedStrippedLen) {
+        if (
+          stripPinyinPunctAndSpaces(compareWord(alignedSlice).replace(/['’‘\-]/g, '')).length >=
+          typedStrippedLen
+        ) {
           break;
         }
         alignedSlice += g;
@@ -628,18 +746,24 @@ function resolveFreeRecallToneCoaching(params: {
       if (
         alignedSlice &&
         (hasToneOrDiacritic(alignedSlice) || hasToneOrDiacritic(comparableTyped)) &&
-        cleanExactWordForm(comparableTyped) !== cleanExactWordForm(alignedSlice)
+        cleanExactWordForm(comparableTyped, isZhRomanized) !==
+          cleanExactWordForm(alignedSlice, isZhRomanized)
       ) {
-        mismatchedPair = { expectedWord: expectedDisplay, typedWord: typedDisplay };
+        const deferPartialTip =
+          isZhRomanized &&
+          hasNumericPinyin &&
+          isIncompleteTrailingZhSyllable(typedDisplay, comparableTyped, alignedSlice);
+        if (!deferPartialTip) {
+          mismatchedPair = { expectedWord: expectedDisplay, typedWord: typedDisplay };
+        }
       }
     }
   }
 
   if (mismatchedPair) {
-    const convertedWord =
-      hasNumericPinyin && hasNumericPinyinSyllable(mismatchedPair.typedWord)
-        ? convertNumericPinyin(mismatchedPair.typedWord)
-        : mismatchedPair.typedWord;
+    const convertedWord = isZhRomanized
+      ? convertNumericPinyinWithPartialTail(mismatchedPair.typedWord)
+      : mismatchedPair.typedWord;
     const tip =
       convertedWord !== mismatchedPair.typedWord
         ? `Tone tip: "${mismatchedPair.expectedWord}" uses Pinyin tone marks (your "${mismatchedPair.typedWord}" -> "${convertedWord}") — keep going!`
@@ -815,13 +939,72 @@ export function resolveFreeRecallHint(input: FreeRecallHintInput): FreeRecallHin
       }
     }
 
+    let usedCompactZhAlignment = false;
+    if (language === 'zh' && isRomanizedMode && wrongSuffix && !entry.isSplitVariant) {
+      const remainingTypedCompact = typedWords
+        .slice(prefix)
+        .map((w) => stripPinyinPunctAndSpaces(compareWord(w)))
+        .join('');
+      if (remainingTypedCompact.length > 0) {
+        let streamPrefix = prefix;
+        let offset = 0;
+        let streamHasPartial = false;
+        let streamWrong = false;
+
+        for (let wi = prefix; wi < candWords.length && offset < remainingTypedCompact.length; wi += 1) {
+          const cw = stripPinyinPunctAndSpaces(compareWord(candWords[wi]));
+          if (!cw) {
+            streamPrefix = wi + 1;
+            continue;
+          }
+          const rem = remainingTypedCompact.slice(offset);
+          if (rem.startsWith(cw)) {
+            offset += cw.length;
+            streamPrefix = wi + 1;
+          } else if (cw.startsWith(rem)) {
+            streamHasPartial = true;
+            offset = remainingTypedCompact.length;
+            break;
+          } else {
+            streamWrong = true;
+            break;
+          }
+        }
+
+        if (!streamWrong && offset < remainingTypedCompact.length) {
+          streamWrong = true;
+        }
+
+        if (!streamWrong) {
+          prefix = streamPrefix;
+          wrongSuffix = false;
+          hasActivePartial = streamHasPartial;
+          usedCompactZhAlignment = true;
+        } else if (streamPrefix > prefix) {
+          prefix = streamPrefix;
+          wrongSuffix = true;
+          hasActivePartial = false;
+          usedCompactZhAlignment = true;
+        }
+      }
+    }
+
     let exactPrefixMatches = 0;
+    const zhChunks =
+      usedCompactZhAlignment && prefix > 0
+        ? sliceZhPinyinInputForWords(trimmedTyped, candWords, prefix, false).chunks
+        : null;
     for (let i = 0; i < prefix; i += 1) {
+      const rawTypedWord = zhChunks ? zhChunks[i] : typedWords[i];
+      if (!rawTypedWord) continue;
       const typedForExact =
-        language === 'zh' && isRomanizedMode && hasNumericPinyinSyllable(typedWords[i])
-          ? convertNumericPinyin(typedWords[i])
-          : typedWords[i];
-      if (cleanExactWordForm(typedForExact) === cleanExactWordForm(candWords[i])) {
+        language === 'zh' && isRomanizedMode
+          ? convertNumericPinyinWithPartialTail(rawTypedWord)
+          : rawTypedWord;
+      if (
+        cleanExactWordForm(typedForExact, language === 'zh' && isRomanizedMode) ===
+        cleanExactWordForm(candWords[i], language === 'zh' && isRomanizedMode)
+      ) {
         exactPrefixMatches += 1;
       }
     }
