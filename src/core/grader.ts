@@ -28,6 +28,240 @@ const SPECIAL_ACCENT_CHAR_REGEX =
   /[\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u024F\u02BE\u02BF\u1E00-\u1EFF\u0451\u0401\u064B-\u065F\u0670\u0901\u093C\u0981\u09BCأإآٱىة]/;
 const AFTER_HOURS_CASUAL_PUNCT_REGEX = /[~*•·\\/|_+]/g;
 
+// Valid base Mandarin Pinyin syllables (without tone marks; ü normalized from v / u:).
+const VALID_PINYIN_SYLLABLES: ReadonlySet<string> = new Set([
+  'a', 'ai', 'an', 'ang', 'ao', 'e', 'ei', 'en', 'eng', 'er', 'o', 'ou',
+  'ba', 'bai', 'ban', 'bang', 'bao', 'bei', 'ben', 'beng', 'bi', 'bian', 'biao', 'bie', 'bin', 'bing', 'bo', 'bu',
+  'pa', 'pai', 'pan', 'pang', 'pao', 'pei', 'pen', 'peng', 'pi', 'pian', 'piao', 'pie', 'pin', 'ping', 'po', 'pou', 'pu',
+  'ma', 'mai', 'man', 'mang', 'mao', 'me', 'mei', 'men', 'meng', 'mi', 'mian', 'miao', 'mie', 'min', 'ming', 'miu', 'mo', 'mou', 'mu',
+  'fa', 'fan', 'fang', 'fei', 'fen', 'feng', 'fiao', 'fo', 'fou', 'fu',
+  'da', 'dai', 'dan', 'dang', 'dao', 'de', 'dei', 'den', 'deng', 'di', 'dia', 'dian', 'diao', 'die', 'ding', 'diu', 'dong', 'dou', 'du', 'duan', 'dui', 'dun', 'duo',
+  'ta', 'tai', 'tan', 'tang', 'tao', 'te', 'tei', 'teng', 'ti', 'tian', 'tiao', 'tie', 'ting', 'tong', 'tou', 'tu', 'tuan', 'tui', 'tun', 'tuo',
+  'na', 'nai', 'nan', 'nang', 'nao', 'ne', 'nei', 'nen', 'neng', 'ni', 'nian', 'niang', 'niao', 'nie', 'nin', 'ning', 'niu', 'nong', 'nou', 'nu', 'nuan', 'nun', 'nuo', 'nü', 'nüe',
+  'la', 'lai', 'lan', 'lang', 'lao', 'le', 'lei', 'leng', 'li', 'lia', 'lian', 'liang', 'liao', 'lie', 'lin', 'ling', 'liu', 'lo', 'long', 'lou', 'lu', 'luan', 'lun', 'luo', 'lü', 'lüe',
+  'ga', 'gai', 'gan', 'gang', 'gao', 'ge', 'gei', 'gen', 'geng', 'gong', 'gou', 'gu', 'gua', 'guai', 'guan', 'guang', 'gui', 'gun', 'guo',
+  'ka', 'kai', 'kan', 'kang', 'kao', 'ke', 'kei', 'ken', 'keng', 'kong', 'kou', 'ku', 'kua', 'kuai', 'kuan', 'kuang', 'kui', 'kun', 'kuo',
+  'ha', 'hai', 'han', 'hang', 'hao', 'he', 'hei', 'hen', 'heng', 'hong', 'hou', 'hu', 'hua', 'huai', 'huan', 'huang', 'hui', 'hun', 'huo',
+  'ji', 'jia', 'jian', 'jiang', 'jiao', 'jie', 'jin', 'jing', 'jiong', 'jiu', 'ju', 'juan', 'jue', 'jun',
+  'qi', 'qia', 'qian', 'qiang', 'qiao', 'qie', 'qin', 'qing', 'qiong', 'qiu', 'qu', 'quan', 'que', 'qun',
+  'xi', 'xia', 'xian', 'xiang', 'xiao', 'xie', 'xin', 'xing', 'xiong', 'xiu', 'xu', 'xuan', 'xue', 'xun',
+  'zha', 'zhai', 'zhan', 'zhang', 'zhao', 'zhe', 'zhei', 'zhen', 'zheng', 'zhi', 'zhong', 'zhou', 'zhu', 'zhua', 'zhuai', 'zhuan', 'zhuang', 'zhui', 'zhun', 'zhuo',
+  'cha', 'chai', 'chan', 'chang', 'chao', 'che', 'chen', 'cheng', 'chi', 'chong', 'chou', 'chu', 'chua', 'chuai', 'chuan', 'chuang', 'chui', 'chun', 'chuo',
+  'sha', 'shai', 'shan', 'shang', 'shao', 'she', 'shei', 'shen', 'sheng', 'shi', 'shou', 'shu', 'shua', 'shuai', 'shuan', 'shuang', 'shui', 'shun', 'shuo',
+  'ran', 'rang', 'rao', 're', 'ren', 'reng', 'ri', 'rong', 'rou', 'ru', 'rua', 'ruan', 'rui', 'run', 'ruo',
+  'za', 'zai', 'zan', 'zang', 'zao', 'ze', 'zei', 'zen', 'zeng', 'zi', 'zong', 'zou', 'zu', 'zuan', 'zui', 'zun', 'zuo',
+  'ca', 'cai', 'can', 'cang', 'cao', 'ce', 'cei', 'cen', 'ceng', 'ci', 'cong', 'cou', 'cu', 'cuan', 'cui', 'cun', 'cuo',
+  'sa', 'sai', 'san', 'sang', 'sao', 'se', 'sen', 'seng', 'si', 'song', 'sou', 'su', 'suan', 'sui', 'sun', 'suo',
+  'ya', 'yan', 'yang', 'yao', 'ye', 'yi', 'yin', 'ying', 'yo', 'yong', 'you', 'yu', 'yuan', 'yue', 'yun',
+  'wa', 'wai', 'wan', 'wang', 'wei', 'wen', 'weng', 'wo', 'wu',
+]);
+
+const PINYIN_TONE_VOWELS: Readonly<Record<string, readonly [string, string, string, string, string]>> = {
+  a: ['a', 'ā', 'á', 'ǎ', 'à'],
+  A: ['A', 'Ā', 'Á', 'Ǎ', 'À'],
+  e: ['e', 'ē', 'é', 'ě', 'è'],
+  E: ['E', 'Ē', 'É', 'Ě', 'È'],
+  i: ['i', 'ī', 'í', 'ǐ', 'ì'],
+  I: ['I', 'Ī', 'Í', 'Ǐ', 'Ì'],
+  o: ['o', 'ō', 'ó', 'ǒ', 'ò'],
+  O: ['O', 'Ō', 'Ó', 'Ǒ', 'Ò'],
+  u: ['u', 'ū', 'ú', 'ǔ', 'ù'],
+  U: ['U', 'Ū', 'Ú', 'Ǔ', 'Ù'],
+  ü: ['ü', 'ǖ', 'ǘ', 'ǚ', 'ǜ'],
+  Ü: ['Ü', 'Ǖ', 'Ǘ', 'Ǚ', 'Ǜ'],
+};
+
+const PINYIN_TOKEN_RE = /(?:[A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9]|(?<=[uU]):)+/g;
+
+function normalizePinyinForLookup(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/u:/g, 'ü')
+    .replace(/v/g, 'ü')
+    .normalize('NFD')
+    .replace(/u\u0308[\u0300-\u036f]*/g, 'ü')
+    .replace(/[\u0300-\u036f]/g, '')
+    .normalize('NFC');
+}
+
+function isValidPinyinSyllableUnit(raw: string, allowErhua: boolean): boolean {
+  const norm = normalizePinyinForLookup(raw);
+  if (VALID_PINYIN_SYLLABLES.has(norm)) return true;
+  if (allowErhua && norm.length > 2 && norm.endsWith('r')) {
+    const stem = norm.slice(0, -1);
+    return stem !== 'e' && /[aeiouvün]$/.test(stem) && VALID_PINYIN_SYLLABLES.has(stem);
+  }
+  return false;
+}
+
+function segmentPinyinLetterRun(letters: string, allowTrailingErhua: boolean): string[] | null {
+  const n = letters.length;
+  if (n === 0) return null;
+  const dp: Array<string[] | null> = new Array<string[] | null>(n + 1).fill(null);
+  dp[0] = [];
+  for (let i = 0; i < n; i += 1) {
+    const prev = dp[i];
+    if (!prev) continue;
+    for (let len = 1; len <= 7 && i + len <= n; len += 1) {
+      const slice = letters.slice(i, i + len);
+      const atEnd = i + len === n;
+      if (isValidPinyinSyllableUnit(slice, allowTrailingErhua && atEnd)) {
+        const nextCandidate = [...prev, slice];
+        const existing = dp[i + len];
+        if (!existing || nextCandidate.length <= existing.length) {
+          dp[i + len] = nextCandidate;
+        }
+      }
+    }
+  }
+  return dp[n];
+}
+
+function stripToneFromPinyinChar(ch: string): string {
+  if (ch === 'ü' || ch === 'Ü') return ch;
+  const nfd = ch.normalize('NFD');
+  if (nfd.startsWith('u\u0308') || nfd.startsWith('U\u0308')) {
+    return ch === ch.toUpperCase() ? 'Ü' : 'ü';
+  }
+  const base = nfd.replace(/[\u0300-\u036f]/g, '').normalize('NFC');
+  return base || ch;
+}
+
+function applyToneToSinglePinyinSyllable(rawSyllable: string, tone: number): string {
+  const normalizedUmlaut = rawSyllable
+    .replace(/u:/g, 'ü')
+    .replace(/U:/g, 'Ü')
+    .replace(/v/g, 'ü')
+    .replace(/V/g, 'Ü')
+    .normalize('NFC');
+
+  const normLookup = normalizePinyinForLookup(normalizedUmlaut);
+  const isErhuaSuffix =
+    !VALID_PINYIN_SYLLABLES.has(normLookup) &&
+    normLookup.length > 2 &&
+    normLookup.endsWith('r');
+  const stem = isErhuaSuffix ? normalizedUmlaut.slice(0, -1) : normalizedUmlaut;
+  const erhuaTail = isErhuaSuffix ? normalizedUmlaut.slice(-1) : '';
+
+  const chars = Array.from(stem);
+  const baseLower = chars.map((ch) => stripToneFromPinyinChar(ch).toLowerCase());
+
+  if (tone === 0 || tone === 5) {
+    return `${chars.map(stripToneFromPinyinChar).join('')}${erhuaTail}`;
+  }
+
+  let targetIndex = baseLower.indexOf('a');
+  if (targetIndex === -1) {
+    targetIndex = baseLower.indexOf('e');
+  }
+  if (targetIndex === -1) {
+    for (let i = 0; i < baseLower.length - 1; i += 1) {
+      if (baseLower[i] === 'o' && baseLower[i + 1] === 'u') {
+        targetIndex = i;
+        break;
+      }
+    }
+  }
+  if (targetIndex === -1) {
+    for (let i = baseLower.length - 1; i >= 0; i -= 1) {
+      if (baseLower[i] === 'i' || baseLower[i] === 'o' || baseLower[i] === 'u' || baseLower[i] === 'ü') {
+        targetIndex = i;
+        break;
+      }
+    }
+  }
+
+  if (targetIndex === -1) {
+    return `${stem}${erhuaTail}`;
+  }
+
+  const baseChar = stripToneFromPinyinChar(chars[targetIndex]);
+  const toneRow = PINYIN_TONE_VOWELS[baseChar];
+  if (!toneRow) {
+    return `${stem}${erhuaTail}`;
+  }
+  chars[targetIndex] = toneRow[tone];
+  return `${chars.join('')}${erhuaTail}`;
+}
+
+function parseNumericPinyinToken(token: string): { converted: string; hasNumeric: boolean } {
+  if (!/[0-9]/.test(token)) {
+    return { converted: token, hasNumeric: false };
+  }
+  // Reject tokens starting with digits, multi-digit numbers, or tones outside 0-5.
+  if (/^[0-9]|[6-9]|\d{2,}/.test(token)) {
+    return { converted: token, hasNumeric: false };
+  }
+
+  const segments: Array<{ letters: string; tone: number }> = [];
+  const segRe = /([A-Za-z\u00C0-\u024F\u1E00-\u1EFF:]+)([0-5])/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = segRe.exec(token)) !== null) {
+    if (match.index !== lastIndex) {
+      return { converted: token, hasNumeric: false };
+    }
+    segments.push({ letters: match[1], tone: Number(match[2]) });
+    lastIndex = segRe.lastIndex;
+  }
+
+  if (segments.length === 0) {
+    return { converted: token, hasNumeric: false };
+  }
+
+  const trailing = token.slice(lastIndex);
+  if (/[0-9]/.test(trailing)) {
+    return { converted: token, hasNumeric: false };
+  }
+
+  const parts: string[] = [];
+  for (const seg of segments) {
+    const syllables = segmentPinyinLetterRun(seg.letters, true);
+    if (!syllables || syllables.length === 0) {
+      return { converted: token, hasNumeric: false };
+    }
+    const lastIdx = syllables.length - 1;
+    for (let i = 0; i < lastIdx; i += 1) {
+      parts.push(syllables[i]);
+    }
+    parts.push(applyToneToSinglePinyinSyllable(syllables[lastIdx], seg.tone));
+  }
+
+  if (trailing.length > 0) {
+    if (trailing === 'r' || trailing === 'R') {
+      parts.push(trailing);
+    } else {
+      const trailingSyllables = segmentPinyinLetterRun(trailing, true);
+      if (!trailingSyllables || trailingSyllables.length === 0) {
+        return { converted: token, hasNumeric: false };
+      }
+      parts.push(trailing);
+    }
+  }
+
+  return { converted: parts.join(''), hasNumeric: true };
+}
+
+/**
+ * Returns true when the input contains at least one valid Mandarin Pinyin syllable
+ * annotated with tone digits 0-5 (while rejecting pure numbers, dates, times, or v1-like tokens).
+ */
+export function hasNumericPinyinSyllable(input: string): boolean {
+  if (!input || !/[0-5]/.test(input)) return false;
+  const matches = input.match(PINYIN_TOKEN_RE);
+  if (!matches) return false;
+  return matches.some((token) => parseNumericPinyinToken(token).hasNumeric);
+}
+
+/**
+ * Converts numeric Mandarin Pinyin syllables (e.g. "Ni3 hao3", "nv3", "lu:4", "xie4xie5")
+ * into Unicode tone-marked Pinyin while leaving non-Pinyin text, numbers, and dates untouched.
+ */
+export function convertNumericPinyin(input: string): string {
+  if (!input || !/[0-5]/.test(input)) return input;
+  return input.replace(PINYIN_TOKEN_RE, (token) => parseNumericPinyinToken(token).converted);
+}
+
 const AFTER_HOURS_CLOSED_COMPOUNDS: Readonly<Record<string, string>> = {
   lowkey: 'low key',
   highkey: 'high key',
@@ -1562,6 +1796,39 @@ export function gradeAnswer(req: GradeRequest): GradeResult {
         heartPenalty: 0,
         ...(articleCoaching ? { articleCoaching } : {}),
       };
+    }
+  }
+
+  if (req.language === 'zh' && hasNumericPinyinSyllable(req.submitted)) {
+    const converted = convertNumericPinyin(req.submitted);
+    for (const candidate of candidates) {
+      if (matchesExact(converted, candidate)) {
+        return {
+          isCorrect: true,
+          exactMatch: true,
+          normalizedSubmitted,
+          normalizedExpected,
+          heartPenalty: 0,
+          ...(articleCoaching ? { articleCoaching } : {}),
+        };
+      }
+    }
+    const prioritizedCandidates = [
+      ...candidates.filter((c) => SPECIAL_ACCENT_CHAR_REGEX.test(c)),
+      ...candidates.filter((c) => !SPECIAL_ACCENT_CHAR_REGEX.test(c)),
+    ];
+    for (const candidate of prioritizedCandidates) {
+      if (matchesAccentForgiving(converted, candidate, req.language)) {
+        return {
+          isCorrect: true,
+          exactMatch: false,
+          normalizedSubmitted,
+          normalizedExpected,
+          heartPenalty: 0,
+          accentCoaching: buildAccentCoaching(candidate, converted, 'zh'),
+          ...(articleCoaching ? { articleCoaching } : {}),
+        };
+      }
     }
   }
 
