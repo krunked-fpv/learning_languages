@@ -1,14 +1,35 @@
 import '@testing-library/jest-dom/vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { stopSpeech } from '../../src/audio';
+import { ArcadeHub } from '../../src/components/arcade/ArcadeHub';
 import { StarlightBridgeArcade } from '../../src/components/arcade/StarlightBridgeArcade';
 import { FloatingPopToast } from '../../src/components/fx/JuiceEngine';
+import { BossGauntletView } from '../../src/components/lesson/BossGauntletView';
+import { LessonArena } from '../../src/components/lesson/LessonArena';
 import { WordBankTray, buildWordBankPool } from '../../src/components/lesson/WordBankTray';
+import { WordBankView } from '../../src/components/lesson/WordBankView';
+import {
+  buildFreeRecallPlaceholder,
+  resolveFreeRecallTextAlign,
+} from '../../src/components/lesson/useFreeRecallInput';
 import { CompanionShop } from '../../src/components/meta/CompanionShop';
-import { loadVaultFromStorage, vaultActions } from '../../src/store/useVaultStore';
+import { getCourse, getCourseGlossary } from '../../src/curriculum';
+import { lookupGlossaryEntry } from '../../src/curriculum/helpers';
+import {
+  exportVaultJson,
+  importVaultJson,
+  loadVaultFromStorage,
+  vaultActions,
+} from '../../src/store/useVaultStore';
+import {
+  LANGUAGE_META,
+  type BossGauntletExercise,
+  type LanguageCode,
+  type WordBankExercise,
+} from '../../src/types/contracts';
 
 const ROOT_DIR = resolve(__dirname, '../..');
 
@@ -171,26 +192,31 @@ describe('Sprint 1 Bug Board Targeted Regression Gates (BUG-005, BUG-006, BUG-01
     const { container, unmount } = render(<CompanionShop />);
     expect(container.querySelector('.shop-pedestal-col')).toBeInTheDocument();
     const shieldBtn = screen.getByRole('button', { name: /Buy Shield \(45 Gems\)/i });
-    act(() => {
-      shieldBtn.click();
-      shieldBtn.click();
-    });
-    // Rapid re-queried click across commits (< 350ms cooldown) must also be blocked
-    act(() => {
-      screen.getByRole('button', { name: /Buy Shield \(45 Gems\)/i }).click();
-    });
-    expect(loadVaultFromStorage().profiles[0].streakShields).toBe(shieldsBefore + 1);
-    expect(loadVaultFromStorage().profiles[0].gems).toBe(gemsBefore - 45);
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    try {
+      act(() => {
+        shieldBtn.click();
+        shieldBtn.click();
+      });
+      // Rapid re-queried click across commits (< 350ms cooldown) must also be blocked even under parallel CPU contention
+      act(() => {
+        screen.getByRole('button', { name: /Buy Shield \(45 Gems\)/i }).click();
+      });
+      expect(loadVaultFromStorage().profiles[0].streakShields).toBe(shieldsBefore + 1);
+      expect(loadVaultFromStorage().profiles[0].gems).toBe(gemsBefore - 45);
 
-    // Distinct consumable immediately succeeds, while rapid re-queried double-click is blocked by 350ms actionKey cooldown
-    act(() => {
-      screen.getByRole('button', { name: /Buy Elixir \(35 Gems\)/i }).click();
-    });
-    act(() => {
-      screen.getByRole('button', { name: /Buy Elixir \(35 Gems\)/i }).click();
-    });
-    expect(loadVaultFromStorage().profiles[0].heartElixirs ?? 0).toBe(elixirsBefore + 1);
-    expect(loadVaultFromStorage().profiles[0].gems).toBe(gemsBefore - 80);
+      // Distinct consumable immediately succeeds, while rapid re-queried double-click is blocked by 350ms actionKey cooldown
+      act(() => {
+        screen.getByRole('button', { name: /Buy Elixir \(35 Gems\)/i }).click();
+      });
+      act(() => {
+        screen.getByRole('button', { name: /Buy Elixir \(35 Gems\)/i }).click();
+      });
+      expect(loadVaultFromStorage().profiles[0].heartElixirs ?? 0).toBe(elixirsBefore + 1);
+      expect(loadVaultFromStorage().profiles[0].gems).toBe(gemsBefore - 80);
+    } finally {
+      nowSpy.mockRestore();
+    }
     unmount();
   });
 
@@ -254,6 +280,661 @@ describe('Sprint 1 Bug Board Targeted Regression Gates (BUG-005, BUG-006, BUG-01
       const activeProf = afterReturn.profiles.find((p) => p.id === afterReturn.activeProfileId)!;
       expect(activeProf.adultModeActive).toBe(false);
       unmount();
+    } finally {
+      vi.doUnmock('../../src/curriculum');
+      vi.resetModules();
+    }
+  });
+});
+
+function findToForeignWordBank(language: LanguageCode): WordBankExercise {
+  const found = getCourse(language).units
+    .flatMap((u) => u.nodes)
+    .flatMap((n) => n.exercises)
+    .find(
+      (ex): ex is WordBankExercise =>
+        ex.type === 'word_bank' && ex.direction === 'to_foreign'
+    );
+  if (!found) {
+    throw new Error(`Expected a to_foreign word_bank exercise for ${language}`);
+  }
+  return { ...found, allowFreeRecall: true };
+}
+
+function findBossWordBank(language: LanguageCode): BossGauntletExercise {
+  const rawBoss = getCourse(language).units
+    .flatMap((u) => u.nodes)
+    .flatMap((n) => n.exercises)
+    .find((ex): ex is BossGauntletExercise => ex.type === 'boss_gauntlet');
+  if (!rawBoss) {
+    throw new Error(`Expected boss_gauntlet exercise for ${language}`);
+  }
+  const wbTurn = rawBoss.turns.find((t) => t.mode === 'word_bank') ?? rawBoss.turns[0];
+  return {
+    ...rawBoss,
+    turns: [{ ...wbTurn, mode: 'word_bank', allowFreeRecall: true }],
+  };
+}
+
+describe('Sprint 2 Bug Board Targeted Regression Gates (BUG-S2-001..BUG-S2-011)', () => {
+  const originalInnerWidth = window.innerWidth;
+  const originalInnerHeight = window.innerHeight;
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    vaultActions.resetVaultToDefaults();
+    stopSpeech();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 1);
+  });
+
+  afterEach(() => {
+    cleanup();
+    stopSpeech();
+    setViewportSize(originalInnerWidth, originalInnerHeight);
+    vi.restoreAllMocks();
+  });
+
+  it('[BUG-S2-002] aborts ghost coopMatch if a partner profile is deleted mid-Handoff or recordCoopArcadeSession returns null', () => {
+    // 1. Mid-Handoff partner deletion immediately aborts back to Hub
+    const { unmount } = render(<ArcadeHub initialMode="hub" onExitToMap={vi.fn()} />);
+    fireEvent.click(screen.getByTestId('arcade-coop-toggle'));
+    fireEvent.change(screen.getByTestId('coop-p1-select'), { target: { value: 'kid-leo' } });
+    fireEvent.change(screen.getByTestId('coop-p2-select'), { target: { value: 'kid-maya' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stack Gelato' }));
+    fireEvent.click(screen.getByRole('button', { name: /Start Stacking!/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Drop Scoop!/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
+
+    expect(screen.getByTestId('arcade-coop-handoff')).toHaveTextContent('Pass Console to Maya!');
+    act(() => {
+      vaultActions.deleteProfile('kid-maya');
+    });
+    expect(screen.queryByTestId('arcade-coop-handoff')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Stack Gelato' })).toBeInTheDocument();
+    unmount();
+    cleanup();
+
+    // 2. recordCoopArcadeSession returning null on Turn 2 completion suppresses fake Finale summary
+    vaultActions.resetVaultToDefaults();
+    const recordSpy = vi.spyOn(vaultActions, 'recordCoopArcadeSession').mockReturnValueOnce(null);
+    const { unmount: unmountNull } = render(<ArcadeHub initialMode="hub" onExitToMap={vi.fn()} />);
+    fireEvent.click(screen.getByTestId('arcade-coop-toggle'));
+    fireEvent.click(screen.getByRole('button', { name: 'Stack Gelato' }));
+    fireEvent.click(screen.getByRole('button', { name: /Start Stacking!/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Drop Scoop!/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
+    fireEvent.click(screen.getByRole('button', { name: /Start Maya's Turn!/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Start Stacking!/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Drop Scoop!/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
+
+    expect(recordSpy).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('arcade-coop-summary')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Stack Gelato' })).toBeInTheDocument();
+    unmountNull();
+  });
+
+  it('[BUG-S2-003] validates strict ISO dates on import, sanitizes corrupt storage dates, and keeps newer valid dates on merge', () => {
+    const exportedJson = exportVaultJson();
+    const invalidDateSamples = ['not-a-date', '2026-02-31', '9999-99-99'];
+
+    for (const badIso of invalidDateSamples) {
+      // Corrupt vocabMastery.lastReviewedISO -> rejected in both replace & merge
+      const badVocab = JSON.parse(exportedJson);
+      badVocab.profiles[0].languageProgress.es.vocabMastery = {
+        es_u1_01: { strength: 2, lastReviewedISO: badIso, reviewCount: 1 },
+      };
+      expect(importVaultJson(JSON.stringify(badVocab), 'replace').ok).toBe(false);
+      expect(importVaultJson(JSON.stringify(badVocab), 'merge').ok).toBe(false);
+
+      // Corrupt lastSrsQuestCompletedISO -> rejected in both replace & merge
+      const badSrs = JSON.parse(exportedJson);
+      badSrs.profiles[0].languageProgress.es.lastSrsQuestCompletedISO = badIso;
+      expect(importVaultJson(JSON.stringify(badSrs), 'replace').ok).toBe(false);
+      expect(importVaultJson(JSON.stringify(badSrs), 'merge').ok).toBe(false);
+
+      // Corrupt lastPracticeISO -> rejected
+      const badPractice = JSON.parse(exportedJson);
+      badPractice.profiles[0].lastPracticeISO = badIso;
+      expect(importVaultJson(JSON.stringify(badPractice), 'replace').ok).toBe(false);
+    }
+
+    // Corrupt timestamps persisted directly in localStorage sanitize gracefully without wiping profile
+    const corruptedStored = JSON.parse(exportedJson);
+    corruptedStored.profiles[0].languageProgress.es.lastSrsQuestCompletedISO = 'not-a-date';
+    corruptedStored.profiles[0].languageProgress.es.vocabMastery = {
+      es_u1_01: { strength: 3, lastReviewedISO: '2026-02-31', reviewCount: 2 },
+      es_u1_02: { strength: 4, lastReviewedISO: '2026-11-23', reviewCount: 5 },
+    };
+    window.localStorage.setItem('wanderling.vault.v1', JSON.stringify(corruptedStored));
+    const hydrated = loadVaultFromStorage();
+    expect(hydrated.profiles[0].languageProgress.es.lastSrsQuestCompletedISO).toBeUndefined();
+    expect(hydrated.profiles[0].languageProgress.es.vocabMastery?.es_u1_01).toBeUndefined();
+    expect(hydrated.profiles[0].languageProgress.es.vocabMastery?.es_u1_02.lastReviewedISO).toBe(
+      '2026-11-23'
+    );
+
+    // Merge import keeps the newer chronological valid ISO date across older vs newer saves
+    const baseValid = JSON.parse(exportedJson);
+    baseValid.profiles[0].languageProgress.es.lastSrsQuestCompletedISO = '2026-11-23';
+    baseValid.profiles[0].languageProgress.es.vocabMastery = {
+      es_u1_02: { strength: 4, lastReviewedISO: '2026-11-23', reviewCount: 3 },
+    };
+    expect(importVaultJson(JSON.stringify(baseValid), 'replace').ok).toBe(true);
+
+    const olderValid = JSON.parse(exportedJson);
+    olderValid.profiles[0].languageProgress.es.lastSrsQuestCompletedISO = '2026-11-20';
+    olderValid.profiles[0].languageProgress.es.vocabMastery = {
+      es_u1_02: { strength: 2, lastReviewedISO: '2026-11-20', reviewCount: 1 },
+    };
+    expect(importVaultJson(JSON.stringify(olderValid), 'merge').ok).toBe(true);
+    const mergedOlder = loadVaultFromStorage().profiles[0].languageProgress.es;
+    expect(mergedOlder.lastSrsQuestCompletedISO).toBe('2026-11-23');
+    expect(mergedOlder.vocabMastery?.es_u1_02.lastReviewedISO).toBe('2026-11-23');
+
+    const newerValid = JSON.parse(exportedJson);
+    newerValid.profiles[0].languageProgress.es.lastSrsQuestCompletedISO = '2026-11-25';
+    expect(importVaultJson(JSON.stringify(newerValid), 'merge').ok).toBe(true);
+    expect(loadVaultFromStorage().profiles[0].languageProgress.es.lastSrsQuestCompletedISO).toBe(
+      '2026-11-25'
+    );
+  });
+
+  it('[BUG-S2-004] credits Kid-Quarantined Co-Op XP to the played safe base language instead of Adult activeLanguage', () => {
+    vaultActions.setActiveLanguage('fr');
+    const adult = vaultActions.unlockAdultMode({
+      adultProfileName: 'Alex',
+      initialTrack: 'ebonics',
+    });
+    expect(adult.activeLanguage).toBe('ebonics');
+    expect(adult.lastBaseLanguage).toBe('fr');
+
+    const summary = vaultActions.recordCoopArcadeSession({
+      gameId: 'tower_stack',
+      playerOneId: adult.id,
+      playerOneScore: 160,
+      playerOneLanguage: 'ebonics',
+      playerTwoId: 'kid-leo',
+      playerTwoScore: 120,
+      playerTwoLanguage: 'es',
+      bonusGems: 4,
+      xpEarned: 25,
+    });
+    expect(summary).not.toBeNull();
+
+    const after = loadVaultFromStorage();
+    const alexAfter = after.profiles.find((p) => p.id === adult.id)!;
+    const leoAfter = after.profiles.find((p) => p.id === 'kid-leo')!;
+    expect(alexAfter.languageProgress.fr.xpEarned).toBe(25);
+    expect(alexAfter.languageProgress.ebonics?.xpEarned ?? 0).toBe(0);
+    expect(leoAfter.languageProgress.es.xpEarned).toBe(25);
+
+    // When BOTH players are Adult unlocked & active, create distinct second adult profile so both settle cleanly
+    vaultActions.createProfile({
+      name: 'Jordan',
+      avatarId: 'colette_baker',
+      bannerColor: '#0EA5E9',
+      activeLanguage: 'es',
+    });
+    const adultTwo = vaultActions.unlockAdultMode({
+      initialTrack: 'suburban',
+    });
+    expect(adultTwo.id).not.toBe(adult.id);
+    const rawVault = JSON.parse(exportVaultJson()) as {
+      activeProfileId: string;
+      profiles: Array<{ id: string; adultModeUnlocked?: boolean; adultModeActive?: boolean; activeLanguage: string }>;
+    };
+    const p1 = rawVault.profiles.find((p) => p.id === adult.id)!;
+    const p2 = rawVault.profiles.find((p) => p.id === adultTwo.id)!;
+    p1.adultModeUnlocked = true;
+    p1.adultModeActive = true;
+    p1.activeLanguage = 'ebonics';
+    p2.adultModeUnlocked = true;
+    p2.adultModeActive = true;
+    p2.activeLanguage = 'suburban';
+    importVaultJson(JSON.stringify(rawVault), 'replace');
+
+    vaultActions.recordCoopArcadeSession({
+      gameId: 'starlight_bridge',
+      playerOneId: adult.id,
+      playerOneScore: 140,
+      playerOneLanguage: 'ebonics',
+      playerTwoId: adultTwo.id,
+      playerTwoScore: 140,
+      playerTwoLanguage: 'suburban',
+      bonusGems: 5,
+      xpEarned: 30,
+    });
+    const bothAdultAfter = loadVaultFromStorage();
+    expect(
+      bothAdultAfter.profiles.find((p) => p.id === adult.id)!.languageProgress.ebonics?.xpEarned
+    ).toBe(30);
+    expect(
+      bothAdultAfter.profiles.find((p) => p.id === adultTwo.id)!.languageProgress.suburban?.xpEarned
+    ).toBe(30);
+  });
+
+  it('[BUG-S2-005] wraps LessonArena mobile header pills into secondary row while preserving progress-track min-width >= 64px', () => {
+    const themeCss = readFileSync(resolve(ROOT_DIR, 'src/styles/theme.css'), 'utf8');
+    const mobileHeaderCssMatch = themeCss.match(
+      /@media\s*\(max-width:\s*640px\)\s*\{[\s\S]*?\.lesson-arena-header\s*\{[\s\S]*?flex-wrap:\s*wrap;[\s\S]*?\.lesson-progress-track\s*\{[\s\S]*?min-width:\s*64px;[\s\S]*?\.lesson-header-secondary\s*\{[\s\S]*?flex:\s*1\s+0\s+100%;/
+    );
+    expect(mobileHeaderCssMatch).not.toBeNull();
+
+    setViewportSize(375, 667);
+    vaultActions.unlockAdultMode({ adultProfileName: 'Parent', initialTrack: 'ebonics' });
+    const ebonicsNode = getCourse('ebonics').units[0].nodes[0];
+    const { container, unmount } = render(
+      <LessonArena node={ebonicsNode} language="ebonics" onExit={vi.fn()} />
+    );
+    const header = container.querySelector('.lesson-arena-header')!;
+    expect(header.querySelector('.lesson-header-exit')).not.toBeNull();
+    expect(header.querySelector('.lesson-progress-track')).not.toBeNull();
+    expect(header.querySelector('.lesson-header-hearts')).toHaveTextContent('5/5');
+    const secondary = header.querySelector('.lesson-header-secondary')!;
+    expect(secondary).not.toBeNull();
+    expect(within(secondary as HTMLElement).getByTestId('lesson-study-break-btn')).toBeInTheDocument();
+    unmount();
+  });
+
+  it('[BUG-S2-006] keeps empty RTL Free-Recall placeholders left-aligned and concise on 375px ar/arz/vi', () => {
+    expect(resolveFreeRecallTextAlign('rtl', '')).toBe('left');
+    expect(resolveFreeRecallTextAlign('rtl', 'marhaban')).toBe('left');
+    expect(resolveFreeRecallTextAlign('rtl', 'مرحبا')).toBe('right');
+    expect(
+      buildFreeRecallPlaceholder({
+        language: 'ar',
+        direction: 'to_foreign',
+        compact: true,
+        variant: 'word_bank',
+      })
+    ).toBe('Type in Arabic or romanized');
+    expect(
+      buildFreeRecallPlaceholder({
+        language: 'arz',
+        direction: 'to_foreign',
+        compact: true,
+        variant: 'word_bank',
+      })
+    ).toBe('Type in Egyptian or romanized');
+    expect(
+      buildFreeRecallPlaceholder({
+        language: 'vi',
+        direction: 'to_foreign',
+        compact: true,
+        variant: 'word_bank',
+      })
+    ).toBe('Type in Vietnamese...');
+
+    const themeCss = readFileSync(resolve(ROOT_DIR, 'src/styles/theme.css'), 'utf8');
+    expect(themeCss).toMatch(/\.free-recall-input:placeholder-shown[\s\S]*?direction:\s*ltr;[\s\S]*?text-align:\s*left;/);
+    expect(themeCss).toMatch(/\.free-recall-input::placeholder[\s\S]*?direction:\s*ltr;[\s\S]*?unicode-bidi:\s*isolate;[\s\S]*?text-align:\s*left;/);
+
+    setViewportSize(375, 667);
+    for (const lang of ['ar', 'arz'] as const) {
+      const ex = findToForeignWordBank(lang);
+      const { unmount } = render(
+        <WordBankView
+          exercise={ex}
+          language={lang}
+          compact={true}
+          locked={false}
+          onTurtlePlay={vi.fn()}
+          onDraftChange={vi.fn()}
+        />
+      );
+      fireEvent.click(screen.getByRole('button', { name: /Keyboard Free-Recall|Type Instead/i }));
+      const input = screen.getByLabelText('Type your translation') as HTMLInputElement;
+      expect(input.getAttribute('dir')).toBe('rtl');
+      expect(input.style.textAlign).toBe('left');
+      fireEvent.change(input, { target: { value: 'مرحبا' } });
+      expect(input.style.textAlign).toBe('right');
+      unmount();
+      cleanup();
+    }
+  });
+
+  it('[BUG-S2-007] appends synchronous rapid VirtualScriptDrawer clicks sequentially without dropping characters', () => {
+    setViewportSize(375, 667);
+
+    // 1. WordBankView synchronous double tap
+    const zhEx = findToForeignWordBank('zh');
+    const { unmount: unmountWb } = render(
+      <WordBankView
+        exercise={zhEx}
+        language="zh"
+        compact={true}
+        locked={false}
+        onTurtlePlay={vi.fn()}
+        onDraftChange={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Keyboard Free-Recall|Type Instead/i }));
+    const wbInput = screen.getByLabelText('Type your translation') as HTMLInputElement;
+    fireEvent.change(wbInput, { target: { value: 'ab' } });
+    wbInput.setSelectionRange(1, 1);
+    fireEvent.select(wbInput);
+
+    fireEvent.click(screen.getByTestId('virtual-script-drawer-toggle'));
+    const wbDrawer = screen.getByTestId('virtual-script-drawer');
+    const wbKey1 = within(wbDrawer).getByRole('button', { name: 'nǐ' });
+    const wbKey2 = within(wbDrawer).getByRole('button', { name: 'hǎo' });
+    act(() => {
+      wbKey1.click();
+      wbKey2.click();
+    });
+    expect(wbInput.value).toBe('anǐhǎob');
+    expect(wbInput.selectionStart).toBe(6);
+    unmountWb();
+    cleanup();
+
+    // 2. BossGauntletView synchronous double tap
+    const zhBoss = findBossWordBank('zh');
+    const { unmount: unmountBoss } = render(
+      <BossGauntletView
+        exercise={zhBoss}
+        language="zh"
+        compact={true}
+        onTurtlePlay={vi.fn()}
+        onTurnResult={vi.fn()}
+        onComplete={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Keyboard Free-Recall|Type Instead/i }));
+    const bossInput = screen.getByLabelText('Type your boss reply') as HTMLInputElement;
+    fireEvent.change(bossInput, { target: { value: 'ab' } });
+    bossInput.setSelectionRange(1, 1);
+    fireEvent.select(bossInput);
+
+    fireEvent.click(screen.getByTestId('virtual-script-drawer-toggle'));
+    const bossDrawer = screen.getByTestId('virtual-script-drawer');
+    const bossKey1 = within(bossDrawer).getByRole('button', { name: 'nǐ' });
+    const bossKey2 = within(bossDrawer).getByRole('button', { name: 'hǎo' });
+    act(() => {
+      bossKey1.click();
+      bossKey2.click();
+    });
+    expect(bossInput.value).toBe('anǐhǎob');
+    expect(bossInput.selectionStart).toBe(6);
+    unmountBoss();
+  });
+
+  it('[BUG-S2-008] resolves Italian gl, bell, anch, and ch elision prefixes across straight and curly apostrophes', () => {
+    const itGlossary = getCourseGlossary('it');
+    const italianWithUomo = {
+      ...itGlossary,
+      uomo: { translation: 'man', phonetic: 'WOH-moh' },
+    };
+
+    const gliRes = lookupGlossaryEntry("gl'amici", itGlossary);
+    expect(gliRes?.translation).toContain('the (masc. pl.)');
+    expect(gliRes?.translation).toContain('friends');
+    expect(lookupGlossaryEntry('Gl’amici!', itGlossary)?.translation).toContain(
+      'the (masc. pl.)'
+    );
+
+    const anchRes = lookupGlossaryEntry("anch'io", itGlossary);
+    expect(anchRes?.translation).toContain('also / even');
+    expect(lookupGlossaryEntry('anch’io', itGlossary)?.translation).toContain(
+      'also / even'
+    );
+
+    const cheRes = lookupGlossaryEntry("ch'è", itGlossary);
+    expect(cheRes?.translation).toContain('that / what');
+    expect(lookupGlossaryEntry('CH’È?', itGlossary)?.translation).toContain('that / what');
+
+    expect(lookupGlossaryEntry("bell'albero", itGlossary)?.translation).toContain(
+      'lovely / handsome'
+    );
+    const bellUomo = lookupGlossaryEntry("bell'uomo", italianWithUomo);
+    expect(bellUomo?.translation).toContain('lovely / handsome');
+    expect(bellUomo?.translation).toContain('man');
+  });
+
+  it('[BUG-S2-009] hides duplicate Accent character bar while VirtualScriptDrawer is open and restores it on collapse', () => {
+    setViewportSize(375, 667);
+
+    // 1. WordBankView toggle deduplication
+    const zhEx = findToForeignWordBank('zh');
+    const { unmount: unmountWb } = render(
+      <WordBankView
+        exercise={zhEx}
+        language="zh"
+        compact={true}
+        locked={false}
+        onTurtlePlay={vi.fn()}
+        onDraftChange={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Keyboard Free-Recall|Type Instead/i }));
+    expect(screen.getByLabelText('Accent character bar')).toBeInTheDocument();
+
+    const wbToggle = screen.getByTestId('virtual-script-drawer-toggle');
+    fireEvent.click(wbToggle);
+    expect(wbToggle).toHaveAttribute('aria-expanded', 'true');
+    const wbDrawer = screen.getByTestId('virtual-script-drawer');
+    expect(wbDrawer.querySelector('.console-scroll-pane')).not.toBeNull();
+    expect(screen.queryByLabelText('Accent character bar')).not.toBeInTheDocument();
+
+    fireEvent.click(wbToggle);
+    expect(wbToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(wbDrawer.querySelector('.console-scroll-pane')).toBeNull();
+    expect(screen.getByLabelText('Accent character bar')).toBeInTheDocument();
+    unmountWb();
+    cleanup();
+
+    // 2. BossGauntletView toggle deduplication
+    const zhBoss = findBossWordBank('zh');
+    const { unmount: unmountBoss } = render(
+      <BossGauntletView
+        exercise={zhBoss}
+        language="zh"
+        compact={true}
+        onTurtlePlay={vi.fn()}
+        onTurnResult={vi.fn()}
+        onComplete={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Keyboard Free-Recall|Type Instead/i }));
+    expect(screen.getByLabelText('Accent character bar')).toBeInTheDocument();
+
+    const bossToggle = screen.getByTestId('virtual-script-drawer-toggle');
+    fireEvent.click(bossToggle);
+    expect(screen.queryByLabelText('Accent character bar')).not.toBeInTheDocument();
+    fireEvent.click(bossToggle);
+    expect(screen.getByLabelText('Accent character bar')).toBeInTheDocument();
+    unmountBoss();
+  });
+
+  it('[BUG-S2-010] restricts Vitest include globs to tests/ so baseCoursesLoader.test.ts shim never fails unfiltered runs', () => {
+    const viteCfg = readFileSync(resolve(ROOT_DIR, 'vite.config.ts'), 'utf8');
+    expect(viteCfg).toMatch(/include:\s*\[\s*'tests\/\*\*\/\*\.\{test,spec\}\.\{ts,tsx\}'\s*\]/);
+  });
+
+  it('[BUG-S2-011] enforces 2P Co-Op Kid-Safety Quarantine whenever an Adult-unlocked partner is in Kid Atlas (adultModeActive: false)', () => {
+    vaultActions.setActiveLanguage('fr');
+    const adultP1 = vaultActions.unlockAdultMode({
+      adultProfileName: 'Morgan',
+      initialTrack: 'ebonics',
+    });
+    vaultActions.setAdultModeActive(false);
+    vaultActions.createProfile({
+      name: 'Taylor',
+      avatarId: 'pip_explorer',
+      bannerColor: '#2563EB',
+      activeLanguage: 'es',
+    });
+    const adultP2 = vaultActions.unlockAdultMode({
+      initialTrack: 'suburban',
+    });
+    expect(adultP2.id).not.toBe(adultP1.id);
+
+    const vaultRaw = JSON.parse(exportVaultJson()) as {
+      activeProfileId: string;
+      profiles: Array<{
+        id: string;
+        adultModeUnlocked?: boolean;
+        adultModeActive?: boolean;
+        activeLanguage: string;
+        lastBaseLanguage?: string;
+      }>;
+    };
+    const p1 = vaultRaw.profiles.find((p) => p.id === adultP1.id)!;
+    const p2 = vaultRaw.profiles.find((p) => p.id === adultP2.id)!;
+    p1.adultModeUnlocked = true;
+    p1.adultModeActive = false;
+    p1.activeLanguage = 'fr';
+    p1.lastBaseLanguage = 'fr';
+    p2.adultModeUnlocked = true;
+    p2.adultModeActive = true;
+    p2.activeLanguage = 'suburban';
+    p2.lastBaseLanguage = 'es';
+    vaultRaw.activeProfileId = adultP1.id;
+    expect(importVaultJson(JSON.stringify(vaultRaw), 'replace').ok).toBe(true);
+
+    const { unmount } = render(<ArcadeHub initialMode="hub" onExitToMap={vi.fn()} />);
+    fireEvent.click(screen.getByTestId('arcade-coop-toggle'));
+    fireEvent.change(screen.getByTestId('coop-p1-select'), { target: { value: adultP1.id } });
+    fireEvent.change(screen.getByTestId('coop-p2-select'), { target: { value: adultP2.id } });
+
+    // Hub hides Adult badge immediately under Kid-Atlas quarantine
+    expect(screen.queryByText(LANGUAGE_META.ebonics.pairDirectionBadge!)).not.toBeInTheDocument();
+    expect(screen.queryByText(LANGUAGE_META.suburban.pairDirectionBadge!)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Build Star Bridge' }));
+    fireEvent.click(screen.getByRole('button', { name: /Start Bridge Sprint!/i }));
+    expect(screen.queryByTestId('arcade-say-it-normally-btn')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
+
+    // Turn 2 (even though P2 has adultModeUnlocked: true && adultModeActive: true) stays strictly quarantined
+    fireEvent.click(screen.getByRole('button', { name: /Start Taylor's Turn!/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Start Bridge Sprint!/i }));
+    expect(screen.getByTestId('arcade-coop-turn-pill')).toHaveTextContent('P2: Taylor');
+    expect(screen.queryByTestId('arcade-say-it-normally-btn')).not.toBeInTheDocument();
+    const suburbanSamples = Object.values(getCourse('suburban').vocabById)
+      .slice(0, 8);
+    for (const card of suburbanSamples) {
+      expect(screen.queryByText(card.foreignWithArticle)).not.toBeInTheDocument();
+    }
+    unmount();
+  });
+
+  it('[BUG-S2-001] lazily hydrates unvisited base languages in useArcadeDeck during Co-Op Turn 2 and Quarantined fallback', async () => {
+    vi.resetModules();
+    const actualCurriculum = await vi.importActual<typeof import('../../src/curriculum')>(
+      '../../src/curriculum'
+    );
+    const actualFr = actualCurriculum.COURSES.fr;
+    const expectedFrWords = new Set([
+      ...actualCurriculum.getArcadeLexicon('fr', [], 0, 'sprout').map((c) => c.foreign),
+      ...Object.values(actualFr.vocabById).map((c) => c.foreignWithArticle),
+    ]);
+    let frLoaded = false;
+    let baseRev = 0;
+    const baseListeners = new Set<() => void>();
+    const ensureBaseSpy = vi.fn(async (lang: string) => {
+      if (lang === 'fr' && !frLoaded) {
+        await Promise.resolve();
+        frLoaded = true;
+        baseRev += 1;
+        for (const l of baseListeners) l();
+      }
+      return actualCurriculum.COURSES[lang as keyof typeof actualCurriculum.COURSES];
+    });
+
+    vi.doMock('../../src/curriculum', () => ({
+      ...actualCurriculum,
+      COURSES: new Proxy(actualCurriculum.COURSES, {
+        get(target, prop, receiver) {
+          if (prop === 'fr' && !frLoaded) {
+            return { ...actualFr, units: [] };
+          }
+          return Reflect.get(target, prop, receiver);
+        },
+      }),
+      getCourse: vi.fn((lang: string) => {
+        if (lang === 'fr' && !frLoaded) {
+          return { ...actualFr, units: [] };
+        }
+        return actualCurriculum.getCourse(lang as never);
+      }),
+      isBaseTrackLoaded: vi.fn((lang: string) => (lang === 'fr' ? frLoaded : true)),
+      isBaseCourseLoaded: vi.fn((lang: string) => (lang === 'fr' ? frLoaded : true)),
+      ensureBaseCourseLoaded: ensureBaseSpy,
+      subscribeBaseRegistry: vi.fn((listener: () => void) => {
+        baseListeners.add(listener);
+        return () => baseListeners.delete(listener);
+      }),
+      getBaseRegistryVersion: vi.fn(() => baseRev),
+    }));
+
+    try {
+      const { vaultActions: mockVaultActions } = await import('../../src/store/useVaultStore');
+      const { ArcadeHub: MockedArcadeHub } = await import('../../src/components/arcade/ArcadeHub');
+      const { useArcadeDeck: mockUseArcadeDeck } = await import(
+        '../../src/components/arcade/arcadeShared'
+      );
+      window.localStorage.clear();
+      mockVaultActions.resetVaultToDefaults();
+      mockVaultActions.switchProfile('kid-maya');
+      mockVaultActions.setActiveLanguage('fr');
+      mockVaultActions.switchProfile('kid-leo');
+
+      const { unmount } = render(<MockedArcadeHub initialMode="hub" onExitToMap={vi.fn()} />);
+      fireEvent.click(screen.getByTestId('arcade-coop-toggle'));
+
+      await waitFor(() => {
+        expect(ensureBaseSpy).toHaveBeenCalledWith('fr');
+        expect(frLoaded).toBe(true);
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Build Star Bridge' }));
+      fireEvent.click(screen.getByRole('button', { name: /Start Bridge Sprint!/i }));
+      fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
+      fireEvent.click(screen.getByRole('button', { name: /Start Maya's Turn!/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Start Bridge Sprint!/i }));
+
+      await waitFor(() => {
+        const pageText = document.body.textContent ?? '';
+        const matchedRealFr = Array.from(expectedFrWords).some((w) => pageText.includes(w));
+        expect(matchedRealFr).toBe(true);
+      });
+      unmount();
+      cleanup();
+
+      // Also verify direct useArcadeDeck quarantined Adult->base fallback triggers ensureBaseCourseLoaded('fr')
+      frLoaded = false;
+      ensureBaseSpy.mockClear();
+      mockVaultActions.resetVaultToDefaults();
+      mockVaultActions.setActiveLanguage('fr');
+      const quarantinedAdult = mockVaultActions.unlockAdultMode({
+        adultProfileName: 'QuarantinedParent',
+        initialTrack: 'ebonics',
+      });
+      function QuarantinedDeckProbe() {
+        const deck = mockUseArcadeDeck('sprout', {
+          profile: quarantinedAdult,
+          kidQuarantined: true,
+        });
+        return (
+          <div data-testid="deck-probe" data-lang={deck.language}>
+            {deck.lexicon.map((item) => item.foreign).join('|')}
+          </div>
+        );
+      }
+      const { unmount: unmountProbe } = render(<QuarantinedDeckProbe />);
+      await waitFor(() => {
+        expect(ensureBaseSpy).toHaveBeenCalledWith('fr');
+        expect(frLoaded).toBe(true);
+      });
+      const probe = screen.getByTestId('deck-probe');
+      expect(probe.getAttribute('data-lang')).toBe('fr');
+      await waitFor(() => {
+        const probeText = probe.textContent ?? '';
+        expect(Array.from(expectedFrWords).some((w) => probeText.includes(w))).toBe(true);
+      });
+      unmountProbe();
     } finally {
       vi.doUnmock('../../src/curriculum');
       vi.resetModules();

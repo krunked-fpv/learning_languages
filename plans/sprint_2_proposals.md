@@ -1,14 +1,14 @@
-# Studio Wanderling — Sprint 2 Proposals (RFCs) — GREENLIT & IN EXECUTION
+# Studio Wanderling — Sprint 2 Proposals (RFCs) — SHIPPED & VERIFIED
 
-**Sprint Status:** **GREENLIT — IN EXECUTION (`Operation Starlight Horizon`, Sprint 2)**  
-Curator: **Vera (`vera-redteam` / `vera-s2`)**  
-Contributors: **Mila (`mila-playtester`)**, **Devon (`devon-chaos`)**, Coordinator Guidance (`#7`)
+**Sprint Status:** **SHIPPED & VERIFIED (`Operation Starlight Horizon`, Sprint 2)** — All `7` RFCs (`S2-001`–`S2-007`) shipped, `19/19` Vitest suites (`251/251` tests, `115/115` playtests `PT-001`–`PT-115`), `11/11` `BUG-S2-###` verified closed, `0` TS/console/HTTP errors.
+Curator: **Vera (`vera-redteam` / `vera-s2`)**
+Contributors: **Mila (`mila-playtester`)**, **Devon (`devon-chaos`)**, Coordinator Guidance (`#7`, `#77`)
 
-> **Scope Rule:** All 7 Sprint 2 RFCs (`S2-001`–`S2-007`) below are approved for implementation in **Operation Starlight Horizon**, followed by a full `115`-playtest verification sweep (`PT-001`–`PT-115`), live `/wanderling-subpath/` browser audits, Bug Board closure, and zero-error release gate.
+> **Release Gate Met:** All 7 Sprint 2 RFCs (`S2-001`–`S2-007`) are shipped & verified across `115`-playtest verification (`PT-001`–`PT-115`), live `/wanderling-subpath/` browser audits, and Sprint 2 Bug Board closure (`0` open `BUG-S2-###`).
 
 ---
 
-### S2-001 — Per-Language & Course Data Dynamic Code-Splitting (Eliminate 6.7 MB Base Bundle)
+### S2-001 — Per-Language & Course Data Dynamic Code-Splitting (Eliminate 6.7 MB Base Bundle) — `SHIPPED & VERIFIED`
 - **Title:** Dynamic Per-Language & Unit Curriculum Chunking
 - **Triggered By:** Vite production build warning (`index` base bundle `~6.7 MB`) + PWA precache footprint analysis (`PT-098`, `PT-104`)
 - **Player Value & Comedy/Learning Upside:** Slashes first-load time on mobile tablets by loading only the player's active language (`es` by default) + background-prefetching unlocked lands, making offline PWA installs tiny and snappy for kids on school/family Wi-Fi.
@@ -19,7 +19,7 @@ Contributors: **Mila (`mila-playtester`)**, **Devon (`devon-chaos`)**, Coordinat
 
 ---
 
-### S2-002 — Romanized Pinyin & Romaji Free-Recall Hint Engine v2
+### S2-002 — Romanized Pinyin & Romaji Free-Recall Hint Engine v2 — `SHIPPED & VERIFIED`
 - **Title:** Multi-Script Romanized Free-Recall Prefix & Tone Coaching Engine
 - **Triggered By:** `BUG-004` (`PT-019` — `zh`/`ja` valid Pinyin/Romaji inputs fail grapheme prefix comparison against Hanzi/Kana while showing tone bar)
 - **Player Value & Comedy/Learning Upside:** Unlocks joyful typing practice for learners on standard QWERTY keyboards across Mandarin (`zh`), Japanese (`ja`), Hindi/Bengali, Arabic/Egyptian Arabic, and Russian without requiring OS IME installation.
@@ -30,7 +30,7 @@ Contributors: **Mila (`mila-playtester`)**, **Devon (`devon-chaos`)**, Coordinat
 
 ---
 
-### S2-003 — Full-Asset PWA Precache Manifest & Offline Dynamic Chunk Recovery
+### S2-003 — Full-Asset PWA Precache Manifest & Offline Dynamic Chunk Recovery — `SHIPPED & VERIFIED`
 - **Title:** Build-Generated SW Precache Manifest + Offline Chunk Resilience
 - **Triggered By:** `BUG-006` (`PT-104` — HTTP `503` & permanent spinner when launching unvisited After-Hours chunks offline)
 - **Player Value & Comedy/Learning Upside:** Guarantees zero-wifi airplane/car-ride reliability for every language land and After-Hours Mashup once installed.
@@ -41,7 +41,7 @@ Contributors: **Mila (`mila-playtester`)**, **Devon (`devon-chaos`)**, Coordinat
 
 ---
 
-### S2-004 — Watchdog-Triggered Marimba Phonetic Rescue & `SpeechOutcome` v2
+### S2-004 — Watchdog-Triggered Marimba Phonetic Rescue & `SpeechOutcome` v2 — `SHIPPED & VERIFIED`
 - **Title:** Audio Watchdog Phonetic Cadence Rescue (`SpeechOutcome` v2)
 - **Triggered By:** `PT-106` (`src/audio/speechEngine.ts:70, 584-588` silently resolves at `4500ms` with `{ usedNativeVoice: true }` due to locked v1 unit-test contracts at `tests/adult-easter-egg.test.tsx:1165` and `tests/speech-audio.test.ts:242`)
 - **Player Value & Comedy/Learning Upside:** When stripped Android/Chromebook browsers silently hang inside `speechSynthesis.speak`, learners automatically receive rhythmic marimba syllable playback + visual phonetic cue instead of awkward 4.5-second silence.
@@ -52,7 +52,7 @@ Contributors: **Mila (`mila-playtester`)**, **Devon (`devon-chaos`)**, Coordinat
 
 ---
 
-### S2-005 — Mid-Lesson 1-Tap Study Break Panic Switch (After-Hours Atlas)
+### S2-005 — Mid-Lesson 1-Tap Study Break Panic Switch (After-Hours Atlas) — `SHIPPED & VERIFIED`
 - **Title:** In-Lesson 1-Tap Study Break Panic Button
 - **Triggered By:** Observation in Cohort B (`TopHud` with `Return to Kid Atlas` is hidden while `LessonArena` is active, leaving no 1-tap mid-lesson escape)
 - **Player Value & Comedy/Learning Upside:** Preserves instant, hilarious stealth recovery even in the middle of an After-Hours boss battle or lesson screen—one tap swaps straight back to the kid's `lastBaseLanguage` Adventure Map cleanly.
@@ -63,7 +63,7 @@ Contributors: **Mila (`mila-playtester`)**, **Devon (`devon-chaos`)**, Coordinat
 
 ---
 
-### S2-006 — Elision & Proclitic-Aware Multi-Script Tokenizer + Virtual IME Drawer
+### S2-006 — Elision & Proclitic-Aware Multi-Script Tokenizer + Virtual IME Drawer — `SHIPPED & VERIFIED`
 - **Title:** Clitic-Aware Tap-to-Peek/Cloze Engine & On-Screen Script Drawer
 - **Triggered By:** `BUG-007` (`fr`/`it` apostrophe elisions & `ru` em-dash) & `BUG-009` (`ar` proclitic `و`) + learner typing friction across `zh`/`ja`/`ar`/`hi`/`bn`/`ru`
 - **Player Value & Comedy/Learning Upside:** Gives learners effortless single-tap glosses on contractions/proclitics and an interactive mini Kana/Pinyin/Arabic/Devanagari picker drawer for Free-Recall challenges without memorizing OS keyboard layouts.
@@ -74,7 +74,7 @@ Contributors: **Mila (`mila-playtester`)**, **Devon (`devon-chaos`)**, Coordinat
 
 ---
 
-### S2-007 — Spaced-Repetition Review Quests & Dual-Player Family Co-Op Arcade
+### S2-007 — Spaced-Repetition Review Quests & Dual-Player Family Co-Op Arcade — `SHIPPED & VERIFIED`
 - **Title:** Adaptive SRS Decay Quests + Pass-and-Play Family Arcade Battles
 - **Triggered By:** Phrasebook (`2,400+` stickers across `16` languages) + *Family Show-Off Mode* + `9`-cabinet Arcade engagement observations
 - **Player Value & Comedy/Learning Upside:** Gives parents and siblings a hilarious couch co-op quiz/arcade challenge using unlocked Phrasebook stickers while keeping weak words warm through spaced-repetition mini-quests.

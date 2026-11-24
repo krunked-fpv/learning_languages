@@ -2,92 +2,92 @@
 
 ## Sprint 2 — Operation Starlight Horizon (`PT-001`–`PT-115`)
 
-- **Sprint 2 Status:** `BUGS_FOUND` (`S2-001`–`S2-007` implemented; `0` TypeScript errors; `115/115` Cohort A–F playtests passing; across all `19` `tests/` suites [`240` tests], `18/19` [`239/240`] passed in parallel `npx vitest run tests` with `[BUG-014]` hitting a CPU-contention `<350ms` cooldown flake that passed `5/5` standalone; unfiltered `npx vitest run` hits `BUG-S2-010`; `11` verified Sprint 2 bugs `BUG-S2-001`–`BUG-S2-011` logged)
+- **Sprint 2 Status:** `VERIFIED_CLOSED` (`0` open Sprint 2 bugs; `11 / 11` verified closed; `S2-001`–`S2-007` shipped & verified; `npx tsc --noEmit` -> `0` errors; unfiltered `npx vitest run` -> `19 / 19` suites & `251 / 251` tests passing including `115 / 115` playtests `PT-001`–`PT-115` and `16 / 16` `tests/playtests/bug-board-regressions.test.tsx`; live `http://127.0.0.1:4173/wanderling-subpath/` Chrome audits across `1440x900`, `768x1024`, `375x667` -> `0` console/page/HTTP errors, `0` outer overflow)
 - **Lead Quartermaster:** **Vera (`vera-s2`)** | **Scouts:** **Devon (`devon-s2`)**, **Mila (`mila-s2`)**
-- **Sprint 2 Playtest Coverage:** `115` playtests (`PT-001`–`PT-100` regression + `PT-101`–`PT-115` Cohort F covering `S2-001`–`S2-007`) + `tests/` suites + live `http://127.0.0.1:4173/wanderling-subpath/` Chrome audits across `1440x900`, `768x1024`, `375x667`
-- **Open Sprint 2 Bugs (`BUG-S2-###`):** `11` (`0 P0`, `3 P1`, `6 P2`, `2 P3`)
+- **Sprint 2 Playtest Coverage:** `115` playtests (`PT-001`–`PT-100` regression + `PT-101`–`PT-115` Cohort F) + `16 / 16` targeted Bug Board gates (`BUG-005, 006, 010, 013, 014` & `BUG-S2-001`–`BUG-S2-011`) + `12` baseline suites (`251 / 251` tests) + live `http://127.0.0.1:4173/wanderling-subpath/` Chrome audits
+- **Open Sprint 2 Bugs (`BUG-S2-###`):** `0` (`11 / 11` `VERIFIED_CLOSED`)
 
-| Bug ID | Playtest / Area | Severity | Owner | Status | Summary |
+| Bug ID | Playtest / Area | Severity | Owner | Status | Fix Commit & Closure Summary |
 | :--- | :--- | :---: | :--- | :---: | :--- |
-| `BUG-S2-001` | `PT-101` / `PT-107` (`S2-001`, `S2-007`) | `P1` | `@leo-s2` | `OPEN` | `useArcadeDeck` never subscribes to `subscribeBaseRegistry` or calls `ensureBaseCourseLoaded`, keeping non-`es` Co-Op Turn 2 (or quarantined fallback) stuck on 8-item fallback lexicon |
-| `BUG-S2-002` | `PT-107` / `PT-114` (`S2-007`) | `P2` | `@leo-s2` | `OPEN` | Ghost `coopMatch` survives partner deletion mid-Handoff (`ProfileVaultModal`), running Turn 2 under deleted profile and showing fake Finale while dropping all rewards/stats |
-| `BUG-S2-003` | `PT-111` (`S2-007`) | `P2` | `@julian-s2` | `OPEN` | `validateVault` allows non-date strings in `lastReviewedISO` / `lastSrsQuestCompletedISO` and `pickNewestISO` falls back to lexicographical `tb > ta`, overwriting valid dates on `merge` |
-| `BUG-S2-004` | `PT-108` (`S2-005`, `S2-007`) | `P3` | `@julian-s2` / `@leo-s2` | `OPEN` | Kid-Quarantined Co-Op credits `xpEarned` to `profile.activeLanguage` (`ebonics`) instead of the played safe base language (`resolveSafeBaseLanguage`) |
-| `BUG-S2-005` | `PT-106` / `PT-113` (`S2-005`) | `P1` | `@liam-s2` | `OPEN` | Adult `Study Break` + `Remix` + `ON FIRE!` pills overflow `.lesson-arena-header` on `375x667` (`hdrScrollW: 399 > 375`), clipping `5/5` Hearts pill & crushing `.lesson-progress-track` to `24px` |
-| `BUG-S2-006` | `PT-103` / `PT-109` (`S2-002`, `S2-006`) | `P2` | `@liam-s2` | `OPEN` | Free-Recall `to_foreign` RTL `<input dir="rtl">` clips English placeholder off-left (`"Type i..."`) on `375x667` `ar`/`arz` when empty and truncates `vi`'s `438px` placeholder |
-| `BUG-S2-007` | `PT-109` (`S2-006`) | `P2` | `@liam-s2` | `OPEN` | Rapid consecutive `VirtualScriptDrawer` / accent key taps overwrite the first inserted character before React commits (`typedText` closure stale read in `insertAccentChar`) |
-| `BUG-S2-008` | `PT-110` (`S2-006`) | `P2` | `@clara-s2` | `OPEN` | `ELISION_PREFIX_RULES` omits Italian `gl'` (`bell'`, `anch'`, `ch'`) recognized by `hintEngine.ts:113` (defensive parity gap; `0` current corpus failures) |
-| `BUG-S2-009` | `PT-109` / `PT-113` (`S2-006`) | `P3` | `@liam-s2` | `OPEN` | Duplicate `Accent character bar` + `VirtualScriptDrawer` keys stack 3 nested scroll panes & clip bottom drawer row behind sticky footer inside `.lesson-arena-stage` on `375x667` |
-| `BUG-S2-010` | `PT-101` / Suite (`S2-001`) | `P1` | `@clara-s2` / `@coordinator` | `OPEN` | Unfiltered `npx vitest run` collects `src/curriculum/baseCoursesLoader.test.ts` (mapped by `vite.config.ts:20`) and fails the suite with `No test suite found in file` |
-| `BUG-S2-011` | `PT-108` (`S2-005`) | `P2` | `@leo-s2` | `OPEN` | `ArcadeHub` `isCoopKidQuarantined` checks `adultModeUnlocked` without checking `adultModeActive`, allowing an unlocked Adult in Kid Atlas (`adultModeActive: false`) + Adult (`adultModeActive: true`) to expose Adult lexicon on Turn 2 |
+| `BUG-S2-001` | `PT-101` / `PT-107` (`S2-001`, `S2-007`) | `P1` | `@leo-s2` | `VERIFIED_CLOSED` | `4dfe6f2` (`0002cae`): `useArcadeDeck` subscribes to `subscribeBaseRegistry` & triggers `ensureBaseCourseLoaded` on Co-Op Turn 2 & Quarantined fallback (verified in `[BUG-S2-001]` & live Chrome `vera-w2-coop-ru-hydrated.png`) |
+| `BUG-S2-002` | `PT-107` / `PT-114` (`S2-007`) | `P2` | `@leo-s2` | `VERIFIED_CLOSED` | `4dfe6f2` (`0002cae`): `ArcadeHub` aborts stale `coopMatch` if a partner disappears mid-Handoff or `recordCoopArcadeSession` returns `null` (verified in `[BUG-S2-002]` & live Chrome) |
+| `BUG-S2-003` | `PT-111` (`S2-007`) | `P2` | `@julian-s2` | `VERIFIED_CLOSED` | `5305797` (`91e0871`): strict calendar `isValidISODateString`, storage date sanitization, & chronological `pickNewestISO` comparison (verified in `[BUG-S2-003]`) |
+| `BUG-S2-004` | `PT-108` (`S2-005`, `S2-007`) | `P3` | `@julian-s2` / `@leo-s2` | `VERIFIED_CLOSED` | `5305797` (`91e0871`) + `4dfe6f2` (`0002cae`): Co-Op passes & settles played safe `playerOneLanguage`/`playerTwoLanguage` instead of quarantined Adult track (verified in `[BUG-S2-004]`) |
+| `BUG-S2-005` | `PT-106` / `PT-113` (`S2-005`) | `P1` | `@liam-s2` | `VERIFIED_CLOSED` | `7f24e97` (`1b6637b`): `.lesson-arena-header` 2-row responsive wrap on `<=640px` (`min-width: 64px` progress track, zero overflow on `375x667`; verified in `[BUG-S2-005]` & `vera-w2-bug005-adult-remix-375.png`) |
+| `BUG-S2-006` | `PT-103` / `PT-109` (`S2-002`, `S2-006`) | `P2` | `@liam-s2` | `VERIFIED_CLOSED` | `7f24e97` (`1b6637b`): empty RTL Free-Recall placeholders isolate LTR left alignment & concise compact copy across `ar`/`arz`/`vi` (verified in `[BUG-S2-006]` & `vera-w2-bug006-ar-placeholder-375.png`) |
+| `BUG-S2-007` | `PT-109` (`S2-006`) | `P2` | `@liam-s2` | `VERIFIED_CLOSED` | `7f24e97` (`1b6637b`): `useFreeRecallInput` maintains synchronous ref-backed text/selection across `WordBankView` & `BossGauntletView` (verified in `[BUG-S2-007]` & live Chrome) |
+| `BUG-S2-008` | `PT-110` (`S2-006`) | `P2` | `@clara-s2` | `VERIFIED_CLOSED` | `3027c73` (`0b13695`): `ELISION_PREFIX_RULES` expanded with Italian `gl'`, `bell'`, `anch'`, `ch'` + curly apostrophe normalization (verified in `[BUG-S2-008]`) |
+| `BUG-S2-009` | `PT-109` / `PT-113` (`S2-006`) | `P3` | `@liam-s2` | `VERIFIED_CLOSED` | `7f24e97` (`1b6637b`): hides duplicate `Accent character bar` while `VirtualScriptDrawer` is open & keeps `375x667` stage bounded (`565===565`; verified in `[BUG-S2-009]` & `vera-w2-bug009-zh-drawer-375.png`) |
+| `BUG-S2-010` | `PT-101` / Suite (`S2-001`) | `P1` | `@clara-s2` / `@coordinator` | `VERIFIED_CLOSED` | `fe7b783`: `vite.config.ts` sets `test.include: ['tests/**/*.{test,spec}.{ts,tsx}']`; unfiltered `npx vitest run` exits `0` (`19/19`, verified in `[BUG-S2-010]`) |
+| `BUG-S2-011` | `PT-108` (`S2-005`) | `P2` | `@leo-s2` | `VERIFIED_CLOSED` | `4dfe6f2` (`0002cae`): `isAdultProfileActive` / `isCoopTurnQuarantined` enforce `adultModeActive` across Hub & cabinets, blocking Adult Turn 2 bleed (verified in `[BUG-S2-011]` & live Chrome) |
 
 ### Sprint 2 Canonical Bug Details (`BUG-S2-001`–`BUG-S2-011`)
 
 #### BUG-S2-001 — `useArcadeDeck` omits base curriculum lazy hydration during Co-Op Turn 2 & Kid-Quarantined fallback
-- **Status:** `OPEN` | **Severity:** `P1` | **Owner:** `@leo-s2` | **Reporter:** `devon-s2` (verified by `vera-s2`)
+- **Status:** `VERIFIED_CLOSED` (`4dfe6f2`, merged `0002cae`) | **Severity:** `P1` | **Owner:** `@leo-s2` | **Reporter:** `devon-s2` (verified by `vera-s2`)
 - **File / Line:** `src/components/arcade/arcadeShared.tsx:1310-1338`; `src/curriculum/baseCoursesLoader.prod.ts:16-41`; `src/App.tsx:361`
-- **Repro Steps:** In production build (`http://127.0.0.1:4173/wanderling-subpath/`), keep P1 (`Leo`) on eager `'es'` and P2 (`Maya`) on lazy `'fr'`, launch 2P Family Co-Op, finish Turn 1, and start Maya's Turn 2 before `'fr'` has ever been visited.
-- **Expected vs Actual:** `useArcadeDeck` should subscribe to `subscribeBaseRegistry` and trigger `ensureBaseCourseLoaded(language)` when `!isAdultLanguage(language)` so Turn 2 hydrates the full `fr` course deck. Currently it only calls `subscribeAdultRegistry` / `ensureAdultCourseLoaded`, leaving `fr` unhydrated (`0` `fr` resources loaded) and falling back to the 8-item `FALLBACK_ARCADE_LEXICON`.
+- **Repro Steps:** In production build (`http://127.0.0.1:4173/wanderling-subpath/`), keep P1 (`Leo`) on eager `'es'` and P2 (`Maya`) on lazy `'fr'`/`'ru'`, launch 2P Family Co-Op, finish Turn 1, and start Maya's Turn 2 before Maya's language was visited.
+- **Closure Note:** Verified via `[BUG-S2-001]` in `tests/playtests/bug-board-regressions.test.tsx` (both Co-Op Turn 2 & direct `useArcadeDeck` Kid-Quarantined fallback trigger `ensureBaseCourseLoaded('fr')` and hydrate via `subscribeBaseRegistry`) and live headless Chrome (`course-ru-*.js` fetched when Co-Op is armed and Russian Cyrillic rendered on Turn 2, `vera-w2-coop-ru-hydrated.png`).
 
 #### BUG-S2-002 — Ghost `coopMatch` survives partner deletion mid-Handoff and renders unpersisted Finale
-- **Status:** `OPEN` | **Severity:** `P2` | **Owner:** `@leo-s2` | **Reporter:** `devon-s2` (verified by `vera-s2`)
-- **File / Line:** `src/components/arcade/ArcadeHub.tsx:395-425`; `src/store/useVaultStore.ts:2228`
-- **Repro Steps:** Start a 2P Co-Op match (`Leo` vs `Maya`), finish Turn 1 to reach `"Pass Console to Maya!"` (`handoff`), open `ProfileVaultModal` from `TopHud` and delete `Maya`, then close modal and play Turn 2.
-- **Expected vs Actual:** Deleting an active Co-Op partner should reset `coopMatch` cleanly back to the Hub. Currently `coopMatch` keeps stale `p2` state, lets Turn 2 play under deleted `Maya`, `recordCoopArcadeSession` returns `null`, and `persisted ?? { ... }` displays a fake `"Family Co-Op Finale!"` while dropping all XP/gems/stats.
+- **Status:** `VERIFIED_CLOSED` (`4dfe6f2`, merged `0002cae`) | **Severity:** `P2` | **Owner:** `@leo-s2` | **Reporter:** `devon-s2` (verified by `vera-s2`)
+- **File / Line:** `src/components/arcade/ArcadeHub.tsx:303-313, 456-460`; `src/store/useVaultStore.ts`
+- **Repro Steps:** Start a 2P Co-Op match (`Leo` vs `Maya`), finish Turn 1 to reach `"Pass Console to Maya!"` (`handoff`), open `ProfileVaultModal` from `TopHud` and delete `Maya`, then close modal.
+- **Closure Note:** Verified via `[BUG-S2-002]` (`bug-board-regressions.test.tsx`) and live Chrome on `1440x900`: deleting `Maya` mid-Handoff immediately aborts `coopMatch` back to Hub (`handoffAfterDelete: false`), and `recordCoopArcadeSession` returning `null` aborts without rendering a fake Finale.
 
 #### BUG-S2-003 — `validateVault` accepts non-date strings and `pickNewestISO` overwrites valid dates on `merge` import
-- **Status:** `OPEN` | **Severity:** `P2` | **Owner:** `@julian-s2` | **Reporter:** `devon-s2` (verified by `vera-s2`)
-- **File / Line:** `src/store/useVaultStore.ts:625-657, 1085-1096, 1203-1204`
-- **Repro Steps:** Import via `importVaultJson(json, 'merge')` a save whose `lastSrsQuestCompletedISO` or `vocabMastery[id].lastReviewedISO` is `"not-a-date"` over an existing valid `"2026-11-23"` date.
-- **Expected vs Actual:** `validateLanguageProgress` should reject non-parseable ISO dates and `pickNewestISO` should prefer parseable dates over invalid strings. Currently `validateLanguageProgress` checks only non-empty strings and `pickNewestISO` falls back to `'not-a-date' > '2026-11-23'` (`true`), corrupting valid timestamps.
+- **Status:** `VERIFIED_CLOSED` (`5305797`, merged `91e0871`) | **Severity:** `P2` | **Owner:** `@julian-s2` | **Reporter:** `devon-s2` (verified by `vera-s2`)
+- **File / Line:** `src/store/useVaultStore.ts:625-745, 1149-1163`
+- **Repro Steps:** Import via `importVaultJson(json, 'merge')` or `'replace'` a save whose `lastSrsQuestCompletedISO`, `vocabMastery[id].lastReviewedISO`, or `lastPracticeISO` is `"not-a-date"` / `"2026-02-31"` over valid `"2026-11-23"`.
+- **Closure Note:** Verified via `[BUG-S2-003]` (`bug-board-regressions.test.tsx`): invalid ISO dates fail both `'replace'` and `'merge'` imports, invalid dates already in `localStorage` sanitize cleanly on hydration without wiping valid saves, and `'merge'` preserves chronologically newer valid ISO timestamps.
 
 #### BUG-S2-004 — Kid-Quarantined Co-Op credits XP to Adult active language instead of played base language
-- **Status:** `OPEN` | **Severity:** `P3` | **Owner:** `@julian-s2` / `@leo-s2` | **Reporter:** `devon-s2` (verified by `vera-s2`)
-- **File / Line:** `src/store/useVaultStore.ts:1550-1554, 2219-2294`; `src/components/arcade/ArcadeHub.tsx:269-271, 396-404`
-- **Repro Steps:** Pair an Adult profile (`ebonics`, `lastBaseLanguage: 'es'`) with `kid-leo` in 2P Co-Op, play a full match (`Turn 1` runs in safe `'es'`), and inspect `languageProgress.es.xpEarned` vs `languageProgress.ebonics.xpEarned`.
-- **Expected vs Actual:** XP should credit the language actually played during the turn (`es`). Currently `recordCoopArcadeSession` takes no turn language parameter and `applyCoopOutcomeToProfile` credits `profile.activeLanguage` (`ebonics`).
+- **Status:** `VERIFIED_CLOSED` (`5305797` + `4dfe6f2`, merged `91e0871` / `0002cae`) | **Severity:** `P3` | **Owner:** `@julian-s2` / `@leo-s2` | **Reporter:** `devon-s2` (verified by `vera-s2`)
+- **File / Line:** `src/store/useVaultStore.ts:1648-1700, 2371-2413`; `src/components/arcade/ArcadeHub.tsx:443-453`
+- **Repro Steps:** Pair an Adult profile (`ebonics`, `lastBaseLanguage: 'fr'`) with `kid-leo` in 2P Co-Op, settle a Co-Op session, and inspect `languageProgress.fr.xpEarned` vs `languageProgress.ebonics.xpEarned`.
+- **Closure Note:** Verified via `[BUG-S2-004]` (`bug-board-regressions.test.tsx`): Kid-Quarantined Co-Op credits XP solely to the played safe base language (`fr` / `es`) even if `'ebonics'` is passed, while two active Adult profiles settle to their Adult tracks cleanly.
 
 #### BUG-S2-005 — Adult `Study Break` + `Remix` + `ON FIRE!` pills overflow `375x667` header and crush `.lesson-progress-track`
-- **Status:** `OPEN` | **Severity:** `P1` | **Owner:** `@liam-s2` | **Reporter:** `mila-s2` (verified by `vera-s2` via `s2-adult-study-break-375.png`)
-- **File / Line:** `src/components/lesson/LessonArena.tsx:717-813`; `src/styles/theme.css:1105-1126, 1218-1226`
-- **Repro Steps:** At `375x667`, unlock After-Hours (`ebonics`), clear node 1, tap `Play Fresh Remix!`, and reach a `6x` (`ON FIRE!`) streak.
-- **Expected vs Actual:** Header pills should wrap/compact cleanly within `375px` with a usable progress bar (`>= 60px`) and full `5/5` Hearts visibility. Currently `.lesson-arena-header` overflows (`hdrScrollW: 399 > 375`), clipping the right half of `5/5` Hearts and squishing `.lesson-progress-track` down to `min-width: 24px`.
+- **Status:** `VERIFIED_CLOSED` (`7f24e97`, merged `1b6637b`) | **Severity:** `P1` | **Owner:** `@liam-s2` | **Reporter:** `mila-s2` (verified by `vera-s2`)
+- **File / Line:** `src/components/lesson/LessonArena.tsx:717-816`; `src/styles/theme.css:1105-1145, 1267-1296`
+- **Repro Steps:** At `375x667`, unlock After-Hours (`ebonics`) and open an active lesson / `Remix` with `Study Break` and `5/5` Hearts visible.
+- **Closure Note:** Verified via `[BUG-S2-005]` (`bug-board-regressions.test.tsx`) and live Chrome at `375x667` (`hdrW: 375 === hdrScrollW: 375`, `trackW: 258`, `heartsLeft: 316, heartsRight: 365`, `shellH: 667 === shellScrollH: 667`, 1-tap `Study Break` cleanly exits Adult Mode — `vera-w2-bug005-adult-remix-375.png`).
 
 #### BUG-S2-006 — Free-Recall `to_foreign` RTL `<input dir="rtl">` clips English placeholder on `375x667` (`ar`/`arz`) and truncates `vi`
-- **Status:** `OPEN` | **Severity:** `P2` | **Owner:** `@liam-s2` | **Reporter:** `mila-s2` (verified by `vera-s2` via `s2-ar-freerecall-drawer-375.png`)
-- **File / Line:** `src/components/lesson/WordBankView.tsx:521-552`; `src/components/lesson/BossGauntletView.tsx:699-721`
-- **Repro Steps:** At `375x667`, open an `ar` or `arz` `to_foreign` WordBank and enable `Keyboard Free-Recall` while the input is empty (also check `vi`).
-- **Expected vs Actual:** Empty input should set `dir="ltr"` for its English placeholder (switching to `dir="rtl"` once Arabic letters are typed) and concise placeholder copy so `"Type in Modern Standard Arabic..."` never clips `"Type i"` off the left edge.
+- **Status:** `VERIFIED_CLOSED` (`7f24e97`, merged `1b6637b`) | **Severity:** `P2` | **Owner:** `@liam-s2` | **Reporter:** `mila-s2` (verified by `vera-s2`)
+- **File / Line:** `src/components/lesson/useFreeRecallInput.ts:52-109`; `src/components/lesson/WordBankView.tsx:527-572`; `src/components/lesson/BossGauntletView.tsx:703-746`; `src/styles/theme.css:1298-1307`
+- **Repro Steps:** At `375x667`, open `ar`, `arz`, or `vi` `to_foreign` WordBank Free-Recall when empty, then enter Arabic text.
+- **Closure Note:** Verified via `[BUG-S2-006]` (`bug-board-regressions.test.tsx`) and live Chrome `375x667` across `ar`, `arz`, and `vi` (`computedDirection: "ltr"`, `textAlign: "left"`, `"Type in Arabic or romanized"` / `"Type in Egyptian or romanized"` / `"Type in Vietnamese..."`, flipping `textAlign` to `"right"` upon typing `'مرحبا'`, `vera-w2-bug006-ar-placeholder-375.png`).
 
 #### BUG-S2-007 — Rapid consecutive `VirtualScriptDrawer` / accent key taps drop the first inserted character
-- **Status:** `OPEN` | **Severity:** `P2` | **Owner:** `@liam-s2` | **Reporter:** `mila-s2` (verified by `vera-s2`)
-- **File / Line:** `src/components/lesson/WordBankView.tsx:181-198`; `src/components/lesson/BossGauntletView.tsx:273-291`
-- **Repro Steps:** Open `zh` Free-Recall (`"ab"`, caret at `1`) and tap two `VirtualScriptDrawer` keys (`nǐ`, `hǎo`) rapidly before React commits between clicks.
-- **Expected vs Actual:** `insertAccentChar` should track pending text & caret via a ref/functional state updater so both taps insert sequentially. Currently `typedText.slice(0, start)` reads stale closure state, dropping the prior insertion.
+- **Status:** `VERIFIED_CLOSED` (`7f24e97`, merged `1b6637b`) | **Severity:** `P2` | **Owner:** `@liam-s2` | **Reporter:** `mila-s2` (verified by `vera-s2`)
+- **File / Line:** `src/components/lesson/useFreeRecallInput.ts:115-200`; `src/components/lesson/WordBankView.tsx:197-201`; `src/components/lesson/BossGauntletView.tsx`
+- **Repro Steps:** Open `zh` Free-Recall (`"ab"`, caret at `1`) and click two `VirtualScriptDrawer` keys (`nǐ`, `hǎo`) synchronously in a single tick.
+- **Closure Note:** Verified via `[BUG-S2-007]` across both `WordBankView` & `BossGauntletView` (`input.value === 'anǐhǎob'`, `selectionStart === 6`) and live Chrome `375x667` synchronous double-tap (`anǐhǎob`, `selStart: 6`).
 
 #### BUG-S2-008 — `ELISION_PREFIX_RULES` omits Italian `gl'` (`bell'`, `anch'`, `ch'`) elision rules
-- **Status:** `OPEN` | **Severity:** `P2` | **Owner:** `@clara-s2` | **Reporter:** `mila-s2` (verified by `vera-s2`)
-- **File / Line:** `src/curriculum/helpers.ts:67-194, 361-377` (vs `src/core/hintEngine.ts:113`)
-- **Repro Steps:** Call `lookupGlossaryEntry("gl'amici", italianGlossary)` or `lookupGlossaryEntry("bell'uomo", italianGlossary)`.
-- **Expected vs Actual:** Add Italian `gl'`, `bell'`, `anch'`, `ch'` elision rules to `ELISION_PREFIX_RULES` to match `hintEngine.ts:113` (`0` current `it`/`fr` curriculum cards fail today).
+- **Status:** `VERIFIED_CLOSED` (`3027c73`, merged `0b13695`) | **Severity:** `P2` | **Owner:** `@clara-s2` | **Reporter:** `mila-s2` (verified by `vera-s2`)
+- **File / Line:** `src/curriculum/helpers.ts:67-289`
+- **Repro Steps:** Call `lookupGlossaryEntry("gl'amici", itGlossary)` / `"Gl’amici!"` / `"anch'io"` / `"ch'è"` / `"bell'albero"` / `"bell'uomo"`.
+- **Closure Note:** Verified via `[BUG-S2-008]` (`bug-board-regressions.test.tsx`) against `getCourseGlossary('it')` across straight and curly apostrophes.
 
 #### BUG-S2-009 — Duplicate `Accent character bar` + `VirtualScriptDrawer` keys clip bottom drawer row on `375x667`
-- **Status:** `OPEN` | **Severity:** `P3` | **Owner:** `@liam-s2` | **Reporter:** `mila-s2` (verified by `vera-s2`)
-- **File / Line:** `src/components/lesson/WordBankView.tsx:572-612`; `src/components/lesson/BossGauntletView.tsx:736-773`; `src/components/lesson/VirtualScriptDrawer.tsx:20-96`
-- **Repro Steps:** At `375x667`, open `zh` or `ar` `to_foreign` Free-Recall and expand `Script Keys`.
-- **Expected vs Actual:** Deduplicate `Accent character bar` vs `VirtualScriptDrawer` on compact viewports so the expanded drawer renders cleanly without stacking 3 scroll panes or clipping the bottom key row behind the sticky footer (`stageScrollHeight: 571..625 > 555`).
+- **Status:** `VERIFIED_CLOSED` (`7f24e97`, merged `1b6637b`) | **Severity:** `P3` | **Owner:** `@liam-s2` | **Reporter:** `mila-s2` (verified by `vera-s2`)
+- **File / Line:** `src/components/lesson/WordBankView.tsx:576-624`; `src/components/lesson/BossGauntletView.tsx:747-790`; `src/components/lesson/VirtualScriptDrawer.tsx:260-325`
+- **Repro Steps:** At `375x667`, toggle `Script Keys` open and closed inside `zh` `to_foreign` Free-Recall.
+- **Closure Note:** Verified via `[BUG-S2-009]` (`WordBankView` + `BossGauntletView`) and live Chrome `375x667` (`accentBarVisibleWhileOpen: false`, `stageClientH: 565 === stageScrollH: 565`, `drawerBottom: 491 <= footerTop: 609`, restored cleanly on collapse — `vera-w2-bug009-zh-drawer-375.png`).
 
 #### BUG-S2-010 — Unfiltered `npx vitest run` picks up `src/curriculum/baseCoursesLoader.test.ts` and fails with `No test suite found`
-- **Status:** `OPEN` | **Severity:** `P1` | **Owner:** `@clara-s2` / `@coordinator` | **Reporter:** `vera-s2`
-- **File / Line:** `src/curriculum/baseCoursesLoader.test.ts`; `vite.config.ts:20, 122-126`
-- **Repro Steps:** Run `npx vitest run` with no directory filter.
-- **Expected vs Actual:** Vitest matches `**/*.test.ts`, treats the Vitest eager loader shim `src/curriculum/baseCoursesLoader.test.ts` as a test file, and exits `1` (`Error: No test suite found in file`). Rename to `baseCoursesLoader.vitest-shim.ts` (updating `vite.config.ts:20`) or exclude it in `vite.config.ts` `test.exclude`.
+- **Status:** `VERIFIED_CLOSED` (`fe7b783`) | **Severity:** `P1` | **Owner:** `@clara-s2` / `@coordinator` | **Reporter:** `vera-s2`
+- **File / Line:** `vite.config.ts:122-127`
+- **Repro Steps:** Run `npx vitest run` with no arguments.
+- **Closure Note:** Verified via `[BUG-S2-010]` (`bug-board-regressions.test.tsx`) and unfiltered `npx vitest run` exiting `0` (`19 / 19` suites, `251 / 251` tests).
 
 #### BUG-S2-011 — `ArcadeHub` Co-Op quarantine omits `adultModeActive` check across two Adult-unlocked profiles
-- **Status:** `OPEN` | **Severity:** `P2` | **Owner:** `@leo-s2` | **Reporter:** `vera-s2`
-- **File / Line:** `src/components/arcade/ArcadeHub.tsx:255-273`; `src/components/arcade/arcadeShared.tsx:1319-1327`
-- **Repro Steps:** Have two Adult-unlocked profiles where P1 has `adultModeActive: false` (currently in Kid Atlas after `Study Break`) and P2 still has `adultModeActive: true, activeLanguage: 'ebonics'` in storage, then launch 2P Co-Op from Kid Atlas.
-- **Expected vs Actual:** Co-Op should use Adult lexicon ONLY when BOTH P1 and P2 have `adultModeUnlocked: true` AND `adultModeActive: true`. Currently `isCoopKidQuarantined` ignores `adultModeActive`, allowing P2's Turn 2 to serve `'ebonics'` inside Kid Atlas.
+- **Status:** `VERIFIED_CLOSED` (`4dfe6f2`, merged `0002cae`) | **Severity:** `P2` | **Owner:** `@leo-s2` | **Reporter:** `vera-s2`
+- **File / Line:** `src/components/arcade/ArcadeHub.tsx:257-269, 315-325`; `src/components/arcade/arcadeShared.tsx:1284-1326`
+- **Repro Steps:** Pair two Adult-unlocked profiles where P1 has `adultModeActive: false` (`'fr'`) and P2 has `adultModeActive: true` (`'suburban'`) in 2P Co-Op, play Turn 1, and inspect Turn 2 (`Taylor`).
+- **Closure Note:** Verified via `[BUG-S2-011]` (`bug-board-regressions.test.tsx`) and live Chrome (`turnPill: "P2: Taylor"`, `hasSayItNormally: false`, `hasSuburbanBadge: false`).
 
 ---
 
