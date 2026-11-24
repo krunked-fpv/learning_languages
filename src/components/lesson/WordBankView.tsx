@@ -16,6 +16,7 @@ import { FreeRecallHintBar } from './FreeRecallHintBar';
 import { TapHintText } from './TapHintText';
 import { SayItNormallyButton } from './SayItNormallyButton';
 import { StarlightHintButton } from './StarlightHintButton';
+import { VirtualScriptDrawer } from './VirtualScriptDrawer';
 import { WordBankTray, buildWordBankPool, getAssembledText } from './WordBankTray';
 import { REGISTER_TAG_META } from './lessonHelpers';
 import { useHintEngine } from './useHintEngine';
@@ -569,37 +570,45 @@ export function WordBankView({
           />
 
           {exercise.direction === 'to_foreign' ? (
-            <div
-              aria-label="Accent character bar"
-              dir={langMeta.dir}
-              className="console-scroll-pane"
-              style={{
-                maxHeight: compact ? 84 : 112,
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: hasManyAccents ? 5 : 6,
-                justifyContent: 'center',
-                padding: '2px 2px',
-              }}
-            >
-              {langMeta.helperAccents.map((ch) => (
-                <button
-                  key={ch}
-                  type="button"
-                  className="tactile-tile"
-                  style={{
-                    padding: hasManyAccents ? '4px 8px' : '5px 11px',
-                    fontSize: hasManyAccents ? '0.88rem' : '0.95rem',
-                    minWidth: hasManyAccents ? 30 : 36,
-                    lineHeight: langMeta.dir === 'rtl' ? 1.5 : 1.25,
-                  }}
-                  disabled={locked}
-                  onClick={() => insertAccentChar(ch)}
-                >
-                  {ch}
-                </button>
-              ))}
-            </div>
+            <>
+              <div
+                aria-label="Accent character bar"
+                dir={langMeta.dir}
+                className="console-scroll-pane"
+                style={{
+                  maxHeight: compact ? 84 : 112,
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: hasManyAccents ? 5 : 6,
+                  justifyContent: 'center',
+                  padding: '2px 2px',
+                }}
+              >
+                {langMeta.helperAccents.map((ch) => (
+                  <button
+                    key={ch}
+                    type="button"
+                    className="tactile-tile"
+                    style={{
+                      padding: hasManyAccents ? '4px 8px' : '5px 11px',
+                      fontSize: hasManyAccents ? '0.88rem' : '0.95rem',
+                      minWidth: hasManyAccents ? 30 : 36,
+                      lineHeight: langMeta.dir === 'rtl' ? 1.5 : 1.25,
+                    }}
+                    disabled={locked}
+                    onClick={() => insertAccentChar(ch)}
+                  >
+                    {ch}
+                  </button>
+                ))}
+              </div>
+              <VirtualScriptDrawer
+                language={language}
+                compact={compact}
+                disabled={locked}
+                onInsertChar={insertAccentChar}
+              />
+            </>
           ) : null}
         </div>
       )}

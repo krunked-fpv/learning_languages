@@ -20,7 +20,12 @@ import { useVaultStore, vaultActions } from '../../store/useVaultStore';
 import { ensureAccessibleButtonBg, useCompactViewport } from '../lesson/lessonHelpers';
 import { SayItNormallyButton } from '../lesson/SayItNormallyButton';
 import { safeVaultActions } from '../shell/vaultSafeActions';
-import { useEnsureAdultCurriculum } from '../shell/adultCurriculumSync';
+import {
+  retryBaseCourseLoad,
+  useBaseLoadError,
+  useEnsureAdultCurriculum,
+  useEnsureBaseCurriculum,
+} from '../shell/adultCurriculumSync';
 import {
   ALL_LANGUAGE_LIST,
   GENDER_BADGE_META,
@@ -63,11 +68,13 @@ export function PhrasebookVault() {
   const visibleLanguages = isAdultModeActive ? ALL_LANGUAGE_LIST : LANGUAGE_LIST;
 
   const adultRegistryVersion = useEnsureAdultCurriculum(isAdultModeActive, effectiveViewLang);
+  const baseRegistryVersion = useEnsureBaseCurriculum(effectiveViewLang);
+  const baseLoadError = useBaseLoadError(effectiveViewLang);
   const viewLangMeta = LANGUAGE_META[effectiveViewLang];
   const langDir = viewLangMeta.dir;
   const course = useMemo(
     () => getCourse(effectiveViewLang),
-    [effectiveViewLang, adultRegistryVersion]
+    [effectiveViewLang, adultRegistryVersion, baseRegistryVersion]
   );
   const courseUnits = useMemo(() => course?.units ?? [], [course]);
   const langProgress = activeProfile.languageProgress[effectiveViewLang];
@@ -112,7 +119,7 @@ export function PhrasebookVault() {
         }),
       }))
       .filter((u) => u.cards.length > 0);
-  }, [course.units, tierFilter, unitFilter, searchQuery]);
+  }, [courseUnits, tierFilter, unitFilter, searchQuery]);
 
   const unlockedCards = useMemo(
     () => allCards.filter((c) => unlockedSet.has(c.id)),
@@ -405,12 +412,56 @@ export function PhrasebookVault() {
       {/* Internally Bounded Sticker Grid */}
       <div className="console-scroll-pane" style={{ flex: '1 1 auto', paddingRight: 4 }}>
         {filteredUnits.length === 0 ? (
-          <div className="tactile-card" style={{ padding: 24, textAlign: 'center', fontWeight: 700, color: 'var(--text-muted)' }}>
-            {allCards.length === 0
-              ? isAdultLanguage(effectiveViewLang)
-                ? `Loading ${viewLangMeta.name} stickers...`
-                : 'No vocabulary stickers loaded for this course yet.'
-              : 'No stickers matched your search filter.'}
+          <div
+            className="tactile-card"
+            style={{
+              padding: 24,
+              textAlign: 'center',
+              fontWeight: 700,
+              color: 'var(--text-muted)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 10,
+            }}
+          >
+            {allCards.length === 0 ? (
+              isAdultLanguage(effectiveViewLang) ? (
+                `Loading ${viewLangMeta.name} stickers...`
+              ) : baseLoadError ? (
+                <>
+                  <span>
+                    You&apos;re offline and {viewLangMeta.name} isn&apos;t cached yet.
+                  </span>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <button
+                      type="button"
+                      className="tactile-btn tactile-btn-primary"
+                      onClick={() => {
+                        playSfx('button_click');
+                        retryBaseCourseLoad(effectiveViewLang);
+                      }}
+                    >
+                      Retry Loading
+                    </button>
+                    <button
+                      type="button"
+                      className="tactile-btn tactile-btn-soft"
+                      onClick={() => {
+                        playSfx('whoosh_transition');
+                        setViewLang('es');
+                      }}
+                    >
+                      Switch to Español
+                    </button>
+                  </div>
+                </>
+              ) : (
+                `Loading ${viewLangMeta.name} stickers...`
+              )
+            ) : (
+              'No stickers matched your search filter.'
+            )}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 8 }}>

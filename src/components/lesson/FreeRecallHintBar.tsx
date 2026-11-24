@@ -1,5 +1,5 @@
 import type { FreeRecallHintPlan } from '../../core';
-import type { HintTier, TextDirection } from '../../types/contracts';
+import type { FreeRecallToneCoaching, HintTier, TextDirection } from '../../types/contracts';
 
 export interface FreeRecallHintBarProps {
   plan: FreeRecallHintPlan;
@@ -19,6 +19,13 @@ export function FreeRecallHintBar({
   compact = false,
 }: FreeRecallHintBarProps) {
   if (hintTier === 0) return null;
+
+  const extPlan = plan as FreeRecallHintPlan & {
+    isRomanizedMode?: boolean;
+    toneCoaching?: FreeRecallToneCoaching;
+  };
+  const isRomanizedMode = Boolean(extPlan.isRomanizedMode);
+  const toneCoaching = extPlan.toneCoaching?.hasToneMismatch ? extPlan.toneCoaching : null;
 
   return (
     <div
@@ -48,13 +55,31 @@ export function FreeRecallHintBar({
           letterSpacing: '0.02em',
         }}
       >
-        <span style={{ color: 'var(--starlight-ink)' }}>
-          {hintTier === 1
-            ? 'Starlight Whisper: Phrase Shape'
-            : hintTier === 2
-              ? 'Guided Cadence: Next Word Ghost'
-              : 'Starlight Reveal: Next Step'}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span style={{ color: 'var(--starlight-ink)' }}>
+            {hintTier === 1
+              ? 'Starlight Whisper: Phrase Shape'
+              : hintTier === 2
+                ? 'Guided Cadence: Next Word Ghost'
+                : 'Starlight Reveal: Next Step'}
+          </span>
+          {isRomanizedMode ? (
+            <span
+              data-testid="free-recall-romanized-chip"
+              style={{
+                padding: '1px 7px',
+                borderRadius: 999,
+                background: 'var(--tint-emerald-bg)',
+                border: '1px solid var(--tint-emerald-border)',
+                color: 'var(--tint-emerald-ink)',
+                fontSize: '0.67rem',
+                fontWeight: 900,
+              }}
+            >
+              Romanized Syllable Guide
+            </span>
+          ) : null}
+        </div>
         {plan.hasWrongSuffix ? (
           <span
             data-testid="free-recall-mismatch-note"
@@ -71,8 +96,34 @@ export function FreeRecallHintBar({
         ) : null}
       </div>
 
+      {toneCoaching ? (
+        <div
+          data-testid="free-recall-tone-coaching"
+          role="status"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 5,
+            alignSelf: 'flex-start',
+            padding: compact ? '2px 8px' : '3px 10px',
+            borderRadius: 999,
+            background: 'var(--tint-indigo-bg)',
+            border: '1px solid var(--tint-indigo-border)',
+            color: 'var(--tint-indigo-ink)',
+            fontSize: '0.72rem',
+            fontWeight: 800,
+          }}
+        >
+          <span>{toneCoaching.tip}</span>
+          {toneCoaching.expectedWord && !toneCoaching.tip.includes(toneCoaching.expectedWord) ? (
+            <strong>({toneCoaching.expectedWord})</strong>
+          ) : null}
+        </div>
+      ) : null}
+
       <div
-        dir={answerDir}
+        dir={isRomanizedMode ? 'ltr' : answerDir}
         style={{
           display: 'flex',
           flexWrap: 'wrap',

@@ -43,6 +43,13 @@ import {
   type LanguageCode,
 } from '../../types/contracts';
 import { safeVaultActions } from './vaultSafeActions';
+import {
+  getCachedOfflinePackCounts,
+  prefetchAllOfflinePacks,
+  useAdultRegistryVersion,
+  useBaseRegistryVersion,
+  type OfflinePackPrefetchResult,
+} from './adultCurriculumSync';
 
 const ALL_AVATAR_OPTIONS: readonly { id: AvatarId; label: string }[] = [
   { id: 'pip_explorer', label: 'Pip' },
@@ -108,7 +115,14 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
   const [adultConfirmOpen, setAdultConfirmOpen] = useState(false);
   const [selectedAdultTrack, setSelectedAdultTrack] = useState<AdultLanguageCode>('ebonics');
   const [adultProfileName, setAdultProfileName] = useState('After-Hours');
+  const [offlinePackLoading, setOfflinePackLoading] = useState(false);
+  const [offlinePackResult, setOfflinePackResult] = useState<OfflinePackPrefetchResult | null>(
+    null
+  );
   const isMountedRef = useRef(true);
+
+  useBaseRegistryVersion();
+  useAdultRegistryVersion();
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -119,6 +133,37 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
 
   const canDelete = vault.profiles.length > 1;
   const isOnDefaultKid = isDefaultKidProfileId(activeProfile.id);
+  const includeAdultInPack = Boolean(
+    !isOnDefaultKid && activeProfile.adultModeUnlocked && activeProfile.adultModeActive
+  );
+  const cachedPackCounts = getCachedOfflinePackCounts(includeAdultInPack);
+
+  const handleDownloadOfflinePack = async () => {
+    if (offlinePackLoading) return;
+    playSfx('button_click');
+    setOfflinePackLoading(true);
+    try {
+      const result = await prefetchAllOfflinePacks(
+        includeAdultInPack ? { includeAdult: true } : undefined
+      );
+      if (!isMountedRef.current) return;
+      setOfflinePackResult(result);
+      playSfx(result.errors.length === 0 ? 'chest_open' : 'gentle_nudge');
+    } catch {
+      if (!isMountedRef.current) return;
+      const counts = getCachedOfflinePackCounts(includeAdultInPack);
+      setOfflinePackResult({
+        loadedCount: counts.loadedCount,
+        totalCount: counts.totalCount,
+        errors: ['Offline or unavailable — unable to download all language packs right now.'],
+      });
+      playSfx('gentle_nudge');
+    } finally {
+      if (isMountedRef.current) {
+        setOfflinePackLoading(false);
+      }
+    }
+  };
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -792,6 +837,121 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
             >
               {vaultFeedback.kind === 'ok' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
               <span>{vaultFeedback.message}</span>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Offline Atlas Pack Downloader */}
+        <div
+          data-testid="offline-pack-section"
+          style={{
+            padding: 14,
+            borderRadius: 18,
+            background: 'var(--card-soft-bg)',
+            border: '2px solid var(--card-border)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+              flexWrap: 'wrap',
+            }}
+          >
+            <div>
+              <div style={{ fontWeight: 900, fontSize: '0.94rem', color: 'var(--text-main)' }}>
+                Offline Atlas Pack
+              </div>
+              <div style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                Download all language trails to play smoothly without Wi-Fi.
+              </div>
+            </div>
+            <span
+              style={{
+                padding: '3px 9px',
+                borderRadius: 999,
+                background:
+                  cachedPackCounts.loadedCount >= cachedPackCounts.totalCount
+                    ? 'var(--tint-emerald-bg)'
+                    : 'var(--tint-indigo-bg)',
+                border: `1.5px solid ${
+                  cachedPackCounts.loadedCount >= cachedPackCounts.totalCount
+                    ? 'var(--tint-emerald-border)'
+                    : 'var(--tint-indigo-border)'
+                }`,
+                color:
+                  cachedPackCounts.loadedCount >= cachedPackCounts.totalCount
+                    ? 'var(--tint-emerald-ink)'
+                    : 'var(--tint-indigo-ink)',
+                fontSize: '0.72rem',
+                fontWeight: 900,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {cachedPackCounts.loadedCount} / {cachedPackCounts.totalCount} languages cached offline
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button
+              type="button"
+              data-testid="download-offline-pack-btn"
+              className="tactile-btn tactile-btn-primary"
+              disabled={offlinePackLoading}
+              onClick={() => {
+                void handleDownloadOfflinePack();
+              }}
+            >
+              <Download size={16} />
+              <span>
+                {offlinePackLoading
+                  ? 'Downloading Offline Pack...'
+                  : 'Download All Languages for Offline'}
+              </span>
+            </button>
+          </div>
+
+          {offlinePackResult ? (
+            <div
+              role="status"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '7px 11px',
+                borderRadius: 12,
+                background:
+                  offlinePackResult.errors.length === 0
+                    ? 'var(--tint-emerald-bg)'
+                    : 'var(--tint-amber-bg)',
+                border: `2px solid ${
+                  offlinePackResult.errors.length === 0
+                    ? 'var(--tint-emerald-border)'
+                    : 'var(--tint-amber-border)'
+                }`,
+                color:
+                  offlinePackResult.errors.length === 0
+                    ? 'var(--tint-emerald-ink)'
+                    : 'var(--tint-amber-ink)',
+                fontWeight: 800,
+                fontSize: '0.8rem',
+              }}
+            >
+              {offlinePackResult.errors.length === 0 ? (
+                <CheckCircle2 size={15} />
+              ) : (
+                <AlertCircle size={15} />
+              )}
+              <span>
+                {offlinePackResult.errors.length === 0
+                  ? `${offlinePackResult.loadedCount} / ${offlinePackResult.totalCount} languages cached offline — ready anywhere!`
+                  : `${offlinePackResult.loadedCount} / ${offlinePackResult.totalCount} languages cached offline — Reconnect and retry to finish caching.`}
+              </span>
             </div>
           ) : null}
         </div>

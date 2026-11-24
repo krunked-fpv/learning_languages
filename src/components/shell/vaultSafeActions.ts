@@ -18,6 +18,11 @@ export interface AvatarShopMetadata {
   accentColor: string;
 }
 
+export type CompleteMapNodeExtendedParams = Parameters<typeof vaultActions.completeMapNode>[0] & {
+  isSrsQuest?: boolean;
+  practicedVocabIds?: readonly string[];
+};
+
 interface ExtendedVaultActions {
   buyHeartElixir?: () => boolean;
   useHeartElixir?: () => boolean;
@@ -28,6 +33,7 @@ interface ExtendedVaultActions {
   recordFreeRecallSolve?: () => void;
   recordClozeSolve?: () => void;
   recordHintUsed?: () => void;
+  completeMapNode?: (params: CompleteMapNodeExtendedParams) => void;
   unlockProficiencyTier?: (params: {
     language: LanguageCode;
     targetTier: Exclude<ProficiencyTier, 'A1'>;
@@ -73,6 +79,9 @@ export const safeVaultActions = {
   },
   recordHintUsed(): void {
     extVault.recordHintUsed?.();
+  },
+  completeMapNode(params: CompleteMapNodeExtendedParams): void {
+    vaultActions.completeMapNode(params as Parameters<typeof vaultActions.completeMapNode>[0]);
   },
   unlockProficiencyTier(params: {
     language: LanguageCode;
