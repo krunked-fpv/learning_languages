@@ -257,6 +257,93 @@ function hasPartnerLanguageConfigChanged(prev: KidProfile, next: KidProfile): bo
   );
 }
 
+type ActiveCoopMatchState = Exclude<CoopMatchState, { stage: 'summary' }>;
+
+interface CoopLiveSyncResult {
+  abort: boolean;
+  needsUpdate: boolean;
+  liveP1: KidProfile;
+  liveP2: KidProfile;
+  kidQuarantined: boolean;
+  p1Language: LanguageCode;
+  p2Language: LanguageCode;
+}
+
+/**
+ * Reconciles an active Co-Op session against live vault profiles so partner edits,
+ * profile deletions, and Kid-Safety Quarantine transitions apply synchronously.
+ */
+function resolveCoopLiveSync(
+  match: ActiveCoopMatchState,
+  profiles: readonly KidProfile[],
+  activeProfile: KidProfile
+): CoopLiveSyncResult {
+  const liveP1 = profiles.find((prof) => prof.id === match.p1.id);
+  const liveP2 = profiles.find((prof) => prof.id === match.p2.id);
+  if (!liveP1 || !liveP2 || liveP1.id === liveP2.id) {
+    return {
+      abort: true,
+      needsUpdate: false,
+      liveP1: match.p1,
+      liveP2: match.p2,
+      kidQuarantined: match.kidQuarantined,
+      p1Language: match.p1Language,
+      p2Language: match.p2Language,
+    };
+  }
+
+  const mustQuarantine = !isAdultProfileActive(liveP1) || !isAdultProfileActive(liveP2);
+  const newlyQuarantined = mustQuarantine && !match.kidQuarantined;
+  const nextQuarantined = match.kidQuarantined || mustQuarantine;
+  const p1Changed = hasPartnerMetadataChanged(match.p1, liveP1);
+  const p2Changed = hasPartnerMetadataChanged(match.p2, liveP2);
+
+  if (!p1Changed && !p2Changed && !newlyQuarantined) {
+    return {
+      abort: false,
+      needsUpdate: false,
+      liveP1,
+      liveP2,
+      kidQuarantined: match.kidQuarantined,
+      p1Language: match.p1Language,
+      p2Language: match.p2Language,
+    };
+  }
+
+  const p1LangChanged = hasPartnerLanguageConfigChanged(match.p1, liveP1);
+  const p2LangChanged = hasPartnerLanguageConfigChanged(match.p2, liveP2);
+
+  const nextP1Language: LanguageCode =
+    match.stage === 'playing_turn_1'
+      ? p1LangChanged || (newlyQuarantined && isAdultLanguage(match.p1Language))
+        ? resolveEffectiveArcadeLanguage(liveP1, {
+            fallbackProfile: activeProfile,
+            kidQuarantined: nextQuarantined,
+          })
+        : match.p1Language
+      : newlyQuarantined && isAdultLanguage(match.p1Language)
+        ? resolveSafeBaseLanguage(liveP1, activeProfile)
+        : match.p1Language;
+
+  const nextP2Language: LanguageCode =
+    p2LangChanged || (newlyQuarantined && isAdultLanguage(match.p2Language))
+      ? resolveEffectiveArcadeLanguage(liveP2, {
+          fallbackProfile: activeProfile,
+          kidQuarantined: nextQuarantined,
+        })
+      : match.p2Language;
+
+  return {
+    abort: false,
+    needsUpdate: true,
+    liveP1,
+    liveP2,
+    kidQuarantined: nextQuarantined,
+    p1Language: nextP1Language,
+    p2Language: nextP2Language,
+  };
+}
+
 function CoopOfflineRecoveryGuard({
   message,
   retrying,
@@ -376,16 +463,29 @@ export function ArcadeHub({
     return { p1: first, p2: second };
   }, [vault.profiles, activeProfile, playerOneId, playerTwoId]);
 
+  const coopLiveSync = useMemo(
+    () =>
+      coopMatch && coopMatch.stage !== 'summary'
+        ? resolveCoopLiveSync(coopMatch, vault.profiles, activeProfile)
+        : null,
+    [coopMatch, vault.profiles, activeProfile]
+  );
+
   const effectiveCoopEnabled = coopEnabled && hasMultipleProfiles && Boolean(p2);
   const isCoopKidQuarantined =
     effectiveCoopEnabled && (!isAdultProfileActive(p1) || !isAdultProfileActive(p2));
 
   const coopSafeMaskActive = Boolean(
     (effectiveCoopEnabled && isCoopKidQuarantined) ||
+      (coopLiveSync && !coopLiveSync.abort && coopLiveSync.kidQuarantined) ||
       (coopMatch && coopMatch.stage !== 'summary' && coopMatch.kidQuarantined)
   );
   const coopSafeMaskLanguage = resolveSafeBaseLanguage(
-    coopMatch && coopMatch.stage !== 'summary' ? coopMatch.p1 : p1,
+    coopLiveSync && !coopLiveSync.abort
+      ? coopLiveSync.liveP1
+      : coopMatch && coopMatch.stage !== 'summary'
+        ? coopMatch.p1
+        : p1,
     activeProfile
   );
 
@@ -475,55 +575,34 @@ export function ArcadeHub({
   // enforce Kid-Safety Quarantine immediately (never un-quarantining mid-flight).
   useEffect(() => {
     if (!coopMatch) return;
-    const liveP1 = vault.profiles.find((prof) => prof.id === coopMatch.p1.id);
-    const liveP2 = vault.profiles.find((prof) => prof.id === coopMatch.p2.id);
-    if (!liveP1 || !liveP2 || liveP1.id === liveP2.id) {
+    if (coopMatch.stage === 'summary') {
+      const liveP1 = vault.profiles.find((prof) => prof.id === coopMatch.p1.id);
+      const liveP2 = vault.profiles.find((prof) => prof.id === coopMatch.p2.id);
+      if (!liveP1 || !liveP2 || liveP1.id === liveP2.id) {
+        setCoopMatch(null);
+        setMode('hub');
+      }
+      return;
+    }
+    if (!coopLiveSync) return;
+    if (coopLiveSync.abort) {
       setCoopMatch(null);
       setMode('hub');
       return;
     }
-    if (coopMatch.stage === 'summary') return;
-
-    const mustQuarantine = !isAdultProfileActive(liveP1) || !isAdultProfileActive(liveP2);
-    const newlyQuarantined = mustQuarantine && !coopMatch.kidQuarantined;
-    const nextQuarantined = coopMatch.kidQuarantined || mustQuarantine;
-    const p1Changed = hasPartnerMetadataChanged(coopMatch.p1, liveP1);
-    const p2Changed = hasPartnerMetadataChanged(coopMatch.p2, liveP2);
-
-    if (!p1Changed && !p2Changed && !newlyQuarantined) {
+    if (!coopLiveSync.needsUpdate) {
       return;
     }
 
-    const p1LangChanged = hasPartnerLanguageConfigChanged(coopMatch.p1, liveP1);
-    const p2LangChanged = hasPartnerLanguageConfigChanged(coopMatch.p2, liveP2);
-
-    const nextP1Language: LanguageCode =
-      coopMatch.stage === 'playing_turn_1' && (newlyQuarantined || p1LangChanged)
-        ? resolveEffectiveArcadeLanguage(liveP1, {
-            fallbackProfile: activeProfile,
-            kidQuarantined: nextQuarantined,
-          })
-        : newlyQuarantined && isAdultLanguage(coopMatch.p1Language)
-          ? resolveSafeBaseLanguage(liveP1, activeProfile)
-          : coopMatch.p1Language;
-
-    const nextP2Language: LanguageCode =
-      newlyQuarantined || p2LangChanged
-        ? resolveEffectiveArcadeLanguage(liveP2, {
-            fallbackProfile: activeProfile,
-            kidQuarantined: nextQuarantined,
-          })
-        : coopMatch.p2Language;
-
     setCoopMatch({
       ...coopMatch,
-      p1: liveP1,
-      p2: liveP2,
-      kidQuarantined: nextQuarantined,
-      p1Language: nextP1Language,
-      p2Language: nextP2Language,
+      p1: coopLiveSync.liveP1,
+      p2: coopLiveSync.liveP2,
+      kidQuarantined: coopLiveSync.kidQuarantined,
+      p1Language: coopLiveSync.p1Language,
+      p2Language: coopLiveSync.p2Language,
     });
-  }, [coopMatch, vault.profiles, activeProfile]);
+  }, [coopMatch, coopLiveSync, vault.profiles]);
 
   useEffect(() => {
     if (!coopMatch || coopMatch.stage === 'summary') return;
@@ -1221,28 +1300,28 @@ export function ArcadeHub({
   const activeCoopTurnValue: CoopArcadeTurnContextValue | null =
     coopMatch && (coopMatch.stage === 'playing_turn_1' || coopMatch.stage === 'playing_turn_2')
       ? (() => {
-          const liveP1 =
-            vault.profiles.find((prof) => prof.id === coopMatch.p1.id) ?? coopMatch.p1;
-          const liveP2 =
-            vault.profiles.find((prof) => prof.id === coopMatch.p2.id) ?? coopMatch.p2;
+          const synced = coopLiveSync && !coopLiveSync.abort ? coopLiveSync : null;
+          const liveP1 = synced?.liveP1 ?? coopMatch.p1;
+          const liveP2 = synced?.liveP2 ?? coopMatch.p2;
           return {
             turnNumber: coopMatch.stage === 'playing_turn_1' ? 1 : 2,
             playerProfile: coopMatch.stage === 'playing_turn_1' ? liveP1 : liveP2,
             partnerProfile: coopMatch.stage === 'playing_turn_1' ? liveP2 : liveP1,
             languageOverride:
               coopMatch.stage === 'playing_turn_1'
-                ? coopMatch.p1Language
-                : coopMatch.p2Language,
-            kidQuarantined: coopMatch.kidQuarantined,
+                ? synced?.p1Language ?? coopMatch.p1Language
+                : synced?.p2Language ?? coopMatch.p2Language,
+            kidQuarantined: synced?.kidQuarantined ?? coopMatch.kidQuarantined,
             onRoundSettled: handleCoopRoundSettled,
           };
         })()
       : null;
 
   const renderCabinet = (cabinetMode: Exclude<ArcadeGameMode, 'hub'>): ReactNode => {
-    const turnKey = coopMatch
-      ? `coop-${coopMatch.stage}-${cabinetMode}`
-      : `solo-${cabinetMode}`;
+    const turnKey =
+      coopMatch && activeCoopTurnValue
+        ? `coop-${coopMatch.stage}-${cabinetMode}-${activeCoopTurnValue.languageOverride}-${activeCoopTurnValue.kidQuarantined ? 'q1' : 'q0'}`
+        : `solo-${cabinetMode}-${language}-${isAdultProfileActive(activeProfile) ? 'a1' : 'a0'}`;
     if (cabinetMode === 'sky_catcher') {
       return <SkyCatcherArcade key={turnKey} arcadeTier={arcadeTier} onExit={handleExitToHub} />;
     }
