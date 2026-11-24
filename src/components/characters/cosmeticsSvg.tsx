@@ -1,7 +1,7 @@
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import type { CompanionId, CosmeticId, EquippedCosmetics } from '../../types/contracts';
 
-export const MASCOT_INK = '#0F172A';
+export const MASCOT_INK = '#4a3426';
 
 export interface CompanionAnchors {
   hatY: number;
@@ -20,68 +20,68 @@ export interface CompanionAnchors {
 export const COMPANION_ANCHORS: Record<CompanionId, CompanionAnchors> = {
   pip: {
     hatY: 57,
-    hatScale: 1,
+    hatScale: 1.0,
     eyeY: 94,
     eyeSpread: 17,
     mouthY: 105,
     shoulderY: 132,
-    propX: 162,
-    propY: 154,
+    propX: 158,
+    propY: 152,
     propSide: 'right',
     petX: 34,
-    petY: 118,
+    petY: 116,
   },
   mateo: {
-    hatY: 63,
-    hatScale: 1.02,
+    hatY: 65,
+    hatScale: 1.04,
     eyeY: 96,
     eyeSpread: 19,
     mouthY: 111,
     shoulderY: 134,
-    propX: 60,
-    propY: 156,
+    propX: 65,
+    propY: 153,
     propSide: 'left',
     petX: 184,
-    petY: 144,
+    petY: 128,
   },
   colette: {
-    hatY: 62,
+    hatY: 64,
     hatScale: 0.94,
     eyeY: 97,
     eyeSpread: 17,
     mouthY: 112,
     shoulderY: 134,
-    propX: 154,
-    propY: 154,
+    propX: 151,
+    propY: 153,
     propSide: 'right',
     petX: 34,
-    petY: 118,
+    petY: 116,
   },
   benni: {
-    hatY: 61,
-    hatScale: 0.98,
+    hatY: 65,
+    hatScale: 1.0,
     eyeY: 97,
     eyeSpread: 18,
     mouthY: 113,
     shoulderY: 134,
-    propX: 154,
-    propY: 155,
+    propX: 151,
+    propY: 153,
     propSide: 'right',
     petX: 34,
-    petY: 118,
+    petY: 116,
   },
   luca: {
-    hatY: 61,
-    hatScale: 0.98,
+    hatY: 65,
+    hatScale: 0.99,
     eyeY: 96,
     eyeSpread: 17,
     mouthY: 113,
     shoulderY: 134,
-    propX: 154,
-    propY: 155,
+    propX: 151,
+    propY: 153,
     propSide: 'right',
     petX: 34,
-    petY: 118,
+    petY: 116,
   },
 };
 
@@ -667,6 +667,9 @@ export function GlassesLayer({
   if (glasses === 'glasses_starlight_frames') {
     return (
       <g data-cosmetic="glasses_starlight_frames">
+        {/* Seated temple arms hugging the sides of the head */}
+        <line x1={lx - 12} y1={eyeY - 1} x2={lx - 22} y2={eyeY - 4} stroke="#6D28D9" strokeWidth="2.8" strokeLinecap="round" />
+        <line x1={rx + 12} y1={eyeY - 1} x2={rx + 22} y2={eyeY - 4} stroke="#6D28D9" strokeWidth="2.8" strokeLinecap="round" />
         <path d={`M${lx + 12} ${eyeY - 1} Q110 ${eyeY - 5} ${rx - 12} ${eyeY - 1}`} fill="none" stroke="#8B5CF6" strokeWidth="3" />
         {[lx, rx].map((cx, idx) => {
           const wingX = idx === 0 ? cx - 14 : cx + 14;
@@ -898,27 +901,27 @@ export function HatLayer({
       )}
 
       {hat === 'hat_sakura_crown' && (
-        <g>
-          {/* Woven Vine Circlet */}
+        <g transform="translate(0, 5)">
+          {/* Woven Vine Circlet hugging crown */}
           <path
-            d="M-32 4C-24 -10 24 -10 32 4"
+            d="M-32 4C-24 -8 24 -8 32 4"
             fill="none"
-            stroke="#15803D"
+            stroke="#1F6E3D"
             strokeWidth="6"
             strokeLinecap="round"
           />
           <path
-            d="M-32 4C-24 -10 24 -10 32 4"
+            d="M-32 4C-24 -8 24 -8 32 4"
             fill="none"
-            stroke="#4ADE80"
+            stroke="#65C784"
             strokeWidth="2.2"
             strokeLinecap="round"
           />
           {/* Three Layered 5-Petal Sakura Blossoms */}
           {[
-            { x: -18, y: -4, s: 0.88 },
-            { x: 0, y: -9, s: 1.08 },
-            { x: 18, y: -4, s: 0.88 },
+            { x: -18, y: -3, s: 0.88 },
+            { x: 0, y: -7, s: 1.08 },
+            { x: 18, y: -3, s: 0.88 },
           ].map((fl, idx) => (
             <g key={idx} transform={`translate(${fl.x}, ${fl.y}) scale(${fl.s})`}>
               {[0, 72, 144, 216, 288].map((deg) => (
@@ -985,15 +988,22 @@ export function HatLayer({
       )}
 
       {hat === 'hat_laureate_wreath' && (
-        <g>
-          {/* Twin Golden Laurel Wreath Branches */}
+        <g transform="translate(0, 6)">
+          {/* Twin Golden Laurel Wreath Branches seated snugly across brow */}
+          <path
+            d="M-29 4C-16 -12 16 -12 29 4"
+            fill="none"
+            stroke="#B46D14"
+            strokeWidth="3.2"
+            strokeLinecap="round"
+          />
           {[
-            [-26, 0, -45],
-            [-22, -9, -22],
-            [-14, -16, 4],
-            [26, 0, 45],
-            [22, -9, 22],
-            [14, -16, -4],
+            [-26, 1, -42],
+            [-21, -7, -20],
+            [-13, -13, 6],
+            [26, 1, 42],
+            [21, -7, 20],
+            [13, -13, -6],
           ].map(([cx, cy, rot], idx) => (
             <ellipse
               key={idx}
@@ -1002,14 +1012,14 @@ export function HatLayer({
               rx="8.5"
               ry="4.5"
               transform={`rotate(${rot} ${cx} ${cy})`}
-              fill="#FACC15"
+              fill="#F5C542"
               stroke={MASCOT_INK}
-              strokeWidth="1.7"
+              strokeWidth="1.6"
             />
           ))}
-          {/* Imperial Apex Gem & Crimson Sash */}
-          <polygon points="0,-24 7,-16 0,-8 -7,-16" fill="#38BDF8" stroke={MASCOT_INK} strokeWidth="1.8" strokeLinejoin="round" />
-          <circle cx="0" cy="-16" r="2.2" fill="#FFFFFF" />
+          {/* Imperial Apex Gem */}
+          <polygon points="0,-21 7,-13 0,-5 -7,-13" fill="#38BDF8" stroke={MASCOT_INK} strokeWidth="1.7" strokeLinejoin="round" />
+          <circle cx="-1" cy="-14" r="2" fill="#FFFDF7" />
         </g>
       )}
     </g>
@@ -1029,6 +1039,7 @@ export function PropLayer({
   propSide: 'left' | 'right';
   uid: string;
 }) {
+  const reducedMotion = useReducedMotion();
   if (!prop) return null;
   const dir = propSide === 'left' ? -1 : 1;
 
@@ -1036,8 +1047,8 @@ export function PropLayer({
     <motion.g
       data-cosmetic={prop}
       transform={`translate(${propX}, ${propY})`}
-      animate={{ rotate: [dir * -4, dir * 5, dir * -4] }}
-      transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+      animate={reducedMotion ? undefined : { rotate: [dir * -3.5, dir * 4, dir * -3.5] }}
+      transition={{ duration: 3.4, repeat: Infinity, ease: 'easeInOut' }}
       style={{ originX: '0px', originY: '0px' }}
     >
       {prop === 'prop_explorer_ukulele' && (
@@ -1137,13 +1148,14 @@ export function PetLayer({
   petY: number;
   uid: string;
 }) {
+  const reducedMotion = useReducedMotion();
   if (!pet) return null;
 
   return (
     <motion.g
       data-cosmetic={pet}
-      animate={{ y: [0, -5.5, 0], rotate: [-2.5, 2.5, -2.5] }}
-      transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
+      animate={reducedMotion ? undefined : { y: [0, -4, 0], rotate: [-2, 2, -2] }}
+      transition={{ duration: 3.4, repeat: Infinity, ease: 'easeInOut' }}
       style={{ originX: `${petX}px`, originY: `${petY}px` }}
     >
       <g transform={`translate(${petX}, ${petY})`}>
@@ -1174,8 +1186,8 @@ export function PetLayer({
             {/* Round Body */}
             <ellipse cx="0" cy="2" rx="13" ry="14" fill={`url(#pet-owl-${uid})`} stroke={MASCOT_INK} strokeWidth="1.9" />
             {/* Glowing Cyan Goggle Eyes */}
-            <circle cx="-5.5" cy="-2" r="4.8" fill="#0F172A" stroke="#FEF08A" strokeWidth="1.3" />
-            <circle cx="5.5" cy="-2" r="4.8" fill="#0F172A" stroke="#FEF08A" strokeWidth="1.3" />
+            <circle cx="-5.5" cy="-2" r="4.8" fill="#3A2B24" stroke="#FEF08A" strokeWidth="1.3" />
+            <circle cx="5.5" cy="-2" r="4.8" fill="#3A2B24" stroke="#FEF08A" strokeWidth="1.3" />
             <circle cx="-5.5" cy="-2" r="2.6" fill="#38BDF8" />
             <circle cx="5.5" cy="-2" r="2.6" fill="#38BDF8" />
             <polygon points="-2.5,3 2.5,3 0,7.5" fill="#FEF08A" stroke={MASCOT_INK} strokeWidth="1.2" strokeLinejoin="round" />

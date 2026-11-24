@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import type { CharacterPose, CompanionId, EquippedCosmetics } from '../../types/contracts';
 import { BodyAndArmsLayer, HeadAndExpressionLayer, TailAndBackLayer } from './companionsSvg';
 import {
@@ -99,11 +99,11 @@ function getBodyPoseMotion(pose: CharacterPose) {
     case 'idle':
     default:
       return {
-        y: [0, -3.4, 0],
-        rotate: [-0.8, 0.8, -0.8],
-        scaleX: [1, 0.992, 1],
-        scaleY: [1, 1.022, 1],
-        transition: { duration: 3.1, repeat: Infinity, ease: 'easeInOut' as const },
+        y: [0, -3.2, 0],
+        rotate: [-0.6, 0.6, -0.6],
+        scaleX: [1, 0.993, 1],
+        scaleY: [1, 1.018, 1],
+        transition: { duration: 4.0, repeat: Infinity, ease: 'easeInOut' as const },
       };
   }
 }
@@ -120,6 +120,7 @@ export function MascotStage({
   hintPulseNonce = 0,
 }: MascotStageProps) {
   const uid = useId().replace(/:/g, '');
+  const prefersReducedMotion = useReducedMotion();
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [isBlinking, setIsBlinking] = useState(false);
   const [localPointer, setLocalPointer] = useState<{ x: number; y: number } | null>(null);
@@ -273,10 +274,27 @@ export function MascotStage({
       >
         <defs>
           <radialGradient id={`stage-halo-${uid}`} cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor={palette.inner} stopOpacity={palette.nebula ? '0.92' : '0.9'} />
-            <stop offset="52%" stopColor={palette.mid} stopOpacity={palette.nebula ? '0.58' : '0.6'} />
-            <stop offset="80%" stopColor={palette.outer} stopOpacity={palette.nebula ? '0.32' : '0.38'} />
+            <stop
+              offset="0%"
+              stopColor={equippedCosmetics?.theme ? palette.inner : 'var(--lantern-glow, #ffe6b3)'}
+              stopOpacity={palette.nebula ? '0.68' : '0.36'}
+            />
+            <stop
+              offset="52%"
+              stopColor={equippedCosmetics?.theme ? palette.mid : 'var(--key-light, #ffe2a8)'}
+              stopOpacity={palette.nebula ? '0.32' : '0.14'}
+            />
+            <stop
+              offset="82%"
+              stopColor={equippedCosmetics?.theme ? palette.outer : 'var(--lantern-glow, #ffe6b3)'}
+              stopOpacity="0.02"
+            />
             <stop offset="100%" stopColor={palette.outer} stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id={`stage-shadow-${uid}`} cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#4a3426" stopOpacity="0.9" />
+            <stop offset="68%" stopColor="#4a3426" stopOpacity="0.45" />
+            <stop offset="100%" stopColor="#4a3426" stopOpacity="0" />
           </radialGradient>
         </defs>
 
@@ -328,19 +346,21 @@ export function MascotStage({
           </motion.g>
         )}
 
-        {/* Ground contact shadow synchronized with jump & idle breath */}
+        {/* Ground contact shadow synchronized with jump & idle breath (cast down-right) */}
         <motion.g
-          style={{ originX: '110px', originY: '196px' }}
+          style={{ originX: '114px', originY: '197px' }}
           animate={
-            pose === 'happy'
-              ? { scaleX: [1, 0.78, 0.98, 0.84, 1], opacity: [0.16, 0.08, 0.15, 0.1, 0.16] }
-              : pose === 'streak_fire' || pose === 'victory_dance'
-                ? { scaleX: [1, 0.76, 1, 0.76, 1], opacity: [0.17, 0.07, 0.17, 0.07, 0.17] }
-                : { scaleX: [1, 0.94, 1], opacity: [0.14, 0.11, 0.14] }
+            prefersReducedMotion
+              ? { opacity: 0.22 }
+              : pose === 'happy'
+                ? { scaleX: [1, 0.8, 0.98, 0.86, 1], opacity: [0.24, 0.13, 0.22, 0.15, 0.24] }
+                : pose === 'streak_fire' || pose === 'victory_dance'
+                  ? { scaleX: [1, 0.78, 1, 0.78, 1], opacity: [0.25, 0.12, 0.25, 0.12, 0.25] }
+                  : { scaleX: [1, 0.95, 1], opacity: [0.22, 0.18, 0.22] }
           }
           transition={{ duration: bodyMotion.transition.duration, repeat: Infinity, ease: 'easeInOut' }}
         >
-          <ellipse cx="110" cy="196" rx="48" ry="9" fill="#0F172A" />
+          <ellipse cx="115" cy="197" rx="54" ry="11" fill={`url(#stage-shadow-${uid})`} />
         </motion.g>
 
         {/* Streak Fire Backdrop Glow */}
@@ -366,14 +386,18 @@ export function MascotStage({
         {/* Layer 1: Equipped Aura */}
         <AuraLayer aura={equippedCosmetics?.aura} uid={uid} />
 
-        {/* Animated Full Character Rig with Squash & Stretch */}
+        {/* Animated Full Character Rig with Pillowy Squash & Stretch */}
         <motion.g
-          animate={{
-            y: bodyMotion.y,
-            rotate: bodyMotion.rotate,
-            scaleX: bodyMotion.scaleX,
-            scaleY: bodyMotion.scaleY,
-          }}
+          animate={
+            prefersReducedMotion
+              ? undefined
+              : {
+                  y: bodyMotion.y,
+                  rotate: bodyMotion.rotate,
+                  scaleX: bodyMotion.scaleX,
+                  scaleY: bodyMotion.scaleY,
+                }
+          }
           transition={bodyMotion.transition}
           style={{ originX: '110px', originY: '185px' }}
         >
@@ -391,7 +415,7 @@ export function MascotStage({
             uid={uid}
           />
 
-          {/* Layer 4 & 5: Head Group (micro-springs toward pointerTarget + joyful pose nod) + Face Cosmetics */}
+          {/* Layer 4 & 5: Head Group (pillowy spring toward pointerTarget + joyful pose nod) + Face Cosmetics */}
           <motion.g
             animate={{
               rotate: headTiltDeg + (isHintReacting ? 4 : 0),
@@ -407,7 +431,7 @@ export function MascotStage({
                       : 0),
               scale: isHintReacting ? 1.04 : pose === 'happy' || pose === 'victory_dance' ? 1.025 : 1,
             }}
-            transition={{ type: 'spring', stiffness: 235, damping: 15, mass: 0.85 }}
+            transition={{ type: 'spring', stiffness: 205, damping: 22, mass: 1.1 }}
             style={{ originX: '110px', originY: '124px' }}
           >
             <HeadAndExpressionLayer
@@ -417,6 +441,7 @@ export function MascotStage({
               look={pupilOffset}
               isBlinking={isBlinking}
               hasCustomGlasses={hasCustomGlasses}
+              hasHat={Boolean(equippedCosmetics?.hat)}
             />
             <GlassesLayer
               glasses={equippedCosmetics?.glasses}
@@ -602,15 +627,15 @@ export function MascotStage({
             marginTop: 4,
             padding: '3px 12px',
             borderRadius: 999,
-            backgroundColor: '#FEF3C7',
+            backgroundColor: 'var(--paper-base, #fbf1dc)',
             borderStyle: 'solid',
-            borderWidth: '2px 2px 3px 2px',
-            borderColor: '#F59E0B',
-            color: '#92400E',
+            borderWidth: '1.6px 1.6px 2.8px 1.6px',
+            borderColor: 'var(--gild, #c99a3e)',
+            color: 'var(--ink-warm, #4a3426)',
             fontSize: 12,
             fontWeight: 800,
             letterSpacing: '0.02em',
-            boxShadow: '0 2px 6px rgba(15, 23, 42, 0.1)',
+            boxShadow: '1.5px 3px 8px var(--shadow-tint, rgba(74, 52, 38, 0.16))',
           }}
         >
           {badgeText}
