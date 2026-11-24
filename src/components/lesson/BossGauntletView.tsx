@@ -806,7 +806,10 @@ export function BossGauntletView({
             ) : null}
           </div>
         ) : (
-          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+          <span
+            className="hud-hide-xs"
+            style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}
+          >
             {exercise.introLine}
           </span>
         )}
@@ -816,6 +819,7 @@ export function BossGauntletView({
             key="boss-next-turn-btn"
             type="button"
             className="tactile-btn tactile-btn-hero tactile-btn-success"
+            style={{ marginLeft: compact ? 'auto' : undefined }}
             onClick={handleNextTurn}
           >
             {turnIndex + 1 >= exercise.turns.length ? 'Finish Encounter!' : 'Next Turn'}
@@ -825,6 +829,7 @@ export function BossGauntletView({
             key="boss-send-reply-btn"
             type="button"
             className="tactile-btn tactile-btn-hero tactile-btn-primary"
+            style={{ marginLeft: compact ? 'auto' : undefined }}
             disabled={!submittedValue}
             onClick={handleCheckTurn}
           >

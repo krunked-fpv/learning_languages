@@ -572,8 +572,6 @@ export function App() {
                 {activeTab === 'arcade' ? (
                   isAdultCourseHydrating ? (
                     <AdultTrackLoadingCard language={effectiveLanguage} />
-                  ) : isBaseCourseHydrating ? (
-                    <BaseTrackLoadingCard language={effectiveLanguage} />
                   ) : (
                     <ArcadeHubComponent
                       initialMode={arcadeInitialMode}
