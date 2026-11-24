@@ -110,13 +110,14 @@ export function FreeRecallHintBar({
             flexWrap: 'wrap',
             gap: 5,
             alignSelf: 'flex-start',
-            padding: compact ? '2px 8px' : '3px 10px',
-            borderRadius: 999,
+            padding: compact ? '3px 9px' : '4px 11px',
+            borderRadius: 12,
             background: 'var(--tint-indigo-bg)',
             border: '1px solid var(--tint-indigo-border)',
             color: 'var(--tint-indigo-ink)',
             fontSize: '0.72rem',
             fontWeight: 800,
+            lineHeight: 1.3,
           }}
         >
           <span>{toneCoaching.tip}</span>

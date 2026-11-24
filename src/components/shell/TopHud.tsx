@@ -679,8 +679,9 @@ export function TopHud({
                 fontWeight: 900,
               }}
             >
-              <FlagIcon language={coopSafeMask.safeLanguage} size={22} />
-              <span className="hud-hide-xs">Family Co-Op Safe Atlas</span>
+              <FlagIcon language={coopSafeMask.safeLanguage} size={20} />
+              <span className="hud-hide-xs">Family Co-Op{' '}</span>
+              <span data-testid="tophud-coop-safe-short-label">Safe Atlas</span>
             </div>
           ) : (
             <button
@@ -852,6 +853,7 @@ export function TopHud({
             <button
               type="button"
               className="hud-pill"
+              aria-label="Install App"
               style={{
                 background: 'var(--tint-indigo-bg)',
                 borderColor: 'var(--tint-indigo-border)',
@@ -863,7 +865,9 @@ export function TopHud({
               }}
             >
               <Download size={14} />
-              <span>Install App</span>
+              <span>
+                Install<span className="hud-hide-xs"> App</span>
+              </span>
             </button>
           ) : null}
         </div>

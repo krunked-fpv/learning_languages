@@ -97,6 +97,7 @@ export function BossGauntletView({
     syncSelection,
     handleTextChange,
     insertCharAtCaret,
+    applyConvertedText,
   } = useFreeRecallInput();
   const checkTurnLockRef = useRef(false);
   const nextTurnLockRef = useRef(false);
@@ -289,6 +290,13 @@ export function BossGauntletView({
     if (turnOutcome?.kind === 'ok') return;
     cancelHint();
     insertCharAtCaret(ch);
+    setTurnOutcome(null);
+  };
+
+  const applyPinyinPreview = (convertedText: string) => {
+    if (turnOutcome?.kind === 'ok') return;
+    cancelHint();
+    applyConvertedText(convertedText);
     setTurnOutcome(null);
   };
 
@@ -753,6 +761,7 @@ export function BossGauntletView({
             drawerKey={`${exercise.id}:${currentTurn.id}`}
             onOpenChange={setDrawerOpen}
             onInsertChar={insertAccentChar}
+            onApplyPinyinPreview={applyPinyinPreview}
           />
         </div>
       )}

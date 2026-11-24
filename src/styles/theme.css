@@ -877,12 +877,16 @@ select {
 
 @media (max-width: 640px) {
   .top-hud {
-    padding: 5px 8px 2px;
+    padding: 4px 8px 2px;
   }
 
   .top-hud-inner {
-    padding: 4px 7px;
-    border-radius: 16px;
+    padding: 3px 6px;
+    border-radius: 15px;
+    gap: 3px 5px;
+  }
+
+  .hud-group {
     gap: 4px;
   }
 

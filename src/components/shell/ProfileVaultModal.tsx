@@ -40,6 +40,7 @@ import {
   type AvatarId,
   type BaseLanguageCode,
   type ClassicAdultLanguageCode,
+  type CoopSafeAtlasMask,
   type LanguageCode,
 } from '../../types/contracts';
 import { resolvePriorKidProfile, safeVaultActions } from './vaultSafeActions';
@@ -90,9 +91,10 @@ const CLASSIC_TRACK_COPY: Record<ClassicAdultLanguageCode, { title: string; subt
 
 export interface ProfileVaultModalProps {
   onClose: () => void;
+  coopSafeMask?: CoopSafeAtlasMask;
 }
 
-export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
+export function ProfileVaultModal({ onClose, coopSafeMask }: ProfileVaultModalProps) {
   const { vault, activeProfile } = useVaultStore();
   const [showCreator, setShowCreator] = useState(false);
   const [newName, setNewName] = useState('');
@@ -125,6 +127,8 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
   const [offlinePackResult, setOfflinePackResult] = useState<OfflinePackPrefetchResult | null>(
     null
   );
+  const [coopMaskUnlockedByParent, setCoopMaskUnlockedByParent] = useState(false);
+  const [coopParentGateOpen, setCoopParentGateOpen] = useState(false);
   const isMountedRef = useRef(true);
 
   useBaseRegistryVersion();
@@ -141,12 +145,28 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
     setUnlockedRestoreOnStudyBreak(Boolean(vault.restoreKidProfileOnStudyBreak));
   }, [vault.restoreKidProfileOnStudyBreak]);
 
+  useEffect(() => {
+    setCoopMaskUnlockedByParent(false);
+    setCoopParentGateOpen(false);
+    if (coopSafeMask?.active) {
+      setAtlasTapCount(0);
+      setKeycodeOpen(false);
+      setKeycodeInput('');
+      setKeycodeError(null);
+      setAdultConfirmOpen(false);
+    }
+  }, [coopSafeMask?.active]);
+
+  const isCoopMasked = Boolean(coopSafeMask?.active) && !coopMaskUnlockedByParent;
   const canDelete = vault.profiles.length > 1;
   const isOnDefaultKid = isDefaultKidProfileId(activeProfile.id);
   const isUnlockedAdult = !isOnDefaultKid && Boolean(activeProfile.adultModeUnlocked);
   const priorKidProfile = resolvePriorKidProfile(vault, activeProfile.id);
   const includeAdultInPack = Boolean(
-    !isOnDefaultKid && activeProfile.adultModeUnlocked && activeProfile.adultModeActive
+    !isCoopMasked &&
+      !isOnDefaultKid &&
+      activeProfile.adultModeUnlocked &&
+      activeProfile.adultModeActive
   );
   const cachedPackCounts = getCachedOfflinePackCounts(includeAdultInPack);
 
@@ -199,6 +219,10 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
   };
 
   const handleVersionPillTap = () => {
+    if (isCoopMasked) {
+      playSfx('tile_tap');
+      return;
+    }
     const nextTap = atlasTapCount + 1;
     if (nextTap >= ADULT_EASTER_EGG_TAP_COUNT) {
       setAtlasTapCount(0);
@@ -214,6 +238,11 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
     e.preventDefault();
     const trimmed = keycodeInput.trim();
     if (!trimmed) return;
+    if (isCoopMasked) {
+      playSfx('gentle_nudge');
+      setKeycodeError('Atlas keycodes are paused while Family Co-Op Safe Atlas is active.');
+      return;
+    }
     if (safeVaultActions.verifyAdultEasterEggCode(trimmed)) {
       playSfx('star_pop', 2);
       setKeycodeInput('');
@@ -231,6 +260,16 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
     const trimmed = newName.trim();
     if (!trimmed) return;
     if (safeVaultActions.verifyAdultEasterEggCode(trimmed)) {
+      if (isCoopMasked) {
+        playSfx('gentle_nudge');
+        setNewName('');
+        setShowCreator(false);
+        setVaultFeedback({
+          kind: 'err',
+          message: 'Special atlas codes are paused while Family Co-Op Safe Atlas is active.',
+        });
+        return;
+      }
       playSfx('star_pop', 2);
       setNewName('');
       setShowCreator(false);
@@ -350,19 +389,116 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
             display: 'flex',
             flexDirection: 'column',
             gap: 12,
-            paddingRight: 2,
+            paddingRight: 6,
           }}
         >
+
+        {isCoopMasked ? (
+          <div
+            data-testid="profile-modal-coop-safe-mask"
+            style={{
+              padding: '10px 12px',
+              borderRadius: 16,
+              background: 'var(--tint-emerald-bg)',
+              border: '2px solid var(--tint-emerald-border)',
+              color: 'var(--tint-emerald-ink)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 8,
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontWeight: 900, fontSize: '0.86rem' }}>
+                <ShieldCheck size={16} />
+                <span>Family Co-Op Safe Atlas Active</span>
+              </div>
+              {!coopParentGateOpen ? (
+                <button
+                  type="button"
+                  data-testid="profile-modal-unlock-parent-controls-btn"
+                  className="tactile-btn tactile-btn-soft"
+                  style={{ padding: '5px 10px', fontSize: '0.76rem', borderRadius: 12 }}
+                  onClick={() => {
+                    playSfx('button_click');
+                    setCoopParentGateOpen(true);
+                  }}
+                >
+                  Parent Controls (18+)
+                </button>
+              ) : null}
+            </div>
+
+            {coopParentGateOpen ? (
+              <div
+                data-testid="profile-modal-parent-gate"
+                style={{
+                  padding: '8px 10px',
+                  borderRadius: 12,
+                  background: 'var(--card-soft-bg)',
+                  border: '1.5px solid var(--card-border)',
+                  color: 'var(--text-main)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                }}
+              >
+                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                  Confirm you are 18+ to show parent track controls for this modal session.
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    data-testid="profile-modal-confirm-parent-btn"
+                    className="tactile-btn tactile-btn-indigo"
+                    style={{ padding: '6px 11px', fontSize: '0.78rem', borderRadius: 12 }}
+                    onClick={() => {
+                      playSfx('button_click');
+                      setCoopMaskUnlockedByParent(true);
+                      setCoopParentGateOpen(false);
+                    }}
+                  >
+                    I am 18+ — Show Parent Controls
+                  </button>
+                  <button
+                    type="button"
+                    className="tactile-btn tactile-btn-soft"
+                    style={{ padding: '6px 11px', fontSize: '0.78rem', borderRadius: 12 }}
+                    onClick={() => {
+                      playSfx('button_click');
+                      setCoopParentGateOpen(false);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {/* Profile Cards */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {vault.profiles.map((profile) => {
             const isActive = profile.id === activeProfile.id;
+            const shouldMaskAdultLang = isCoopMasked || !profile.adultModeActive;
+            const safeFallbackLang: BaseLanguageCode = isCoopMasked
+              ? profile.lastBaseLanguage && !isAdultLanguage(profile.lastBaseLanguage)
+                ? profile.lastBaseLanguage
+                : 'es'
+              : (profile.lastBaseLanguage ?? 'en');
             const displayLang: LanguageCode =
-              !profile.adultModeActive && isAdultLanguage(profile.activeLanguage)
-                ? (profile.lastBaseLanguage ?? 'en')
+              shouldMaskAdultLang && isAdultLanguage(profile.activeLanguage)
+                ? safeFallbackLang
                 : profile.activeLanguage;
-            const displayLangMeta = LANGUAGE_META[displayLang] ?? LANGUAGE_META.en;
+            const displayLangMeta = LANGUAGE_META[displayLang] ?? LANGUAGE_META.es;
             return (
               <div
                 key={profile.id}
@@ -968,11 +1104,13 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
             </div>
           ) : null}
         </div>
-        </div>
 
         {/* Discreet Unlocked Adult Controls (re-entry, 1-tap kid restore & Study Break opt-in) */}
-        {!adultConfirmOpen && isUnlockedAdult ? (
-          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {!isCoopMasked && !adultConfirmOpen && isUnlockedAdult ? (
+          <div
+            data-testid="profile-modal-adult-controls"
+            style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}
+          >
             {!activeProfile.adultModeActive ? (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 <button
@@ -1045,6 +1183,7 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
             </label>
           </div>
         ) : null}
+        </div>
 
         {/* Discreet Kid-Innocuous Atlas Version Footer & Keycode Entry */}
         <div

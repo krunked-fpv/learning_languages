@@ -206,6 +206,20 @@ export function buildFreeRecallPlaceholder(params: {
     : `Type in ${langMeta.name} (accents optional, or tap keys below!)`;
 }
 
+function focusInputWithSelection(
+  el: HTMLInputElement | null,
+  start: number,
+  end: number
+): void {
+  if (!el) return;
+  try {
+    el.focus();
+    el.setSelectionRange(start, end);
+  } catch {
+    // Ignore selection range errors on detached or non-selectable inputs
+  }
+}
+
 /**
  * Shared synchronous ref-backed state for Free-Recall inputs so rapid consecutive
  * VirtualScriptDrawer or accent-bar clicks never lose characters before React commits.
@@ -271,18 +285,26 @@ export function useFreeRecallInput() {
     setTypedText(next);
   }, []);
 
+  const applyConvertedText = useCallback((nextText: string) => {
+    playSfx('tile_tap');
+    const nextCaret = nextText.length;
+    const isSame = typedTextRef.current === nextText;
+    typedTextRef.current = nextText;
+    selectionRef.current = { start: nextCaret, end: nextCaret };
+    if (isSame) {
+      pendingInsertCaretRef.current = null;
+      focusInputWithSelection(inputRef.current, nextCaret, nextCaret);
+      return;
+    }
+    pendingInsertCaretRef.current = { start: nextCaret, end: nextCaret };
+    setTypedText(nextText);
+  }, []);
+
   useLayoutEffect(() => {
     const pending = pendingInsertCaretRef.current;
     if (!pending) return;
     pendingInsertCaretRef.current = null;
-    const el = inputRef.current;
-    if (!el) return;
-    try {
-      el.focus();
-      el.setSelectionRange(pending.start, pending.end);
-    } catch {
-      // Ignore selection range errors on detached or non-selectable inputs
-    }
+    focusInputWithSelection(inputRef.current, pending.start, pending.end);
   }, [typedText]);
 
   return {
@@ -294,5 +316,6 @@ export function useFreeRecallInput() {
     syncSelection,
     handleTextChange,
     insertCharAtCaret,
+    applyConvertedText,
   };
 }

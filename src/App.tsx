@@ -605,7 +605,10 @@ export function App() {
       )}
 
       {profileModalOpen ? (
-        <ProfileVaultModal onClose={() => setProfileModalOpen(false)} />
+        <ProfileVaultModal
+          coopSafeMask={activeTab === 'arcade' ? coopSafeMask : undefined}
+          onClose={() => setProfileModalOpen(false)}
+        />
       ) : null}
 
       {/* Secret Mini-Game Unlock Celebration Modal */}
