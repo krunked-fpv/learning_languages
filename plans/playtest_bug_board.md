@@ -2,12 +2,64 @@
 
 ## Sprint 4 — Operation Celestial Summit (`PT-001`–`PT-135`)
 
-- **Sprint 4 Status:** `IN_EXECUTION` (`S4-001`–`S4-006` greenlit; Wave 1 specialists deploying; `PT-001`–`PT-135` blitz pending Wave 2)
+- **Sprint 4 Status:** `PHASE_4_BUGS_TRIAGED` (`S4-001`–`S4-006` merged on `main @ c3cebb0`; `npx tsc --noEmit` -> `0` errors; unfiltered `npx vitest run` -> `21 / 21` suites & `275 / 275` tests passing including `PT-001`–`PT-135`; live `http://127.0.0.1:4173/wanderling-subpath/` Chrome audits across `1440x900`, `768x1024`, `375x667` -> `0` console/page/HTTP errors, `0` outer overflow; `6` confirmed Wave 2 bugs `BUG-S4-001`–`BUG-S4-006` queued for Phase 4 fixes)
 - **Lead Quartermaster:** **Vera (`vera-s4`)** | **Scouts:** **Devon (`devon-s4`)**, **Mila (`mila-s4`)**
-- **Open Sprint 4 Bugs (`BUG-S4-###`):** `0` (awaiting Wave 2 blitz)
+- **Open Sprint 4 Bugs (`BUG-S4-###`):** `6` (`0` `P0`, `1` `P1`, `2` `P2`, `3` `P3`)
 
 | Bug ID | Playtest / Area | Severity | Owner | Status | Summary |
 | :--- | :--- | :---: | :--- | :---: | :--- |
+| `BUG-S4-001` | `PT-126` (`S4-001`) | `P1` | `@liam-s4` / `@julian-s4` | `OPEN` | Switching to a masked Adult profile OR `replace`-importing a `.wanderling-save.json` with an Adult `activeProfileId` inside `ProfileVaultModal` during Quarantined Co-Op switches `App` `effectiveLanguage` -> remounts `<motion.div key>`, unmounting `ArcadeHub` (`coopSafeMask.active = false`) and exposing After-Hours Atlas with zero `18+` Parent Gate |
+| `BUG-S4-002` | `PT-130` (`S4-004`) | `P2` | `@liam-s4` / `@leo-s4` | `OPEN` | Navigating to `Arcade` tab in solo mode on an uncached offline base language (`isBaseCourseHydrating`: `(course?.units?.length ?? 0) === 0`) traps the tab behind `<BaseTrackLoadingCard>` instead of opening `ArcadeHub` / `ArcadeReadyCard` with `Mini Offline Deck` (`cabinet-mini-offline-deck-pill`) |
+| `BUG-S4-003` | `PT-130` (`S4-004`) | `P2` | `@leo-s4` | `OPEN` | Cabinet #9 (`StarlightSecretGame`) renders a custom `phase === 'ready'` card instead of `ArcadeReadyCard` / `useArcadeLanguageLoadState`, omitting `data-testid="cabinet-mini-offline-deck-pill"` when running on an uncached offline base language |
+| `BUG-S4-004` | `PT-127` / `PT-130` (`S4-002`, `S4-004`) | `P3` | `@leo-s4` | `OPEN` | At `375x667`, when `CoopOfflineRecoveryGuard` renders above Page 1 cabinet cards, the narrow grid compresses and horizontally slices `"Constellation Memory Twins"` above `"Chart Stars"` |
+| `BUG-S4-005` | `PT-129` / `PT-131` (`S4-003`, `S4-005`) | `P3` | `@liam-s4` / `@julian-s4` | `OPEN` | `getPinyinTonePreview` returns `null` when trailing incomplete consonant initials follow a numeric Pinyin syllable (`"ni3h"`, `"wo3de5m"`), causing `pinyin-tone-number-preview` to vanish mid-typing until the next tone digit arrives |
+| `BUG-S4-006` | `PT-131` (`S4-005`) | `P3` | `@liam-s4` | `OPEN` | At `375x667`, `BossGauntletView` renders the 2-line `exercise.introLine` caption above `Send Reply!` even on `compact` (`< 640px`), overflowing `.lesson-arena-stage` (`632–647 > 623`) and clipping the bottom `8px` of `Send Reply!` when Hint + Pinyin preview are active |
+
+### Sprint 4 Canonical Bug Details (`BUG-S4-001`–`BUG-S4-006`)
+
+#### BUG-S4-001 — Masked Adult profile switch or `replace` JSON import drops Co-Op Quarantine with zero `18+` Parent Gate
+- **Status:** `OPEN` | **Severity:** `P1` | **Owner:** `@liam-s4` / `@julian-s4` | **Reporter:** `devon-s4` (verified by `vera-s4`)
+- **File / Line:** `src/components/shell/ProfileVaultModal.tsx:160, 309-326, 536-539`; `src/store/useVaultStore.ts:1703-1705`; `src/App.tsx:529`; `src/components/arcade/ArcadeHub.tsx:527-534`
+- **Repro Steps:**
+  1. In Quarantined Co-Op (`Leo[es]` + `Dad[adultModeActive: true, activeLanguage: 'ebonics']` or `merge`-imported Adult profile), open `ProfileVaultModal` (`profile-modal-coop-safe-mask` visible, `Dad` masked as `Spanish`). Click the `Dad` card (`vaultActions.switchProfile`), **OR**
+  2. Paste a `.wanderling-save.json` whose `activeProfileId` has `adultModeActive: true` (`ebonics`) and click `Import Pasted JSON` (`replace`) while `isCoopMasked` is active.
+- **Expected vs Actual:** Expected switching to or `replace`-importing an Adult profile while `isCoopMasked` is active to require `Parent Controls (18+)` (`profile-modal-parent-gate`) or auto-disarm `adultModeActive` to safe base mode before switching. Actual switches `activeProfileId` -> flips `App` `effectiveLanguage` -> remounts `<motion.div key={`${activeTab}-${effectiveLanguage}`}>` -> unmounts `ArcadeHub` (`coopSafeMask.active = false`) -> clears `isCoopMasked` and immediately exposes After-Hours Atlas without any `18+` confirmation gate.
+- **Suggested Fix:** While `isCoopMasked` is true inside `ProfileVaultModal`, either gate profile switches / `replace` imports targeting an `adultModeActive` profile behind `profile-modal-parent-gate` or disarm `adultModeActive` (`setAdultModeActive(false)`) when switching while masked, and do not tear down `ArcadeHub` Quarantine state silently on profile switch inside `ProfileVaultModal`.
+
+#### BUG-S4-002 — Solo navigation onto uncached offline base language traps `Arcade` tab behind `BaseTrackLoadingCard`
+- **Status:** `OPEN` | **Severity:** `P2` | **Owner:** `@liam-s4` / `@leo-s4` | **Reporter:** `devon-s4` (corroborated by `mila-s4` & `vera-s4`)
+- **File / Line:** `src/App.tsx:394-395, 572-576`
+- **Repro Steps:** Set active profile language to uncached `'ja'` or `'ru'` with `assets/course-<lang>-*.js` chunks blocked (e.g., via CDP `Network.setBlockedURLs` or offline test loader), then open the `Arcade` tab in solo mode.
+- **Expected vs Actual:** Expected solo offline `Arcade` players to enter `ArcadeHub` and launch any cabinet using the 8-card `Mini Offline Deck` (`cabinet-mini-offline-deck-pill` inside `ArcadeReadyCard`). Actual checks `isBaseCourseHydrating` (`(course?.units?.length ?? 0) === 0`) before rendering `<ArcadeHubComponent />`, trapping `activeTab === 'arcade'` on `<BaseTrackLoadingCard>`.
+- **Suggested Fix:** Allow `activeTab === 'arcade'` in `App.tsx:572-576` to render `<ArcadeHubComponent />` even when `isBaseCourseHydrating` is true for base languages (`useArcadeDeck` + `ArcadeReadyCard` already provide the `Mini Offline Deck` fallback and retry UI).
+
+#### BUG-S4-003 — Secret Cabinet #9 (`StarlightSecretGame`) omits `cabinet-mini-offline-deck-pill`
+- **Status:** `OPEN` | **Severity:** `P2` | **Owner:** `@leo-s4` | **Reporter:** `devon-s4` (verified by `vera-s4`)
+- **File / Line:** `src/components/arcade/StarlightSecretGame.tsx:499-614`
+- **Repro Steps:** Unlock Secret Arcade (`Starlight Critter Choir`), select an uncached offline base language (`'ja'`), and launch `Play Starlight Critter Choir!`.
+- **Expected vs Actual:** Expected Cabinet #9's ready screen to match Cabinets #1–#8 by surfacing `data-testid="cabinet-mini-offline-deck-pill"` (`Mini Offline Deck · 8 Starter Cards`) whenever the active language's lazy course failed to load offline. Actual renders a custom `phase === 'ready'` card that omits `useArcadeLanguageLoadState` and `cabinet-mini-offline-deck-pill`.
+- **Suggested Fix:** Wire `useArcadeLanguageLoadState(language)` into `StarlightSecretGame` (or reuse `ArcadeReadyCard` / shared pill helper) to render `data-testid="cabinet-mini-offline-deck-pill"` when `!isAdultLanguage(language) && Boolean(loadState.error) && !loadState.loaded`.
+
+#### BUG-S4-004 — `CoopOfflineRecoveryGuard` at `375x667` compresses Hub grid and clips `"Constellation Memory Twins"`
+- **Status:** `OPEN` | **Severity:** `P3` | **Owner:** `@leo-s4` | **Reporter:** `devon-s4` (corroborated by `mila-s4` & `vera-s4`)
+- **File / Line:** `src/components/arcade/ArcadeHub.tsx:2023-2025, 2105-2121`
+- **Repro Steps:** At `375x667`, open `Arcade` Hub and arm `2P Family Co-Op` with an uncached offline partner (`Maya: fr`/`ja`) so `CoopOfflineRecoveryGuard` renders above the Page 1 cabinet grid.
+- **Expected vs Actual:** Expected all 4 Page 1 cabinet card titles and CTAs to fit legibly without vertical clipping or text slicing. Actual reduces available grid height (`gridAutoRows: 'minmax(112px, 1fr)'`) and slices the wrapped `"Twins"` line of `"Constellation Memory Twins"` horizontally right above `"Chart Stars"`.
+- **Suggested Fix:** Lower or allow flexible compact `gridAutoRows` / card padding (`minmax(100px, auto)` when offline guard is visible on `isNarrow`, or single-line clamp / tighter emblem+badge gap) so `.console-scroll-pane` scrolls cleanly without slicing card headings mid-line.
+
+#### BUG-S4-005 — `getPinyinTonePreview` vanishes on partial trailing consonants after a numeric Pinyin syllable (`"ni3h"`, `"wo3de5m"`)
+- **Status:** `OPEN` | **Severity:** `P3` | **Owner:** `@liam-s4` / `@julian-s4` | **Reporter:** `devon-s4` (verified by `vera-s4`)
+- **File / Line:** `src/components/lesson/useFreeRecallInput.ts:92-101`; `src/core/grader.ts:231-241`
+- **Repro Steps:** Open Mandarin `zh` `to_foreign` Free-Recall in `WordBankView` or `BossGauntletView` and type `"ni3"` (preview shows `"nǐ"`), then type `"ni3h"` or `"wo3de5m"`.
+- **Expected vs Actual:** Expected `pinyin-tone-number-preview` to keep converting completed numeric prefix syllables (`"nǐh"`, `"wǒdem"`), matching `resolveFreeRecallHint` (`toneCoaching.convertedNumericPinyin`). Actual relies on `hasNumericPinyinSyllable` / `convertNumericPinyin`, which drops the entire preview (`null`) whenever trailing incomplete consonant initials follow a tone digit until the next vowel + tone digit is typed.
+- **Suggested Fix:** Export/use partial-tail numeric Pinyin conversion (`convertNumericPinyinWithPartialTail` or trailing-consonant tolerance in `getPinyinTonePreview`) so `pinyin-tone-number-preview` stays smoothly visible while typing multi-syllable unspaced Pinyin.
+
+#### BUG-S4-006 — `BossGauntletView` `introLine` clips bottom `8px` of `Send Reply!` on `375x667` when Hint + Pinyin preview are active
+- **Status:** `OPEN` | **Severity:** `P3` | **Owner:** `@liam-s4` | **Reporter:** `mila-s4` (verified by `vera-s4`)
+- **File / Line:** `src/components/lesson/BossGauntletView.tsx:808-812` (compare `src/components/lesson/LessonArena.tsx:1494`)
+- **Repro Steps:** At `375x667`, open `zh-u1-n7` (`Boss: Mateo's Lantern Greeting`), reach Turn 2 (`My name is Pip.`), switch to `Keyboard Free-Recall`, click `.starlight-hint-btn`, and type `"wo3de5ming2zi5jiao4Pi2pu4"`.
+- **Expected vs Actual:** Expected `.lesson-arena-stage` to keep `scrollHeight === clientHeight` (`0` overflow) with `Send Reply!` cleanly above the bottom edge at `375x667`. Actual renders the 2-line `exercise.introLine` caption above `Send Reply!` even on `compact` (`< 640px`), pushing `Send Reply!` `8px` below `667px` (`scrollHeight: 632–647 > clientHeight: 623`, `sendBtnBottom: 675 > 667`).
+- **Suggested Fix:** Hide the non-essential `exercise.introLine` caption on `< 640px` (`className="hud-hide-xs"` or `!compact`, matching `LessonArena.tsx:1494`) and give `Send Reply!` `marginLeft: 'auto'` on compact viewports so the button sits cleanly inside `100dvh`.
 
 ---
 
