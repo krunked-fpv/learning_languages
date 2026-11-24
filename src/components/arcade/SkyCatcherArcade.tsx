@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx } from '../../audio';
-import { useVaultStore } from '../../store/useVaultStore';
 import {
   LANGUAGE_META,
   type ArcadeLanternItem,
@@ -20,9 +19,10 @@ import {
   TargetPromptBar,
   computeScaledArcadeRewards,
   getArcadeForeignTextStyle,
-  recordArcadeRunResult,
   useArcadeContainerMetrics,
+  useArcadeCoopReport,
   useArcadeDeck,
+  useArcadeEffectiveProfile,
 } from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 45;
@@ -50,7 +50,8 @@ export function SkyCatcherArcade({
   onResumeLesson,
   onExit,
 }: SkyCatcherArcadeProps) {
-  const { activeProfile } = useVaultStore();
+  const activeProfile = useArcadeEffectiveProfile();
+  const settleArcadeRun = useArcadeCoopReport();
   const { language, lexicon, targetLexicon, bestScoreFor, paceMultiplier } =
     useArcadeDeck(arcadeTier);
   const { containerRef, isCompact } = useArcadeContainerMetrics();
@@ -139,7 +140,7 @@ export function SkyCatcherArcade({
       baseGems,
       performanceUnits: totalCatches,
     });
-    recordArcadeRunResult({
+    settleArcadeRun({
       gameId: 'sky_catcher',
       score: finalScore,
       heartsWon,
@@ -150,7 +151,7 @@ export function SkyCatcherArcade({
     playSfx('unit_fanfare');
     setSummaryResult({ score: finalScore, heartsWon, bonusGems, xpEarned, catches: totalCatches });
     setPhase('summary');
-  }, [arcadeTier]);
+  }, [arcadeTier, isHeartRecovery, settleArcadeRun]);
 
   const startRound = useCallback(() => {
     playSfx('button_click');

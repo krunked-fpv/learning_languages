@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { Sparkles, Volume2 } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
-import { useVaultStore } from '../../store/useVaultStore';
 import {
   LANGUAGE_META,
   type ArcadeLanternItem,
@@ -23,10 +22,12 @@ import {
   getArcadeClueTextStyle,
   getArcadeForeignTextStyle,
   isAdultArcadeActive,
-  recordArcadeRunResult,
   resolveArcadePlainEnglish,
   useArcadeContainerMetrics,
+  useArcadeCoopReport,
+  useArcadeCoopTurn,
   useArcadeDeck,
+  useArcadeEffectiveProfile,
 } from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 60;
@@ -68,12 +69,14 @@ export function ConstellationMemoryArcade({
   arcadeTier = 'sprout',
   onExit,
 }: ConstellationMemoryArcadeProps) {
-  const { activeProfile } = useVaultStore();
+  const activeProfile = useArcadeEffectiveProfile();
+  const coopTurn = useArcadeCoopTurn();
+  const settleArcadeRun = useArcadeCoopReport();
   const { language, lexicon, bestScoreFor, paceMultiplier } = useArcadeDeck(arcadeTier);
   const { containerRef, isCompact, isNarrow } = useArcadeContainerMetrics();
   const langDir = LANGUAGE_META[language].dir;
   const roundDuration = Math.round(ROUND_DURATION_SECONDS / Math.pow(paceMultiplier, 0.5));
-  const showPlainButton = isAdultArcadeActive(language, activeProfile);
+  const showPlainButton = !coopTurn?.kidQuarantined && isAdultArcadeActive(language, activeProfile);
 
   const [phase, setPhase] = useState<'ready' | 'playing' | 'summary'>('ready');
   const [plainOpen, setPlainOpen] = useState(false);
@@ -196,7 +199,7 @@ export function ConstellationMemoryArcade({
       performanceUnits: totalPairs,
       baseXpBonus: wavesCleared * 3,
     });
-    recordArcadeRunResult({
+    settleArcadeRun({
       gameId: 'constellation_memory',
       score: finalScore,
       heartsWon,
@@ -213,7 +216,7 @@ export function ConstellationMemoryArcade({
       wavesCleared,
     });
     setPhase('summary');
-  }, [arcadeTier]);
+  }, [arcadeTier, settleArcadeRun]);
 
   const startRound = useCallback(() => {
     playSfx('button_click');

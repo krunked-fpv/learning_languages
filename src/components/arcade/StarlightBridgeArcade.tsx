@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Compass, Sparkles, Volume2 } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
-import { useVaultStore } from '../../store/useVaultStore';
 import {
   LANGUAGE_META,
   type ArcadeLanternItem,
@@ -27,10 +26,12 @@ import {
   getArcadeForeignTextStyle,
   isAdultArcadeActive,
   pickDistinctItems,
-  recordArcadeRunResult,
   resolveArcadePlainEnglish,
   useArcadeContainerMetrics,
+  useArcadeCoopReport,
+  useArcadeCoopTurn,
   useArcadeDeck,
+  useArcadeEffectiveProfile,
 } from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 45;
@@ -154,7 +155,9 @@ export function StarlightBridgeArcade({
   arcadeTier = 'sprout',
   onExit,
 }: StarlightBridgeArcadeProps) {
-  const { activeProfile } = useVaultStore();
+  const activeProfile = useArcadeEffectiveProfile();
+  const coopTurn = useArcadeCoopTurn();
+  const settleArcadeRun = useArcadeCoopReport();
   const { language, lexicon, targetLexicon, bestScoreFor, paceMultiplier } =
     useArcadeDeck(arcadeTier);
   const { containerRef, isCompact } = useArcadeContainerMetrics();
@@ -199,7 +202,8 @@ export function StarlightBridgeArcade({
   const [pipPose, setPipPose] = useState<CharacterPose>('happy');
   const [plankLocked, setPlankLocked] = useState(false);
   const [wrongChoiceIdx, setWrongChoiceIdx] = useState<number | null>(null);
-  const showPlainButton = isAdultArcadeActive(language, activeProfile);
+  const showPlainButton =
+    !coopTurn?.kidQuarantined && isAdultArcadeActive(language, activeProfile);
   const [plainOpen, setPlainOpen] = useState(false);
 
   const [round, setRound] = useState<BridgeRound>(() => makeRound(1));
@@ -318,7 +322,7 @@ export function StarlightBridgeArcade({
       baseXpBonus: totalSpeed,
     });
 
-    recordArcadeRunResult({
+    settleArcadeRun({
       gameId: 'starlight_bridge',
       score: finalScore,
       heartsWon,
@@ -335,7 +339,7 @@ export function StarlightBridgeArcade({
       speedCrossings: totalSpeed,
     });
     setPhase('summary');
-  }, [arcadeTier]);
+  }, [arcadeTier, settleArcadeRun]);
 
   const startRound = useCallback(() => {
     playSfx('whoosh_transition');

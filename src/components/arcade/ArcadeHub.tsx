@@ -1,24 +1,35 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
+  Crown,
   Gamepad2,
+  Gem,
   Lock,
   Music,
   Play,
+  RotateCcw,
   Sparkles,
   Star,
   Trophy,
+  Users,
 } from 'lucide-react';
+import { AvatarBadge } from '../../art/AvatarBadge';
 import { FlagIcon } from '../../art/FlagIcon';
 import { playSfx } from '../../audio';
 import { getCourse } from '../../curriculum';
-import { useVaultStore } from '../../store/useVaultStore';
+import { useVaultStore, vaultActions } from '../../store/useVaultStore';
 import {
   LANGUAGE_META,
+  isDefaultKidProfileId,
   type ArcadeProficiencyTier,
+  type CoopArcadeSessionParams,
+  type CoopArcadeSessionSummary,
+  type KidProfile,
+  type LanguageCode,
   type LanguageMeta,
 } from '../../types/contracts';
+import { ConfettiBurst } from '../fx/JuiceEngine';
 import {
   CafeOrderRushEmblem,
   ConstellationMemoryEmblem,
@@ -36,11 +47,15 @@ import {
   ArcadePlainEnglishCallout,
   ArcadeSayItNormallyButton,
   CARD_SURFACE_STYLE,
+  CoopArcadeTurnProvider,
   SOFT_BTN_STYLE,
   isAdultArcadeActive,
   resolveArcadePlainEnglish,
+  resolveSafeBaseLanguage,
   useArcadeContainerMetrics,
   useArcadeDeck,
+  type ArcadeCoopSettledResult,
+  type CoopArcadeTurnContextValue,
 } from './arcadeShared';
 import { CafeOrderRushArcade } from './CafeOrderRushArcade';
 import { ConstellationMemoryArcade } from './ConstellationMemoryArcade';
@@ -163,10 +178,127 @@ const STANDARD_CABINETS: readonly CabinetSpec[] = [
   },
 ];
 
+type CoopMatchState =
+  | {
+      stage: 'playing_turn_1';
+      gameId: Exclude<ArcadeGameMode, 'hub'>;
+      p1: KidProfile;
+      p2: KidProfile;
+      kidQuarantined: boolean;
+      p1Language: LanguageCode;
+      p2Language: LanguageCode;
+    }
+  | {
+      stage: 'handoff';
+      gameId: Exclude<ArcadeGameMode, 'hub'>;
+      p1: KidProfile;
+      p2: KidProfile;
+      kidQuarantined: boolean;
+      p1Language: LanguageCode;
+      p2Language: LanguageCode;
+      p1Result: ArcadeCoopSettledResult;
+    }
+  | {
+      stage: 'playing_turn_2';
+      gameId: Exclude<ArcadeGameMode, 'hub'>;
+      p1: KidProfile;
+      p2: KidProfile;
+      kidQuarantined: boolean;
+      p1Language: LanguageCode;
+      p2Language: LanguageCode;
+      p1Result: ArcadeCoopSettledResult;
+    }
+  | {
+      stage: 'summary';
+      gameId: Exclude<ArcadeGameMode, 'hub'>;
+      p1: KidProfile;
+      p2: KidProfile;
+      p1Result: ArcadeCoopSettledResult;
+      p2Result: ArcadeCoopSettledResult;
+      sessionSummary: CoopArcadeSessionSummary;
+    };
+
+function getCabinetTitle(gameId: Exclude<ArcadeGameMode, 'hub'>): string {
+  if (gameId === 'starlight_choir') return 'Starlight Critter Choir';
+  return STANDARD_CABINETS.find((c) => c.id === gameId)?.title ?? 'Expedition Arcade';
+}
+
 export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) {
-  const { activeProfile } = useVaultStore();
+  const { vault, activeProfile } = useVaultStore();
   const [arcadeTier, setArcadeTier] = useState<ArcadeProficiencyTier>('sprout');
-  const { language, targetLexicon, bestScoreFor, tierMeta } = useArcadeDeck(arcadeTier);
+  const [coopEnabled, setCoopEnabled] = useState(false);
+  const [playerOneId, setPlayerOneId] = useState<string>(() => activeProfile.id);
+  const [playerTwoId, setPlayerTwoId] = useState<string>(
+    () => vault.profiles.find((p) => p.id !== activeProfile.id)?.id ?? activeProfile.id
+  );
+  const [coopMatch, setCoopMatch] = useState<CoopMatchState | null>(null);
+  const [mode, setMode] = useState<ArcadeGameMode>(initialMode);
+  const [page, setPage] = useState<0 | 1 | 2>(0);
+  const [plainOpen, setPlainOpen] = useState(false);
+
+  const hasMultipleProfiles = vault.profiles.length >= 2;
+  const { p1, p2 } = useMemo(() => {
+    if (vault.profiles.length < 2) {
+      return { p1: activeProfile, p2: undefined as KidProfile | undefined };
+    }
+    const first =
+      vault.profiles.find((p) => p.id === playerOneId) ??
+      vault.profiles.find((p) => p.id === activeProfile.id) ??
+      vault.profiles[0];
+    const second =
+      vault.profiles.find((p) => p.id === playerTwoId && p.id !== first.id) ??
+      vault.profiles.find((p) => p.id !== first.id);
+    return { p1: first, p2: second };
+  }, [vault.profiles, activeProfile, playerOneId, playerTwoId]);
+
+  const effectiveCoopEnabled = coopEnabled && hasMultipleProfiles && Boolean(p2);
+  const isCoopKidQuarantined =
+    effectiveCoopEnabled &&
+    (!p1 ||
+      !p2 ||
+      isDefaultKidProfileId(p1.id) ||
+      !p1.adultModeUnlocked ||
+      isDefaultKidProfileId(p2.id) ||
+      !p2.adultModeUnlocked);
+
+  const resolveTurnLanguage = (
+    player: KidProfile | undefined,
+    quarantined: boolean
+  ): LanguageCode => {
+    if (!player) return 'es';
+    if (quarantined) {
+      return resolveSafeBaseLanguage(player, activeProfile);
+    }
+    return player.activeLanguage;
+  };
+
+  useEffect(() => {
+    if (!coopEnabled) {
+      setPlayerOneId(activeProfile.id);
+      const distinctPartner = vault.profiles.find((p) => p.id !== activeProfile.id);
+      if (distinctPartner) {
+        setPlayerTwoId(distinctPartner.id);
+      }
+    }
+  }, [coopEnabled, activeProfile.id, vault.profiles]);
+
+  const p1HubLanguage = resolveTurnLanguage(p1, isCoopKidQuarantined);
+  const hubDeckOverride = useMemo(
+    () =>
+      effectiveCoopEnabled
+        ? {
+            profile: p1,
+            languageOverride: p1HubLanguage,
+            kidQuarantined: isCoopKidQuarantined,
+          }
+        : undefined,
+    [effectiveCoopEnabled, p1, p1HubLanguage, isCoopKidQuarantined]
+  );
+
+  const { language, targetLexicon, bestScoreFor, tierMeta } = useArcadeDeck(
+    arcadeTier,
+    hubDeckOverride
+  );
   const { containerRef, width, height, isNarrow, isCompact } = useArcadeContainerMetrics();
   const langMeta = LANGUAGE_META[language];
   let courseMeta: LanguageMeta = langMeta;
@@ -178,12 +310,11 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
   } catch {
     courseMeta = langMeta;
   }
+  const hubProfile = effectiveCoopEnabled ? p1 : activeProfile;
   const showAdultDirectionBadge =
+    !isCoopKidQuarantined &&
     Boolean(courseMeta.isAdultOnly && courseMeta.pairDirectionBadge) &&
-    isAdultArcadeActive(language, activeProfile);
-  const [mode, setMode] = useState<ArcadeGameMode>(initialMode);
-  const [page, setPage] = useState<0 | 1 | 2>(0);
-  const [plainOpen, setPlainOpen] = useState(false);
+    isAdultArcadeActive(language, hubProfile);
 
   const hubSampleItem = targetLexicon[0];
   const hubPlainResult =
@@ -193,37 +324,582 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
 
   useEffect(() => {
     setMode(initialMode);
+    setCoopMatch(null);
   }, [initialMode]);
 
-  if (mode === 'sky_catcher') {
-    return <SkyCatcherArcade arcadeTier={arcadeTier} onExit={() => setMode('hub')} />;
-  }
-  if (mode === 'meteor_blaster') {
-    return <MeteorBlasterArcade arcadeTier={arcadeTier} onExit={() => setMode('hub')} />;
-  }
-  if (mode === 'tower_stack') {
-    return <TowerStackArcade arcadeTier={arcadeTier} onExit={() => setMode('hub')} />;
-  }
-  if (mode === 'constellation_memory') {
-    return <ConstellationMemoryArcade arcadeTier={arcadeTier} onExit={() => setMode('hub')} />;
-  }
-  if (mode === 'train_switcher') {
-    return <TrainSwitcherArcade arcadeTier={arcadeTier} onExit={() => setMode('hub')} />;
-  }
-  if (mode === 'rhythm_chef') {
-    return <RhythmChefArcade arcadeTier={arcadeTier} onExit={() => setMode('hub')} />;
-  }
-  if (mode === 'cafe_order_rush') {
-    return <CafeOrderRushArcade arcadeTier={arcadeTier} onExit={() => setMode('hub')} />;
-  }
-  if (mode === 'starlight_bridge') {
-    return <StarlightBridgeArcade arcadeTier={arcadeTier} onExit={() => setMode('hub')} />;
-  }
-  if (mode === 'starlight_choir' && activeProfile.secretArcadeUnlocked) {
-    return <StarlightSecretGame arcadeTier={arcadeTier} onExit={() => setMode('hub')} />;
+  const handleSelectP1 = (nextId: string) => {
+    playSfx('tile_tap', 0);
+    if (nextId === p2?.id && p1) {
+      setPlayerTwoId(p1.id);
+    }
+    setPlayerOneId(nextId);
+  };
+
+  const handleSelectP2 = (nextId: string) => {
+    playSfx('tile_tap', 1);
+    if (nextId === p1.id && p2) {
+      setPlayerOneId(p2.id);
+    }
+    setPlayerTwoId(nextId);
+  };
+
+  const launchCabinet = (cabId: Exclude<ArcadeGameMode, 'hub'>) => {
+    if (cabId === 'starlight_choir') {
+      playSfx('secret_fanfare');
+    } else {
+      playSfx('whoosh_transition');
+    }
+    if (effectiveCoopEnabled && p2) {
+      setCoopMatch({
+        stage: 'playing_turn_1',
+        gameId: cabId,
+        p1,
+        p2,
+        kidQuarantined: isCoopKidQuarantined,
+        p1Language: resolveTurnLanguage(p1, isCoopKidQuarantined),
+        p2Language: resolveTurnLanguage(p2, isCoopKidQuarantined),
+      });
+    } else {
+      setCoopMatch(null);
+    }
+    setMode(cabId);
+  };
+
+  const handleExitToHub = () => {
+    setCoopMatch(null);
+    setMode('hub');
+  };
+
+  const handleCoopRoundSettled = (result: ArcadeCoopSettledResult) => {
+    if (!coopMatch) return;
+    if (coopMatch.stage === 'playing_turn_1') {
+      setCoopMatch({
+        ...coopMatch,
+        stage: 'handoff',
+        p1Result: result,
+      });
+      return;
+    }
+    if (coopMatch.stage === 'playing_turn_2') {
+      const coopBonusGems = Math.max(
+        2,
+        Math.round((coopMatch.p1Result.bonusGems + result.bonusGems) / 2)
+      );
+      const coopXpEarned = Math.max(
+        10,
+        Math.round((coopMatch.p1Result.xpEarned + result.xpEarned) / 2)
+      );
+      const coopVault = vaultActions as typeof vaultActions & {
+        recordCoopArcadeSession?: (p: CoopArcadeSessionParams) => CoopArcadeSessionSummary | null;
+      };
+      const persisted =
+        coopVault.recordCoopArcadeSession?.({
+          gameId: coopMatch.gameId,
+          playerOneId: coopMatch.p1.id,
+          playerOneScore: coopMatch.p1Result.score,
+          playerTwoId: coopMatch.p2.id,
+          playerTwoScore: result.score,
+          bonusGems: coopBonusGems,
+          xpEarned: coopXpEarned,
+        }) ?? null;
+
+      const p1Won = coopMatch.p1Result.score > result.score;
+      const p2Won = result.score > coopMatch.p1Result.score;
+      const isTieScore = !p1Won && !p2Won;
+      const sessionSummary: CoopArcadeSessionSummary = persisted ?? {
+        winnerProfileId: p1Won ? coopMatch.p1.id : p2Won ? coopMatch.p2.id : 'tie',
+        combinedScore: coopMatch.p1Result.score + result.score,
+        playerOneGemsAwarded: coopBonusGems + (isTieScore ? 3 : p1Won ? 5 : 0),
+        playerTwoGemsAwarded: coopBonusGems + (isTieScore ? 3 : p2Won ? 5 : 0),
+        xpAwardedEach: coopXpEarned,
+      };
+
+      setCoopMatch({
+        stage: 'summary',
+        gameId: coopMatch.gameId,
+        p1: coopMatch.p1,
+        p2: coopMatch.p2,
+        p1Result: coopMatch.p1Result,
+        p2Result: result,
+        sessionSummary,
+      });
+    }
+  };
+
+  const secretUnlocked = effectiveCoopEnabled
+    ? Boolean(
+        p1.secretArcadeUnlocked || p2?.secretArcadeUnlocked || activeProfile.secretArcadeUnlocked
+      )
+    : Boolean(activeProfile.secretArcadeUnlocked);
+
+  if (coopMatch?.stage === 'handoff') {
+    const cabinetTitle = getCabinetTitle(coopMatch.gameId);
+    return (
+      <section
+        ref={containerRef}
+        aria-label="2P Family Co-Op Handoff"
+        style={{
+          height: '100%',
+          maxHeight: '100%',
+          minHeight: 0,
+          width: '100%',
+          maxWidth: 960,
+          margin: '0 auto',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          data-testid="arcade-coop-handoff"
+          style={{
+            ...CARD_SURFACE_STYLE,
+            flex: 1,
+            minHeight: 0,
+            padding: isCompact ? 14 : 24,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: isCompact ? 10 : 14,
+            textAlign: 'center',
+            overflowY: 'auto',
+          }}
+        >
+          <ConfettiBurst active intensity="medium" />
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '3px 10px',
+              borderRadius: 999,
+              background: 'var(--tint-amber-bg, #fffbeb)',
+              border: '1.5px solid var(--tint-amber-border, #fbbf24)',
+              color: 'var(--tint-amber-ink, #92400e)',
+              fontFamily: 'var(--font-display)',
+              fontSize: isCompact ? '0.7rem' : '0.78rem',
+              fontWeight: 900,
+            }}
+          >
+            <Sparkles size={13} />
+            <span>TURN 1 COMPLETE • {cabinetTitle}</span>
+          </span>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: isCompact ? 10 : 16,
+              flexWrap: 'wrap',
+            }}
+          >
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: isCompact ? '6px 10px' : '8px 14px',
+                borderRadius: 14,
+                background: 'var(--card-soft-bg, #f8fafc)',
+                border: `2px solid ${coopMatch.p1.bannerColor || '#2563eb'}`,
+              }}
+            >
+              <AvatarBadge avatarId={coopMatch.p1.avatarId} size={isCompact ? 30 : 38} />
+              <div style={{ textAlign: 'left' }}>
+                <div
+                  style={{
+                    fontSize: isCompact ? '0.72rem' : '0.8rem',
+                    fontWeight: 900,
+                    color: 'var(--text-muted, #475569)',
+                  }}
+                >
+                  {coopMatch.p1.name} (P1)
+                </div>
+                <div
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: isCompact ? '0.96rem' : '1.12rem',
+                    fontWeight: 900,
+                    color: 'var(--text-main, #1e1b4b)',
+                  }}
+                >
+                  Score: {coopMatch.p1Result.score}
+                </div>
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: 4,
+                borderRadius: 999,
+                background: coopMatch.p2.bannerColor || '#ec4899',
+                display: 'inline-flex',
+              }}
+            >
+              <AvatarBadge avatarId={coopMatch.p2.avatarId} size={isCompact ? 48 : 64} />
+            </div>
+          </div>
+
+          <h2
+            style={{
+              margin: 0,
+              fontFamily: 'var(--font-display)',
+              fontSize: isCompact ? '1.18rem' : '1.52rem',
+              fontWeight: 900,
+              color: 'var(--text-main, #1e1b4b)',
+              lineHeight: 1.15,
+            }}
+          >
+            Pass Console to {coopMatch.p2.name}!
+          </h2>
+
+          <p
+            style={{
+              margin: 0,
+              maxWidth: 440,
+              fontSize: isCompact ? '0.82rem' : '0.92rem',
+              fontWeight: 700,
+              color: 'var(--text-muted, #475569)',
+              lineHeight: 1.35,
+            }}
+          >
+            {coopMatch.p1.name} scored {coopMatch.p1Result.score} points! Hand the screen to{' '}
+            {coopMatch.p2.name} to combine scores in the Family Co-Op Finale!
+          </p>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              flexWrap: 'wrap',
+              marginTop: 2,
+            }}
+          >
+            <button
+              type="button"
+              className="tactile-btn tactile-btn-hero tactile-btn-primary"
+              onClick={() => {
+                playSfx('whoosh_transition');
+                setCoopMatch({
+                  ...coopMatch,
+                  stage: 'playing_turn_2',
+                });
+              }}
+            >
+              <Play size={17} />
+              <span>Start {coopMatch.p2.name}&apos;s Turn!</span>
+            </button>
+
+            <button
+              type="button"
+              className="tactile-btn tactile-btn-hero"
+              style={SOFT_BTN_STYLE}
+              onClick={() => {
+                playSfx('button_click');
+                handleExitToHub();
+              }}
+            >
+              Back to Arcade Hub
+            </button>
+          </div>
+        </div>
+      </section>
+    );
   }
 
-  const secretUnlocked = Boolean(activeProfile.secretArcadeUnlocked);
+  if (coopMatch?.stage === 'summary') {
+    const { p1: mp1, p2: mp2, p1Result, p2Result, sessionSummary } = coopMatch;
+    const isTie = sessionSummary.winnerProfileId === 'tie';
+    const winnerName =
+      sessionSummary.winnerProfileId === mp1.id ? mp1.name : mp2.name;
+    const p1HasCrown = isTie || sessionSummary.winnerProfileId === mp1.id;
+    const p2HasCrown = isTie || sessionSummary.winnerProfileId === mp2.id;
+
+    return (
+      <section
+        ref={containerRef}
+        aria-label="Family Co-Op Finale"
+        style={{
+          height: '100%',
+          maxHeight: '100%',
+          minHeight: 0,
+          width: '100%',
+          maxWidth: 960,
+          margin: '0 auto',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          data-testid="arcade-coop-summary"
+          style={{
+            ...CARD_SURFACE_STYLE,
+            flex: 1,
+            minHeight: 0,
+            padding: isCompact ? 12 : 22,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: isCompact ? 8 : 12,
+            textAlign: 'center',
+            overflowY: 'auto',
+          }}
+        >
+          <ConfettiBurst active intensity="grand" />
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: isCompact ? '3px 10px' : '4px 12px',
+              borderRadius: 999,
+              background: 'var(--tint-amber-bg, #fffbeb)',
+              border: '1.5px solid var(--tint-amber-border, #f59e0b)',
+              color: 'var(--tint-amber-ink, #92400e)',
+              fontFamily: 'var(--font-display)',
+              fontSize: isCompact ? '0.72rem' : '0.82rem',
+              fontWeight: 900,
+            }}
+          >
+            <Crown size={14} />
+            <span>{isTie ? "It's a Family Tie!" : `${winnerName} Wins the Crown!`}</span>
+          </span>
+
+          <h2
+            style={{
+              margin: 0,
+              fontFamily: 'var(--font-display)',
+              fontSize: isCompact ? '1.18rem' : '1.48rem',
+              fontWeight: 900,
+              color: 'var(--text-main, #1e1b4b)',
+              lineHeight: 1.12,
+            }}
+          >
+            Family Co-Op Finale!
+          </h2>
+
+          <div
+            className="hud-pill hud-pill-static"
+            style={{
+              background: 'var(--tint-indigo-bg, #eef2ff)',
+              borderColor: 'var(--tint-indigo-border, #818cf8)',
+              color: 'var(--tint-indigo-ink, #312e81)',
+              padding: isCompact ? '4px 12px' : '6px 16px',
+              fontSize: isCompact ? '0.82rem' : '0.94rem',
+            }}
+          >
+            <Trophy size={15} />
+            <span>Combined Team Score: {sessionSummary.combinedScore}</span>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+              gap: isCompact ? 8 : 12,
+              width: '100%',
+              maxWidth: 560,
+            }}
+          >
+            {[
+              {
+                label: 'Player 1',
+                profile: mp1,
+                score: p1Result.score,
+                gems: sessionSummary.playerOneGemsAwarded,
+                hasCrown: p1HasCrown,
+              },
+              {
+                label: 'Player 2',
+                profile: mp2,
+                score: p2Result.score,
+                gems: sessionSummary.playerTwoGemsAwarded,
+                hasCrown: p2HasCrown,
+              },
+            ].map((entry) => (
+              <div
+                key={entry.profile.id}
+                style={{
+                  padding: isCompact ? '9px 8px' : '12px 14px',
+                  borderRadius: 16,
+                  background: 'var(--card-soft-bg, #f8fafc)',
+                  borderTopWidth: 2,
+                  borderRightWidth: 2,
+                  borderLeftWidth: 2,
+                  borderBottomWidth: 4,
+                  borderStyle: 'solid',
+                  borderColor: entry.hasCrown
+                    ? '#f59e0b'
+                    : entry.profile.bannerColor || 'var(--card-border, #cbd5e1)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: isCompact ? 4 : 6,
+                  minWidth: 0,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <AvatarBadge
+                    avatarId={entry.profile.avatarId}
+                    size={isCompact ? 28 : 38}
+                  />
+                  {entry.hasCrown ? (
+                    <Crown size={isCompact ? 15 : 18} color="#f59e0b" fill="#fde047" />
+                  ) : null}
+                </div>
+                <div
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: isCompact ? '0.82rem' : '0.96rem',
+                    fontWeight: 900,
+                    color: 'var(--text-main, #1e1b4b)',
+                    maxWidth: '100%',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {entry.profile.name}
+                </div>
+                <div
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: isCompact ? '1.05rem' : '1.26rem',
+                    fontWeight: 900,
+                    color: 'var(--lang-primary, #2563eb)',
+                  }}
+                >
+                  {entry.score} pts
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    flexWrap: 'wrap',
+                    fontSize: isCompact ? '0.68rem' : '0.76rem',
+                    fontWeight: 800,
+                    color: 'var(--text-muted, #475569)',
+                  }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                    <Gem size={11} /> +{entry.gems}
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                    <Sparkles size={11} /> +{sessionSummary.xpAwardedEach} XP
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              flexWrap: 'wrap',
+              marginTop: 2,
+            }}
+          >
+            <button
+              type="button"
+              className="tactile-btn tactile-btn-hero tactile-btn-primary"
+              onClick={() => launchCabinet(coopMatch.gameId)}
+            >
+              <RotateCcw size={16} />
+              <span>Play Co-Op Again!</span>
+            </button>
+
+            <button
+              type="button"
+              className="tactile-btn tactile-btn-hero"
+              style={SOFT_BTN_STYLE}
+              onClick={() => {
+                playSfx('button_click');
+                handleExitToHub();
+              }}
+            >
+              Back to Arcade Hub
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const activeCoopTurnValue: CoopArcadeTurnContextValue | null =
+    coopMatch && (coopMatch.stage === 'playing_turn_1' || coopMatch.stage === 'playing_turn_2')
+      ? {
+          turnNumber: coopMatch.stage === 'playing_turn_1' ? 1 : 2,
+          playerProfile: coopMatch.stage === 'playing_turn_1' ? coopMatch.p1 : coopMatch.p2,
+          partnerProfile: coopMatch.stage === 'playing_turn_1' ? coopMatch.p2 : coopMatch.p1,
+          languageOverride:
+            coopMatch.stage === 'playing_turn_1'
+              ? coopMatch.p1Language
+              : coopMatch.p2Language,
+          kidQuarantined: coopMatch.kidQuarantined,
+          onRoundSettled: handleCoopRoundSettled,
+        }
+      : null;
+
+  const renderCabinet = (cabinetMode: Exclude<ArcadeGameMode, 'hub'>): ReactNode => {
+    const turnKey = coopMatch
+      ? `coop-${coopMatch.stage}-${cabinetMode}`
+      : `solo-${cabinetMode}`;
+    if (cabinetMode === 'sky_catcher') {
+      return <SkyCatcherArcade key={turnKey} arcadeTier={arcadeTier} onExit={handleExitToHub} />;
+    }
+    if (cabinetMode === 'meteor_blaster') {
+      return <MeteorBlasterArcade key={turnKey} arcadeTier={arcadeTier} onExit={handleExitToHub} />;
+    }
+    if (cabinetMode === 'tower_stack') {
+      return <TowerStackArcade key={turnKey} arcadeTier={arcadeTier} onExit={handleExitToHub} />;
+    }
+    if (cabinetMode === 'constellation_memory') {
+      return (
+        <ConstellationMemoryArcade key={turnKey} arcadeTier={arcadeTier} onExit={handleExitToHub} />
+      );
+    }
+    if (cabinetMode === 'train_switcher') {
+      return <TrainSwitcherArcade key={turnKey} arcadeTier={arcadeTier} onExit={handleExitToHub} />;
+    }
+    if (cabinetMode === 'rhythm_chef') {
+      return <RhythmChefArcade key={turnKey} arcadeTier={arcadeTier} onExit={handleExitToHub} />;
+    }
+    if (cabinetMode === 'cafe_order_rush') {
+      return <CafeOrderRushArcade key={turnKey} arcadeTier={arcadeTier} onExit={handleExitToHub} />;
+    }
+    if (cabinetMode === 'starlight_bridge') {
+      return <StarlightBridgeArcade key={turnKey} arcadeTier={arcadeTier} onExit={handleExitToHub} />;
+    }
+    if (cabinetMode === 'starlight_choir' && secretUnlocked) {
+      return <StarlightSecretGame key={turnKey} arcadeTier={arcadeTier} onExit={handleExitToHub} />;
+    }
+    return null;
+  };
+
+  if (mode !== 'hub') {
+    const cabinetNode = renderCabinet(mode);
+    if (cabinetNode) {
+      return activeCoopTurnValue ? (
+        <CoopArcadeTurnProvider value={activeCoopTurnValue}>
+          {cabinetNode}
+        </CoopArcadeTurnProvider>
+      ) : (
+        <>{cabinetNode}</>
+      );
+    }
+  }
+
   const isWideDesktop = width >= 960;
   const isTightHeight = height < 680;
 
@@ -455,6 +1131,49 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
               </div>
             ) : null}
 
+            {hasMultipleProfiles ? (
+              <button
+                type="button"
+                data-testid="arcade-coop-toggle"
+                aria-pressed={effectiveCoopEnabled}
+                className="tactile-btn"
+                onClick={() => {
+                  playSfx('button_click');
+                  setCoopEnabled((prev) => !prev);
+                }}
+                style={{
+                  ...(effectiveCoopEnabled
+                    ? {
+                        background: 'var(--tint-indigo-bg, #eef2ff)',
+                        borderTopWidth: 2,
+                        borderRightWidth: 2,
+                        borderLeftWidth: 2,
+                        borderBottomWidth: 3,
+                        borderStyle: 'solid',
+                        borderColor: '#6366f1',
+                        color: 'var(--tint-indigo-ink, #312e81)',
+                      }
+                    : {
+                        ...SOFT_BTN_STYLE,
+                        borderTopWidth: 2,
+                        borderRightWidth: 2,
+                        borderLeftWidth: 2,
+                        borderBottomWidth: 3,
+                        borderStyle: 'solid',
+                      }),
+                  padding: isCompact ? '3px 7px' : '4px 10px',
+                  fontSize: isCompact ? '0.68rem' : '0.75rem',
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: 900,
+                  borderRadius: 999,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Users size={isCompact ? 12 : 13} />
+                <span>2P Family Co-Op</span>
+              </button>
+            ) : null}
+
             <span
               style={{
                 display: 'inline-flex',
@@ -476,7 +1195,7 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
               }}
             >
               <Trophy size={12} />
-              <span>Wins: {activeProfile.stats.arcadeGamesWon}</span>
+              <span>Wins: {hubProfile.stats.arcadeGamesWon}</span>
             </span>
 
             <button
@@ -494,6 +1213,126 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
             </button>
           </div>
         </div>
+
+        {effectiveCoopEnabled && p2 ? (
+          <div
+            data-testid="arcade-coop-roster-bar"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isNarrow
+                ? 'minmax(0, 1fr) auto minmax(0, 1fr)'
+                : 'auto auto auto 1fr',
+              alignItems: 'center',
+              gap: isCompact ? 5 : 8,
+              padding: isCompact ? '4px 7px' : '5px 10px',
+              borderRadius: 12,
+              background: 'var(--tint-indigo-bg, #eef2ff)',
+              border: '1.5px solid var(--tint-indigo-border, #818cf8)',
+            }}
+          >
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                minWidth: 0,
+                fontSize: isCompact ? '0.66rem' : '0.74rem',
+                fontWeight: 900,
+                color: 'var(--tint-indigo-ink, #312e81)',
+              }}
+            >
+              <span style={{ flexShrink: 0 }}>P1</span>
+              <select
+                data-testid="coop-p1-select"
+                aria-label="Player 1 profile"
+                value={p1.id}
+                onChange={(e) => handleSelectP1(e.target.value)}
+                style={{
+                  minWidth: 0,
+                  width: isNarrow ? '100%' : 'auto',
+                  padding: isCompact ? '2px 4px' : '3px 8px',
+                  borderRadius: 8,
+                  border: '1.5px solid var(--card-border, #cbd5e1)',
+                  background: 'var(--input-bg, #ffffff)',
+                  color: 'var(--text-main, #1e1b4b)',
+                  fontFamily: 'var(--font-display)',
+                  fontSize: isCompact ? '0.7rem' : '0.78rem',
+                  fontWeight: 800,
+                }}
+              >
+                {vault.profiles.map((prof) => (
+                  <option key={prof.id} value={prof.id}>
+                    {prof.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <span
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: isCompact ? '0.66rem' : '0.74rem',
+                fontWeight: 900,
+                color: 'var(--tint-indigo-ink, #312e81)',
+                textAlign: 'center',
+              }}
+            >
+              vs
+            </span>
+
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                minWidth: 0,
+                fontSize: isCompact ? '0.66rem' : '0.74rem',
+                fontWeight: 900,
+                color: 'var(--tint-indigo-ink, #312e81)',
+              }}
+            >
+              <span style={{ flexShrink: 0 }}>P2</span>
+              <select
+                data-testid="coop-p2-select"
+                aria-label="Player 2 profile"
+                value={p2.id}
+                onChange={(e) => handleSelectP2(e.target.value)}
+                style={{
+                  minWidth: 0,
+                  width: isNarrow ? '100%' : 'auto',
+                  padding: isCompact ? '2px 4px' : '3px 8px',
+                  borderRadius: 8,
+                  border: '1.5px solid var(--card-border, #cbd5e1)',
+                  background: 'var(--input-bg, #ffffff)',
+                  color: 'var(--text-main, #1e1b4b)',
+                  fontFamily: 'var(--font-display)',
+                  fontSize: isCompact ? '0.7rem' : '0.78rem',
+                  fontWeight: 800,
+                }}
+              >
+                {vault.profiles.map((prof) => (
+                  <option key={prof.id} value={prof.id}>
+                    {prof.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {!isNarrow ? (
+              <span
+                style={{
+                  fontSize: '0.71rem',
+                  fontWeight: 800,
+                  color: 'var(--tint-indigo-ink, #312e81)',
+                  justifySelf: 'end',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Pass-and-play • Pick any cabinet!
+              </span>
+            ) : null}
+          </div>
+        ) : null}
 
         {hubPlainResult ? (
           <ArcadePlainEnglishCallout
@@ -700,10 +1539,7 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                   borderRadius: 12,
                   flexShrink: 0,
                 }}
-                onClick={() => {
-                  playSfx('whoosh_transition');
-                  setMode(cab.id);
-                }}
+                onClick={() => launchCabinet(cab.id)}
               >
                 <Play size={13} />
                 <span>{cab.cta}</span>
@@ -818,10 +1654,7 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                     fontSize: isNarrow ? '0.82rem' : '0.84rem',
                     borderRadius: 12,
                   }}
-                  onClick={() => {
-                    playSfx('secret_fanfare');
-                    setMode('starlight_choir');
-                  }}
+                  onClick={() => launchCabinet('starlight_choir')}
                 >
                   <Music size={15} />
                   <span>Play Starlight Critter Choir!</span>

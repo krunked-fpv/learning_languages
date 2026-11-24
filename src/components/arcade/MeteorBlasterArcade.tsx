@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Crosshair, Rocket, Sparkles, Zap } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
-import { useVaultStore } from '../../store/useVaultStore';
 import {
   LANGUAGE_META,
   type ArcadeLanternItem,
@@ -20,9 +19,10 @@ import {
   computeScaledArcadeRewards,
   getArcadeForeignTextStyle,
   pickDistinctItems,
-  recordArcadeRunResult,
   useArcadeContainerMetrics,
+  useArcadeCoopReport,
   useArcadeDeck,
+  useArcadeEffectiveProfile,
 } from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 45;
@@ -63,7 +63,8 @@ export function MeteorBlasterArcade({
   arcadeTier = 'sprout',
   onExit,
 }: MeteorBlasterArcadeProps) {
-  const { activeProfile } = useVaultStore();
+  const activeProfile = useArcadeEffectiveProfile();
+  const settleArcadeRun = useArcadeCoopReport();
   const { language, lexicon, targetLexicon, bestScoreFor, paceMultiplier } =
     useArcadeDeck(arcadeTier);
   const { containerRef, isCompact } = useArcadeContainerMetrics();
@@ -151,7 +152,7 @@ export function MeteorBlasterArcade({
       baseGems,
       performanceUnits: totalHits,
     });
-    recordArcadeRunResult({
+    settleArcadeRun({
       gameId: 'meteor_blaster',
       score: finalScore,
       heartsWon,
@@ -168,7 +169,7 @@ export function MeteorBlasterArcade({
       maxWave: waveRef.current,
     });
     setPhase('summary');
-  }, [arcadeTier]);
+  }, [arcadeTier, settleArcadeRun]);
 
   const startRound = useCallback(() => {
     playSfx('whoosh_transition');

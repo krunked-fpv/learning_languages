@@ -1,5 +1,17 @@
-import { useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import { Gem, Heart, MessageSquareQuote, Play, RotateCcw, Sparkles, Star, Volume2, X } from 'lucide-react';
+import { AvatarBadge } from '../../art/AvatarBadge';
 import { playSfx, speakPhrase } from '../../audio';
 import * as core from '../../core';
 import * as curriculum from '../../curriculum';
@@ -12,6 +24,7 @@ import {
   type AdultLanguageCode,
   type ArcadeLanternItem,
   type ArcadeProficiencyTier,
+  type BaseLanguageCode,
   type CompanionId,
   type KidProfile,
   type LanguageCode,
@@ -1101,6 +1114,74 @@ export function computeScaledArcadeRewards(params: {
   };
 }
 
+export interface ArcadeCoopSettledResult {
+  gameId: string;
+  score: number;
+  bonusGems: number;
+  xpEarned: number;
+  heartsWon: number;
+}
+
+export interface CoopArcadeTurnContextValue {
+  turnNumber: 1 | 2;
+  playerProfile: KidProfile;
+  partnerProfile: KidProfile;
+  languageOverride?: LanguageCode;
+  kidQuarantined: boolean;
+  onRoundSettled: (result: ArcadeCoopSettledResult) => void;
+}
+
+export interface ArcadeDeckOverride {
+  profile?: KidProfile;
+  languageOverride?: LanguageCode;
+  kidQuarantined?: boolean;
+}
+
+const CoopArcadeTurnContext = createContext<CoopArcadeTurnContextValue | null>(null);
+
+export function CoopArcadeTurnProvider({
+  value,
+  children,
+}: {
+  value: CoopArcadeTurnContextValue | null;
+  children: ReactNode;
+}) {
+  return (
+    <CoopArcadeTurnContext.Provider value={value}>
+      {children}
+    </CoopArcadeTurnContext.Provider>
+  );
+}
+
+export function useArcadeCoopTurn(): CoopArcadeTurnContextValue | null {
+  return useContext(CoopArcadeTurnContext);
+}
+
+export function useArcadeEffectiveProfile(): KidProfile {
+  const { activeProfile } = useVaultStore();
+  const coopTurn = useContext(CoopArcadeTurnContext);
+  return coopTurn?.playerProfile ?? activeProfile;
+}
+
+export function resolveSafeBaseLanguage(
+  profile?: Pick<KidProfile, 'activeLanguage' | 'lastBaseLanguage'>,
+  fallbackProfile?: Pick<KidProfile, 'activeLanguage' | 'lastBaseLanguage'>
+): BaseLanguageCode {
+  if (profile && !isAdultLanguage(profile.activeLanguage)) {
+    return profile.activeLanguage;
+  }
+  if (profile?.lastBaseLanguage && !isAdultLanguage(profile.lastBaseLanguage)) {
+    return profile.lastBaseLanguage;
+  }
+  if (fallbackProfile && !isAdultLanguage(fallbackProfile.activeLanguage)) {
+    return fallbackProfile.activeLanguage;
+  }
+  if (fallbackProfile?.lastBaseLanguage && !isAdultLanguage(fallbackProfile.lastBaseLanguage)) {
+    return fallbackProfile.lastBaseLanguage;
+  }
+  return 'es';
+}
+
 export function recordArcadeRunResult(params: {
   gameId: string;
   score: number;
@@ -1118,6 +1199,75 @@ export function recordArcadeRunResult(params: {
     preserveXpBooster?: boolean;
   }) => void;
   (vaultActions.recordArcadeGameResult as RecordWithXp)(params);
+}
+
+/**
+ * Returns a referentially stable round-settler callback so cabinets can report
+ * Co-Op turn scores without tearing down active requestAnimationFrame loops.
+ */
+export function useArcadeCoopReport(): (params: {
+  gameId: string;
+  score: number;
+  heartsWon: number;
+  bonusGems: number;
+  xpEarned: number;
+  preserveXpBooster?: boolean;
+}) => void {
+  const coopTurn = useContext(CoopArcadeTurnContext);
+  const coopTurnRef = useRef(coopTurn);
+  coopTurnRef.current = coopTurn;
+
+  return useCallback((params) => {
+    const activeTurn = coopTurnRef.current;
+    if (activeTurn) {
+      activeTurn.onRoundSettled({
+        gameId: params.gameId,
+        score: params.score,
+        bonusGems: params.bonusGems,
+        xpEarned: params.xpEarned,
+        heartsWon: params.heartsWon,
+      });
+      return;
+    }
+    recordArcadeRunResult(params);
+  }, []);
+}
+
+export function CoopTurnPill({ isCompact }: { isCompact: boolean }) {
+  const coopTurn = useContext(CoopArcadeTurnContext);
+  if (!coopTurn) return null;
+
+  return (
+    <span
+      data-testid="arcade-coop-turn-pill"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        padding: isCompact ? '2px 7px' : '3px 9px',
+        borderRadius: 999,
+        background: 'var(--tint-indigo-bg, #eef2ff)',
+        borderTopWidth: 2,
+        borderRightWidth: 2,
+        borderLeftWidth: 2,
+        borderBottomWidth: 3,
+        borderStyle: 'solid',
+        borderColor: coopTurn.playerProfile.bannerColor || '#6366f1',
+        color: 'var(--tint-indigo-ink, #312e81)',
+        fontFamily: 'var(--font-display)',
+        fontSize: isCompact ? '0.68rem' : '0.75rem',
+        fontWeight: 900,
+        whiteSpace: 'nowrap',
+        maxWidth: isCompact ? 124 : 170,
+        overflow: 'hidden',
+      }}
+    >
+      <AvatarBadge avatarId={coopTurn.playerProfile.avatarId} size={isCompact ? 15 : 18} />
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        P{coopTurn.turnNumber}: {coopTurn.playerProfile.name}
+      </span>
+    </span>
+  );
 }
 
 function matchesArcadeProficiencyTier(
@@ -1140,7 +1290,10 @@ interface CurriculumAdultLazyHelpers {
 const subscribeRegistryNoop = () => () => {};
 const getRegistryVersionFallback = () => 0;
 
-export function useArcadeDeck(arcadeTier: ArcadeProficiencyTier = 'sprout'): {
+export function useArcadeDeck(
+  arcadeTier: ArcadeProficiencyTier = 'sprout',
+  override?: ArcadeDeckOverride
+): {
   language: LanguageCode;
   lexicon: ArcadeLanternItem[];
   targetLexicon: ArcadeLanternItem[];
@@ -1151,6 +1304,9 @@ export function useArcadeDeck(arcadeTier: ArcadeProficiencyTier = 'sprout'): {
   rewardMultiplier: number;
 } {
   const { activeProfile, activeProgress } = useVaultStore();
+  const coopTurn = useContext(CoopArcadeTurnContext);
+  const effectiveProfile = override?.profile ?? coopTurn?.playerProfile ?? activeProfile;
+  const kidQuarantined = Boolean(override?.kidQuarantined ?? coopTurn?.kidQuarantined);
   const lazyCurriculum = curriculum as typeof curriculum & CurriculumAdultLazyHelpers;
   const registryVersion = useSyncExternalStore(
     lazyCurriculum.subscribeAdultRegistry ?? subscribeRegistryNoop,
@@ -1158,16 +1314,20 @@ export function useArcadeDeck(arcadeTier: ArcadeProficiencyTier = 'sprout'): {
     lazyCurriculum.getAdultRegistryVersion ?? getRegistryVersionFallback
   );
 
-  const rawLang = activeProfile.activeLanguage;
+  const rawLang =
+    override?.languageOverride ?? coopTurn?.languageOverride ?? effectiveProfile.activeLanguage;
   const isBlockedAdultAccess =
     isAdultLanguage(rawLang) &&
-    (isDefaultKidProfileId(activeProfile.id) ||
-      !activeProfile.adultModeUnlocked ||
-      !activeProfile.adultModeActive);
+    (kidQuarantined ||
+      isDefaultKidProfileId(effectiveProfile.id) ||
+      !effectiveProfile.adultModeUnlocked ||
+      !effectiveProfile.adultModeActive);
   const language: LanguageCode = isBlockedAdultAccess
-    ? activeProfile.lastBaseLanguage ?? 'es'
+    ? resolveSafeBaseLanguage(effectiveProfile, activeProfile)
     : rawLang;
-  const progressForLanguage = activeProfile.languageProgress?.[language] ?? activeProgress;
+  const progressForLanguage =
+    effectiveProfile.languageProgress?.[language] ??
+    (effectiveProfile.id === activeProfile.id ? activeProgress : undefined);
   const tierMeta = ARCADE_TIER_META[arcadeTier];
 
   // Hydrate lazy After-Hours mashup chunks only when Adult Mode is explicitly unlocked & active
@@ -1252,9 +1412,9 @@ export function useArcadeDeck(arcadeTier: ArcadeProficiencyTier = 'sprout'): {
   }, [rawLexicon, arcadeTier, progressForLanguage?.currentUnitIndex, progressForLanguage?.unlockedVocabIds?.length]);
 
   const bestScoreFor = (gameId: string): number => {
-    const mapScore = activeProfile.arcadeHighScores?.[gameId] ?? 0;
+    const mapScore = effectiveProfile.arcadeHighScores?.[gameId] ?? 0;
     if (gameId === 'starlight_choir') {
-      return Math.max(mapScore, activeProfile.secretArcadeBestScore ?? 0);
+      return Math.max(mapScore, effectiveProfile.secretArcadeBestScore ?? 0);
     }
     return mapScore;
   };
@@ -1481,6 +1641,7 @@ export function ArcadeHeaderBar({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <CoopTurnPill isCompact={isCompact} />
         {tierMeta && !isCompact ? (
           <span
             style={{
@@ -1779,8 +1940,9 @@ export function ArcadeSayItNormallyButton({
   dialectBText?: string;
   onToggle: (nextOpen: boolean, resolved: ArcadePlainEnglishResult) => void;
 }) {
-  const { activeProfile } = useVaultStore();
-  if (!isAdultArcadeActive(language, activeProfile)) {
+  const effectiveProfile = useArcadeEffectiveProfile();
+  const coopTurn = useArcadeCoopTurn();
+  if (coopTurn?.kidQuarantined || !isAdultArcadeActive(language, effectiveProfile)) {
     return null;
   }
 
@@ -1843,9 +2005,11 @@ export function TargetPromptBar({
   hearLabel?: string;
   borderColor?: string;
 }) {
-  const { activeProfile } = useVaultStore();
+  const effectiveProfile = useArcadeEffectiveProfile();
+  const coopTurn = useArcadeCoopTurn();
   const langMeta = LANGUAGE_META[language];
-  const showPlainButton = isAdultArcadeActive(language, activeProfile);
+  const showPlainButton =
+    !coopTurn?.kidQuarantined && isAdultArcadeActive(language, effectiveProfile);
   const [plainOpen, setPlainOpen] = useState(false);
 
   useEffect(() => {
@@ -2138,7 +2302,8 @@ export function ArcadeReadyCard({
   buttonClass?: string;
   onStart: () => void;
 }) {
-  const { activeProfile } = useVaultStore();
+  const effectiveProfile = useArcadeEffectiveProfile();
+  const coopTurn = useArcadeCoopTurn();
   const tierMeta = arcadeTier ? ARCADE_TIER_META[arcadeTier] : null;
 
   return (
@@ -2157,11 +2322,40 @@ export function ArcadeReadyCard({
         overflowY: 'auto',
       }}
     >
+      {coopTurn ? (
+        <div
+          data-testid="arcade-coop-ready-banner"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: isCompact ? '3px 10px' : '4px 12px',
+            borderRadius: 999,
+            background: 'var(--tint-indigo-bg, #eef2ff)',
+            borderTopWidth: 2,
+            borderRightWidth: 2,
+            borderLeftWidth: 2,
+            borderBottomWidth: 3,
+            borderStyle: 'solid',
+            borderColor: coopTurn.playerProfile.bannerColor || '#6366f1',
+            color: 'var(--tint-indigo-ink, #312e81)',
+            fontFamily: 'var(--font-display)',
+            fontSize: isCompact ? '0.74rem' : '0.84rem',
+            fontWeight: 900,
+          }}
+        >
+          <AvatarBadge avatarId={coopTurn.playerProfile.avatarId} size={isCompact ? 18 : 22} />
+          <span>
+            Co-Op Turn {coopTurn.turnNumber} of 2 · {coopTurn.playerProfile.name}&apos;s Turn!
+          </span>
+        </div>
+      ) : null}
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
         <MascotStage
           companionId={companionId}
           pose="happy"
-          equippedCosmetics={companionId === 'pip' ? activeProfile.equippedCosmetics : undefined}
+          equippedCosmetics={companionId === 'pip' ? effectiveProfile.equippedCosmetics : undefined}
           size={isCompact ? 92 : 124}
           badgeText={badgeText}
         />
@@ -2287,7 +2481,7 @@ export function ArcadeSummaryCard({
   onExit?: () => void;
   exitLabel?: string;
 }) {
-  const { activeProfile } = useVaultStore();
+  const effectiveProfile = useArcadeEffectiveProfile();
   const tierMeta = arcadeTier ? ARCADE_TIER_META[arcadeTier] : null;
 
   return (
@@ -2311,7 +2505,7 @@ export function ArcadeSummaryCard({
         <MascotStage
           companionId={companionId}
           pose="victory_dance"
-          equippedCosmetics={companionId === 'pip' ? activeProfile.equippedCosmetics : undefined}
+          equippedCosmetics={companionId === 'pip' ? effectiveProfile.equippedCosmetics : undefined}
           size={isCompact ? 92 : 124}
           badgeText={badgeText}
         />

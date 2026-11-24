@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Coffee, Sparkles, Volume2 } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
-import { useVaultStore } from '../../store/useVaultStore';
 import {
   LANGUAGE_META,
   type ArcadeLanternItem,
@@ -27,10 +26,12 @@ import {
   getArcadeForeignTextStyle,
   isAdultArcadeActive,
   pickDistinctItems,
-  recordArcadeRunResult,
   resolveArcadePlainEnglish,
   useArcadeContainerMetrics,
+  useArcadeCoopReport,
+  useArcadeCoopTurn,
   useArcadeDeck,
+  useArcadeEffectiveProfile,
 } from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 45;
@@ -62,13 +63,15 @@ export function CafeOrderRushArcade({
   arcadeTier = 'sprout',
   onExit,
 }: CafeOrderRushArcadeProps) {
-  const { activeProfile } = useVaultStore();
+  const activeProfile = useArcadeEffectiveProfile();
+  const coopTurn = useArcadeCoopTurn();
+  const settleArcadeRun = useArcadeCoopReport();
   const { language, lexicon, targetLexicon, bestScoreFor, paceMultiplier } =
     useArcadeDeck(arcadeTier);
   const { containerRef, isCompact } = useArcadeContainerMetrics();
   const langMeta = LANGUAGE_META[language];
   const langDir = langMeta.dir;
-  const showPlainButton = isAdultArcadeActive(language, activeProfile);
+  const showPlainButton = !coopTurn?.kidQuarantined && isAdultArcadeActive(language, activeProfile);
 
   const [phase, setPhase] = useState<'ready' | 'playing' | 'summary'>('ready');
   const [plainOpen, setPlainOpen] = useState(false);
@@ -239,7 +242,7 @@ export function CafeOrderRushArcade({
       baseXpBonus: totalTips,
     });
 
-    recordArcadeRunResult({
+    settleArcadeRun({
       gameId: 'cafe_order_rush',
       score: finalScore,
       heartsWon,
@@ -256,7 +259,7 @@ export function CafeOrderRushArcade({
       tips: totalTips,
     });
     setPhase('summary');
-  }, [arcadeTier]);
+  }, [arcadeTier, settleArcadeRun]);
 
   const startRound = useCallback(() => {
     playSfx('button_click');
