@@ -120,6 +120,24 @@ Hidden beneath Wanderling 2.0's kid-first shell is **After-Hours Atlas**, an opt
 
 ---
 
+## Cozy Storybook Art Direction
+
+Wanderling is drawn as an heirloom hand-illustrated atlas read by a warm reading lamp: gouache paper, one upper-left key light with cool-violet fill, warm sepia ink contours (never pure black), and unhurried, pillowy motion. The locked reference is [`plans/cozy_art_bible.md`](plans/cozy_art_bible.md). The PWA icons follow it: a painterly brass compass rose on lantern-lit parchment, generated deterministically by `scripts/generate-pwa-icons.mjs` (pure Node, no dependencies; maskable icons keep the art inside the 80% safe zone).
+
+### Offline guarantees
+
+- 100% offline at runtime: no external URLs, fonts, images, audio, or `fetch()`; flags are inline SVG.
+- All asset paths are relative (`./...`, `base: './'`), so the app works from a GitHub Pages subpath such as `/wanderling-subpath/`.
+- `public/sw.js` precaches the app shell and serves cache-first; its cache version is bumped only when bundle chunks change.
+
+### Build and verify
+
+```bash
+npm run build                      # regenerates icons (prebuild) and builds dist/
+npm run verify:artifacts           # checks dist/: icons, manifest, relative paths, no external URLs
+node scripts/serve-subpath.mjs     # serves dist/ under the Pages subpath (add --port 4175)
+```
+
 ## Getting Started
 
 ### Prerequisites

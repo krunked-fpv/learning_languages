@@ -39,6 +39,16 @@ function makeChunk(type, data) {
   return Buffer.concat([lenBuf, typeBuf, data, crcBuf]);
 }
 
+function paethPredictor(a, b, c) {
+  const p = a + b - c;
+  const pa = Math.abs(p - a);
+  const pb = Math.abs(p - b);
+  const pc = Math.abs(p - c);
+  if (pa <= pb && pa <= pc) return a;
+  if (pb <= pc) return b;
+  return c;
+}
+
 function encodeRgbaPng(width, height, rgba) {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(width, 0);
@@ -51,10 +61,62 @@ function encodeRgbaPng(width, height, rgba) {
 
   const stride = width * 4;
   const raw = Buffer.alloc((stride + 1) * height);
+  const rowSub = Buffer.alloc(stride);
+  const rowUp = Buffer.alloc(stride);
+  const rowAvg = Buffer.alloc(stride);
+  const rowPaeth = Buffer.alloc(stride);
+
   for (let y = 0; y < height; y += 1) {
-    const rowStart = y * (stride + 1);
-    raw[rowStart] = 0; // filter type 0 (None)
-    rgba.copy(raw, rowStart + 1, y * stride, (y + 1) * stride);
+    const srcOff = y * stride;
+    const prevOff = (y - 1) * stride;
+    const dstOff = y * (stride + 1);
+
+    let scoreNone = 0;
+    let scoreSub = 0;
+    let scoreUp = 0;
+    let scoreAvg = 0;
+    let scorePaeth = 0;
+
+    for (let i = 0; i < stride; i += 1) {
+      const x = rgba[srcOff + i];
+      const a = i >= 4 ? rgba[srcOff + i - 4] : 0;
+      const b = y > 0 ? rgba[prevOff + i] : 0;
+      const c = y > 0 && i >= 4 ? rgba[prevOff + i - 4] : 0;
+
+      const sVal = (x - a) & 0xff;
+      const uVal = (x - b) & 0xff;
+      const aVal = (x - ((a + b) >>> 1)) & 0xff;
+      const pVal = (x - paethPredictor(a, b, c)) & 0xff;
+
+      rowSub[i] = sVal;
+      rowUp[i] = uVal;
+      rowAvg[i] = aVal;
+      rowPaeth[i] = pVal;
+
+      scoreNone += x > 127 ? 256 - x : x;
+      scoreSub += sVal > 127 ? 256 - sVal : sVal;
+      scoreUp += uVal > 127 ? 256 - uVal : uVal;
+      scoreAvg += aVal > 127 ? 256 - aVal : aVal;
+      scorePaeth += pVal > 127 ? 256 - pVal : pVal;
+    }
+
+    const best = Math.min(scoreNone, scoreSub, scoreUp, scoreAvg, scorePaeth);
+    if (best === scorePaeth) {
+      raw[dstOff] = 4; // Paeth
+      rowPaeth.copy(raw, dstOff + 1);
+    } else if (best === scoreAvg) {
+      raw[dstOff] = 3; // Average
+      rowAvg.copy(raw, dstOff + 1);
+    } else if (best === scoreSub) {
+      raw[dstOff] = 1; // Sub
+      rowSub.copy(raw, dstOff + 1);
+    } else if (best === scoreUp) {
+      raw[dstOff] = 2; // Up
+      rowUp.copy(raw, dstOff + 1);
+    } else {
+      raw[dstOff] = 0; // None
+      rgba.copy(raw, dstOff + 1, srcOff, srcOff + stride);
+    }
   }
 
   const compressed = deflateSync(raw, { level: 9 });
@@ -77,31 +139,6 @@ const smoothstep = (edge0, edge1, x) => {
   return t * t * (3 - 2 * t);
 };
 
-function sdCircle(x, y, cx, cy, r) {
-  return Math.hypot(x - cx, y - cy) - r;
-}
-
-function sdEllipse(x, y, cx, cy, rx, ry, angle = 0) {
-  let dx = x - cx;
-  let dy = y - cy;
-  if (angle !== 0) {
-    const c = Math.cos(-angle);
-    const s = Math.sin(-angle);
-    const nx = dx * c - dy * s;
-    const ny = dx * s + dy * c;
-    dx = nx;
-    dy = ny;
-  }
-  const px = dx / rx;
-  const py = dy / ry;
-  const k0 = Math.hypot(px, py);
-  if (k0 < 1e-6) return -Math.min(rx, ry);
-  const gx = dx / (rx * rx);
-  const gy = dy / (ry * ry);
-  const k1 = Math.hypot(gx, gy);
-  return (k0 * (k0 - 1)) / k1;
-}
-
 function sdRoundBox(x, y, cx, cy, bx, by, r) {
   const qx = Math.abs(x - cx) - (bx - r);
   const qy = Math.abs(y - cy) - (by - r);
@@ -110,45 +147,10 @@ function sdRoundBox(x, y, cx, cy, bx, by, r) {
   return Math.hypot(ox, oy) + Math.min(Math.max(qx, qy), 0) - r;
 }
 
-function sdSegment(x, y, ax, ay, bx, by, r) {
-  const pax = x - ax;
-  const pay = y - ay;
-  const bax = bx - ax;
-  const bay = by - ay;
-  const denom = bax * bax + bay * bay;
-  const h = denom > 0 ? clamp((pax * bax + pay * bay) / denom, 0, 1) : 0;
-  return Math.hypot(pax - bax * h, pay - bay * h) - r;
-}
-
-function sdTriangle(px, py, ax, ay, bx, by, cx, cy) {
-  const e0x = bx - ax, e0y = by - ay;
-  const e1x = cx - bx, e1y = cy - by;
-  const e2x = ax - cx, e2y = ay - cy;
-
-  const v0x = px - ax, v0y = py - ay;
-  const v1x = px - bx, v1y = py - by;
-  const v2x = px - cx, v2y = py - cy;
-
-  const pq0t = clamp((v0x * e0x + v0y * e0y) / (e0x * e0x + e0y * e0y), 0, 1);
-  const pq1t = clamp((v1x * e1x + v1y * e1y) / (e1x * e1x + e1y * e1y), 0, 1);
-  const pq2t = clamp((v2x * e2x + v2y * e2y) / (e2x * e2x + e2y * e2y), 0, 1);
-
-  const d0x = v0x - e0x * pq0t, d0y = v0y - e0y * pq0t;
-  const d1x = v1x - e1x * pq1t, d1y = v1y - e1y * pq1t;
-  const d2x = v2x - e2x * pq2t, d2y = v2y - e2y * pq2t;
-
-  const d0 = d0x * d0x + d0y * d0y;
-  const d1 = d1x * d1x + d1y * d1y;
-  const d2 = d2x * d2x + d2y * d2y;
-
-  const s = Math.sign(e0x * e2y - e0y * e2x);
-  const c0 = s * (v0x * e0y - v0y * e0x);
-  const c1 = s * (v1x * e1y - v1y * e1x);
-  const c2 = s * (v2x * e2y - v2y * e2x);
-
-  const minD = Math.min(d0, d1, d2);
-  const inside = Math.min(c0, c1, c2) >= 0;
-  return (inside ? -1 : 1) * Math.sqrt(minD);
+function sdDiamond(px, py, cx, cy, rx, ry) {
+  const dx = Math.abs(px - cx) / rx;
+  const dy = Math.abs(py - cy) / ry;
+  return (dx + dy - 1) / Math.hypot(1 / rx, 1 / ry);
 }
 
 function sdStar4(px, py, cx, cy, rOuter, rInner, rot = 0) {
@@ -164,24 +166,16 @@ function sdStar4(px, py, cx, cy, rOuter, rInner, rot = 0) {
   }
   const ax = Math.abs(x);
   const ay = Math.abs(y);
-  // Fold into octant 0 <= u <= v; the star boundary here is a single segment A -> B
   const u = Math.min(ax, ay);
   const v = Math.max(ax, ay);
-  const bx = rInner;
-  const by = rInner;
-  const abx = bx;
-  const aby = by - rOuter;
+  const abx = rInner;
+  const aby = rInner - rOuter;
   const apx = u;
   const apy = v - rOuter;
   const t = clamp((apx * abx + apy * aby) / (abx * abx + aby * aby), 0, 1);
   const dist = Math.hypot(apx - abx * t, apy - aby * t);
   const cross = abx * apy - aby * apx;
   return cross <= 0 ? -dist : dist;
-}
-
-function smin(a, b, k) {
-  const h = clamp(0.5 + (0.5 * (b - a)) / k, 0, 1);
-  return mix(b, a, h) - k * h * (1 - h);
 }
 
 function blendPixel(acc, r, g, b, alpha) {
@@ -194,302 +188,551 @@ function blendPixel(acc, r, g, b, alpha) {
   acc[3] = a + acc[3] * inv;
 }
 
-function coverage(dist, aa) {
-  return clamp(0.5 - dist / aa, 0, 1);
+// Smooth anti-aliased fill coverage (soft hermite ramp avoids 192px stair-stepping)
+function fillCov(dist, aa) {
+  return smoothstep(aa * 0.65, -aa * 0.65, dist);
 }
 
-const STARS = [
-  { x: -0.68, y: -0.66, r: 0.065, rot: 0, gold: true },
-  { x: 0.70, y: -0.62, r: 0.075, rot: 0, gold: true },
-  { x: -0.74, y: 0.56, r: 0.055, rot: 0.3, gold: false },
-  { x: 0.73, y: 0.54, r: 0.060, rot: 0.15, gold: true },
-  { x: -0.42, y: -0.78, r: 0.040, rot: 0, gold: false },
-  { x: 0.45, y: -0.77, r: 0.042, rot: 0.2, gold: false },
+// Soft anti-aliased stroke coverage with subpixel thinning compensation
+function strokeCov(dist, width, aa) {
+  const minW = aa * 1.15;
+  const effW = Math.max(width, minW);
+  const weight = width < minW ? width / minW : 1;
+  return smoothstep(aa * 0.72, -aa * 0.72, Math.abs(dist) - effW * 0.5) * weight;
+}
+
+// ==========================================
+// Deterministic Watercolor & Paper-Fiber Noise
+// ==========================================
+
+function hashGrid(ix, iy) {
+  let h = (Math.imul(ix | 0, 374761393) + Math.imul(iy | 0, 668265263)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967295;
+}
+
+function valueNoise(u, v) {
+  const ix = Math.floor(u);
+  const iy = Math.floor(v);
+  const fx = u - ix;
+  const fy = v - iy;
+  const sx = fx * fx * (3 - 2 * fx);
+  const sy = fy * fy * (3 - 2 * fy);
+  const n00 = hashGrid(ix, iy);
+  const n10 = hashGrid(ix + 1, iy);
+  const n01 = hashGrid(ix, iy + 1);
+  const n11 = hashGrid(ix + 1, iy + 1);
+  return mix(mix(n00, n10, sx), mix(n01, n11, sx), sy);
+}
+
+// Soft low-frequency gouache clouding + subtle woven rag paper fibers (compresses cleanly)
+function paperWash(nx, ny) {
+  const blotch = valueNoise(nx * 2.4 + 4.1, ny * 2.4 + 7.3) - 0.5;
+  const mottle = valueNoise(nx * 5.2 + 11.7, ny * 5.2 + 2.9) - 0.5;
+  const weaveH = valueNoise(nx * 3.5 + 19.2, ny * 10.5 + 3.4) - 0.5;
+  const weaveV = valueNoise(nx * 10.5 + 6.1, ny * 3.5 + 14.8) - 0.5;
+  return blotch * 8.5 + mottle * 4.2 + (weaveH + weaveV) * 2.2;
+}
+
+// ==========================================
+// Cozy Storybook Palette (Bible: warm sepia ink, zero pure black)
+// ==========================================
+
+const INK = [74, 52, 38]; // --ink-warm #4a3426
+const INK_SOFT = [110, 82, 60]; // --ink-soft
+const PAPER_LIGHT = [250, 239, 214];
+const PAPER_SHADE = [220, 192, 148];
+const VIGNETTE_UMBER = [166, 126, 86];
+const LANTERN = [255, 216, 142];
+const AMBIENT = [184, 166, 192]; // cool-violet fill, lower-right
+const BRASS_HI = [254, 236, 174];
+const BRASS_MID = [214, 158, 66];
+const BRASS_SHADE = [132, 84, 34];
+const GOLD_LIGHT = [250, 224, 138];
+const GOLD_SHADE = [188, 126, 44];
+const VERMILION_HI = [224, 96, 62];
+const VERMILION_SHADE = [152, 52, 36];
+const TEAL_HI = [116, 180, 170];
+const TEAL_SHADE = [56, 108, 104];
+const IVORY_HI = [255, 248, 228];
+
+const TWO_PI = Math.PI * 2;
+const SQRT1_2 = Math.SQRT1_2;
+// Key light direction vector (~10 o'clock, upper-left)
+const LIGHT_X = -0.68;
+const LIGHT_Y = -0.733;
+
+function sampleIconPixel(nx, ny, aa, artScale, artAa, fullBleed, out) {
+  const x = nx / artScale;
+  const y = ny / artScale;
+  const rArt = Math.hypot(x, y);
+  const rNorm = Math.hypot(nx, ny);
+
+  // Badge clip for non-fullBleed icons
+  let shapeAlpha = 1;
+  let dBadge = -1;
+  if (!fullBleed) {
+    dBadge = sdRoundBox(nx, ny, 0, 0, 0.965, 0.965, 0.34);
+    shapeAlpha = fillCov(dBadge, aa * 1.15);
+    if (shapeAlpha <= 0.001) {
+      out[0] = 0;
+      out[1] = 0;
+      out[2] = 0;
+      out[3] = 0;
+      return;
+    }
+  }
+
+  // 1. Gouache parchment atlas field: upper-left key light, lower-right cool-violet fill, warm vignette
+  const diag = clamp((nx + ny + 2) * 0.25, 0, 1);
+  let r = mix(PAPER_LIGHT[0], PAPER_SHADE[0], diag * 0.88);
+  let g = mix(PAPER_LIGHT[1], PAPER_SHADE[1], diag * 0.88);
+  let b = mix(PAPER_LIGHT[2], PAPER_SHADE[2], diag * 0.88);
+
+  // Cool-violet ambient fill pooling lower-right
+  const ambient = smoothstep(0.28, 1.0, diag) * 0.24;
+  r = mix(r, AMBIENT[0], ambient);
+  g = mix(g, AMBIENT[1], ambient);
+  b = mix(b, AMBIENT[2], ambient);
+
+  // Warm heirloom watercolor vignette toward edges
+  const vig = smoothstep(0.58, 1.28, rNorm) * 0.36;
+  r = mix(r, VIGNETTE_UMBER[0], vig);
+  g = mix(g, VIGNETTE_UMBER[1], vig);
+  b = mix(b, VIGNETTE_UMBER[2], vig);
+
+  // Soft amber reading-lamp pool upper-left
+  const lampD = Math.hypot(nx + 0.34, ny + 0.38);
+  const lampGlow = Math.exp(-(lampD * lampD) * 1.95) * 0.62;
+  r = mix(r, LANTERN[0], lampGlow);
+  g = mix(g, LANTERN[1], lampGlow);
+  b = mix(b, LANTERN[2], lampGlow);
+
+  // Soft low-frequency watercolor & woven-rag texture
+  const wash = paperWash(nx, ny);
+  r += wash;
+  g += wash * 0.92;
+  b += wash * 0.72;
+
+  out[0] = r;
+  out[1] = g;
+  out[2] = b;
+  out[3] = 1;
+
+  // 2. Cartographic background behind medallion: sepia rhumb lines & faint latitude/longitude arcs
+  if (rArt > 0.74) {
+    const ang = Math.atan2(y, x);
+    const rhumbStep = TWO_PI / 16;
+    const localRhumb = (((ang % rhumbStep) + rhumbStep * 1.5) % rhumbStep) - rhumbStep * 0.5;
+    const dRhumb = rArt * Math.abs(Math.sin(localRhumb));
+    const rhumbCov = strokeCov(dRhumb, 0.008, artAa) * (0.2 + 0.12 * smoothstep(0.76, 1.15, rArt));
+    blendPixel(out, INK_SOFT[0], INK_SOFT[1], INK_SOFT[2], rhumbCov);
+
+    // Faint curved latitude & longitude arcs across the atlas parchment
+    const dLat1 = Math.hypot(nx, ny + 1.55) - 2.18;
+    const dLat2 = Math.hypot(nx, ny - 1.55) - 2.18;
+    const dLon1 = Math.hypot(nx + 1.55, ny) - 2.18;
+    const dLon2 = Math.hypot(nx - 1.55, ny) - 2.18;
+    const dArc = Math.min(Math.abs(dLat1), Math.abs(dLat2), Math.abs(dLon1), Math.abs(dLon2));
+    blendPixel(out, INK_SOFT[0], INK_SOFT[1], INK_SOFT[2], strokeCov(dArc, 0.007, aa) * 0.22);
+
+    // Faint outer decorative compass track circle in the margins
+    const dOuterTrack = Math.hypot(x, y) - 0.91;
+    blendPixel(out, INK_SOFT[0], INK_SOFT[1], INK_SOFT[2], strokeCov(dOuterTrack, 0.007, artAa) * 0.2);
+  }
+
+  // 3. Non-maskable book-cover frame & brass corner filigree
+  if (!fullBleed) {
+    // Subtle bevel highlight inside top-left edge, shade bottom-right
+    const bevelBand = fillCov(Math.abs(dBadge + 0.036) - 0.022, aa * 1.15);
+    if (bevelBand > 0) {
+      const edgeLit = clamp(0.5 - (nx + ny) * 0.65, 0, 1);
+      blendPixel(
+        out,
+        mix(VIGNETTE_UMBER[0] - 22, BRASS_HI[0], edgeLit),
+        mix(VIGNETTE_UMBER[1] - 24, BRASS_HI[1], edgeLit),
+        mix(VIGNETTE_UMBER[2] - 22, BRASS_HI[2], edgeLit),
+        bevelBand * 0.42
+      );
+    }
+
+    // Warm sepia outer ink contour (smooth AA)
+    blendPixel(out, INK[0], INK[1], INK[2], strokeCov(dBadge + 0.022, 0.024, aa * 1.15) * 0.9);
+    // Inner gilt hairline border
+    const dGilt = dBadge + 0.078;
+    blendPixel(out, BRASS_MID[0], BRASS_MID[1], BRASS_MID[2], strokeCov(dGilt, 0.011, aa * 1.15) * 0.85);
+
+    // Delicate brass book-corner filigree (symmetric in all 4 corners, nestled outside the medallion)
+    const ax = Math.abs(nx);
+    const ay = Math.abs(ny);
+    if (ax > 0.52 && ay > 0.52 && rArt > 0.81) {
+      const cornerLight = clamp(0.55 - (nx + ny) * 0.35, 0, 1);
+      const filR = mix(BRASS_SHADE[0] + 24, BRASS_HI[0], cornerLight);
+      const filG = mix(BRASS_SHADE[1] + 24, BRASS_HI[1], cornerLight);
+      const filB = mix(BRASS_SHADE[2] + 18, BRASS_HI[2], cornerLight);
+
+      // Corner accent clasp along inner gilt corner
+      const dClasp = Math.max(Math.abs(dBadge + 0.088) - 0.014, 0.64 - Math.min(ax, ay));
+      const cClasp = fillCov(dClasp, aa * 1.15);
+      if (cClasp > 0) {
+        blendPixel(out, filR, filG, filB, cClasp * 0.92);
+        blendPixel(out, INK[0], INK[1], INK[2], strokeCov(dClasp, 0.008, aa * 1.15) * 0.65);
+      }
+
+      // Corner brass fleur diamond & flanking bead rivets
+      const dCornerPip = sdDiamond(ax, ay, 0.785, 0.785, 0.052, 0.052);
+      const dBead1 = Math.hypot(ax - 0.835, ay - 0.685) - 0.017;
+      const dBead2 = Math.hypot(ax - 0.685, ay - 0.835) - 0.017;
+      const dFiligree = Math.min(dCornerPip, dBead1, dBead2);
+      const cFil = fillCov(dFiligree, aa * 1.15);
+      if (cFil > 0) {
+        blendPixel(out, filR, filG, filB, cFil * 0.95);
+      }
+      blendPixel(out, INK[0], INK[1], INK[2], strokeCov(dFiligree, 0.009, aa * 1.15) * 0.72);
+    }
+  }
+
+  // 4. Medallion cast shadow (soft warm sepia down-right, never grey/black)
+  const rOuter = 0.775;
+  const rMidBezel = 0.675;
+  const rDial = 0.625;
+  const rSeaInner = 0.535;
+
+  const dShadow = Math.hypot(x - 0.036, y - 0.048) - rOuter;
+  const shadowCov = smoothstep(0.11, -0.04, dShadow) * 0.28;
+  blendPixel(out, INK[0], INK[1], INK[2], shadowCov);
+
+  // 5. Bevelled Double-Brass Bezel (outer sculpted rim + recessed inner brass lip)
+  const dOuter = rArt - rOuter;
+  const cOuter = fillCov(dOuter, artAa * 1.15);
+  if (cOuter > 0) {
+    // Directional metallic sheen along the bezel circumference (lit ~10 o'clock)
+    const invR = rArt > 1e-5 ? 1 / rArt : 0;
+    const ux = x * invR;
+    const uy = y * invR;
+    const dirLight = ux * LIGHT_X + uy * LIGHT_Y; // +1 at 10 o'clock, -1 at 4 o'clock
+
+    // Radial crown profile across outer bezel (0.675 -> 0.775)
+    const bezelT = clamp((rArt - rMidBezel) / (rOuter - rMidBezel), 0, 1);
+    const crown = Math.sin(bezelT * Math.PI); // 1 at crest, 0 at inner/outer edges
+    const rimSpec = Math.pow(clamp(dirLight * 0.5 + 0.5, 0, 1), 1.65) * (0.45 + 0.55 * crown);
+    const coolBounce = smoothstep(0.35, 1.0, -dirLight) * (1 - bezelT * 0.5) * 0.2;
+
+    let brR = mix(BRASS_SHADE[0], BRASS_MID[0], 0.35 + 0.65 * crown);
+    let brG = mix(BRASS_SHADE[1], BRASS_MID[1], 0.35 + 0.65 * crown);
+    let brB = mix(BRASS_SHADE[2], BRASS_MID[2], 0.35 + 0.65 * crown);
+
+    brR = mix(brR, BRASS_HI[0], rimSpec * 0.88);
+    brG = mix(brG, BRASS_HI[1], rimSpec * 0.88);
+    brB = mix(brB, BRASS_HI[2], rimSpec * 0.88);
+
+    // Subtle cool-violet ambient bounce on lower-right bronze shadow
+    brR = mix(brR, AMBIENT[0], coolBounce);
+    brG = mix(brG, AMBIENT[1], coolBounce);
+    brB = mix(brB, AMBIENT[2], coolBounce);
+
+    blendPixel(out, brR, brG, brB, cOuter);
+
+    // Inner recessed brass step (0.625 -> 0.675) with inverted bevel lighting
+    const dStep = rArt - rMidBezel;
+    const cStep = fillCov(dStep, artAa * 1.15);
+    if (cStep > 0) {
+      // Recessed inner bevel catches light on bottom-right, casts shadow on top-left
+      const invLight = clamp(-dirLight * 0.5 + 0.5, 0, 1);
+      const stepR = mix(BRASS_SHADE[0] - 12, BRASS_HI[0] - 14, invLight * 0.8);
+      const stepG = mix(BRASS_SHADE[1] - 10, BRASS_HI[1] - 24, invLight * 0.8);
+      const stepB = mix(BRASS_SHADE[2] - 6, BRASS_HI[2] - 28, invLight * 0.8);
+      blendPixel(out, stepR, stepG, stepB, cStep);
+    }
+  }
+
+  // Smooth warm-ink contour lines for double brass bezel
+  blendPixel(out, INK[0], INK[1], INK[2], strokeCov(dOuter, 0.026, artAa * 1.15) * 0.94);
+  blendPixel(out, INK[0], INK[1], INK[2], strokeCov(rArt - rMidBezel, 0.012, artAa * 1.15) * 0.68);
+
+  // Cardinal N/E/S/W bevelled enamel diamond pips & 4 diagonal brass rivets on outer bezel
+  const rBezelMid = 0.725;
+  if (rArt > 0.65 && rArt < 0.81) {
+    const dPipN = sdDiamond(x, y, 0, -rBezelMid, 0.036, 0.048);
+    const dPipS = sdDiamond(x, y, 0, rBezelMid, 0.031, 0.04);
+    const dPipE = sdDiamond(x, y, rBezelMid, 0, 0.04, 0.031);
+    const dPipW = sdDiamond(x, y, -rBezelMid, 0, 0.04, 0.031);
+
+    // North ruby-vermilion enamel diamond
+    const cPipN = fillCov(dPipN, artAa * 1.15);
+    if (cPipN > 0) {
+      const nFacet = smoothstep(artAa, -artAa, x);
+      blendPixel(
+        out,
+        mix(VERMILION_SHADE[0] + 14, VERMILION_HI[0] + 18, nFacet),
+        mix(VERMILION_SHADE[1] + 6, VERMILION_HI[1] + 14, nFacet),
+        mix(VERMILION_SHADE[2] + 4, VERMILION_HI[2] + 12, nFacet),
+        cPipN
+      );
+    }
+    blendPixel(out, INK[0], INK[1], INK[2], strokeCov(dPipN, 0.011, artAa * 1.15) * 0.88);
+
+    // E / S / W ivory-gold enamel diamonds
+    const dOtherPips = Math.min(dPipS, dPipE, dPipW);
+    const cOtherPips = fillCov(dOtherPips, artAa * 1.15);
+    if (cOtherPips > 0) {
+      const pLit = clamp(0.55 - (x + y) * 0.3, 0, 1);
+      blendPixel(
+        out,
+        mix(GOLD_LIGHT[0], IVORY_HI[0], pLit),
+        mix(GOLD_LIGHT[1], IVORY_HI[1], pLit),
+        mix(GOLD_LIGHT[2], IVORY_HI[2], pLit),
+        cOtherPips
+      );
+    }
+    blendPixel(out, INK[0], INK[1], INK[2], strokeCov(dOtherPips, 0.01, artAa * 1.15) * 0.82);
+
+    // 4 diagonal brass rivets
+    const diagR = rBezelMid * SQRT1_2;
+    const dRivet = Math.hypot(Math.abs(x) - diagR, Math.abs(y) - diagR) - 0.017;
+    const cRivet = fillCov(dRivet, artAa * 1.15);
+    if (cRivet > 0) {
+      const rLit = clamp(0.6 - (x + y) * 0.35, 0, 1);
+      blendPixel(
+        out,
+        mix(BRASS_SHADE[0] + 20, IVORY_HI[0], rLit),
+        mix(BRASS_SHADE[1] + 20, IVORY_HI[1], rLit),
+        mix(BRASS_SHADE[2] + 12, IVORY_HI[2], rLit),
+        cRivet
+      );
+    }
+    blendPixel(out, INK[0], INK[1], INK[2], strokeCov(dRivet, 0.008, artAa * 1.15) * 0.72);
+  }
+
+  // 6. Recessed Illuminated Vellum Compass Dial (r <= 0.625)
+  const dDial = rArt - rDial;
+  const cDial = fillCov(dDial, artAa * 1.15);
+  if (cDial > 0) {
+    // Lantern-lit vellum face with subtle dish warmth and delicate paper grain
+    const dialLit = Math.exp(-((x + 0.18) * (x + 0.18) + (y + 0.2) * (y + 0.2)) * 2.1);
+    const dialShade = smoothstep(0.1, 0.65, rArt);
+    const dialWash = wash * 0.55;
+    let dR = mix(244, 255, dialLit) - dialShade * 10 + dialWash;
+    let dG = mix(228, 243, dialLit) - dialShade * 14 + dialWash * 0.9;
+    let dB = mix(194, 206, dialLit) - dialShade * 18 + dialWash * 0.7;
+
+    // Soft inner shadow cast by the raised upper-left bezel rim onto the dial
+    const innerRimShadow = smoothstep(rDial - 0.085, rDial, Math.hypot(x + 0.032, y + 0.038)) * 0.24;
+    dR = mix(dR, INK[0], innerRimShadow);
+    dG = mix(dG, INK[1], innerRimShadow);
+    dB = mix(dB, INK[2], innerRimShadow);
+
+    blendPixel(out, dR, dG, dB, cDial);
+
+    // Teal-verdigris watercolor sea-wash track band (0.535 -> 0.625)
+    const dSeaBand = Math.max(rArt - rDial, rSeaInner - rArt);
+    const cSea = fillCov(dSeaBand, artAa * 1.15);
+    if (cSea > 0) {
+      const seaLit = clamp(0.55 - (x + y) * 0.55, 0, 1);
+      blendPixel(
+        out,
+        mix(TEAL_SHADE[0] + 18, TEAL_HI[0], seaLit),
+        mix(TEAL_SHADE[1] + 22, TEAL_HI[1], seaLit),
+        mix(TEAL_SHADE[2] + 20, TEAL_HI[2], seaLit),
+        cSea * 0.42
+      );
+    }
+
+    // Inner track ring & concentric astrolabe ring
+    blendPixel(out, INK[0], INK[1], INK[2], strokeCov(rArt - rSeaInner, 0.013, artAa * 1.15) * 0.78);
+    blendPixel(out, BRASS_MID[0], BRASS_MID[1], BRASS_MID[2], strokeCov(rArt - 0.35, 0.01, artAa * 1.15) * 0.55);
+
+    // 32 O(1) polar-folded degree ticks inside the sea-wash track
+    if (rArt > 0.525 && rArt < rDial) {
+      const ang = Math.atan2(y, x);
+      const step32 = TWO_PI / 32;
+      const idx = Math.round(ang / step32);
+      const nearestAng = idx * step32;
+      let dAng = ang - nearestAng;
+      if (dAng > Math.PI) dAng -= TWO_PI;
+      if (dAng < -Math.PI) dAng += TWO_PI;
+      const dPerp = rArt * Math.abs(Math.sin(dAng));
+
+      const mod8 = ((idx % 8) + 8) % 8;
+      const isMajor = mod8 === 0 || mod8 === 4;
+      const isMed = mod8 % 2 === 0;
+      const tickR0 = isMajor ? 0.538 : isMed ? 0.558 : 0.578;
+      const tickW = isMajor ? 0.013 : isMed ? 0.009 : 0.0065;
+      const dRadial = Math.max(tickR0 - rArt, rArt - 0.618);
+      const dTick = Math.max(dPerp - tickW * 0.5, dRadial);
+      blendPixel(out, INK[0], INK[1], INK[2], fillCov(dTick, artAa * 1.15) * (isMajor ? 0.78 : isMed ? 0.62 : 0.44));
+    }
+  }
+  blendPixel(out, INK[0], INK[1], INK[2], strokeCov(dDial, 0.02, artAa * 1.15) * 0.88);
+
+  // 7. Painterly 8-Point Compass Rose (split-facet bevelled star needles)
+  const dMain = sdStar4(x, y, 0, 0, 0.585, 0.132, 0);
+  const dDiag = sdStar4(x, y, 0, 0, 0.415, 0.09, Math.PI * 0.25);
+
+  // Soft tinted drop shadow beneath the rose
+  const dRoseShadow = Math.min(
+    sdStar4(x - 0.024, y - 0.032, 0, 0, 0.585, 0.132, 0),
+    sdStar4(x - 0.024, y - 0.032, 0, 0, 0.415, 0.09, Math.PI * 0.25)
+  );
+  blendPixel(out, INK[0], INK[1], INK[2], smoothstep(0.055, -0.018, dRoseShadow) * 0.23);
+
+  // Secondary diagonal star (NE/SE/SW/NW) — bevelled sea-teal facets
+  const cDiag = fillCov(dDiag, artAa * 1.15);
+  if (cDiag > 0) {
+    // Rotate into diagonal star axes
+    const rx = (x + y) * SQRT1_2;
+    const ry = (-x + y) * SQRT1_2;
+    const isVertDiag = Math.abs(ry) >= Math.abs(rx);
+    const ridgeCoord = isVertDiag ? (ry < 0 ? -rx : rx) : (rx < 0 ? -ry : ry);
+    const facet = smoothstep(-artAa * 1.2, artAa * 1.2, ridgeCoord);
+    const armGrad = clamp(0.55 - (x + y) * 0.55, 0, 1);
+    const litT = clamp(facet * 0.82 + armGrad * 0.18, 0, 1);
+    blendPixel(
+      out,
+      mix(TEAL_SHADE[0], TEAL_HI[0], litT),
+      mix(TEAL_SHADE[1], TEAL_HI[1], litT),
+      mix(TEAL_SHADE[2], TEAL_HI[2], litT),
+      cDiag
+    );
+  }
+  blendPixel(out, INK[0], INK[1], INK[2], strokeCov(dDiag, 0.015, artAa * 1.15) * 0.84);
+
+  // Primary cardinal star (N/E/S/W) — nautical split-facet gold + vermilion North needle
+  const cMain = fillCov(dMain, artAa * 1.15);
+  if (cMain > 0) {
+    const isVert = Math.abs(y) >= Math.abs(x);
+    // Consistent upper-left key-light bevel down every needle's spine
+    const ridgeSigned = isVert ? -x : -y;
+    const facetLit = smoothstep(-artAa * 1.2, artAa * 1.2, ridgeSigned);
+    const radialWarm = clamp(1 - rArt * 0.65, 0, 1);
+
+    if (isVert && y < 0) {
+      // North needle: heirloom vermilion-terracotta lacquer
+      const lit = clamp(facetLit * 0.85 + radialWarm * 0.15, 0, 1);
+      blendPixel(
+        out,
+        mix(VERMILION_SHADE[0], VERMILION_HI[0], lit),
+        mix(VERMILION_SHADE[1], VERMILION_HI[1], lit),
+        mix(VERMILION_SHADE[2], VERMILION_HI[2], lit),
+        cMain
+      );
+    } else {
+      // E / S / W needles: antique burnished gold
+      const southDim = isVert && y > 0 ? 0.82 : 1.0;
+      const lit = clamp((facetLit * 0.82 + radialWarm * 0.18) * southDim, 0, 1);
+      blendPixel(
+        out,
+        mix(GOLD_SHADE[0], GOLD_LIGHT[0], lit),
+        mix(GOLD_SHADE[1], GOLD_LIGHT[1], lit),
+        mix(GOLD_SHADE[2], GOLD_LIGHT[2], lit),
+        cMain
+      );
+    }
+
+    // Subtle warm-ink ridge seam down each needle spine
+    const dRidge = isVert ? Math.abs(x) : Math.abs(y);
+    blendPixel(out, INK[0], INK[1], INK[2], strokeCov(dRidge, 0.007, artAa * 1.15) * cMain * 0.35);
+  }
+  blendPixel(out, INK[0], INK[1], INK[2], strokeCov(dMain, 0.022, artAa * 1.15) * 0.94);
+
+  // 8. Central Layered Brass & Lantern-Pearl Hub
+  const dHubOuter = rArt - 0.115;
+  const cHubOuter = fillCov(dHubOuter, artAa * 1.15);
+  if (cHubOuter > 0) {
+    const hLit = clamp(0.55 - (x + y) * 3.8, 0, 1);
+    blendPixel(
+      out,
+      mix(BRASS_SHADE[0], BRASS_HI[0], hLit),
+      mix(BRASS_SHADE[1], BRASS_HI[1], hLit),
+      mix(BRASS_SHADE[2], BRASS_HI[2], hLit),
+      cHubOuter
+    );
+  }
+  blendPixel(out, INK[0], INK[1], INK[2], strokeCov(dHubOuter, 0.019, artAa * 1.15) * 0.92);
+
+  // Inner lantern-pearl cabochon dome
+  const dPearl = rArt - 0.068;
+  const cPearl = fillCov(dPearl, artAa * 1.15);
+  if (cPearl > 0) {
+    const pLit = Math.exp(-((x + 0.024) * (x + 0.024) + (y + 0.026) * (y + 0.026)) * 220);
+    blendPixel(
+      out,
+      mix(GOLD_SHADE[0] + 24, 255, pLit * 0.92),
+      mix(GOLD_SHADE[1] + 38, 250, pLit * 0.92),
+      mix(GOLD_SHADE[2] + 44, 224, pLit * 0.92),
+      cPearl
+    );
+  }
+  blendPixel(out, INK[0], INK[1], INK[2], strokeCov(dPearl, 0.011, artAa * 1.15) * 0.72);
+  // Crisp sunlit catchlight spark on the pearl
+  blendPixel(out, 255, 252, 236, fillCov(Math.hypot(x + 0.024, y + 0.026) - 0.018, artAa * 1.15) * 0.95);
+
+  // 9. Gentle upper-left reading-lamp atmosphere glaze uniting the whole icon
+  const bloomD = Math.hypot(x + 0.45, y + 0.48);
+  const bloom = Math.exp(-(bloomD * bloomD) * 2.4) * 0.11;
+  blendPixel(out, LANTERN[0], LANTERN[1], LANTERN[2], bloom);
+
+  out[3] = shapeAlpha;
+}
+
+// 2x2 rotated-grid supersampling offsets for silky curves at small sizes (180/192px)
+const RGSS_OFFSETS = [
+  [-0.375, -0.125],
+  [0.125, -0.375],
+  [-0.125, 0.375],
+  [0.375, 0.125],
 ];
 
-const STAR_DOTS = [
-  { x: -0.80, y: -0.30, r: 0.018 },
-  { x: 0.81, y: -0.22, r: 0.016 },
-  { x: -0.58, y: 0.76, r: 0.018 },
-  { x: 0.58, y: 0.76, r: 0.016 },
-  { x: -0.22, y: -0.84, r: 0.015 },
-  { x: 0.24, y: -0.83, r: 0.015 },
-];
+// Round RGB to even values (2.1M colors, visually identical, ~25% smaller PNG deflate)
+const quantRgb = (v) => clamp(Math.round(v * 0.5) * 2, 0, 254);
 
 function renderIcon({ size, maskable, fullBleed }) {
   const rgba = Buffer.alloc(size * size * 4);
-  const aa = 2.2 / size;
-  const artScale = maskable ? 0.75 : fullBleed ? 0.86 : 0.94;
+  const aa = 2.15 / size;
+  // Enlarged heirloom medallion: fills ~94% of maskable 80% safe circle, proud home-screen silhouette
+  const artScale = maskable ? 0.96 : fullBleed ? 1.02 : 0.98;
   const artAa = aa / artScale;
-
-  const px = [0, 0, 0, 0];
+  const useSupersample = size <= 256;
+  const sample = [0, 0, 0, 0];
 
   for (let py = 0; py < size; py += 1) {
-    const ny = ((py + 0.5) / size) * 2 - 1;
     for (let pxIdx = 0; pxIdx < size; pxIdx += 1) {
-      const nx = ((pxIdx + 0.5) / size) * 2 - 1;
-
-      px[0] = 0;
-      px[1] = 0;
-      px[2] = 0;
-      px[3] = 0;
-
-      // 1. Indigo #1e1b4b starlit badge background
-      const radialDist = Math.hypot(nx, ny + 0.04);
-      const glowFactor = Math.exp(-radialDist * radialDist * 1.45);
-      const bgR = mix(30, 56, glowFactor);
-      const bgG = mix(27, 50, glowFactor);
-      const bgB = mix(75, 146, glowFactor);
-
-      // Subtle indigo-to-gold aura highlight near center
-      const centerGlow = Math.exp(-radialDist * radialDist * 3.8);
-      const skyR = clamp(bgR + 30 * centerGlow, 0, 255);
-      const skyG = clamp(bgG + 20 * centerGlow, 0, 255);
-      const skyB = clamp(bgB + 40 * centerGlow, 0, 255);
-
-      if (fullBleed) {
-        px[0] = skyR;
-        px[1] = skyG;
-        px[2] = skyB;
-        px[3] = 1;
-      } else {
-        const badgeDist = sdRoundBox(nx, ny, 0, 0, 0.94, 0.94, 0.25);
-        const badgeCov = coverage(badgeDist, aa);
-        if (badgeCov <= 0) {
-          const outIdx = (py * size + pxIdx) * 4;
-          rgba[outIdx] = 0;
-          rgba[outIdx + 1] = 0;
-          rgba[outIdx + 2] = 0;
-          rgba[outIdx + 3] = 0;
-          continue;
-        }
-        // Subtle bevel rim around badge
-        const rimFactor = smoothstep(-0.045, -0.008, badgeDist);
-        const rimR = mix(skyR, 129, rimFactor * 0.45);
-        const rimG = mix(skyG, 140, rimFactor * 0.45);
-        const rimB = mix(skyB, 248, rimFactor * 0.55);
-        blendPixel(px, rimR, rimG, rimB, badgeCov);
-      }
-
-      // Scaled art coordinates for safe-zone compliance
-      const x = nx / artScale;
-      const y = ny / artScale;
-
-      // 2. Twinkling stars in the night sky
-      for (const st of STARS) {
-        const dStar = sdStar4(x, y, st.x, st.y, st.r, st.r * 0.24, st.rot);
-        const cStar = coverage(dStar, artAa);
-        if (cStar > 0) {
-          if (st.gold) {
-            blendPixel(px, 253, 224, 71, cStar * 0.95);
-          } else {
-            blendPixel(px, 224, 242, 254, cStar * 0.85);
-          }
-        }
-      }
-      for (const dot of STAR_DOTS) {
-        const dDot = sdCircle(x, y, dot.x, dot.y, dot.r);
-        const cDot = coverage(dDot, artAa);
-        if (cDot > 0) {
-          blendPixel(px, 254, 249, 195, cDot * 0.8);
-        }
-      }
-
-      // 3. Golden Starlight Compass Backdrop (centered at y = 0.04)
-      const cy = 0.04;
-      const compassRelY = y - cy;
-      const compassRadius = Math.hypot(x, compassRelY);
-
-      // Soft warm golden glow behind compass
-      const aura = Math.exp(-compassRadius * compassRadius * 2.5) * 0.28;
-      if (aura > 0.01) {
-        blendPixel(px, 251, 191, 36, aura);
-      }
-
-      // Compass cardinal & diagonal star spires
-      const dCardinal = sdStar4(x, compassRelY, 0, 0, 0.84, 0.22, 0);
-      const dDiagonal = sdStar4(x, compassRelY, 0, 0, 0.76, 0.20, Math.PI / 4);
-      const dSpires = Math.min(dCardinal, dDiagonal);
-      const cSpires = coverage(dSpires, artAa);
-      if (cSpires > 0) {
-        const shade = clamp((0.6 - compassRelY) * 0.65, 0, 1);
-        const spireR = mix(217, 254, shade);
-        const spireG = mix(119, 240, shade);
-        const spireB = mix(6, 138, shade);
-        blendPixel(px, spireR, spireG, spireB, cSpires);
-      }
-
-      // Outer compass ring & inner twilight dial
-      const dRingOuter = sdCircle(x, compassRelY, 0, 0, 0.64);
-      const dRingInner = sdCircle(x, compassRelY, 0, 0, 0.51);
-
-      const cOuterRing = coverage(dRingOuter, artAa);
-      if (cOuterRing > 0) {
-        // Dark crisp rim + sunlit gold bezel
-        const rimT = smoothstep(-0.025, 0, dRingOuter);
-        const vertGrad = clamp(0.5 - compassRelY * 0.8, 0, 1);
-        const goldR = mix(217, 253, vertGrad);
-        const goldG = mix(119, 224, vertGrad);
-        const goldB = mix(6, 71, vertGrad);
-        const r = mix(goldR, 30, rimT * 0.65);
-        const g = mix(goldG, 27, rimT * 0.65);
-        const b = mix(goldB, 75, rimT * 0.65);
-        blendPixel(px, r, g, b, cOuterRing);
-      }
-
-      const cDial = coverage(dRingInner, artAa);
-      if (cDial > 0) {
-        const innerGlow = clamp(1 - compassRadius / 0.51, 0, 1);
-        const dialR = mix(24, 49, innerGlow);
-        const dialG = mix(22, 46, innerGlow);
-        const dialB = mix(68, 129, innerGlow);
-        blendPixel(px, dialR, dialG, dialB, cDial);
-
-        // Subtle inner brass ring pinstripe
-        const dPin = Math.abs(compassRadius - 0.475) - 0.009;
-        const cPin = coverage(dPin, artAa);
-        if (cPin > 0) {
-          blendPixel(px, 251, 191, 36, cPin * 0.55 * cDial);
-        }
-      }
-
-      // 4. Pip the Polyglot Starling!
-      // Wings (left and right rounded cobalt explorer wings)
-      const dWingL = sdEllipse(x, y, -0.31, 0.10, 0.13, 0.21, -0.38);
-      const dWingR = sdEllipse(x, y, 0.31, 0.10, 0.13, 0.21, 0.38);
-      const dWings = Math.min(dWingL, dWingR);
-      const cWings = coverage(dWings, artAa);
-      if (cWings > 0) {
-        const wingHighlight = clamp(0.5 - (y - 0.04) * 2.5, 0, 1);
-        const wR = mix(29, 59, wingHighlight);
-        const wG = mix(78, 130, wingHighlight);
-        const wB = mix(216, 246, wingHighlight);
-        const wingRim = smoothstep(-0.022, 0, dWings);
-        blendPixel(
-          px,
-          mix(wR, 15, wingRim * 0.6),
-          mix(wG, 23, wingRim * 0.6),
-          mix(wB, 42, wingRim * 0.6),
-          cWings
-        );
-      }
-
-      // Plump body + round head merged with smooth union
-      const dTorso = sdEllipse(x, y, 0, 0.16, 0.31, 0.30);
-      const dHead = sdCircle(x, y, 0, -0.10, 0.27);
-      const dBody = smin(dTorso, dHead, 0.10);
-
-      // Head crest feathers (3 charming starling tufts)
-      const dTuftC = sdSegment(x, y, 0, -0.32, 0.01, -0.47, 0.042);
-      const dTuftL = sdSegment(x, y, -0.05, -0.31, -0.12, -0.43, 0.036);
-      const dTuftR = sdSegment(x, y, 0.05, -0.31, 0.12, -0.42, 0.035);
-      const dPipSilhouette = smin(dBody, Math.min(dTuftC, Math.min(dTuftL, dTuftR)), 0.04);
-
-      const cPip = coverage(dPipSilhouette, artAa);
-      if (cPip > 0) {
-        // Cobalt plumage gradient
-        const topLight = clamp(0.55 - y * 1.4, 0, 1);
-        let pR = mix(29, 96, topLight * 0.85);
-        let pG = mix(78, 165, topLight * 0.85);
-        let pB = mix(216, 250, topLight * 0.85);
-
-        // Soft warm-sky chest/belly patch
-        const dBelly = sdEllipse(x, y, 0, 0.22, 0.22, 0.21);
-        const bellyCov = coverage(dBelly, artAa * 2.5);
-        if (bellyCov > 0) {
-          pR = mix(pR, 224, bellyCov * 0.92);
-          pG = mix(pG, 242, bellyCov * 0.92);
-          pB = mix(pB, 254, bellyCov * 0.92);
-        }
-
-        // Crisp dark outline around Pip
-        const pipRim = smoothstep(-0.022, 0, dPipSilhouette);
-        pR = mix(pR, 15, pipRim * 0.65);
-        pG = mix(pG, 23, pipRim * 0.65);
-        pB = mix(pB, 42, pipRim * 0.65);
-
-        blendPixel(px, pR, pG, pB, cPip);
-      }
-
-      // Rosy cheeks
-      const dCheekL = sdEllipse(x, y, -0.165, -0.035, 0.055, 0.034);
-      const dCheekR = sdEllipse(x, y, 0.165, -0.035, 0.055, 0.034);
-      const cCheeks = coverage(Math.min(dCheekL, dCheekR), artAa * 2);
-      if (cCheeks > 0) {
-        blendPixel(px, 251, 113, 133, cCheeks * 0.55);
-      }
-
-      // Expressive eyes + white catchlights
-      const dEyeL = sdCircle(x, y, -0.105, -0.12, 0.054);
-      const dEyeR = sdCircle(x, y, 0.105, -0.12, 0.054);
-      const dEyes = Math.min(dEyeL, dEyeR);
-      const cEyes = coverage(dEyes, artAa);
-      if (cEyes > 0) {
-        blendPixel(px, 15, 23, 42, cEyes);
-        const dGlintL = sdCircle(x, y, -0.12, -0.136, 0.020);
-        const dGlintR = sdCircle(x, y, 0.09, -0.136, 0.020);
-        const cGlint = coverage(Math.min(dGlintL, dGlintR), artAa);
-        if (cGlint > 0) {
-          blendPixel(px, 255, 255, 255, cGlint * cEyes);
-        }
-        const dDotL = sdCircle(x, y, -0.09, -0.104, 0.009);
-        const dDotR = sdCircle(x, y, 0.12, -0.104, 0.009);
-        const cDotEye = coverage(Math.min(dDotL, dDotR), artAa);
-        if (cDotEye > 0) {
-          blendPixel(px, 255, 255, 255, cDotEye * 0.8 * cEyes);
-        }
-      }
-
-      // Cute golden beak
-      const dBeakUpper = sdTriangle(x, y, 0, -0.088, -0.068, -0.034, 0.068, -0.034);
-      const dBeakLower = sdTriangle(x, y, 0, 0.006, -0.054, -0.036, 0.054, -0.036);
-      const cBeakL = coverage(dBeakLower, artAa);
-      if (cBeakL > 0) {
-        blendPixel(px, 234, 88, 12, cBeakL);
-      }
-      const cBeakU = coverage(dBeakUpper, artAa);
-      if (cBeakU > 0) {
-        blendPixel(px, 251, 191, 36, cBeakU);
-      }
-
-      // 5. Pip's Explorer Lanyard & Brass Compass Medallion on Chest
-      const dRibbonL = sdSegment(x, y, -0.16, 0.04, 0, 0.21, 0.022);
-      const dRibbonR = sdSegment(x, y, 0.16, 0.04, 0, 0.21, 0.022);
-      const cRibbon = coverage(Math.min(dRibbonL, dRibbonR), artAa);
-      if (cRibbon > 0) {
-        blendPixel(px, 244, 63, 94, cRibbon);
-      }
-
-      const dMedalRim = sdCircle(x, y, 0, 0.25, 0.122);
-      const cMedalRim = coverage(dMedalRim, artAa);
-      if (cMedalRim > 0) {
-        const rimDark = smoothstep(-0.016, 0, dMedalRim);
-        const mGrad = clamp(0.5 - (y - 0.25) * 4, 0, 1);
-        blendPixel(
-          px,
-          mix(mix(217, 254, mGrad), 120, rimDark * 0.6),
-          mix(mix(119, 240, mGrad), 53, rimDark * 0.6),
-          mix(mix(6, 138, mGrad), 15, rimDark * 0.6),
-          cMedalRim
-        );
-      }
-
-      const dMedalFace = sdCircle(x, y, 0, 0.25, 0.088);
-      const cMedalFace = coverage(dMedalFace, artAa);
-      if (cMedalFace > 0) {
-        blendPixel(px, 30, 27, 75, cMedalFace);
-        const dMedalStar = sdStar4(x, y, 0, 0.25, 0.076, 0.023, 0);
-        const cMedalStar = coverage(dMedalStar, artAa);
-        if (cMedalStar > 0) {
-          blendPixel(px, 254, 240, 138, cMedalStar * cMedalFace);
-        }
-      }
-
       const outIdx = (py * size + pxIdx) * 4;
-      rgba[outIdx] = clamp(Math.round(px[0]), 0, 255);
-      rgba[outIdx + 1] = clamp(Math.round(px[1]), 0, 255);
-      rgba[outIdx + 2] = clamp(Math.round(px[2]), 0, 255);
-      rgba[outIdx + 3] = clamp(Math.round(px[3] * 255), 0, 255);
+
+      if (useSupersample) {
+        let sumR = 0;
+        let sumG = 0;
+        let sumB = 0;
+        let sumA = 0;
+        for (let s = 0; s < 4; s += 1) {
+          const nx = ((pxIdx + 0.5 + RGSS_OFFSETS[s][0]) / size) * 2 - 1;
+          const ny = ((py + 0.5 + RGSS_OFFSETS[s][1]) / size) * 2 - 1;
+          sampleIconPixel(nx, ny, aa * 0.62, artScale, artAa * 0.62, fullBleed, sample);
+          const sa = sample[3];
+          sumR += sample[0] * sa;
+          sumG += sample[1] * sa;
+          sumB += sample[2] * sa;
+          sumA += sa;
+        }
+        const avgA = sumA * 0.25;
+        if (avgA > 1e-4) {
+          rgba[outIdx] = quantRgb(sumR / sumA);
+          rgba[outIdx + 1] = quantRgb(sumG / sumA);
+          rgba[outIdx + 2] = quantRgb(sumB / sumA);
+          rgba[outIdx + 3] = clamp(Math.round(avgA * 255), 0, 255);
+        }
+      } else {
+        const nx = ((pxIdx + 0.5) / size) * 2 - 1;
+        const ny = ((py + 0.5) / size) * 2 - 1;
+        sampleIconPixel(nx, ny, aa, artScale, artAa, fullBleed, sample);
+        if (sample[3] > 1e-4) {
+          rgba[outIdx] = quantRgb(sample[0]);
+          rgba[outIdx + 1] = quantRgb(sample[1]);
+          rgba[outIdx + 2] = quantRgb(sample[2]);
+          rgba[outIdx + 3] = clamp(Math.round(sample[3] * 255), 0, 255);
+        }
+      }
     }
   }
 
