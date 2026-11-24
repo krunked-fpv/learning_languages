@@ -24,6 +24,7 @@ import {
   type AdultLanguageCode,
   type ArcadeLanternItem,
   type ArcadeProficiencyTier,
+  type BaseCourseLoadState,
   type BaseLanguageCode,
   type CompanionId,
   type KidProfile,
@@ -1335,16 +1336,43 @@ function readOptionalCurriculumFn<T>(key: string): T | undefined {
   }
 }
 
-function isArcadeCourseLoaded(language: LanguageCode): boolean {
-  if (isAdultLanguage(language)) {
-    const fn = readOptionalCurriculumFn<(lang: AdultLanguageCode) => boolean>('isAdultTrackLoaded');
-    if (typeof fn === 'function') return fn(language);
-  } else {
-    const fn =
-      readOptionalCurriculumFn<(lang: BaseLanguageCode) => boolean>('isBaseTrackLoaded') ??
-      readOptionalCurriculumFn<(lang: BaseLanguageCode) => boolean>('isBaseCourseLoaded');
-    if (typeof fn === 'function') return fn(language);
-  }
+interface LocalArcadeLoadEntry {
+  loading: boolean;
+  error: string | null;
+}
+
+const arcadeLoadStore = (() => {
+  let snapshot: Partial<Record<LanguageCode, LocalArcadeLoadEntry>> = {};
+  const listeners = new Set<() => void>();
+  return {
+    subscribe: (listener: () => void): (() => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    getSnapshot: (): Partial<Record<LanguageCode, LocalArcadeLoadEntry>> => snapshot,
+    set: (lang: LanguageCode, entry: LocalArcadeLoadEntry | null): void => {
+      const prev = snapshot[lang];
+      if (!entry) {
+        if (prev === undefined) return;
+        const next = { ...snapshot };
+        delete next[lang];
+        snapshot = next;
+      } else {
+        if (prev && prev.loading === entry.loading && prev.error === entry.error) return;
+        snapshot = { ...snapshot, [lang]: entry };
+      }
+      for (const listener of Array.from(listeners)) {
+        listener();
+      }
+    },
+  };
+})();
+
+const inflightArcadeLoads = new Map<LanguageCode, Promise<void>>();
+
+function isCourseUnitsNonEmpty(language: LanguageCode): boolean {
   const getCourseFn = readOptionalCurriculumFn<
     (lang: LanguageCode) => { units?: unknown[] } | undefined
   >('getCourse');
@@ -1355,6 +1383,153 @@ function isArcadeCourseLoaded(language: LanguageCode): boolean {
   }
 }
 
+function readOptionalBaseLoadState(language: BaseLanguageCode): BaseCourseLoadState | undefined {
+  const getStateFn =
+    readOptionalCurriculumFn<(lang: BaseLanguageCode) => BaseCourseLoadState>(
+      'getBaseCourseLoadState'
+    ) ??
+    readOptionalCurriculumFn<(lang: BaseLanguageCode) => BaseCourseLoadState>('getBaseLoadState');
+  if (typeof getStateFn !== 'function') return undefined;
+  try {
+    return getStateFn(language);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Safely resolves load status (`loaded`, `loading`, `error`) for any base or adult
+ * language without throwing on partial Vitest curriculum mocks.
+ */
+export function getArcadeLanguageLoadState(language: LanguageCode): BaseCourseLoadState {
+  const local = arcadeLoadStore.getSnapshot()[language];
+
+  if (isAdultLanguage(language)) {
+    const isAdultLoadedFn = readOptionalCurriculumFn<(lang: AdultLanguageCode) => boolean>(
+      'isAdultTrackLoaded'
+    );
+    let loaded = false;
+    try {
+      loaded =
+        typeof isAdultLoadedFn === 'function'
+          ? Boolean(isAdultLoadedFn(language))
+          : isCourseUnitsNonEmpty(language);
+    } catch {
+      loaded = false;
+    }
+    if (loaded) {
+      return { loaded: true, loading: false, error: null };
+    }
+    return {
+      loaded: false,
+      loading: Boolean(local?.loading),
+      error: local?.loading ? null : (local?.error ?? null),
+    };
+  }
+
+  const isBaseLoadedFn =
+    readOptionalCurriculumFn<(lang: BaseLanguageCode) => boolean>('isBaseCourseLoaded') ??
+    readOptionalCurriculumFn<(lang: BaseLanguageCode) => boolean>('isBaseTrackLoaded');
+  let loadedByFn: boolean | undefined;
+  if (typeof isBaseLoadedFn === 'function') {
+    try {
+      loadedByFn = Boolean(isBaseLoadedFn(language));
+    } catch {
+      loadedByFn = false;
+    }
+  }
+  const regState = readOptionalBaseLoadState(language);
+  const loadedByReg =
+    regState && typeof regState.loaded === 'boolean' ? regState.loaded : undefined;
+  const loadedByCourse =
+    loadedByFn === undefined && loadedByReg === undefined
+      ? isCourseUnitsNonEmpty(language)
+      : true;
+
+  const loaded = (loadedByFn ?? true) && (loadedByReg ?? true) && loadedByCourse;
+  if (loaded) {
+    return { loaded: true, loading: false, error: null };
+  }
+
+  const regError =
+    !loadedByReg && typeof regState?.error === 'string' && regState.error ? regState.error : null;
+  const regLoading = !loadedByReg && Boolean(regState?.loading);
+  const loading = Boolean(local?.loading || regLoading);
+  const error = local?.loading ? null : (local?.error ?? regError ?? null);
+  return { loaded: false, loading, error };
+}
+
+function loadArcadeLanguageInternal(
+  language: LanguageCode,
+  allowAdultAccess: boolean,
+  forceRetry: boolean
+): Promise<void> {
+  if (isAdultLanguage(language) && !allowAdultAccess) {
+    return Promise.resolve();
+  }
+
+  const currentState = getArcadeLanguageLoadState(language);
+  if (currentState.loaded) {
+    arcadeLoadStore.set(language, null);
+    return Promise.resolve();
+  }
+
+  const existingInflight = inflightArcadeLoads.get(language);
+  if (existingInflight) {
+    return existingInflight;
+  }
+
+  if (!forceRetry && (currentState.loading || currentState.error)) {
+    return Promise.resolve();
+  }
+
+  const ensureFn = isAdultLanguage(language)
+    ? readOptionalCurriculumFn<(lang: AdultLanguageCode) => Promise<unknown>>(
+        'ensureAdultCourseLoaded'
+      )
+    : readOptionalCurriculumFn<(lang: BaseLanguageCode) => Promise<unknown>>(
+        'ensureBaseCourseLoaded'
+      );
+
+  if (typeof ensureFn !== 'function') {
+    arcadeLoadStore.set(language, null);
+    return Promise.resolve();
+  }
+
+  arcadeLoadStore.set(language, { loading: true, error: null });
+
+  const loadPromise = Promise.resolve()
+    .then(() => (ensureFn as (lang: LanguageCode) => Promise<unknown>)(language))
+    .then((course) => {
+      const courseUnitsCount =
+        (course as { units?: unknown[] } | undefined)?.units?.length ?? 0;
+      const postState = getArcadeLanguageLoadState(language);
+      if (postState.loaded || courseUnitsCount > 0) {
+        arcadeLoadStore.set(language, null);
+      } else {
+        arcadeLoadStore.set(language, {
+          loading: false,
+          error:
+            postState.error ??
+            'This language is not cached for offline use yet. Reconnect and try again.',
+        });
+      }
+    })
+    .catch((err: unknown) => {
+      const fallbackMsg = isAdultLanguage(language)
+        ? 'Offline or unavailable — unable to load this track right now.'
+        : 'Offline or unavailable — unable to load this language right now.';
+      const detail = err instanceof Error && err.message ? err.message : fallbackMsg;
+      arcadeLoadStore.set(language, { loading: false, error: detail });
+    })
+    .finally(() => {
+      inflightArcadeLoads.delete(language);
+    });
+
+  inflightArcadeLoads.set(language, loadPromise);
+  return loadPromise;
+}
+
 /**
  * Triggers on-demand curriculum hydration for a base or unlocked/active adult
  * language track without leaking unhandled rejections when offline.
@@ -1363,24 +1538,19 @@ export function ensureArcadeLanguageLoaded(
   language: LanguageCode,
   allowAdultAccess: boolean
 ): void {
-  if (isAdultLanguage(language)) {
-    if (!allowAdultAccess || isArcadeCourseLoaded(language)) return;
-    const ensureAdultFn = readOptionalCurriculumFn<
-      (lang: AdultLanguageCode) => Promise<unknown>
-    >('ensureAdultCourseLoaded');
-    if (typeof ensureAdultFn === 'function') {
-      void Promise.resolve(ensureAdultFn(language)).catch(() => {});
-    }
-    return;
-  }
+  void loadArcadeLanguageInternal(language, allowAdultAccess, false);
+}
 
-  if (isArcadeCourseLoaded(language)) return;
-  const ensureBaseFn = readOptionalCurriculumFn<
-    (lang: BaseLanguageCode) => Promise<unknown>
-  >('ensureBaseCourseLoaded');
-  if (typeof ensureBaseFn === 'function') {
-    void Promise.resolve(ensureBaseFn(language)).catch(() => {});
-  }
+/**
+ * Retries loading a failed or uncached curriculum track on user request without
+ * throwing on partial curriculum mocks.
+ */
+export function retryArcadeLanguageLoad(
+  language: LanguageCode,
+  allowAdultAccess = false
+): Promise<void> {
+  arcadeLoadStore.set(language, null);
+  return loadArcadeLanguageInternal(language, allowAdultAccess, true);
 }
 
 function useSafeRegistryVersion(
@@ -1401,10 +1571,32 @@ function useSafeRegistryVersion(
   );
   const getSnapshot = useCallback(() => {
     const verFn = readOptionalCurriculumFn<() => number>(versionKey);
-    return typeof verFn === 'function' ? verFn() : fallbackVersionRef.current;
+    const registryVer = typeof verFn === 'function' ? verFn() : 0;
+    return registryVer + fallbackVersionRef.current;
   }, [versionKey]);
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+/**
+ * Subscribes reactively to curriculum load state (`loaded`, `loading`, `error`)
+ * for a given Arcade language so offline recovery UI updates live.
+ */
+export function useArcadeLanguageLoadState(
+  language: LanguageCode | null | undefined
+): BaseCourseLoadState {
+  useSafeRegistryVersion('subscribeAdultRegistry', 'getAdultRegistryVersion');
+  useSafeRegistryVersion('subscribeBaseRegistry', 'getBaseRegistryVersion');
+  useSyncExternalStore(
+    arcadeLoadStore.subscribe,
+    arcadeLoadStore.getSnapshot,
+    arcadeLoadStore.getSnapshot
+  );
+
+  if (!language) {
+    return { loaded: true, loading: false, error: null };
+  }
+  return getArcadeLanguageLoadState(language);
 }
 
 export function useArcadeDeck(
