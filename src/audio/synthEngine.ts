@@ -25,8 +25,35 @@ interface ToneSpec {
   harmonicGain?: number;
   subGain?: number;
   twelfthGain?: number;
+  /** Subtle inharmonic acoustic bar partial (e.g., 2.76x marimba/kalimba/celesta bar) */
+  barPartialRatio?: number;
+  barPartialGain?: number;
+  /** Gentle detuned glass-celesta / wind-chime shimmer companion in cents (e.g., 3.5..5) */
+  shimmerCents?: number;
+  shimmerGain?: number;
   filterCutoff?: number;
   filterEndCutoff?: number;
+  filterQ?: number;
+}
+
+type NoiseTexture = 'wood' | 'paper' | 'felt';
+
+interface NoiseBufferBank {
+  wood: AudioBuffer;
+  paper: AudioBuffer;
+  felt: AudioBuffer;
+}
+
+interface NoiseSpec {
+  texture?: NoiseTexture;
+  delay?: number;
+  duration: number;
+  attack: number;
+  gain: number;
+  type: 'lowpass' | 'bandpass';
+  freq: number;
+  endFreq?: number;
+  q?: number;
 }
 
 interface ScheduledNodeHandle {
@@ -57,6 +84,8 @@ let cadenceTokenCounter = 0;
 let activeCadence: ActiveCadenceHandle | null = null;
 let activeHintNodes: ScheduledNodeHandle[] = [];
 let preferences: AudioPreferences = readInitialPreferences();
+const noiseBankCache = new WeakMap<AudioContext, NoiseBufferBank>();
+const NOISE_BANK_DURATION_SEC = 0.36;
 
 attachUnlockListeners();
 
@@ -198,6 +227,41 @@ function detachUnlockListeners(): void {
   unlockListenersAttached = false;
 }
 
+function connectMasterChain(ctx: AudioContext, gain: GainNode): void {
+  // Heirloom lamp-light master stage: gentle 6.8kHz warm roll-off + headroom limiter.
+  // Falls back cleanly to direct destination on minimal/jsdom AudioContext mocks.
+  let tail: AudioNode = gain;
+  try {
+    if (typeof ctx.createBiquadFilter === 'function') {
+      const warm = ctx.createBiquadFilter();
+      warm.type = 'lowpass';
+      safeSetParam(warm.frequency, 'setValueAtTime', 6800, 0);
+      safeSetParam(warm.Q, 'setValueAtTime', 0.55, 0);
+      tail.connect(warm);
+      tail = warm;
+    }
+    if (typeof ctx.createDynamicsCompressor === 'function') {
+      const limiter = ctx.createDynamicsCompressor();
+      safeSetParam(limiter.threshold, 'setValueAtTime', -12, 0);
+      safeSetParam(limiter.knee, 'setValueAtTime', 22, 0);
+      safeSetParam(limiter.ratio, 'setValueAtTime', 10, 0);
+      safeSetParam(limiter.attack, 'setValueAtTime', 0.005, 0);
+      safeSetParam(limiter.release, 'setValueAtTime', 0.2, 0);
+      tail.connect(limiter);
+      tail = limiter;
+    }
+    tail.connect(ctx.destination);
+    return;
+  } catch {
+    try {
+      gain.disconnect();
+    } catch {
+      // Ignore disconnect errors on mock nodes.
+    }
+  }
+  gain.connect(ctx.destination);
+}
+
 function ensureAudioContext(): { ctx: AudioContext; master: GainNode } | null {
   attachUnlockListeners();
   const Ctor = getAudioContextConstructor();
@@ -216,7 +280,7 @@ function ensureAudioContext(): { ctx: AudioContext; master: GainNode } | null {
       masterGain = audioCtx.createGain();
       const target = preferences.muted ? 0 : preferences.volume;
       masterGain.gain.value = target;
-      masterGain.connect(audioCtx.destination);
+      connectMasterChain(audioCtx, masterGain);
     } catch {
       audioCtx = null;
       audioCtxCtorUsed = null;
@@ -229,7 +293,7 @@ function ensureAudioContext(): { ctx: AudioContext; master: GainNode } | null {
     try {
       masterGain = audioCtx.createGain();
       masterGain.gain.value = preferences.muted ? 0 : preferences.volume;
-      masterGain.connect(audioCtx.destination);
+      connectMasterChain(audioCtx, masterGain);
     } catch {
       return null;
     }
@@ -273,9 +337,10 @@ function scheduleWarmTone(
   try {
     const now = getSafeCurrentTime(ctx);
     const startTime = now + Math.max(0, spec.delay ?? 0);
-    const attack = Math.max(0.004, spec.attack ?? 0.008);
+    // Bible §7: soft attacks >= 5ms so no note ever clicks harshly.
+    const attack = Math.max(0.005, spec.attack ?? 0.008);
     const decay = Math.max(0.03, spec.decay ?? 0.16);
-    const peakGain = Math.max(0.005, Math.min(0.6, spec.gain ?? 0.25));
+    const peakGain = Math.max(0.005, Math.min(0.5, spec.gain ?? 0.24));
     const stopTime = startTime + attack + decay;
 
     const env = ctx.createGain();
@@ -285,15 +350,16 @@ function scheduleWarmTone(
     safeSetParam(env.gain, 'setValueAtTime', 0, stopTime + 0.004);
 
     let entryNode: AudioNode = env;
+    let filterNode: BiquadFilterNode | null = null;
 
     if (typeof ctx.createBiquadFilter === 'function') {
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
       if (filter.Q) {
-        safeSetParam(filter.Q, 'setValueAtTime', 1.4, startTime);
+        safeSetParam(filter.Q, 'setValueAtTime', spec.filterQ ?? 0.85, startTime);
       }
-      const cutoffStart = spec.filterCutoff ?? 2200;
-      const cutoffEnd = spec.filterEndCutoff ?? Math.max(400, cutoffStart * 0.55);
+      const cutoffStart = Math.min(4600, spec.filterCutoff ?? 2200);
+      const cutoffEnd = Math.min(cutoffStart, spec.filterEndCutoff ?? Math.max(380, cutoffStart * 0.55));
       safeSetParam(filter.frequency, 'setValueAtTime', cutoffStart, startTime);
       safeSetParam(
         filter.frequency,
@@ -303,11 +369,14 @@ function scheduleWarmTone(
       );
       filter.connect(env);
       entryNode = filter;
+      filterNode = filter;
     }
 
     env.connect(dest);
 
     const oscs: OscillatorNode[] = [];
+    const extraGains: GainNode[] = [];
+
     const mainOsc = ctx.createOscillator();
     mainOsc.type = spec.wave ?? 'triangle';
     safeSetParam(mainOsc.frequency, 'setValueAtTime', spec.freq, startTime);
@@ -338,6 +407,7 @@ function scheduleWarmTone(
       overtoneOsc.start(startTime);
       overtoneOsc.stop(stopTime + 0.012);
       oscs.push(overtoneOsc);
+      extraGains.push(overtoneGain);
     }
 
     if (spec.subGain && spec.subGain > 0) {
@@ -359,6 +429,7 @@ function scheduleWarmTone(
       subOsc.start(startTime);
       subOsc.stop(stopTime + 0.012);
       oscs.push(subOsc);
+      extraGains.push(subLevel);
     }
 
     if (spec.twelfthGain && spec.twelfthGain > 0) {
@@ -380,6 +451,50 @@ function scheduleWarmTone(
       twelfthOsc.start(startTime);
       twelfthOsc.stop(stopTime + 0.012);
       oscs.push(twelfthOsc);
+      extraGains.push(twelfthLevel);
+    }
+
+    // Fast-decaying acoustic bar partial (e.g. 2.76x wood marimba/kalimba or celesta bar)
+    if (spec.barPartialRatio && spec.barPartialGain && spec.barPartialGain > 0) {
+      const barOsc = ctx.createOscillator();
+      barOsc.type = 'sine';
+      const barEnv = ctx.createGain();
+      const barStop = startTime + attack + Math.max(0.025, decay * 0.34);
+      safeSetParam(barEnv.gain, 'setValueAtTime', 0.0001, startTime);
+      safeSetParam(barEnv.gain, 'linearRampToValueAtTime', spec.barPartialGain, startTime + attack);
+      safeSetParam(barEnv.gain, 'exponentialRampToValueAtTime', 0.0001, barStop);
+      safeSetParam(barEnv.gain, 'setValueAtTime', 0, barStop + 0.003);
+      safeSetParam(barOsc.frequency, 'setValueAtTime', spec.freq * spec.barPartialRatio, startTime);
+      barOsc.connect(barEnv);
+      barEnv.connect(entryNode);
+      barOsc.start(startTime);
+      barOsc.stop(barStop + 0.01);
+      oscs.push(barOsc);
+      extraGains.push(barEnv);
+    }
+
+    // Gentle detuned companion voice for organic glass-celesta / wind-chime shimmer (±cents warmth)
+    if (spec.shimmerCents && spec.shimmerCents !== 0) {
+      const detuneRatio = Math.pow(2, spec.shimmerCents / 1200);
+      const shimOsc = ctx.createOscillator();
+      shimOsc.type = 'sine';
+      const shimGain = ctx.createGain();
+      safeSetParam(shimGain.gain, 'setValueAtTime', spec.shimmerGain ?? 0.3, startTime);
+      safeSetParam(shimOsc.frequency, 'setValueAtTime', spec.freq * detuneRatio, startTime);
+      if (typeof spec.endFreq === 'number' && spec.endFreq > 0) {
+        safeSetParam(
+          shimOsc.frequency,
+          'exponentialRampToValueAtTime',
+          spec.endFreq * detuneRatio,
+          stopTime
+        );
+      }
+      shimOsc.connect(shimGain);
+      shimGain.connect(entryNode);
+      shimOsc.start(startTime);
+      shimOsc.stop(stopTime + 0.012);
+      oscs.push(shimOsc);
+      extraGains.push(shimGain);
     }
 
     if (collector) {
@@ -388,7 +503,13 @@ function scheduleWarmTone(
 
     mainOsc.onended = () => {
       try {
-        mainOsc.disconnect();
+        for (const osc of oscs) {
+          osc.disconnect();
+        }
+        for (const g of extraGains) {
+          g.disconnect();
+        }
+        filterNode?.disconnect();
         env.disconnect();
       } catch {
         // Ignore already disconnected nodes.
@@ -410,55 +531,101 @@ const BUBBLE_PENTATONIC_SCALE = [
   523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.51,
 ] as const;
 
-function scheduleAiryWhooshNoise(ctx: AudioContext, dest: AudioNode): void {
+function buildSmoothedNoiseBuffer(
+  ctx: AudioContext,
+  sampleRate: number,
+  frameCount: number,
+  smoothing: number,
+  seedInit: number
+): AudioBuffer {
+  const buffer = ctx.createBuffer(1, frameCount, sampleRate);
+  const data = buffer.getChannelData(0);
+  // Deterministic Mulberry32 PRNG so noise textures are consistent, finite, and zero-DC.
+  let state = seedInit >>> 0;
+  let smooth = 0;
+  for (let i = 0; i < frameCount; i += 1) {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    const white = (((t ^ (t >>> 14)) >>> 0) / 4294967296) * 2 - 1;
+    smooth = smooth * smoothing + white * (1 - smoothing);
+    data[i] = smooth;
+  }
+  return buffer;
+}
+
+function getNoiseBufferBank(ctx: AudioContext): NoiseBufferBank | null {
+  if (typeof ctx.createBuffer !== 'function') return null;
+  const cached = noiseBankCache.get(ctx);
+  if (cached) return cached;
+  try {
+    const sampleRate =
+      typeof ctx.sampleRate === 'number' && ctx.sampleRate > 0 ? ctx.sampleRate : 44100;
+    const frameCount = Math.max(512, Math.floor(sampleRate * NOISE_BANK_DURATION_SEC));
+    const bank: NoiseBufferBank = {
+      wood: buildSmoothedNoiseBuffer(ctx, sampleRate, frameCount, 0.68, 0x574f4f44),
+      paper: buildSmoothedNoiseBuffer(ctx, sampleRate, frameCount, 0.56, 0x50415052),
+      felt: buildSmoothedNoiseBuffer(ctx, sampleRate, frameCount, 0.84, 0x46454c54),
+    };
+    noiseBankCache.set(ctx, bank);
+    return bank;
+  } catch {
+    return null;
+  }
+}
+
+let noiseOffsetCounter = 0;
+
+/**
+ * Schedules a soft, filtered organic noise burst (wood tap grain, thick-paper rustle, felt settle)
+ * using per-AudioContext cached buffers so rapid arcade/tile taps never allocate AudioBuffers.
+ */
+function scheduleNoiseBurst(ctx: AudioContext, dest: AudioNode, spec: NoiseSpec): void {
   if (
-    typeof ctx.createBuffer !== 'function' ||
     typeof ctx.createBufferSource !== 'function' ||
     typeof ctx.createBiquadFilter !== 'function'
   ) {
     return;
   }
+  const bank = getNoiseBufferBank(ctx);
+  if (!bank) return;
   try {
-    const sampleRate = typeof ctx.sampleRate === 'number' && ctx.sampleRate > 0 ? ctx.sampleRate : 44100;
-    const durationSec = 0.14;
-    const frameCount = Math.max(256, Math.floor(sampleRate * durationSec));
-    const buffer = ctx.createBuffer(1, frameCount, sampleRate);
-    const data = buffer.getChannelData(0);
+    const buffer = bank[spec.texture ?? 'wood'];
+    const duration = Math.max(0.016, Math.min(NOISE_BANK_DURATION_SEC - 0.02, spec.duration));
+    const start = getSafeCurrentTime(ctx) + Math.max(0, spec.delay ?? 0);
+    const attack = Math.max(0.005, Math.min(duration * 0.6, spec.attack));
+    const end = start + duration;
 
-    // Soft pink-weighted airy noise (zero harsh DC clicks)
-    let smooth = 0;
-    for (let i = 0; i < frameCount; i += 1) {
-      const white = Math.random() * 2 - 1;
-      smooth = smooth * 0.72 + white * 0.28;
-      data[i] = smooth;
-    }
-
-    const now = getSafeCurrentTime(ctx);
     const source = ctx.createBufferSource();
     source.buffer = buffer;
 
-    const bandpass = ctx.createBiquadFilter();
-    bandpass.type = 'bandpass';
-    safeSetParam(bandpass.Q, 'setValueAtTime', 1.1, now);
-    safeSetParam(bandpass.frequency, 'setValueAtTime', 380, now);
-    safeSetParam(bandpass.frequency, 'exponentialRampToValueAtTime', 1750, now + 0.065);
-    safeSetParam(bandpass.frequency, 'exponentialRampToValueAtTime', 640, now + durationSec);
+    const filter = ctx.createBiquadFilter();
+    filter.type = spec.type;
+    safeSetParam(filter.Q, 'setValueAtTime', spec.q ?? 0.85, start);
+    safeSetParam(filter.frequency, 'setValueAtTime', spec.freq, start);
+    if (typeof spec.endFreq === 'number' && spec.endFreq > 0) {
+      safeSetParam(filter.frequency, 'exponentialRampToValueAtTime', Math.max(80, spec.endFreq), end);
+    }
 
     const env = ctx.createGain();
-    safeSetParam(env.gain, 'setValueAtTime', 0.0001, now);
-    safeSetParam(env.gain, 'linearRampToValueAtTime', 0.11, now + 0.032);
-    safeSetParam(env.gain, 'exponentialRampToValueAtTime', 0.0001, now + durationSec);
-    safeSetParam(env.gain, 'setValueAtTime', 0, now + durationSec + 0.004);
+    const peak = Math.min(0.4, Math.max(0.004, spec.gain));
+    safeSetParam(env.gain, 'setValueAtTime', 0.0001, start);
+    safeSetParam(env.gain, 'linearRampToValueAtTime', peak, start + attack);
+    safeSetParam(env.gain, 'exponentialRampToValueAtTime', 0.0001, end);
+    safeSetParam(env.gain, 'setValueAtTime', 0, end + 0.004);
 
-    source.connect(bandpass);
-    bandpass.connect(env);
+    source.connect(filter);
+    filter.connect(env);
     env.connect(dest);
-    source.start(now);
-    source.stop(now + durationSec + 0.008);
+
+    // Rotate subtle offset inside cached buffer so rapid taps feel organically varied.
+    const maxOffset = Math.max(0, NOISE_BANK_DURATION_SEC - duration - 0.015);
+    const offset = maxOffset > 0.01 ? ((noiseOffsetCounter++ * 0.043) % maxOffset) : 0;
+    source.start(start, offset, duration + 0.008);
     source.onended = () => {
       try {
         source.disconnect();
-        bandpass.disconnect();
+        filter.disconnect();
         env.disconnect();
       } catch {
         // Ignore already disconnected nodes.
@@ -469,410 +636,768 @@ function scheduleAiryWhooshNoise(ctx: AudioContext, dest: AudioNode): void {
   }
 }
 
+function scheduleAiryWhooshNoise(ctx: AudioContext, dest: AudioNode): void {
+  // Soft thick-parchment page brush + gentle linen settle using cached buffers.
+  scheduleNoiseBurst(ctx, dest, {
+    texture: 'paper',
+    delay: 0,
+    duration: 0.16,
+    attack: 0.032,
+    gain: 0.19,
+    type: 'bandpass',
+    freq: 480,
+    endFreq: 1720,
+    q: 0.85,
+  });
+  scheduleNoiseBurst(ctx, dest, {
+    texture: 'felt',
+    delay: 0.055,
+    duration: 0.13,
+    attack: 0.024,
+    gain: 0.125,
+    type: 'lowpass',
+    freq: 1220,
+    endFreq: 400,
+    q: 0.65,
+  });
+}
+
 const SFX_RECIPES: Record<
   SoundEffectId,
   (ctx: AudioContext, dest: AudioNode, comboIndex: number) => void
 > = {
   tile_tap: (ctx, dest, comboIndex) => {
+    // Carved walnut wood-tile tap: tuned pentatonic wood bar + hollow knock + felt-pad grain
     const idx = Math.max(0, Math.floor(comboIndex)) % TAP_SCALE.length;
     const freq = TAP_SCALE[idx];
     scheduleWarmTone(ctx, dest, {
       freq,
       wave: 'triangle',
-      harmonicGain: 0.22,
-      attack: 0.005,
-      decay: 0.095,
+      harmonicGain: 0.16,
+      barPartialRatio: 2.76,
+      barPartialGain: 0.15,
+      attack: 0.006,
+      decay: 0.105,
+      gain: 0.28,
+      filterCutoff: 2050,
+      filterEndCutoff: 760,
+    });
+    scheduleWarmTone(ctx, dest, {
+      freq: 196,
+      endFreq: 138,
+      wave: 'sine',
+      attack: 0.006,
+      decay: 0.075,
       gain: 0.24,
-      filterCutoff: 2100,
-      filterEndCutoff: 780,
+      filterCutoff: 720,
+      filterEndCutoff: 300,
+    });
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'wood',
+      duration: 0.032,
+      attack: 0.005,
+      gain: 0.115,
+      type: 'lowpass',
+      freq: 1750,
+      endFreq: 560,
     });
   },
 
   tile_remove: (ctx, dest) => {
+    // Plush felt settle: soft downward wood cushion + velvety felt brush
     scheduleWarmTone(ctx, dest, {
-      freq: 440,
-      endFreq: 311.13,
+      freq: 420,
+      endFreq: 295,
       wave: 'sine',
-      harmonicGain: 0.1,
-      attack: 0.006,
-      decay: 0.1,
-      gain: 0.2,
-      filterCutoff: 1200,
-      filterEndCutoff: 500,
+      harmonicGain: 0.08,
+      attack: 0.007,
+      decay: 0.11,
+      gain: 0.25,
+      filterCutoff: 1180,
+      filterEndCutoff: 480,
+    });
+    scheduleWarmTone(ctx, dest, {
+      freq: 170,
+      endFreq: 120,
+      wave: 'sine',
+      attack: 0.008,
+      decay: 0.085,
+      gain: 0.18,
+      filterCutoff: 560,
+      filterEndCutoff: 260,
+    });
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'felt',
+      duration: 0.08,
+      attack: 0.012,
+      gain: 0.11,
+      type: 'lowpass',
+      freq: 920,
+      endFreq: 340,
     });
   },
 
   button_click: (ctx, dest) => {
+    // Tactile walnut & brass sketchbook-clasp click (weighted, intimate, >= 5ms attack)
     scheduleSequence(ctx, dest, [
       {
-        freq: 660,
-        endFreq: 523.25,
+        freq: 245,
+        endFreq: 162,
         wave: 'sine',
-        attack: 0.004,
-        decay: 0.055,
-        gain: 0.18,
-        filterCutoff: 1800,
+        attack: 0.005,
+        decay: 0.062,
+        gain: 0.29,
+        filterCutoff: 840,
+        filterEndCutoff: 320,
       },
       {
-        freq: 1046.5,
+        freq: 920,
+        endFreq: 720,
+        delay: 0.004,
         wave: 'triangle',
-        attack: 0.004,
-        decay: 0.032,
-        gain: 0.08,
-        filterCutoff: 1500,
+        barPartialRatio: 2.72,
+        barPartialGain: 0.1,
+        attack: 0.005,
+        decay: 0.044,
+        gain: 0.14,
+        filterCutoff: 1650,
+        filterEndCutoff: 660,
       },
     ]);
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'wood',
+      duration: 0.028,
+      attack: 0.005,
+      gain: 0.12,
+      type: 'bandpass',
+      freq: 1480,
+      endFreq: 600,
+      q: 0.85,
+    });
   },
 
   flip_card: (ctx, dest) => {
+    // Thick deckle-edge paper rustle + warm folio settle
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'paper',
+      duration: 0.12,
+      attack: 0.022,
+      gain: 0.16,
+      type: 'bandpass',
+      freq: 1350,
+      endFreq: 2450,
+      q: 0.72,
+    });
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'paper',
+      delay: 0.048,
+      duration: 0.098,
+      attack: 0.016,
+      gain: 0.115,
+      type: 'bandpass',
+      freq: 2550,
+      endFreq: 1250,
+      q: 0.72,
+    });
     scheduleSequence(ctx, dest, [
       {
         freq: 392.0,
-        delay: 0,
+        delay: 0.006,
         wave: 'sine',
-        attack: 0.01,
-        decay: 0.09,
-        gain: 0.16,
-        filterCutoff: 1400,
+        attack: 0.012,
+        decay: 0.1,
+        gain: 0.18,
+        filterCutoff: 1320,
+        filterEndCutoff: 600,
       },
       {
         freq: 587.33,
-        delay: 0.045,
+        delay: 0.048,
         wave: 'triangle',
-        harmonicGain: 0.15,
-        attack: 0.01,
-        decay: 0.14,
-        gain: 0.2,
-        filterCutoff: 2200,
+        harmonicGain: 0.12,
+        attack: 0.012,
+        decay: 0.145,
+        gain: 0.21,
+        filterCutoff: 1900,
+        filterEndCutoff: 840,
       },
     ]);
   },
 
   correct_chime: (ctx, dest, comboIndex) => {
+    // Warm glass celesta bloom with ±4 cent detuned shimmer + gentle felt-hammer kiss
     const semitoneLift = Math.min(4, Math.max(0, Math.floor(comboIndex)));
     const factor = Math.pow(2, semitoneLift / 12);
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'wood',
+      duration: 0.022,
+      attack: 0.005,
+      gain: 0.036,
+      type: 'lowpass',
+      freq: 1350,
+      endFreq: 480,
+    });
     scheduleSequence(ctx, dest, [
       {
         freq: 523.25 * factor,
         delay: 0,
         wave: 'triangle',
-        harmonicGain: 0.2,
+        harmonicGain: 0.18,
+        barPartialRatio: 2.76,
+        barPartialGain: 0.1,
+        shimmerCents: 3.5,
+        shimmerGain: 0.24,
         attack: 0.008,
-        decay: 0.18,
-        gain: 0.24,
-        filterCutoff: 2300,
+        decay: 0.2,
+        gain: 0.19,
+        filterCutoff: 2200,
+        filterEndCutoff: 950,
       },
       {
         freq: 659.25 * factor,
-        delay: 0.065,
+        delay: 0.068,
         wave: 'sine',
-        harmonicGain: 0.24,
-        attack: 0.008,
-        decay: 0.28,
-        gain: 0.26,
-        filterCutoff: 2800,
+        harmonicGain: 0.22,
+        shimmerCents: -4,
+        shimmerGain: 0.28,
+        attack: 0.009,
+        decay: 0.3,
+        gain: 0.21,
+        filterCutoff: 2650,
+        filterEndCutoff: 1150,
       },
       {
         freq: 783.99 * factor,
-        delay: 0.08,
+        delay: 0.095,
         wave: 'sine',
+        harmonicGain: 0.16,
+        shimmerCents: 4.5,
+        shimmerGain: 0.3,
         attack: 0.012,
-        decay: 0.3,
-        gain: 0.15,
-        filterCutoff: 2600,
+        decay: 0.36,
+        gain: 0.14,
+        filterCutoff: 2550,
+        filterEndCutoff: 1100,
       },
     ]);
   },
 
   combo_3x: (ctx, dest) => {
+    // Warm kalimba thumb-pluck blossoming into a glass celesta triad
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'wood',
+      duration: 0.022,
+      attack: 0.005,
+      gain: 0.042,
+      type: 'lowpass',
+      freq: 1500,
+      endFreq: 520,
+    });
     scheduleSequence(ctx, dest, [
       {
         freq: 523.25,
         delay: 0,
         wave: 'triangle',
-        harmonicGain: 0.24,
-        subGain: 0.14,
-        decay: 0.19,
-        gain: 0.23,
-        filterCutoff: 2400,
+        harmonicGain: 0.2,
+        subGain: 0.12,
+        barPartialRatio: 2.76,
+        barPartialGain: 0.14,
+        attack: 0.007,
+        decay: 0.2,
+        gain: 0.19,
+        filterCutoff: 2300,
+        filterEndCutoff: 920,
       },
       {
         freq: 659.25,
-        delay: 0.065,
+        delay: 0.068,
         wave: 'triangle',
-        harmonicGain: 0.26,
-        twelfthGain: 0.08,
-        decay: 0.22,
-        gain: 0.25,
-        filterCutoff: 2700,
+        harmonicGain: 0.22,
+        barPartialRatio: 2.76,
+        barPartialGain: 0.1,
+        shimmerCents: 3.5,
+        shimmerGain: 0.24,
+        attack: 0.007,
+        decay: 0.24,
+        gain: 0.2,
+        filterCutoff: 2600,
+        filterEndCutoff: 1050,
       },
       {
         freq: 783.99,
-        delay: 0.13,
+        delay: 0.136,
         wave: 'sine',
-        harmonicGain: 0.3,
-        subGain: 0.12,
-        twelfthGain: 0.1,
-        decay: 0.36,
-        gain: 0.28,
-        filterCutoff: 3200,
+        harmonicGain: 0.24,
+        subGain: 0.1,
+        twelfthGain: 0.08,
+        shimmerCents: 4.2,
+        shimmerGain: 0.3,
+        attack: 0.009,
+        decay: 0.4,
+        gain: 0.22,
+        filterCutoff: 2950,
+        filterEndCutoff: 1200,
       },
     ]);
   },
 
   combo_5x: (ctx, dest) => {
+    // Ascending warm kalimba cascade + glass celesta shimmer crown
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'wood',
+      duration: 0.024,
+      attack: 0.005,
+      gain: 0.045,
+      type: 'lowpass',
+      freq: 1550,
+      endFreq: 560,
+    });
     scheduleSequence(ctx, dest, [
       {
         freq: 587.33,
         delay: 0,
         wave: 'triangle',
-        harmonicGain: 0.22,
-        subGain: 0.14,
-        decay: 0.18,
-        gain: 0.23,
-        filterCutoff: 2500,
+        harmonicGain: 0.2,
+        subGain: 0.12,
+        barPartialRatio: 2.76,
+        barPartialGain: 0.14,
+        attack: 0.007,
+        decay: 0.19,
+        gain: 0.19,
+        filterCutoff: 2400,
+        filterEndCutoff: 960,
       },
       {
         freq: 739.99,
-        delay: 0.058,
+        delay: 0.06,
         wave: 'triangle',
-        harmonicGain: 0.24,
-        twelfthGain: 0.09,
-        decay: 0.2,
-        gain: 0.24,
-        filterCutoff: 2800,
+        harmonicGain: 0.22,
+        barPartialRatio: 2.76,
+        barPartialGain: 0.11,
+        attack: 0.007,
+        decay: 0.22,
+        gain: 0.19,
+        filterCutoff: 2650,
+        filterEndCutoff: 1100,
       },
       {
         freq: 880.0,
-        delay: 0.116,
+        delay: 0.12,
         wave: 'sine',
-        harmonicGain: 0.26,
-        subGain: 0.12,
-        decay: 0.26,
-        gain: 0.26,
-        filterCutoff: 3100,
+        harmonicGain: 0.22,
+        subGain: 0.1,
+        shimmerCents: -3.8,
+        shimmerGain: 0.26,
+        attack: 0.008,
+        decay: 0.28,
+        gain: 0.2,
+        filterCutoff: 2900,
+        filterEndCutoff: 1250,
       },
       {
         freq: 1174.66,
-        delay: 0.174,
+        delay: 0.18,
         wave: 'sine',
-        harmonicGain: 0.28,
-        subGain: 0.16,
-        twelfthGain: 0.1,
-        decay: 0.4,
-        gain: 0.28,
-        filterCutoff: 3400,
+        harmonicGain: 0.24,
+        subGain: 0.12,
+        twelfthGain: 0.08,
+        shimmerCents: 4.5,
+        shimmerGain: 0.3,
+        attack: 0.009,
+        decay: 0.44,
+        gain: 0.21,
+        filterCutoff: 3200,
+        filterEndCutoff: 1350,
       },
     ]);
   },
 
   combo_fire: (ctx, dest) => {
+    // Hearth-warm felt pad + kalimba arpeggio + soft wind-chime shimmer tail
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'paper',
+      delay: 0.015,
+      duration: 0.14,
+      attack: 0.03,
+      gain: 0.055,
+      type: 'bandpass',
+      freq: 950,
+      endFreq: 2100,
+      q: 0.8,
+    });
     const notes = [523.25, 659.25, 783.99, 987.77, 1046.5, 1318.51];
     scheduleSequence(ctx, dest, [
       {
         freq: 261.63,
-        delay: 0.02,
+        delay: 0.018,
         wave: 'triangle',
-        harmonicGain: 0.16,
-        attack: 0.02,
+        harmonicGain: 0.14,
+        attack: 0.024,
         decay: 0.56,
-        gain: 0.18,
-        filterCutoff: 1400,
+        gain: 0.15,
+        filterCutoff: 1300,
+        filterEndCutoff: 620,
       },
       ...notes.map((freq, index) => ({
         freq,
-        delay: index * 0.048,
+        delay: index * 0.05,
         wave: (index < 3 ? 'triangle' : 'sine') as WarmWaveform,
-        harmonicGain: 0.26,
-        subGain: index === notes.length - 1 ? 0.16 : 0.08,
-        twelfthGain: index >= 3 ? 0.1 : 0,
+        harmonicGain: 0.22,
+        subGain: index === notes.length - 1 ? 0.12 : 0.06,
+        twelfthGain: index >= 3 ? 0.08 : 0,
+        barPartialRatio: index < 3 ? 2.76 : undefined,
+        barPartialGain: index < 3 ? 0.11 : undefined,
+        shimmerCents: index >= 3 ? (index % 2 === 0 ? 4.2 : -4.2) : 0,
+        shimmerGain: 0.28,
         attack: 0.007,
-        decay: index === notes.length - 1 ? 0.5 : 0.22,
-        gain: 0.24,
-        filterCutoff: 3400,
+        decay: index === notes.length - 1 ? 0.52 : 0.23,
+        gain: 0.18,
+        filterCutoff: 3150,
+        filterEndCutoff: 1350,
       })),
     ]);
   },
 
   gentle_nudge: (ctx, dest) => {
-    // Felt-mallet soft warm woodblock double-tap (friendly "try again", never harsh)
+    // Felt-mallet soft warm woodblock double-tap (reassuring "try again", never harsh)
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'felt',
+      delay: 0,
+      duration: 0.045,
+      attack: 0.01,
+      gain: 0.042,
+      type: 'lowpass',
+      freq: 520,
+      endFreq: 240,
+    });
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'felt',
+      delay: 0.115,
+      duration: 0.05,
+      attack: 0.01,
+      gain: 0.036,
+      type: 'lowpass',
+      freq: 460,
+      endFreq: 210,
+    });
     scheduleSequence(ctx, dest, [
       {
         freq: 293.66,
         delay: 0,
         wave: 'sine',
         attack: 0.015,
-        decay: 0.13,
-        gain: 0.2,
+        decay: 0.135,
+        gain: 0.19,
         filterCutoff: 560,
-        filterEndCutoff: 340,
+        filterEndCutoff: 320,
       },
       {
         freq: 261.63,
         delay: 0.115,
         wave: 'sine',
         attack: 0.016,
-        decay: 0.16,
-        gain: 0.18,
+        decay: 0.165,
+        gain: 0.17,
         filterCutoff: 500,
-        filterEndCutoff: 300,
+        filterEndCutoff: 280,
       },
     ]);
   },
 
   accent_sparkle: (ctx, dest) => {
+    // Delicate glass wind-chime shimmer glints with ±4.5 cent beating warmth
     const bells = [783.99, 987.77, 1174.66, 1567.98];
     scheduleSequence(
       ctx,
       dest,
       bells.map((freq, idx) => ({
         freq,
-        delay: idx * 0.048,
+        delay: idx * 0.05,
         wave: 'sine',
-        harmonicGain: 0.28,
-        attack: 0.006,
-        decay: idx === bells.length - 1 ? 0.38 : 0.22,
-        gain: 0.21,
-        filterCutoff: 3600,
+        harmonicGain: 0.22,
+        shimmerCents: idx % 2 === 0 ? 4.5 : -4.2,
+        shimmerGain: 0.3,
+        attack: 0.007,
+        decay: idx === bells.length - 1 ? 0.42 : 0.24,
+        gain: 0.17,
+        filterCutoff: 3250,
+        filterEndCutoff: 1400,
       }))
     );
   },
 
   heart_win: (ctx, dest) => {
+    // Warm felt-harp & celesta lift
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'felt',
+      duration: 0.07,
+      attack: 0.014,
+      gain: 0.04,
+      type: 'lowpass',
+      freq: 760,
+      endFreq: 320,
+    });
     scheduleSequence(ctx, dest, [
-      { freq: 349.23, delay: 0, wave: 'sine', attack: 0.012, decay: 0.12, gain: 0.22, filterCutoff: 1100 },
-      { freq: 440.0, delay: 0.085, wave: 'triangle', harmonicGain: 0.16, attack: 0.01, decay: 0.16, gain: 0.23 },
-      { freq: 523.25, delay: 0.16, wave: 'sine', harmonicGain: 0.2, decay: 0.24, gain: 0.25 },
-      { freq: 698.46, delay: 0.235, wave: 'sine', harmonicGain: 0.25, decay: 0.36, gain: 0.27 },
+      { freq: 349.23, delay: 0, wave: 'sine', attack: 0.012, decay: 0.13, gain: 0.19, filterCutoff: 1100 },
+      { freq: 440.0, delay: 0.085, wave: 'triangle', harmonicGain: 0.15, attack: 0.01, decay: 0.17, gain: 0.19 },
+      { freq: 523.25, delay: 0.16, wave: 'sine', harmonicGain: 0.18, shimmerCents: 3.5, shimmerGain: 0.24, attack: 0.01, decay: 0.26, gain: 0.2 },
+      { freq: 698.46, delay: 0.235, wave: 'sine', harmonicGain: 0.22, shimmerCents: -4, shimmerGain: 0.28, attack: 0.01, decay: 0.38, gain: 0.21 },
     ]);
   },
 
   chest_open: (ctx, dest) => {
+    // Heirloom wooden latch release + parchment unfold + shimmering glass-celesta bloom
+    scheduleWarmTone(ctx, dest, {
+      freq: 185,
+      endFreq: 126,
+      delay: 0,
+      wave: 'sine',
+      attack: 0.006,
+      decay: 0.075,
+      gain: 0.19,
+      filterCutoff: 640,
+      filterEndCutoff: 260,
+    });
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'wood',
+      delay: 0,
+      duration: 0.034,
+      attack: 0.005,
+      gain: 0.078,
+      type: 'bandpass',
+      freq: 1320,
+      endFreq: 520,
+      q: 0.9,
+    });
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'paper',
+      delay: 0.042,
+      duration: 0.12,
+      attack: 0.022,
+      gain: 0.068,
+      type: 'bandpass',
+      freq: 980,
+      endFreq: 1950,
+      q: 0.8,
+    });
     scheduleSequence(ctx, dest, [
       {
         freq: 261.63,
         endFreq: 392.0,
-        delay: 0,
+        delay: 0.022,
         wave: 'triangle',
-        subGain: 0.14,
-        attack: 0.015,
-        decay: 0.15,
-        gain: 0.2,
-        filterCutoff: 1300,
+        subGain: 0.12,
+        attack: 0.016,
+        decay: 0.16,
+        gain: 0.16,
+        filterCutoff: 1250,
+        filterEndCutoff: 620,
       },
       {
         freq: 523.25,
-        delay: 0.095,
+        delay: 0.105,
         wave: 'triangle',
-        harmonicGain: 0.24,
-        subGain: 0.14,
-        decay: 0.28,
-        gain: 0.24,
+        harmonicGain: 0.2,
+        subGain: 0.1,
+        barPartialRatio: 2.76,
+        barPartialGain: 0.1,
+        attack: 0.008,
+        decay: 0.3,
+        gain: 0.18,
+        filterCutoff: 2450,
       },
       {
         freq: 659.25,
-        delay: 0.14,
+        delay: 0.15,
         wave: 'sine',
-        harmonicGain: 0.26,
-        twelfthGain: 0.09,
-        decay: 0.32,
-        gain: 0.22,
+        harmonicGain: 0.22,
+        twelfthGain: 0.07,
+        shimmerCents: 3.8,
+        shimmerGain: 0.26,
+        attack: 0.008,
+        decay: 0.34,
+        gain: 0.17,
+        filterCutoff: 2750,
       },
       {
         freq: 783.99,
-        delay: 0.185,
+        delay: 0.195,
         wave: 'sine',
-        harmonicGain: 0.26,
-        twelfthGain: 0.1,
-        decay: 0.36,
-        gain: 0.22,
+        harmonicGain: 0.22,
+        twelfthGain: 0.08,
+        shimmerCents: -4.2,
+        shimmerGain: 0.28,
+        attack: 0.009,
+        decay: 0.38,
+        gain: 0.17,
+        filterCutoff: 2950,
       },
       {
         freq: 987.77,
-        delay: 0.22,
+        delay: 0.235,
         wave: 'sine',
-        harmonicGain: 0.2,
-        decay: 0.4,
-        gain: 0.18,
+        harmonicGain: 0.18,
+        shimmerCents: 4.5,
+        shimmerGain: 0.28,
+        attack: 0.01,
+        decay: 0.42,
+        gain: 0.14,
+        filterCutoff: 3150,
       },
       {
         freq: 1174.66,
-        delay: 0.255,
+        delay: 0.275,
         wave: 'sine',
-        harmonicGain: 0.28,
-        subGain: 0.12,
-        decay: 0.46,
-        gain: 0.24,
+        harmonicGain: 0.22,
+        subGain: 0.08,
+        shimmerCents: -4.4,
+        shimmerGain: 0.3,
+        attack: 0.01,
+        decay: 0.48,
+        gain: 0.17,
+        filterCutoff: 3300,
       },
-      { freq: 1567.98, delay: 0.3, wave: 'sine', harmonicGain: 0.18, decay: 0.5, gain: 0.18 },
+      {
+        freq: 1567.98,
+        delay: 0.32,
+        wave: 'sine',
+        harmonicGain: 0.14,
+        shimmerCents: 4.8,
+        shimmerGain: 0.3,
+        attack: 0.012,
+        decay: 0.54,
+        gain: 0.13,
+        filterCutoff: 3450,
+      },
     ]);
   },
 
   boss_hit: (ctx, dest) => {
+    // Plush felt-mallet taiko thud + warm wooden marimba resolve
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'felt',
+      duration: 0.095,
+      attack: 0.008,
+      gain: 0.105,
+      type: 'lowpass',
+      freq: 680,
+      endFreq: 220,
+    });
     scheduleSequence(ctx, dest, [
       {
         freq: 196.0,
-        endFreq: 78.0,
+        endFreq: 76.0,
         delay: 0,
         wave: 'sine',
-        attack: 0.005,
-        decay: 0.14,
-        gain: 0.32,
-        filterCutoff: 520,
-        filterEndCutoff: 180,
+        attack: 0.006,
+        decay: 0.145,
+        gain: 0.27,
+        filterCutoff: 500,
+        filterEndCutoff: 170,
       },
-      { freq: 440.0, delay: 0.025, wave: 'triangle', harmonicGain: 0.2, decay: 0.16, gain: 0.22 },
-      { freq: 554.37, delay: 0.065, wave: 'triangle', harmonicGain: 0.22, decay: 0.18, gain: 0.22 },
-      { freq: 659.25, delay: 0.105, wave: 'sine', harmonicGain: 0.26, decay: 0.28, gain: 0.24 },
+      { freq: 440.0, delay: 0.028, wave: 'triangle', harmonicGain: 0.18, barPartialRatio: 2.76, barPartialGain: 0.1, attack: 0.006, decay: 0.16, gain: 0.18 },
+      { freq: 554.37, delay: 0.068, wave: 'triangle', harmonicGain: 0.2, attack: 0.006, decay: 0.18, gain: 0.18 },
+      { freq: 659.25, delay: 0.108, wave: 'sine', harmonicGain: 0.22, shimmerCents: 3.5, shimmerGain: 0.24, attack: 0.008, decay: 0.28, gain: 0.19 },
     ]);
   },
 
   unit_fanfare: (ctx, dest) => {
+    // Heirloom music-box marimba fanfare blooming into ±4.5 cent glass-celesta & wind-chime tails
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'paper',
+      delay: 0.51,
+      duration: 0.16,
+      attack: 0.032,
+      gain: 0.055,
+      type: 'bandpass',
+      freq: 920,
+      endFreq: 2150,
+      q: 0.85,
+    });
     scheduleSequence(ctx, dest, [
-      { freq: 392.0, delay: 0, wave: 'triangle', harmonicGain: 0.22, subGain: 0.14, decay: 0.15, gain: 0.22 },
-      { freq: 523.25, delay: 0.105, wave: 'triangle', harmonicGain: 0.24, subGain: 0.12, decay: 0.15, gain: 0.24 },
-      { freq: 659.25, delay: 0.21, wave: 'triangle', harmonicGain: 0.26, twelfthGain: 0.08, decay: 0.15, gain: 0.25 },
-      { freq: 783.99, delay: 0.315, wave: 'sine', harmonicGain: 0.28, subGain: 0.12, decay: 0.19, gain: 0.27 },
-      { freq: 659.25, delay: 0.43, wave: 'triangle', harmonicGain: 0.22, decay: 0.15, gain: 0.22 },
-      { freq: 523.25, delay: 0.54, wave: 'triangle', subGain: 0.18, harmonicGain: 0.18, decay: 0.62, gain: 0.2 },
-      { freq: 659.25, delay: 0.54, wave: 'sine', harmonicGain: 0.16, decay: 0.62, gain: 0.15 },
-      { freq: 783.99, delay: 0.54, wave: 'sine', harmonicGain: 0.18, twelfthGain: 0.08, decay: 0.62, gain: 0.17 },
+      { freq: 392.0, delay: 0, wave: 'triangle', harmonicGain: 0.2, subGain: 0.12, barPartialRatio: 2.76, barPartialGain: 0.12, attack: 0.007, decay: 0.16, gain: 0.19, filterCutoff: 2200 },
+      { freq: 523.25, delay: 0.105, wave: 'triangle', harmonicGain: 0.22, subGain: 0.1, barPartialRatio: 2.76, barPartialGain: 0.11, attack: 0.007, decay: 0.16, gain: 0.2, filterCutoff: 2450 },
+      { freq: 659.25, delay: 0.21, wave: 'triangle', harmonicGain: 0.22, twelfthGain: 0.07, barPartialRatio: 2.76, barPartialGain: 0.1, attack: 0.007, decay: 0.17, gain: 0.2, filterCutoff: 2700 },
+      { freq: 783.99, delay: 0.315, wave: 'sine', harmonicGain: 0.22, subGain: 0.1, shimmerCents: 3.5, shimmerGain: 0.24, attack: 0.008, decay: 0.21, gain: 0.21, filterCutoff: 2950 },
+      { freq: 659.25, delay: 0.43, wave: 'triangle', harmonicGain: 0.18, attack: 0.008, decay: 0.16, gain: 0.18, filterCutoff: 2450 },
+      { freq: 523.25, delay: 0.54, wave: 'triangle', subGain: 0.14, harmonicGain: 0.14, attack: 0.012, decay: 0.66, gain: 0.15, filterCutoff: 2100, filterEndCutoff: 950 },
+      { freq: 659.25, delay: 0.545, wave: 'sine', harmonicGain: 0.14, shimmerCents: -3.8, shimmerGain: 0.26, attack: 0.012, decay: 0.66, gain: 0.13, filterCutoff: 2600 },
+      { freq: 783.99, delay: 0.552, wave: 'sine', harmonicGain: 0.16, twelfthGain: 0.07, shimmerCents: 4.2, shimmerGain: 0.28, attack: 0.012, decay: 0.68, gain: 0.14, filterCutoff: 2900 },
       {
         freq: 1046.5,
-        delay: 0.54,
+        delay: 0.56,
         wave: 'sine',
-        harmonicGain: 0.3,
-        twelfthGain: 0.1,
-        decay: 0.68,
-        gain: 0.28,
-        filterCutoff: 3400,
+        harmonicGain: 0.24,
+        twelfthGain: 0.08,
+        shimmerCents: -4.5,
+        shimmerGain: 0.3,
+        attack: 0.012,
+        decay: 0.74,
+        gain: 0.19,
+        filterCutoff: 3250,
+        filterEndCutoff: 1400,
+      },
+      {
+        freq: 1318.51,
+        delay: 0.635,
+        wave: 'sine',
+        shimmerCents: 4.8,
+        shimmerGain: 0.32,
+        attack: 0.014,
+        decay: 0.62,
+        gain: 0.1,
+        filterCutoff: 3450,
+      },
+      {
+        freq: 1567.98,
+        delay: 0.705,
+        wave: 'sine',
+        shimmerCents: -4.6,
+        shimmerGain: 0.3,
+        attack: 0.016,
+        decay: 0.64,
+        gain: 0.085,
+        filterCutoff: 3550,
       },
     ]);
   },
 
   star_pop: (ctx, dest, comboIndex) => {
+    // Warm kalimba pluck scaled by star tier (attacks >= 5ms + wooden tine contact)
     const tier = Math.max(0, Math.floor(comboIndex));
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'wood',
+      duration: 0.022,
+      attack: 0.005,
+      gain: 0.045,
+      type: 'lowpass',
+      freq: 1600,
+      endFreq: 560,
+    });
     if (tier === 0) {
       scheduleSequence(ctx, dest, [
         {
           freq: 523.25,
           delay: 0,
           wave: 'sine',
-          harmonicGain: 0.28,
-          twelfthGain: 0.1,
-          attack: 0.004,
-          decay: 0.22,
-          gain: 0.25,
-          filterCutoff: 3400,
+          harmonicGain: 0.24,
+          barPartialRatio: 2.76,
+          barPartialGain: 0.12,
+          attack: 0.006,
+          decay: 0.23,
+          gain: 0.21,
+          filterCutoff: 2900,
         },
         {
           freq: 1046.5,
-          delay: 0.018,
+          delay: 0.02,
           wave: 'triangle',
-          attack: 0.004,
-          decay: 0.18,
-          gain: 0.14,
-          filterCutoff: 3600,
+          shimmerCents: 3.5,
+          shimmerGain: 0.24,
+          attack: 0.006,
+          decay: 0.19,
+          gain: 0.11,
+          filterCutoff: 3100,
         },
       ]);
       return;
@@ -884,21 +1409,26 @@ const SFX_RECIPES: Record<
           freq: 659.25,
           delay: 0,
           wave: 'sine',
-          harmonicGain: 0.3,
-          twelfthGain: 0.12,
-          attack: 0.004,
-          decay: 0.24,
-          gain: 0.26,
-          filterCutoff: 3600,
+          harmonicGain: 0.26,
+          barPartialRatio: 2.76,
+          barPartialGain: 0.12,
+          shimmerCents: 3.5,
+          shimmerGain: 0.24,
+          attack: 0.006,
+          decay: 0.25,
+          gain: 0.21,
+          filterCutoff: 3100,
         },
         {
           freq: 1318.51,
-          delay: 0.022,
+          delay: 0.024,
           wave: 'triangle',
-          attack: 0.004,
-          decay: 0.2,
-          gain: 0.15,
-          filterCutoff: 3800,
+          shimmerCents: -4,
+          shimmerGain: 0.26,
+          attack: 0.006,
+          decay: 0.22,
+          gain: 0.12,
+          filterCutoff: 3300,
         },
       ]);
       return;
@@ -909,83 +1439,102 @@ const SFX_RECIPES: Record<
         freq: 783.99,
         delay: 0,
         wave: 'triangle',
-        harmonicGain: 0.26,
-        twelfthGain: 0.1,
-        attack: 0.004,
+        harmonicGain: 0.22,
+        barPartialRatio: 2.76,
+        barPartialGain: 0.12,
+        attack: 0.006,
         decay: 0.24,
-        gain: 0.24,
-        filterCutoff: 3600,
+        gain: 0.19,
+        filterCutoff: 3100,
       },
       {
         freq: 1046.5,
-        delay: 0.042,
+        delay: 0.044,
         wave: 'sine',
-        harmonicGain: 0.3,
-        twelfthGain: 0.12,
-        attack: 0.004,
-        decay: 0.3,
-        gain: 0.26,
-        filterCutoff: 3800,
+        harmonicGain: 0.24,
+        twelfthGain: 0.09,
+        shimmerCents: 4,
+        shimmerGain: 0.28,
+        attack: 0.006,
+        decay: 0.32,
+        gain: 0.2,
+        filterCutoff: 3350,
       },
       {
         freq: 1567.98,
-        delay: 0.082,
+        delay: 0.086,
         wave: 'sine',
-        attack: 0.005,
-        decay: 0.28,
-        gain: 0.16,
-        filterCutoff: 4000,
+        shimmerCents: -4.2,
+        shimmerGain: 0.28,
+        attack: 0.007,
+        decay: 0.3,
+        gain: 0.13,
+        filterCutoff: 3500,
       },
     ];
     if (tier >= 3) {
       notes.push({
         freq: 1318.51,
-        delay: 0.115,
+        delay: 0.118,
         wave: 'sine',
-        attack: 0.005,
-        decay: 0.26,
-        gain: 0.13,
-        filterCutoff: 4000,
+        shimmerCents: 4.5,
+        shimmerGain: 0.28,
+        attack: 0.007,
+        decay: 0.28,
+        gain: 0.11,
+        filterCutoff: 3500,
       });
     }
     scheduleSequence(ctx, dest, notes);
   },
 
   whoosh_transition: (ctx, dest) => {
+    // Soft thick-page air brush + gentle whispered tonal lift (zero synth sweep harshness)
     scheduleAiryWhooshNoise(ctx, dest);
     scheduleSequence(ctx, dest, [
       {
         freq: 261.63,
-        endFreq: 587.33,
-        delay: 0,
+        endFreq: 523.25,
+        delay: 0.006,
         wave: 'sine',
-        harmonicGain: 0.12,
-        attack: 0.024,
-        decay: 0.115,
-        gain: 0.14,
-        filterCutoff: 1400,
-        filterEndCutoff: 2400,
+        harmonicGain: 0.1,
+        attack: 0.028,
+        decay: 0.13,
+        gain: 0.16,
+        filterCutoff: 1220,
+        filterEndCutoff: 780,
       },
       {
         freq: 392.0,
-        endFreq: 880.0,
-        delay: 0.018,
+        endFreq: 659.25,
+        delay: 0.024,
         wave: 'triangle',
-        attack: 0.022,
-        decay: 0.105,
-        gain: 0.09,
-        filterCutoff: 1200,
-        filterEndCutoff: 2200,
+        attack: 0.026,
+        decay: 0.115,
+        gain: 0.11,
+        filterCutoff: 1120,
+        filterEndCutoff: 700,
       },
     ]);
   },
 
   bubble_pop: (ctx, dest, comboIndex) => {
+    // Plush liquid-drop & warm kalimba pentatonic plink (attacks >= 5ms)
     const idx = Math.max(0, Math.floor(comboIndex)) % BUBBLE_PENTATONIC_SCALE.length;
     const targetFreq = BUBBLE_PENTATONIC_SCALE[idx];
-    const startFreq = targetFreq * 0.56;
-    const endFreq = targetFreq * 1.16;
+    const startFreq = targetFreq * 0.58;
+    const endFreq = targetFreq * 1.14;
 
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'felt',
+      duration: 0.024,
+      attack: 0.005,
+      gain: 0.07,
+      type: 'bandpass',
+      freq: 1240,
+      endFreq: 540,
+      q: 1.0,
+    });
     scheduleSequence(ctx, dest, [
       {
         freq: startFreq,
@@ -993,581 +1542,722 @@ const SFX_RECIPES: Record<
         delay: 0,
         wave: 'sine',
         harmonicGain: 0.18,
-        attack: 0.004,
-        decay: 0.072,
-        gain: 0.24,
+        attack: 0.005,
+        decay: 0.088,
+        gain: 0.3,
         filterCutoff: 2400,
-        filterEndCutoff: 3400,
+        filterEndCutoff: 1500,
       },
       {
         freq: targetFreq * 2,
-        endFreq: targetFreq * 2.25,
+        endFreq: targetFreq * 2.2,
         delay: 0.018,
         wave: 'triangle',
-        attack: 0.004,
-        decay: 0.052,
-        gain: 0.09,
-        filterCutoff: 3200,
+        attack: 0.005,
+        decay: 0.062,
+        gain: 0.12,
+        filterCutoff: 2900,
+        filterEndCutoff: 1550,
       },
     ]);
   },
 
   secret_fanfare: (ctx, dest) => {
+    // Velvet harp glissando + glass wind-chime discovery chord
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'paper',
+      delay: 0.31,
+      duration: 0.14,
+      attack: 0.028,
+      gain: 0.048,
+      type: 'bandpass',
+      freq: 1100,
+      endFreq: 2200,
+      q: 0.8,
+    });
     const harpNotes = [349.23, 440.0, 523.25, 659.25, 783.99, 880.0, 1046.5];
     scheduleSequence(ctx, dest, [
       ...harpNotes.map((freq, idx) => ({
         freq,
-        delay: idx * 0.046,
+        delay: idx * 0.048,
         wave: (idx < 3 ? 'triangle' : 'sine') as WarmWaveform,
-        harmonicGain: 0.22,
-        subGain: idx === 0 ? 0.12 : 0,
-        attack: 0.006,
+        harmonicGain: 0.18,
+        subGain: idx === 0 ? 0.1 : 0,
+        barPartialRatio: idx < 3 ? 2.76 : undefined,
+        barPartialGain: idx < 3 ? 0.09 : undefined,
+        attack: 0.007,
         decay: 0.24,
-        gain: 0.2,
-        filterCutoff: 3200,
+        gain: 0.16,
+        filterCutoff: 2950,
       })),
       {
         freq: 698.46,
-        delay: 0.34,
+        delay: 0.345,
         wave: 'triangle',
-        subGain: 0.16,
-        harmonicGain: 0.22,
-        attack: 0.01,
-        decay: 0.4,
-        gain: 0.22,
-        filterCutoff: 2900,
+        subGain: 0.12,
+        harmonicGain: 0.18,
+        attack: 0.012,
+        decay: 0.42,
+        gain: 0.16,
+        filterCutoff: 2600,
       },
       {
         freq: 880.0,
-        delay: 0.355,
+        delay: 0.36,
         wave: 'sine',
-        harmonicGain: 0.24,
-        attack: 0.01,
-        decay: 0.4,
-        gain: 0.21,
-        filterCutoff: 3200,
+        harmonicGain: 0.2,
+        shimmerCents: 3.8,
+        shimmerGain: 0.26,
+        attack: 0.012,
+        decay: 0.44,
+        gain: 0.15,
+        filterCutoff: 2900,
       },
       {
         freq: 1046.5,
-        delay: 0.37,
+        delay: 0.378,
         wave: 'sine',
-        harmonicGain: 0.26,
-        twelfthGain: 0.1,
-        attack: 0.01,
-        decay: 0.41,
-        gain: 0.24,
-        filterCutoff: 3600,
+        harmonicGain: 0.22,
+        twelfthGain: 0.08,
+        shimmerCents: -4.2,
+        shimmerGain: 0.28,
+        attack: 0.012,
+        decay: 0.46,
+        gain: 0.17,
+        filterCutoff: 3250,
       },
       {
         freq: 1318.51,
-        delay: 0.39,
+        delay: 0.4,
         wave: 'sine',
-        harmonicGain: 0.2,
-        attack: 0.01,
-        decay: 0.38,
-        gain: 0.16,
-        filterCutoff: 3800,
+        harmonicGain: 0.16,
+        shimmerCents: 4.5,
+        shimmerGain: 0.3,
+        attack: 0.014,
+        decay: 0.44,
+        gain: 0.12,
+        filterCutoff: 3400,
       },
     ]);
   },
 
   tier_unlock: (ctx, dest) => {
-    // Bright ascending heroic fifth (G4 -> D5 -> G5) + radiant upper shimmer
+    // Lantern-lit ascending fifth (G4 -> D5 -> G5) + wooden resonance + wind-chime shimmer
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'wood',
+      duration: 0.028,
+      attack: 0.006,
+      gain: 0.05,
+      type: 'lowpass',
+      freq: 1300,
+      endFreq: 480,
+    });
     scheduleSequence(ctx, dest, [
       {
         freq: 392.0,
         delay: 0,
         wave: 'triangle',
-        subGain: 0.16,
-        harmonicGain: 0.22,
+        subGain: 0.14,
+        harmonicGain: 0.18,
+        barPartialRatio: 2.76,
+        barPartialGain: 0.11,
         attack: 0.008,
         decay: 0.22,
-        gain: 0.24,
-        filterCutoff: 2400,
+        gain: 0.2,
+        filterCutoff: 2250,
       },
       {
         freq: 587.33,
-        delay: 0.085,
+        delay: 0.088,
         wave: 'triangle',
-        harmonicGain: 0.26,
-        twelfthGain: 0.08,
-        attack: 0.007,
+        harmonicGain: 0.22,
+        twelfthGain: 0.07,
+        barPartialRatio: 2.76,
+        barPartialGain: 0.1,
+        attack: 0.008,
         decay: 0.28,
-        gain: 0.26,
-        filterCutoff: 3000,
+        gain: 0.21,
+        filterCutoff: 2750,
       },
       {
         freq: 783.99,
-        delay: 0.175,
+        delay: 0.18,
         wave: 'sine',
-        harmonicGain: 0.28,
-        subGain: 0.14,
-        twelfthGain: 0.1,
-        attack: 0.007,
-        decay: 0.44,
-        gain: 0.27,
-        filterCutoff: 3400,
+        harmonicGain: 0.22,
+        subGain: 0.1,
+        twelfthGain: 0.08,
+        shimmerCents: 4,
+        shimmerGain: 0.28,
+        attack: 0.009,
+        decay: 0.46,
+        gain: 0.2,
+        filterCutoff: 3100,
       },
       {
         freq: 987.77,
-        delay: 0.22,
+        delay: 0.228,
         wave: 'sine',
-        harmonicGain: 0.22,
-        attack: 0.01,
-        decay: 0.36,
-        gain: 0.16,
-        filterCutoff: 3800,
+        harmonicGain: 0.18,
+        shimmerCents: -4.2,
+        shimmerGain: 0.28,
+        attack: 0.011,
+        decay: 0.4,
+        gain: 0.13,
+        filterCutoff: 3350,
       },
       {
         freq: 1174.66,
-        delay: 0.265,
+        delay: 0.275,
         wave: 'sine',
-        harmonicGain: 0.2,
-        attack: 0.01,
-        decay: 0.42,
-        gain: 0.16,
-        filterCutoff: 4000,
+        harmonicGain: 0.16,
+        shimmerCents: 4.5,
+        shimmerGain: 0.3,
+        attack: 0.012,
+        decay: 0.46,
+        gain: 0.13,
+        filterCutoff: 3500,
       },
       {
         freq: 1567.98,
-        delay: 0.31,
+        delay: 0.325,
         wave: 'sine',
-        attack: 0.012,
-        decay: 0.48,
-        gain: 0.12,
-        filterCutoff: 4200,
+        shimmerCents: -4.5,
+        shimmerGain: 0.3,
+        attack: 0.014,
+        decay: 0.52,
+        gain: 0.1,
+        filterCutoff: 3650,
       },
     ]);
   },
 
   booster_spark: (ctx, dest) => {
-    // Twinkling starlight arpeggio across bright maj9 bell harmonics
+    // Twinkling lantern-light kalimba & glass-celesta maj9 arpeggio
     const starNotes = [523.25, 659.25, 783.99, 987.77, 1174.66, 1567.98];
     scheduleSequence(
       ctx,
       dest,
       starNotes.map((freq, idx) => ({
         freq,
-        delay: idx * 0.038,
+        delay: idx * 0.04,
         wave: (idx < 2 ? 'triangle' : 'sine') as WarmWaveform,
-        harmonicGain: 0.24 + (idx >= 3 ? 0.04 : 0),
-        twelfthGain: idx === starNotes.length - 1 ? 0.08 : 0,
-        attack: 0.005,
-        decay: idx === starNotes.length - 1 ? 0.38 : 0.18 + idx * 0.018,
-        gain: idx === starNotes.length - 1 ? 0.17 : 0.2,
-        filterCutoff: 2800 + idx * 240,
+        harmonicGain: 0.2 + (idx >= 3 ? 0.04 : 0),
+        twelfthGain: idx === starNotes.length - 1 ? 0.07 : 0,
+        barPartialRatio: idx < 2 ? 2.76 : undefined,
+        barPartialGain: idx < 2 ? 0.1 : undefined,
+        shimmerCents: idx >= 2 ? (idx % 2 === 0 ? 4 : -4) : 0,
+        shimmerGain: 0.26,
+        attack: 0.006,
+        decay: idx === starNotes.length - 1 ? 0.42 : 0.19 + idx * 0.018,
+        gain: idx === starNotes.length - 1 ? 0.14 : 0.16,
+        filterCutoff: 2550 + idx * 190,
       }))
     );
   },
 
   free_recall_ace: (ctx, dest) => {
-    // Crisp triumphant Dmaj9 flourish + warm chord bloom
+    // Crisp wooden kalimba Dmaj9 flourish + warm glass-celesta bloom (attacks >= 5ms)
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'wood',
+      duration: 0.024,
+      attack: 0.005,
+      gain: 0.046,
+      type: 'lowpass',
+      freq: 1550,
+      endFreq: 540,
+    });
     scheduleSequence(ctx, dest, [
       {
         freq: 587.33,
         delay: 0,
         wave: 'triangle',
-        subGain: 0.14,
-        harmonicGain: 0.22,
-        attack: 0.004,
-        decay: 0.15,
-        gain: 0.24,
-        filterCutoff: 2800,
+        subGain: 0.12,
+        harmonicGain: 0.18,
+        barPartialRatio: 2.76,
+        barPartialGain: 0.12,
+        attack: 0.006,
+        decay: 0.16,
+        gain: 0.2,
+        filterCutoff: 2600,
       },
       {
         freq: 739.99,
-        delay: 0.042,
+        delay: 0.045,
         wave: 'triangle',
-        harmonicGain: 0.24,
-        attack: 0.004,
-        decay: 0.16,
-        gain: 0.23,
+        harmonicGain: 0.2,
+        barPartialRatio: 2.76,
+        barPartialGain: 0.1,
+        attack: 0.006,
+        decay: 0.17,
+        gain: 0.19,
+        filterCutoff: 2850,
+      },
+      {
+        freq: 880.0,
+        delay: 0.09,
+        wave: 'sine',
+        harmonicGain: 0.2,
+        shimmerCents: 3.5,
+        shimmerGain: 0.24,
+        attack: 0.006,
+        decay: 0.21,
+        gain: 0.19,
         filterCutoff: 3100,
       },
       {
-        freq: 880.0,
-        delay: 0.084,
-        wave: 'sine',
-        harmonicGain: 0.24,
-        attack: 0.004,
-        decay: 0.2,
-        gain: 0.24,
-        filterCutoff: 3400,
-      },
-      {
         freq: 1108.73,
-        delay: 0.126,
+        delay: 0.135,
         wave: 'sine',
-        harmonicGain: 0.22,
-        attack: 0.004,
-        decay: 0.28,
-        gain: 0.2,
-        filterCutoff: 3700,
+        harmonicGain: 0.18,
+        shimmerCents: -4,
+        shimmerGain: 0.26,
+        attack: 0.006,
+        decay: 0.3,
+        gain: 0.16,
+        filterCutoff: 3300,
       },
       {
         freq: 587.33,
-        delay: 0.168,
+        delay: 0.175,
         wave: 'triangle',
-        subGain: 0.12,
-        attack: 0.006,
-        decay: 0.38,
-        gain: 0.14,
-        filterCutoff: 2400,
+        subGain: 0.1,
+        attack: 0.008,
+        decay: 0.4,
+        gain: 0.12,
+        filterCutoff: 2250,
       },
       {
         freq: 880.0,
-        delay: 0.168,
+        delay: 0.175,
         wave: 'sine',
-        attack: 0.006,
-        decay: 0.4,
-        gain: 0.14,
-        filterCutoff: 3000,
+        shimmerCents: 3.8,
+        shimmerGain: 0.25,
+        attack: 0.008,
+        decay: 0.42,
+        gain: 0.12,
+        filterCutoff: 2800,
       },
       {
         freq: 1318.51,
-        delay: 0.168,
+        delay: 0.178,
         wave: 'sine',
-        harmonicGain: 0.24,
-        twelfthGain: 0.08,
-        attack: 0.005,
-        decay: 0.42,
-        gain: 0.23,
-        filterCutoff: 4000,
+        harmonicGain: 0.2,
+        twelfthGain: 0.07,
+        shimmerCents: -4.4,
+        shimmerGain: 0.3,
+        attack: 0.008,
+        decay: 0.46,
+        gain: 0.18,
+        filterCutoff: 3500,
       },
     ]);
   },
 
   laureate_fanfare: (ctx, dest) => {
-    // Grand multi-chord festival brass & marimba fanfare (I -> IV -> V -> I maj9)
+    // Grand storybook music-box, warm wood marimba & wind-chime festival (I -> IV -> V -> I maj9)
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'felt',
+      delay: 0,
+      duration: 0.07,
+      attack: 0.012,
+      gain: 0.05,
+      type: 'lowpass',
+      freq: 760,
+      endFreq: 280,
+    });
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'paper',
+      delay: 0.61,
+      duration: 0.18,
+      attack: 0.036,
+      gain: 0.055,
+      type: 'bandpass',
+      freq: 980,
+      endFreq: 2200,
+      q: 0.8,
+    });
     scheduleSequence(ctx, dest, [
       // Chord 1: C major herald
       {
         freq: 261.63,
         delay: 0,
         wave: 'triangle',
-        subGain: 0.16,
-        harmonicGain: 0.2,
+        subGain: 0.14,
+        harmonicGain: 0.18,
         attack: 0.01,
-        decay: 0.16,
-        gain: 0.18,
-        filterCutoff: 2000,
+        decay: 0.17,
+        gain: 0.15,
+        filterCutoff: 1900,
       },
       {
         freq: 523.25,
         delay: 0,
         wave: 'triangle',
-        harmonicGain: 0.24,
-        attack: 0.007,
-        decay: 0.16,
-        gain: 0.21,
-        filterCutoff: 2800,
+        harmonicGain: 0.2,
+        barPartialRatio: 2.76,
+        barPartialGain: 0.1,
+        attack: 0.008,
+        decay: 0.17,
+        gain: 0.17,
+        filterCutoff: 2600,
       },
       {
         freq: 659.25,
-        delay: 0.012,
+        delay: 0.014,
         wave: 'sine',
-        harmonicGain: 0.2,
-        attack: 0.007,
-        decay: 0.16,
-        gain: 0.16,
-        filterCutoff: 3000,
+        harmonicGain: 0.18,
+        attack: 0.008,
+        decay: 0.17,
+        gain: 0.13,
+        filterCutoff: 2800,
       },
       // Passing marimba pickup
       {
         freq: 587.33,
         delay: 0.12,
         wave: 'triangle',
-        harmonicGain: 0.22,
-        attack: 0.006,
-        decay: 0.13,
-        gain: 0.2,
-        filterCutoff: 2800,
+        harmonicGain: 0.18,
+        barPartialRatio: 2.76,
+        barPartialGain: 0.11,
+        attack: 0.007,
+        decay: 0.14,
+        gain: 0.17,
+        filterCutoff: 2600,
       },
       {
         freq: 659.25,
         delay: 0.205,
         wave: 'triangle',
-        harmonicGain: 0.24,
-        attack: 0.006,
-        decay: 0.14,
-        gain: 0.21,
-        filterCutoff: 3000,
+        harmonicGain: 0.2,
+        barPartialRatio: 2.76,
+        barPartialGain: 0.11,
+        attack: 0.007,
+        decay: 0.15,
+        gain: 0.18,
+        filterCutoff: 2800,
       },
       // Chord 2: F major subdominant lift
       {
         freq: 349.23,
         delay: 0.295,
         wave: 'triangle',
-        subGain: 0.18,
-        harmonicGain: 0.22,
+        subGain: 0.14,
+        harmonicGain: 0.18,
         attack: 0.01,
-        decay: 0.2,
-        gain: 0.19,
-        filterCutoff: 2200,
+        decay: 0.21,
+        gain: 0.15,
+        filterCutoff: 2100,
       },
       {
         freq: 440.0,
         delay: 0.295,
         wave: 'triangle',
-        harmonicGain: 0.18,
+        harmonicGain: 0.16,
         attack: 0.01,
-        decay: 0.2,
-        gain: 0.16,
-        filterCutoff: 2600,
+        decay: 0.21,
+        gain: 0.13,
+        filterCutoff: 2450,
       },
       {
         freq: 880.0,
         delay: 0.305,
         wave: 'sine',
-        harmonicGain: 0.26,
-        attack: 0.007,
-        decay: 0.22,
-        gain: 0.21,
-        filterCutoff: 3400,
+        harmonicGain: 0.22,
+        shimmerCents: 3.5,
+        shimmerGain: 0.24,
+        attack: 0.008,
+        decay: 0.24,
+        gain: 0.17,
+        filterCutoff: 3100,
       },
       // Chord 3: G major dominant tension
       {
         freq: 392.0,
         delay: 0.455,
         wave: 'triangle',
-        subGain: 0.18,
-        harmonicGain: 0.22,
+        subGain: 0.14,
+        harmonicGain: 0.18,
         attack: 0.01,
-        decay: 0.22,
-        gain: 0.19,
-        filterCutoff: 2300,
+        decay: 0.23,
+        gain: 0.15,
+        filterCutoff: 2200,
       },
       {
         freq: 493.88,
         delay: 0.455,
         wave: 'triangle',
-        harmonicGain: 0.18,
+        harmonicGain: 0.16,
         attack: 0.01,
-        decay: 0.22,
-        gain: 0.16,
-        filterCutoff: 2700,
+        decay: 0.23,
+        gain: 0.13,
+        filterCutoff: 2550,
       },
       {
         freq: 783.99,
         delay: 0.465,
         wave: 'sine',
-        harmonicGain: 0.26,
-        twelfthGain: 0.08,
-        attack: 0.007,
-        decay: 0.24,
-        gain: 0.22,
-        filterCutoff: 3400,
+        harmonicGain: 0.22,
+        twelfthGain: 0.07,
+        shimmerCents: -3.8,
+        shimmerGain: 0.26,
+        attack: 0.008,
+        decay: 0.26,
+        gain: 0.18,
+        filterCutoff: 3150,
       },
-      // Chord 4: Grand festival C major + 9th resolution
+      // Chord 4: Grand festival C major + 9th wind-chime resolution
       {
         freq: 261.63,
         delay: 0.625,
         wave: 'triangle',
-        subGain: 0.18,
-        harmonicGain: 0.22,
-        twelfthGain: 0.08,
-        attack: 0.012,
-        decay: 0.85,
-        gain: 0.2,
-        filterCutoff: 2200,
-        filterEndCutoff: 1100,
+        subGain: 0.14,
+        harmonicGain: 0.16,
+        twelfthGain: 0.06,
+        attack: 0.014,
+        decay: 0.88,
+        gain: 0.14,
+        filterCutoff: 2050,
+        filterEndCutoff: 980,
       },
       {
         freq: 392.0,
         delay: 0.625,
         wave: 'triangle',
-        harmonicGain: 0.2,
-        attack: 0.012,
-        decay: 0.82,
-        gain: 0.16,
-        filterCutoff: 2600,
+        harmonicGain: 0.16,
+        attack: 0.014,
+        decay: 0.84,
+        gain: 0.12,
+        filterCutoff: 2400,
       },
       {
         freq: 523.25,
         delay: 0.625,
         wave: 'triangle',
-        harmonicGain: 0.24,
-        twelfthGain: 0.1,
-        attack: 0.01,
-        decay: 0.86,
-        gain: 0.22,
-        filterCutoff: 3200,
+        harmonicGain: 0.18,
+        twelfthGain: 0.07,
+        attack: 0.012,
+        decay: 0.88,
+        gain: 0.15,
+        filterCutoff: 2850,
       },
       {
         freq: 659.25,
         delay: 0.635,
         wave: 'sine',
-        harmonicGain: 0.22,
-        attack: 0.01,
-        decay: 0.84,
-        gain: 0.17,
-        filterCutoff: 3400,
+        harmonicGain: 0.18,
+        shimmerCents: 4,
+        shimmerGain: 0.26,
+        attack: 0.012,
+        decay: 0.86,
+        gain: 0.12,
+        filterCutoff: 3050,
       },
       {
         freq: 1046.5,
         delay: 0.655,
         wave: 'sine',
-        harmonicGain: 0.28,
-        twelfthGain: 0.1,
-        attack: 0.008,
-        decay: 0.78,
-        gain: 0.22,
-        filterCutoff: 3800,
+        harmonicGain: 0.22,
+        twelfthGain: 0.07,
+        shimmerCents: -4.4,
+        shimmerGain: 0.28,
+        attack: 0.01,
+        decay: 0.82,
+        gain: 0.15,
+        filterCutoff: 3400,
       },
       {
         freq: 1174.66,
         delay: 0.725,
         wave: 'sine',
-        harmonicGain: 0.22,
-        attack: 0.008,
-        decay: 0.68,
-        gain: 0.15,
-        filterCutoff: 3900,
+        harmonicGain: 0.18,
+        shimmerCents: 4.5,
+        shimmerGain: 0.3,
+        attack: 0.01,
+        decay: 0.72,
+        gain: 0.11,
+        filterCutoff: 3500,
       },
       {
         freq: 1318.51,
-        delay: 0.79,
+        delay: 0.795,
         wave: 'sine',
-        harmonicGain: 0.24,
-        attack: 0.008,
-        decay: 0.74,
-        gain: 0.17,
-        filterCutoff: 4100,
+        harmonicGain: 0.18,
+        shimmerCents: -4.6,
+        shimmerGain: 0.3,
+        attack: 0.012,
+        decay: 0.78,
+        gain: 0.12,
+        filterCutoff: 3650,
       },
     ]);
   },
 
   equip_prop_pet: (ctx, dest) => {
-    // Playful two-note wooden toy pop + bright little sparkle
+    // Painted wooden toy pop + delicate celesta glint (attacks >= 5ms)
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'wood',
+      duration: 0.025,
+      attack: 0.005,
+      gain: 0.06,
+      type: 'lowpass',
+      freq: 1500,
+      endFreq: 560,
+    });
     scheduleSequence(ctx, dest, [
       {
         freq: 330.0,
         endFreq: 523.25,
         delay: 0,
         wave: 'triangle',
-        harmonicGain: 0.16,
-        attack: 0.004,
-        decay: 0.075,
-        gain: 0.24,
-        filterCutoff: 1500,
-        filterEndCutoff: 700,
+        harmonicGain: 0.14,
+        barPartialRatio: 2.76,
+        barPartialGain: 0.1,
+        attack: 0.006,
+        decay: 0.08,
+        gain: 0.2,
+        filterCutoff: 1480,
+        filterEndCutoff: 680,
       },
       {
         freq: 440.0,
         endFreq: 698.46,
-        delay: 0.078,
+        delay: 0.08,
         wave: 'triangle',
-        harmonicGain: 0.2,
-        attack: 0.004,
-        decay: 0.09,
-        gain: 0.25,
-        filterCutoff: 1800,
-        filterEndCutoff: 850,
+        harmonicGain: 0.18,
+        barPartialRatio: 2.76,
+        barPartialGain: 0.1,
+        attack: 0.006,
+        decay: 0.095,
+        gain: 0.2,
+        filterCutoff: 1750,
+        filterEndCutoff: 820,
       },
       {
         freq: 1046.5,
-        delay: 0.155,
+        delay: 0.16,
         wave: 'sine',
-        harmonicGain: 0.25,
-        attack: 0.005,
-        decay: 0.2,
-        gain: 0.18,
-        filterCutoff: 3600,
+        harmonicGain: 0.2,
+        shimmerCents: 3.8,
+        shimmerGain: 0.26,
+        attack: 0.007,
+        decay: 0.22,
+        gain: 0.14,
+        filterCutoff: 3250,
       },
       {
         freq: 1567.98,
-        delay: 0.205,
+        delay: 0.21,
         wave: 'sine',
-        harmonicGain: 0.22,
-        attack: 0.005,
-        decay: 0.28,
-        gain: 0.16,
-        filterCutoff: 4000,
+        harmonicGain: 0.18,
+        shimmerCents: -4,
+        shimmerGain: 0.28,
+        attack: 0.007,
+        decay: 0.3,
+        gain: 0.12,
+        filterCutoff: 3500,
       },
     ]);
   },
 
   adult_unlock: (ctx, dest) => {
-    // Smooth velvet twilight Ebmaj9 chord shimmer for After-Hours Atlas unlock
+    // Velvet twilight Ebmaj9 lamp-lit chord + plush felt breath for After-Hours Atlas unlock
+    scheduleNoiseBurst(ctx, dest, {
+      texture: 'felt',
+      delay: 0.01,
+      duration: 0.17,
+      attack: 0.036,
+      gain: 0.05,
+      type: 'lowpass',
+      freq: 760,
+      endFreq: 320,
+    });
     scheduleSequence(ctx, dest, [
       {
         freq: 311.13,
         delay: 0,
         wave: 'triangle',
-        subGain: 0.16,
-        harmonicGain: 0.14,
+        subGain: 0.14,
+        harmonicGain: 0.12,
         attack: 0.025,
-        decay: 0.56,
-        gain: 0.2,
-        filterCutoff: 1450,
-        filterEndCutoff: 700,
+        decay: 0.58,
+        gain: 0.16,
+        filterCutoff: 1400,
+        filterEndCutoff: 680,
       },
       {
         freq: 466.16,
         delay: 0.055,
         wave: 'triangle',
-        harmonicGain: 0.18,
+        harmonicGain: 0.16,
         attack: 0.022,
-        decay: 0.54,
-        gain: 0.19,
-        filterCutoff: 1850,
-        filterEndCutoff: 880,
+        decay: 0.56,
+        gain: 0.15,
+        filterCutoff: 1750,
+        filterEndCutoff: 840,
       },
       {
         freq: 392.0,
         delay: 0.11,
         wave: 'sine',
-        harmonicGain: 0.2,
+        harmonicGain: 0.18,
         attack: 0.02,
-        decay: 0.52,
-        gain: 0.21,
-        filterCutoff: 2150,
-        filterEndCutoff: 960,
+        decay: 0.54,
+        gain: 0.16,
+        filterCutoff: 2050,
+        filterEndCutoff: 920,
       },
       {
         freq: 587.33,
         delay: 0.165,
         wave: 'sine',
-        harmonicGain: 0.22,
+        harmonicGain: 0.18,
+        shimmerCents: 3.8,
+        shimmerGain: 0.26,
         attack: 0.018,
-        decay: 0.58,
-        gain: 0.22,
-        filterCutoff: 2550,
-        filterEndCutoff: 1120,
+        decay: 0.6,
+        gain: 0.16,
+        filterCutoff: 2450,
+        filterEndCutoff: 1080,
       },
       {
         freq: 698.46,
         delay: 0.22,
         wave: 'sine',
-        harmonicGain: 0.22,
-        twelfthGain: 0.06,
+        harmonicGain: 0.18,
+        twelfthGain: 0.05,
+        shimmerCents: -4,
+        shimmerGain: 0.28,
         attack: 0.018,
-        decay: 0.64,
-        gain: 0.21,
-        filterCutoff: 2850,
-        filterEndCutoff: 1240,
+        decay: 0.66,
+        gain: 0.16,
+        filterCutoff: 2750,
+        filterEndCutoff: 1200,
       },
       {
         freq: 783.99,
         delay: 0.28,
         wave: 'sine',
-        harmonicGain: 0.18,
+        harmonicGain: 0.16,
+        shimmerCents: 4.2,
+        shimmerGain: 0.28,
         attack: 0.016,
-        decay: 0.66,
-        gain: 0.16,
-        filterCutoff: 3050,
-        filterEndCutoff: 1320,
+        decay: 0.68,
+        gain: 0.13,
+        filterCutoff: 2950,
+        filterEndCutoff: 1280,
       },
       {
         freq: 932.33,
         delay: 0.34,
         wave: 'sine',
-        harmonicGain: 0.16,
+        harmonicGain: 0.14,
+        shimmerCents: -4.4,
+        shimmerGain: 0.3,
         attack: 0.02,
-        decay: 0.7,
-        gain: 0.13,
-        filterCutoff: 3250,
-        filterEndCutoff: 1420,
+        decay: 0.72,
+        gain: 0.11,
+        filterCutoff: 3150,
+        filterEndCutoff: 1380,
       },
     ]);
   },
