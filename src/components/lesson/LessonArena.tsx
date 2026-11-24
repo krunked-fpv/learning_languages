@@ -26,7 +26,7 @@ import { MascotStage } from '../characters/MascotStage';
 import { SkyCatcherArcade } from '../arcade/SkyCatcherArcade';
 import { AmbientBackdrop } from '../fx/AmbientBackdrop';
 import { ConfettiBurst, CountUpTicker, FloatingPopToast, type PopToastItem } from '../fx/JuiceEngine';
-import { safeVaultActions } from '../shell/vaultSafeActions';
+import { performStudyBreakExit, safeVaultActions } from '../shell/vaultSafeActions';
 import {
   HEART_ELIXIR_COST_GEMS,
   LANGUAGE_META,
@@ -100,7 +100,7 @@ export interface LessonArenaProps {
 }
 
 export function LessonArena({ node, language, onExit }: LessonArenaProps) {
-  const { activeProfile, activeProgress } = useVaultStore();
+  const { vault, activeProfile, activeProgress } = useVaultStore();
   const compact = useCompactViewport();
   const langDir = LANGUAGE_META[language].dir;
   const activeUnit = getUnitById(language, node.unitId);
@@ -270,9 +270,9 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
     studyBreakLockRef.current = true;
     stopSpeech();
     playSfx('whoosh_transition');
-    safeVaultActions.setAdultModeActive(false);
+    performStudyBreakExit(vault, activeProfile.id);
     onExit();
-  }, [onExit]);
+  }, [vault, activeProfile.id, onExit]);
 
   const triggerMiniConfetti = useCallback(() => {
     confettiTimersRef.current.forEach((t) => window.clearTimeout(t));

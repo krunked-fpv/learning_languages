@@ -34,12 +34,13 @@ import {
   isAdultMashupLanguage,
   type AdultLanguageCode,
   type BaseLanguageCode,
+  type CoopSafeAtlasMask,
   type CosmeticId,
   type LanguageCode,
 } from '../../types/contracts';
 import { clampPopoverPosition } from '../lesson/lessonHelpers';
 import { PaletteOrbSwatches, THEME_SWATCH_TRIPLES } from '../meta/paletteSwatches';
-import { safeVaultActions } from './vaultSafeActions';
+import { performStudyBreakExit, safeVaultActions } from './vaultSafeActions';
 
 type OpenPopover = 'lang' | 'palette' | 'hearts' | 'audio' | null;
 
@@ -49,6 +50,7 @@ export interface TopHudProps {
   onOpenShop?: () => void;
   canInstallApp: boolean;
   onInstallApp: () => void;
+  coopSafeMask?: CoopSafeAtlasMask;
 }
 
 export function TopHud({
@@ -57,6 +59,7 @@ export function TopHud({
   onOpenShop,
   canInstallApp,
   onInstallApp,
+  coopSafeMask,
 }: TopHudProps) {
   const { vault, activeProfile } = useVaultStore();
   const [openPopover, setOpenPopover] = useState<OpenPopover>(null);
@@ -145,6 +148,12 @@ export function TopHud({
     setCompassTaps(0);
   }, [activeProfile.id]);
 
+  useEffect(() => {
+    if (coopSafeMask?.active && openPopover === 'lang') {
+      setOpenPopover(null);
+    }
+  }, [coopSafeMask?.active, openPopover]);
+
   const unlockedThemes = useMemo(() => {
     const owned = new Set(activeProfile.unlockedCosmetics);
     return COSMETIC_CATALOG.filter((item) => item.slot === 'theme' && owned.has(item.id));
@@ -197,7 +206,7 @@ export function TopHud({
   const handleReturnToKidAtlas = () => {
     playSfx('whoosh_transition');
     setOpenPopover(null);
-    safeVaultActions.setAdultModeActive(false);
+    performStudyBreakExit(vault, activeProfile.id);
   };
 
   const handleSelectTheme = (themeId?: CosmeticId) => {
@@ -222,16 +231,19 @@ export function TopHud({
     }
   };
 
-  const popoverNode = openPopover ? (
+  const visiblePopover =
+    coopSafeMask?.active && openPopover === 'lang' ? null : openPopover;
+
+  const popoverNode = visiblePopover ? (
     <div
       ref={popoverRef}
       role="dialog"
       aria-label={
-        openPopover === 'lang'
+        visiblePopover === 'lang'
           ? 'Switch Language'
-          : openPopover === 'palette'
+          : visiblePopover === 'palette'
             ? 'Color Palettes'
-            : openPopover === 'hearts'
+            : visiblePopover === 'hearts'
               ? 'Hearts & Recharge'
               : 'Audio Volume'
       }
@@ -242,7 +254,7 @@ export function TopHud({
         width: `${popoverCoords.width}px`,
       }}
     >
-      {openPopover === 'lang' ? (
+      {visiblePopover === 'lang' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div
             className="console-scroll-pane"
@@ -654,20 +666,38 @@ export function TopHud({
             </span>
           </button>
 
-          <button
-            ref={langBtnRef}
-            type="button"
-            className="hud-pill"
-            aria-label={`Active language: ${activeLangMeta.name}`}
-            aria-expanded={openPopover === 'lang'}
-            onClick={() => togglePopover('lang')}
-          >
-            <FlagIcon language={displayLanguage} size={22} />
-            <span className="hud-hide-xs">{activeLangMeta.name}</span>
-            <ChevronDown size={13} />
-          </button>
+          {coopSafeMask?.active ? (
+            <div
+              className="hud-pill hud-pill-static"
+              data-testid="tophud-coop-safe-atlas-badge"
+              aria-label="Family Co-Op Safe Atlas"
+              title={`Family Co-Op Safe Atlas (${LANGUAGE_META[coopSafeMask.safeLanguage].name})`}
+              style={{
+                background: 'var(--tint-emerald-bg)',
+                borderColor: 'var(--tint-emerald-border)',
+                color: 'var(--tint-emerald-ink)',
+                fontWeight: 900,
+              }}
+            >
+              <FlagIcon language={coopSafeMask.safeLanguage} size={22} />
+              <span className="hud-hide-xs">Family Co-Op Safe Atlas</span>
+            </div>
+          ) : (
+            <button
+              ref={langBtnRef}
+              type="button"
+              className="hud-pill"
+              aria-label={`Active language: ${activeLangMeta.name}`}
+              aria-expanded={openPopover === 'lang'}
+              onClick={() => togglePopover('lang')}
+            >
+              <FlagIcon language={displayLanguage} size={22} />
+              <span className="hud-hide-xs">{activeLangMeta.name}</span>
+              <ChevronDown size={13} />
+            </button>
+          )}
 
-          {isAdultModeActive ? (
+          {isAdultModeActive && !coopSafeMask?.active ? (
             <button
               type="button"
               className="hud-pill"

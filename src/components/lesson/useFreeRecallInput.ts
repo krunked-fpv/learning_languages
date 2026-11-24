@@ -1,6 +1,104 @@
 import { useCallback, useLayoutEffect, useRef, useState, type ChangeEvent } from 'react';
 import { playSfx } from '../../audio';
+import * as core from '../../core';
 import { LANGUAGE_META, type LanguageCode, type TextDirection } from '../../types/contracts';
+
+const PINYIN_TONE_TABLE: Readonly<Record<string, readonly [string, string, string, string, string]>> = {
+  a: ['ā', 'á', 'ǎ', 'à', 'a'],
+  e: ['ē', 'é', 'ě', 'è', 'e'],
+  i: ['ī', 'í', 'ǐ', 'ì', 'i'],
+  o: ['ō', 'ó', 'ǒ', 'ò', 'o'],
+  u: ['ū', 'ú', 'ǔ', 'ù', 'u'],
+  ü: ['ǖ', 'ǘ', 'ǚ', 'ǜ', 'ü'],
+  A: ['Ā', 'Á', 'Ǎ', 'À', 'A'],
+  E: ['Ē', 'É', 'Ě', 'È', 'E'],
+  I: ['Ī', 'Í', 'Ǐ', 'Ì', 'I'],
+  O: ['Ō', 'Ó', 'Ǒ', 'Ò', 'O'],
+  U: ['Ū', 'Ú', 'Ǔ', 'Ù', 'U'],
+  Ü: ['Ǖ', 'Ǘ', 'Ǚ', 'Ǜ', 'Ü'],
+};
+
+const NUMERIC_PINYIN_SYLLABLE_RE =
+  /(?:(?:[nlNL](?:u:|U:|[vV])(?:[eE])?)|(?:(?:zh|ch|sh|ZH|CH|SH|Zh|Ch|Sh|[bpmfdtnlgkhjqxrzcsywBPMFDTNLGKHJQXRZCSYW])?[aeiouüAEIOUÜ]+))(?:ng|NG|Ng|nG|[nrNR])?[0-5](?![0-9])/g;
+
+function readOptionalCoreFn<T>(key: string): T | undefined {
+  try {
+    if (!(key in core)) return undefined;
+    const candidate = (core as Record<string, unknown>)[key];
+    return typeof candidate === 'function' ? (candidate as T) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function applyToneToPinyinSyllable(syllableRaw: string, toneDigit: string): string {
+  const rawDigit = Number(toneDigit);
+  const toneIdx = rawDigit === 0 ? 4 : rawDigit - 1;
+  const normalized = syllableRaw
+    .replace(/u:/g, 'ü')
+    .replace(/U:/g, 'Ü')
+    .replace(/v/g, 'ü')
+    .replace(/V/g, 'Ü');
+  if (toneIdx < 0 || toneIdx > 4) return normalized;
+
+  const lower = normalized.toLowerCase();
+  let targetIndex = lower.indexOf('a');
+  if (targetIndex === -1) targetIndex = lower.indexOf('e');
+  if (targetIndex === -1) {
+    const ouIdx = lower.indexOf('ou');
+    if (ouIdx !== -1) targetIndex = ouIdx;
+  }
+  if (targetIndex === -1) {
+    for (let i = normalized.length - 1; i >= 0; i--) {
+      if (PINYIN_TONE_TABLE[normalized[i]]) {
+        targetIndex = i;
+        break;
+      }
+    }
+  }
+  if (targetIndex === -1) return normalized;
+  const ch = normalized[targetIndex];
+  const toned = PINYIN_TONE_TABLE[ch]?.[toneIdx] ?? ch;
+  return `${normalized.slice(0, targetIndex)}${toned}${normalized.slice(targetIndex + 1)}`;
+}
+
+function fallbackHasNumericPinyinSyllable(text: string): boolean {
+  if (!text) return false;
+  NUMERIC_PINYIN_SYLLABLE_RE.lastIndex = 0;
+  return NUMERIC_PINYIN_SYLLABLE_RE.test(text);
+}
+
+function fallbackConvertNumericPinyin(text: string): string {
+  if (!text) return '';
+  NUMERIC_PINYIN_SYLLABLE_RE.lastIndex = 0;
+  return text.replace(NUMERIC_PINYIN_SYLLABLE_RE, (match) =>
+    applyToneToPinyinSyllable(match.slice(0, -1), match.slice(-1))
+  );
+}
+
+/** Checks whether text contains numeric Pinyin tone syllables using core when available. */
+export function hasNumericPinyinSyllableSafe(text: string): boolean {
+  const coreFn = readOptionalCoreFn<(input: string) => boolean>('hasNumericPinyinSyllable');
+  return coreFn ? coreFn(text) : fallbackHasNumericPinyinSyllable(text);
+}
+
+/** Converts numeric Pinyin tone syllables (e.g. ni3 hao3 -> nǐ hǎo) using core when available. */
+export function convertNumericPinyinSafe(text: string): string {
+  const coreFn = readOptionalCoreFn<(input: string) => string>('convertNumericPinyin');
+  return coreFn ? coreFn(text) : fallbackConvertNumericPinyin(text);
+}
+
+/** Returns live tone-marked Pinyin preview text for zh to_foreign Free-Recall when numeric tones are typed. */
+export function getPinyinTonePreview(
+  language: LanguageCode,
+  direction: 'to_foreign' | 'to_english',
+  typedText: string
+): string | null {
+  if (language !== 'zh' || direction !== 'to_foreign') return null;
+  if (!hasNumericPinyinSyllableSafe(typedText)) return null;
+  const converted = convertNumericPinyinSafe(typedText).trim();
+  return converted || null;
+}
 
 const NON_LATIN_COURSES = new Set<LanguageCode>(['zh', 'ja', 'hi', 'bn', 'ar', 'arz', 'ru']);
 
