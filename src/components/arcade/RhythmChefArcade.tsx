@@ -19,8 +19,8 @@ import {
   computeScaledArcadeRewards,
   getArcadeForeignTextStyle,
   pickDistinctItems,
-  recordArcadeRunResult,
   useArcadeContainerMetrics,
+  useArcadeCoopReport,
   useArcadeDeck,
 } from './arcadeShared';
 
@@ -48,6 +48,7 @@ export function RhythmChefArcade({
   arcadeTier = 'sprout',
   onExit,
 }: RhythmChefArcadeProps) {
+  const settleArcadeRun = useArcadeCoopReport();
   const { language, lexicon, targetLexicon, bestScoreFor, paceMultiplier } =
     useArcadeDeck(arcadeTier);
   const { containerRef, isCompact } = useArcadeContainerMetrics();
@@ -162,7 +163,7 @@ export function RhythmChefArcade({
       performanceUnits: totalHits,
       baseXpBonus: totalPerfects,
     });
-    recordArcadeRunResult({
+    settleArcadeRun({
       gameId: 'rhythm_chef',
       score: finalScore,
       heartsWon,
@@ -179,7 +180,7 @@ export function RhythmChefArcade({
       perfects: totalPerfects,
     });
     setPhase('summary');
-  }, [arcadeTier]);
+  }, [arcadeTier, settleArcadeRun]);
 
   const startRound = useCallback(() => {
     playSfx('button_click');

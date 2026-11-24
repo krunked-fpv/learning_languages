@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { Music, Play, Star, X } from 'lucide-react';
+import { AvatarBadge } from '../../art/AvatarBadge';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
-import { useVaultStore } from '../../store/useVaultStore';
 import {
   LANGUAGE_META,
   type ArcadeLanternItem,
@@ -17,13 +17,16 @@ import {
   ARCADE_TIER_META,
   ArcadeSummaryCard,
   CARD_SURFACE_STYLE,
+  CoopTurnPill,
   SOFT_BTN_STYLE,
   TargetPromptBar,
   computeScaledArcadeRewards,
   getArcadeForeignTextStyle,
-  recordArcadeRunResult,
   useArcadeContainerMetrics,
+  useArcadeCoopReport,
+  useArcadeCoopTurn,
   useArcadeDeck,
+  useArcadeEffectiveProfile,
 } from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 45;
@@ -56,7 +59,9 @@ export function StarlightSecretGame({
   arcadeTier = 'sprout',
   onExit,
 }: StarlightSecretGameProps) {
-  const { activeProfile } = useVaultStore();
+  const activeProfile = useArcadeEffectiveProfile();
+  const coopTurn = useArcadeCoopTurn();
+  const settleArcadeRun = useArcadeCoopReport();
   const { language, lexicon, targetLexicon, bestScoreFor, paceMultiplier } =
     useArcadeDeck(arcadeTier);
   const tierMeta = ARCADE_TIER_META[arcadeTier];
@@ -149,7 +154,7 @@ export function StarlightSecretGame({
       performanceUnits: totalCatches,
       baseXpBonus: 4,
     });
-    recordArcadeRunResult({
+    settleArcadeRun({
       gameId: 'starlight_choir',
       score: finalScore,
       heartsWon,
@@ -159,7 +164,7 @@ export function StarlightSecretGame({
     playSfx('secret_fanfare');
     setSummary({ score: finalScore, heartsWon, bonusGems, xpEarned, catches: totalCatches });
     setPhase('summary');
-  }, [arcadeTier]);
+  }, [arcadeTier, settleArcadeRun]);
 
   const startRun = useCallback(() => {
     playSfx('secret_fanfare');
@@ -426,6 +431,7 @@ export function StarlightSecretGame({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <CoopTurnPill isCompact={isCompact} />
           {!isCompact ? (
             <span
               style={{
@@ -506,6 +512,34 @@ export function StarlightSecretGame({
             overflowY: 'auto',
           }}
         >
+          {coopTurn ? (
+            <div
+              data-testid="arcade-coop-ready-banner"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: isCompact ? '3px 10px' : '4px 12px',
+                borderRadius: 999,
+                background: 'var(--tint-indigo-bg, #eef2ff)',
+                borderTopWidth: 2,
+                borderRightWidth: 2,
+                borderLeftWidth: 2,
+                borderBottomWidth: 3,
+                borderStyle: 'solid',
+                borderColor: coopTurn.playerProfile.bannerColor || '#6366f1',
+                color: 'var(--tint-indigo-ink, #312e81)',
+                fontFamily: 'var(--font-display)',
+                fontSize: isCompact ? '0.74rem' : '0.84rem',
+                fontWeight: 900,
+              }}
+            >
+              <AvatarBadge avatarId={coopTurn.playerProfile.avatarId} size={isCompact ? 18 : 22} />
+              <span>
+                Co-Op Turn {coopTurn.turnNumber} of 2 · {coopTurn.playerProfile.name}&apos;s Turn!
+              </span>
+            </div>
+          ) : null}
           <div
             style={{
               display: 'flex',

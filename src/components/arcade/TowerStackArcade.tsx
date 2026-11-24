@@ -20,8 +20,8 @@ import {
   computeScaledArcadeRewards,
   getArcadeForeignTextStyle,
   pickDistinctItems,
-  recordArcadeRunResult,
   useArcadeContainerMetrics,
+  useArcadeCoopReport,
   useArcadeDeck,
 } from './arcadeShared';
 
@@ -56,6 +56,7 @@ export function TowerStackArcade({
   arcadeTier = 'sprout',
   onExit,
 }: TowerStackArcadeProps) {
+  const settleArcadeRun = useArcadeCoopReport();
   const { language, lexicon, targetLexicon, bestScoreFor, paceMultiplier } =
     useArcadeDeck(arcadeTier);
   const { containerRef, isCompact } = useArcadeContainerMetrics();
@@ -178,7 +179,7 @@ export function TowerStackArcade({
       performanceUnits: totalScoops,
       baseXpBonus: totalPerfects,
     });
-    recordArcadeRunResult({
+    settleArcadeRun({
       gameId: 'tower_stack',
       score: finalScore,
       heartsWon,
@@ -195,7 +196,7 @@ export function TowerStackArcade({
       perfects: totalPerfects,
     });
     setPhase('summary');
-  }, [arcadeTier]);
+  }, [arcadeTier, settleArcadeRun]);
 
   const startRound = useCallback(() => {
     playSfx('button_click');

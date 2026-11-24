@@ -19,8 +19,8 @@ import {
   computeScaledArcadeRewards,
   getArcadeForeignTextStyle,
   pickDistinctItems,
-  recordArcadeRunResult,
   useArcadeContainerMetrics,
+  useArcadeCoopReport,
   useArcadeDeck,
 } from './arcadeShared';
 
@@ -56,6 +56,7 @@ export function TrainSwitcherArcade({
   arcadeTier = 'sprout',
   onExit,
 }: TrainSwitcherArcadeProps) {
+  const settleArcadeRun = useArcadeCoopReport();
   const { language, lexicon, targetLexicon, bestScoreFor, paceMultiplier } =
     useArcadeDeck(arcadeTier);
   const { containerRef, isCompact } = useArcadeContainerMetrics();
@@ -155,7 +156,7 @@ export function TrainSwitcherArcade({
       baseGems,
       performanceUnits: totalCoupled,
     });
-    recordArcadeRunResult({
+    settleArcadeRun({
       gameId: 'train_switcher',
       score: finalScore,
       heartsWon,
@@ -171,7 +172,7 @@ export function TrainSwitcherArcade({
       coupled: totalCoupled,
     });
     setPhase('summary');
-  }, [arcadeTier]);
+  }, [arcadeTier, settleArcadeRun]);
 
   const startRound = useCallback(() => {
     playSfx('button_click');
