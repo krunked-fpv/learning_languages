@@ -14,10 +14,10 @@ import {
   type WordBankExercise,
 } from '../../types/contracts';
 import { FreeRecallHintBar } from './FreeRecallHintBar';
+import { FreeRecallScriptStrip } from './FreeRecallScriptStrip';
 import { TapHintText } from './TapHintText';
 import { SayItNormallyButton } from './SayItNormallyButton';
 import { StarlightHintButton } from './StarlightHintButton';
-import { VirtualScriptDrawer } from './VirtualScriptDrawer';
 import { WordBankTray, buildWordBankPool, getAssembledText } from './WordBankTray';
 import { REGISTER_TAG_META } from './lessonHelpers';
 import {
@@ -178,7 +178,6 @@ export function WordBankView({
   const langMeta = LANGUAGE_META[language];
   const promptDir = exercise.direction === 'to_english' ? langMeta.dir : 'ltr';
   const answerDir = exercise.direction === 'to_foreign' ? langMeta.dir : 'ltr';
-  const hasManyAccents = langMeta.helperAccents.length > 14;
   const speakPromptText =
     exercise.promptSpeakText ?? (exercise.direction === 'to_english' ? exercise.promptText : undefined);
 
@@ -571,59 +570,16 @@ export function WordBankView({
             }}
           />
 
-          {exercise.direction === 'to_foreign' ? (
-            <>
-              {!drawerOpen ? (
-                <div
-                  aria-label="Accent character bar"
-                  dir={langMeta.dir}
-                  className="console-scroll-pane"
-                  style={{
-                    maxHeight: compact ? 74 : 112,
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: compact ? 4 : hasManyAccents ? 5 : 6,
-                    justifyContent: 'center',
-                    padding: '2px 2px',
-                  }}
-                >
-                  {langMeta.helperAccents.map((ch) => (
-                    <button
-                      key={ch}
-                      type="button"
-                      className="tactile-tile"
-                      style={{
-                        padding: compact
-                          ? '3px 7px'
-                          : hasManyAccents
-                            ? '4px 8px'
-                            : '5px 11px',
-                        fontSize: compact
-                          ? '0.84rem'
-                          : hasManyAccents
-                            ? '0.88rem'
-                            : '0.95rem',
-                        minWidth: compact ? 28 : hasManyAccents ? 30 : 36,
-                        lineHeight: langMeta.dir === 'rtl' ? 1.5 : 1.25,
-                      }}
-                      disabled={locked}
-                      onClick={() => insertAccentChar(ch)}
-                    >
-                      {ch}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              <VirtualScriptDrawer
-                language={language}
-                compact={compact}
-                disabled={locked}
-                open={drawerOpen}
-                onOpenChange={setDrawerOpen}
-                onInsertChar={insertAccentChar}
-              />
-            </>
-          ) : null}
+          <FreeRecallScriptStrip
+            language={language}
+            direction={exercise.direction}
+            typedText={typedText}
+            compact={compact}
+            disabled={locked}
+            drawerOpen={drawerOpen}
+            onOpenChange={setDrawerOpen}
+            onInsertChar={insertAccentChar}
+          />
         </div>
       )}
     </div>

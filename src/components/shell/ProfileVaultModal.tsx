@@ -42,7 +42,7 @@ import {
   type ClassicAdultLanguageCode,
   type LanguageCode,
 } from '../../types/contracts';
-import { safeVaultActions } from './vaultSafeActions';
+import { resolvePriorKidProfile, safeVaultActions } from './vaultSafeActions';
 import {
   getCachedOfflinePackCounts,
   prefetchAllOfflinePacks,
@@ -114,7 +114,13 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
   const [keycodeError, setKeycodeError] = useState<string | null>(null);
   const [adultConfirmOpen, setAdultConfirmOpen] = useState(false);
   const [selectedAdultTrack, setSelectedAdultTrack] = useState<AdultLanguageCode>('ebonics');
-  const [adultProfileName, setAdultProfileName] = useState('After-Hours');
+  const [adultProfileName, setAdultProfileName] = useState('Parent');
+  const [confirmRestoreOnStudyBreak, setConfirmRestoreOnStudyBreak] = useState<boolean>(() =>
+    Boolean(vault.restoreKidProfileOnStudyBreak)
+  );
+  const [unlockedRestoreOnStudyBreak, setUnlockedRestoreOnStudyBreak] = useState<boolean>(() =>
+    Boolean(vault.restoreKidProfileOnStudyBreak)
+  );
   const [offlinePackLoading, setOfflinePackLoading] = useState(false);
   const [offlinePackResult, setOfflinePackResult] = useState<OfflinePackPrefetchResult | null>(
     null
@@ -131,8 +137,14 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
     };
   }, []);
 
+  useEffect(() => {
+    setUnlockedRestoreOnStudyBreak(Boolean(vault.restoreKidProfileOnStudyBreak));
+  }, [vault.restoreKidProfileOnStudyBreak]);
+
   const canDelete = vault.profiles.length > 1;
   const isOnDefaultKid = isDefaultKidProfileId(activeProfile.id);
+  const isUnlockedAdult = !isOnDefaultKid && Boolean(activeProfile.adultModeUnlocked);
+  const priorKidProfile = resolvePriorKidProfile(vault, activeProfile.id);
   const includeAdultInPack = Boolean(
     !isOnDefaultKid && activeProfile.adultModeUnlocked && activeProfile.adultModeActive
   );
@@ -181,7 +193,8 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
 
   const openAdultConfirmModal = () => {
     setSelectedAdultTrack('ebonics');
-    setAdultProfileName('After-Hours');
+    setAdultProfileName('Parent');
+    setConfirmRestoreOnStudyBreak(Boolean(vault.restoreKidProfileOnStudyBreak));
     setAdultConfirmOpen(true);
   };
 
@@ -957,22 +970,79 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
         </div>
         </div>
 
-        {/* Discreet Re-entry CTA (only shown when unlocked on a custom profile while in Kid Atlas) */}
-        {!isOnDefaultKid && activeProfile.adultModeUnlocked && !activeProfile.adultModeActive ? (
-          <div style={{ flexShrink: 0 }}>
-            <button
-              type="button"
-              className="tactile-btn tactile-btn-indigo"
-              style={{ width: '100%', padding: '8px 12px', fontSize: '0.82rem' }}
-              onClick={() => {
-                playSfx('adult_unlock');
-                safeVaultActions.setAdultModeActive(true);
-                onClose();
+        {/* Discreet Unlocked Adult Controls (re-entry, 1-tap kid restore & Study Break opt-in) */}
+        {!adultConfirmOpen && isUnlockedAdult ? (
+          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {!activeProfile.adultModeActive ? (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="tactile-btn tactile-btn-indigo"
+                  style={{ flex: '1 1 180px', padding: '8px 12px', fontSize: '0.82rem' }}
+                  onClick={() => {
+                    playSfx('adult_unlock');
+                    safeVaultActions.setAdultModeActive(true);
+                    onClose();
+                  }}
+                >
+                  <ShieldCheck size={15} />
+                  <span>Enter After-Hours Atlas (18+)</span>
+                </button>
+
+                {priorKidProfile ? (
+                  <button
+                    type="button"
+                    data-testid="restore-prior-kid-btn"
+                    className="tactile-btn tactile-btn-success"
+                    style={{ flex: '1 1 170px', padding: '8px 12px', fontSize: '0.82rem' }}
+                    onClick={() => {
+                      playSfx('whoosh_transition');
+                      safeVaultActions.returnToPriorKidProfile(priorKidProfile.id);
+                      onClose();
+                    }}
+                  >
+                    <AvatarBadge avatarId={priorKidProfile.avatarId} size={18} />
+                    <span>Switch back to {priorKidProfile.name}</span>
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '6px 10px',
+                borderRadius: 12,
+                background: 'var(--card-soft-bg)',
+                border: '1.5px solid var(--card-border)',
+                color: 'var(--text-main)',
+                fontSize: '0.78rem',
+                fontWeight: 800,
+                cursor: 'pointer',
               }}
             >
-              <ShieldCheck size={15} />
-              <span>Enter After-Hours Atlas (18+)</span>
-            </button>
+              <input
+                type="checkbox"
+                data-testid="study-break-restore-kid-toggle"
+                checked={unlockedRestoreOnStudyBreak}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  playSfx('tile_tap');
+                  setUnlockedRestoreOnStudyBreak(next);
+                  safeVaultActions.setRestoreKidProfileOnStudyBreak(next);
+                }}
+                style={{
+                  width: 16,
+                  height: 16,
+                  accentColor: 'var(--lang-primary)',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+              />
+              <span>Switch back to Kid Explorer on Study Break</span>
+            </label>
           </div>
         ) : null}
 
@@ -1255,12 +1325,46 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
                   value={adultProfileName}
                   maxLength={20}
                   onChange={(e) => setAdultProfileName(e.target.value)}
-                  placeholder="After-Hours"
+                  placeholder="Parent"
                   aria-label="Adult Profile Name"
                   style={{ width: '100%', padding: '8px 12px', fontSize: '0.9rem' }}
                 />
               </div>
             ) : null}
+
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '7px 10px',
+                borderRadius: 12,
+                background: 'var(--card-soft-bg)',
+                border: '1.5px solid var(--card-border)',
+                color: 'var(--text-main)',
+                fontSize: '0.8rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                data-testid="study-break-restore-kid-toggle"
+                checked={confirmRestoreOnStudyBreak}
+                onChange={(e) => {
+                  playSfx('tile_tap');
+                  setConfirmRestoreOnStudyBreak(e.target.checked);
+                }}
+                style={{
+                  width: 16,
+                  height: 16,
+                  accentColor: 'var(--lang-primary)',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+              />
+              <span>Switch back to Kid Explorer on Study Break</span>
+            </label>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7, flexShrink: 0, paddingTop: 2 }}>
@@ -1272,10 +1376,11 @@ export function ProfileVaultModal({ onClose }: ProfileVaultModalProps) {
                 playSfx('adult_unlock');
                 safeVaultActions.unlockAdultMode({
                   ...(isOnDefaultKid
-                    ? { adultProfileName: adultProfileName.trim() || 'After-Hours' }
+                    ? { adultProfileName: adultProfileName.trim() || 'Parent' }
                     : {}),
                   initialTrack: selectedAdultTrack,
                 });
+                safeVaultActions.setRestoreKidProfileOnStudyBreak(confirmRestoreOnStudyBreak);
                 setAdultConfirmOpen(false);
                 onClose();
               }}

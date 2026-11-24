@@ -8,6 +8,7 @@ export interface VirtualScriptDrawerProps {
   compact?: boolean;
   disabled?: boolean;
   open?: boolean;
+  inlineCollapsed?: boolean;
   onOpenChange?: (open: boolean) => void;
   onInsertChar: (value: string) => void;
 }
@@ -207,29 +208,36 @@ const EXTRA_LATIN_KEYS: Partial<Record<LanguageCode, readonly string[]>> = {
   sw: ['’', ','],
 };
 
+function dedupeScriptTabs(tabs: readonly ScriptTabSpec[]): readonly ScriptTabSpec[] {
+  return tabs.map((tab) => ({
+    ...tab,
+    keys: Array.from(new Set(tab.keys)),
+  }));
+}
+
 function getScriptTabsForLanguage(language: LanguageCode): readonly ScriptTabSpec[] {
   switch (language) {
     case 'zh':
-      return ZH_TABS;
+      return dedupeScriptTabs(ZH_TABS);
     case 'ja':
-      return JA_TABS;
+      return dedupeScriptTabs(JA_TABS);
     case 'ar':
     case 'arz':
-      return AR_TABS;
+      return dedupeScriptTabs(AR_TABS);
     case 'hi':
-      return HI_TABS;
+      return dedupeScriptTabs(HI_TABS);
     case 'bn':
-      return BN_TABS;
+      return dedupeScriptTabs(BN_TABS);
     case 'ru':
-      return RU_TABS;
+      return dedupeScriptTabs(RU_TABS);
     case 'vi':
-      return VI_TABS;
+      return dedupeScriptTabs(VI_TABS);
     default: {
       const meta = LANGUAGE_META[language];
       const baseKeys = Array.from(
         new Set([...meta.helperAccents, ...(EXTRA_LATIN_KEYS[language] ?? [])])
       );
-      return [
+      return dedupeScriptTabs([
         {
           id: `${language}_accents`,
           label: `${meta.name} Keys`,
@@ -242,7 +250,7 @@ function getScriptTabsForLanguage(language: LanguageCode): readonly ScriptTabSpe
           dir: meta.dir,
           keys: ['.', ',', '!', '?', "'", '’', '-', '¡', '¿'],
         },
-      ];
+      ]);
     }
   }
 }
@@ -252,6 +260,7 @@ export function VirtualScriptDrawer({
   compact = false,
   disabled = false,
   open,
+  inlineCollapsed = false,
   onOpenChange,
   onInsertChar,
 }: VirtualScriptDrawerProps) {
@@ -280,6 +289,8 @@ export function VirtualScriptDrawer({
     onOpenChange?.(next);
   };
 
+  const isInlineRow = inlineCollapsed && !isOpen;
+
   return (
     <div
       data-testid="virtual-script-drawer"
@@ -287,8 +298,9 @@ export function VirtualScriptDrawer({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: compact ? 4 : 6,
-        width: '100%',
+        gap: compact ? 3 : 6,
+        width: isInlineRow ? 'auto' : '100%',
+        flexShrink: isInlineRow ? 0 : undefined,
       }}
     >
       <button
@@ -299,9 +311,12 @@ export function VirtualScriptDrawer({
         disabled={disabled}
         className={`tactile-btn ${isOpen ? 'tactile-btn-indigo' : 'tactile-btn-soft'}`}
         style={{
-          padding: compact ? '3px 9px' : '4px 11px',
-          fontSize: compact ? '0.72rem' : '0.76rem',
+          padding: compact ? '3px 8px' : '4px 11px',
+          fontSize: compact ? '0.7rem' : '0.76rem',
           borderRadius: 10,
+          borderBottomWidth: compact ? 3 : undefined,
+          flexShrink: 0,
+          whiteSpace: 'nowrap',
         }}
         onClick={handleToggle}
       >
@@ -315,13 +330,13 @@ export function VirtualScriptDrawer({
           id={panelId}
           style={{
             width: '100%',
-            padding: compact ? '5px 7px' : '8px 10px',
+            padding: compact ? '4px 6px' : '8px 10px',
             borderRadius: compact ? 12 : 14,
             background: 'var(--card-soft-bg)',
             border: '2px solid var(--card-border)',
             display: 'flex',
             flexDirection: 'column',
-            gap: compact ? 4 : 6,
+            gap: compact ? 3 : 6,
           }}
         >
           {tabs.length > 1 ? (
@@ -367,7 +382,7 @@ export function VirtualScriptDrawer({
             dir={currentTab.dir}
             className="console-scroll-pane"
             style={{
-              maxHeight: compact ? 74 : 118,
+              maxHeight: compact ? 60 : 118,
               overflowY: 'auto',
               display: 'flex',
               flexWrap: 'wrap',

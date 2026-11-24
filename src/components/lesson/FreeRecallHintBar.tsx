@@ -25,7 +25,11 @@ export function FreeRecallHintBar({
     toneCoaching?: FreeRecallToneCoaching;
   };
   const isRomanizedMode = Boolean(extPlan.isRomanizedMode);
-  const toneCoaching = extPlan.toneCoaching?.hasToneMismatch ? extPlan.toneCoaching : null;
+  const toneCoaching =
+    extPlan.toneCoaching &&
+    (extPlan.toneCoaching.hasToneMismatch || Boolean(extPlan.toneCoaching.convertedNumericPinyin))
+      ? extPlan.toneCoaching
+      : null;
 
   return (
     <div
@@ -116,6 +120,21 @@ export function FreeRecallHintBar({
           }}
         >
           <span>{toneCoaching.tip}</span>
+          {toneCoaching.convertedNumericPinyin ? (
+            <span
+              data-testid="free-recall-converted-pinyin"
+              style={{
+                padding: '1px 7px',
+                borderRadius: 999,
+                background: 'var(--card-bg)',
+                border: '1px solid var(--tint-indigo-border)',
+                color: 'var(--text-main)',
+                fontWeight: 900,
+              }}
+            >
+              {toneCoaching.convertedNumericPinyin}
+            </span>
+          ) : null}
           {toneCoaching.expectedWord && !toneCoaching.tip.includes(toneCoaching.expectedWord) ? (
             <strong>({toneCoaching.expectedWord})</strong>
           ) : null}

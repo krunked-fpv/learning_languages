@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ComponentType,
+  type CSSProperties,
+} from 'react';
 import { motion } from 'framer-motion';
 import { Music, Sparkles } from 'lucide-react';
 import { FlagIcon } from './art/FlagIcon';
@@ -31,6 +39,7 @@ import { useVaultStore, vaultActions } from './store/useVaultStore';
 import {
   LANGUAGE_META,
   isAdultLanguage,
+  type CoopSafeAtlasMask,
   type LanguageCode,
   type MapNode,
   type ProficiencyTier,
@@ -53,6 +62,11 @@ const AdaptiveAdventureMap = AdventureMap as ComponentType<
     onStartSrsQuest?: () => void;
   }
 >;
+
+type ArcadeHubWithMaskProps = ComponentProps<typeof ArcadeHub> & {
+  onCoopSafeMaskChange?: (mask: CoopSafeAtlasMask) => void;
+};
+const ArcadeHubComponent = ArcadeHub as ComponentType<ArcadeHubWithMaskProps>;
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -261,6 +275,10 @@ export function App() {
   const { vault, activeProfile, activeProgress } = useVaultStore();
   const [activeTab, setActiveTab] = useState<NavTabId>('map');
   const [arcadeInitialMode, setArcadeInitialMode] = useState<ArcadeGameMode>('hub');
+  const [coopSafeMask, setCoopSafeMask] = useState<CoopSafeAtlasMask>({
+    active: false,
+    safeLanguage: 'es',
+  });
   const [activeNode, setActiveNode] = useState<MapNode | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [secretUnlockedModalOpen, setSecretUnlockedModalOpen] = useState(false);
@@ -280,6 +298,13 @@ export function App() {
   useEffect(() => {
     setAudioPreferences(vault.audioSettings);
   }, [vault.audioSettings]);
+
+  // Clear Co-Op Safe Atlas masking whenever leaving the Arcade tab or entering a lesson
+  useEffect(() => {
+    if (activeTab !== 'arcade' || activeNode) {
+      setCoopSafeMask((prev) => (prev.active ? { ...prev, active: false } : prev));
+    }
+  }, [activeTab, activeNode]);
 
   // Automatically close an active lesson when switching profiles, languages, or exiting Adult Mode
   useEffect(() => {
@@ -410,7 +435,9 @@ export function App() {
     }
   };
 
-  const palette = LANGUAGE_META[effectiveLanguage].accentPalette;
+  const effectiveDisplayLanguage: LanguageCode =
+    activeTab === 'arcade' && coopSafeMask.active ? coopSafeMask.safeLanguage : effectiveLanguage;
+  const palette = LANGUAGE_META[effectiveDisplayLanguage].accentPalette;
   const equippedTheme = activeProfile.equippedCosmetics.theme ?? 'default';
 
   const rootStyle = {
@@ -437,7 +464,7 @@ export function App() {
     <div
       className={`app-root ${activeNode ? 'is-lesson-active' : ''}`}
       data-theme={equippedTheme}
-      data-language={effectiveLanguage}
+      data-language={effectiveDisplayLanguage}
       style={rootStyle}
     >
       <AmbientBackdrop theme={equippedTheme} />
@@ -493,6 +520,7 @@ export function App() {
             onInstallApp={() => {
               void handleInstallClick();
             }}
+            coopSafeMask={activeTab === 'arcade' ? coopSafeMask : undefined}
           />
 
           <div className="app-main-column">
@@ -547,9 +575,10 @@ export function App() {
                   ) : isBaseCourseHydrating ? (
                     <BaseTrackLoadingCard language={effectiveLanguage} />
                   ) : (
-                    <ArcadeHub
+                    <ArcadeHubComponent
                       initialMode={arcadeInitialMode}
                       onExitToMap={() => setActiveTab('map')}
+                      onCoopSafeMaskChange={setCoopSafeMask}
                     />
                   )
                 ) : null}
@@ -564,7 +593,7 @@ export function App() {
           <BottomNav
             activeTab={activeTab}
             unlockedPhraseCount={activeProgress.unlockedVocabIds.length}
-            activeLanguage={effectiveLanguage}
+            activeLanguage={effectiveDisplayLanguage}
             onSelectTab={(tab) => {
               if (tab === 'arcade') {
                 setArcadeInitialMode('hub');

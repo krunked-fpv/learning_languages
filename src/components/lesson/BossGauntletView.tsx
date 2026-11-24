@@ -26,10 +26,10 @@ import {
   type ProficiencyTier,
 } from '../../types/contracts';
 import { FreeRecallHintBar } from './FreeRecallHintBar';
+import { FreeRecallScriptStrip } from './FreeRecallScriptStrip';
 import { TapHintText } from './TapHintText';
 import { SayItNormallyButton } from './SayItNormallyButton';
 import { StarlightHintButton } from './StarlightHintButton';
-import { VirtualScriptDrawer } from './VirtualScriptDrawer';
 import { WordBankTray, buildWordBankPool, getAssembledText } from './WordBankTray';
 import { REGISTER_TAG_META } from './lessonHelpers';
 import {
@@ -129,7 +129,6 @@ export function BossGauntletView({
   const currentTurn = exercise.turns[turnIndex];
   const isGuided = scaffoldingMode === 'guided';
   const showPhonetics = isGuided || peekPhonetics;
-  const hasManyAccents = langMeta.helperAccents.length > 14;
 
   const pool = useMemo(
     () =>
@@ -371,19 +370,19 @@ export function BossGauntletView({
     <div
       className="tactile-card"
       style={{
-        padding: compact ? '8px 10px' : '16px 20px',
+        padding: compact ? '6px 9px' : '16px 20px',
         display: 'flex',
         flexDirection: 'column',
-        gap: compact ? 5 : 11,
+        gap: compact ? 4 : 11,
         width: '100%',
       }}
     >
       {/* Top Boss & Friendship Charge Meter */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: compact ? 9 : 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: compact ? 8 : 12 }}>
         <MascotStage
           companionId={exercise.companionId}
           pose={companionPose}
-          size={compact ? 56 : 102}
+          size={compact ? 48 : 102}
           hintPulseNonce={bossHintNonce}
         />
 
@@ -436,13 +435,13 @@ export function BossGauntletView({
       {/* Companion Prompt Speech Bubble */}
       <div
         style={{
-          padding: compact ? '6px 9px' : '12px 14px',
-          borderRadius: compact ? 14 : 16,
+          padding: compact ? '5px 8px' : '12px 14px',
+          borderRadius: compact ? 13 : 16,
           background: 'var(--card-soft-bg)',
           border: '2px solid var(--card-border)',
           display: 'flex',
           flexDirection: 'column',
-          gap: compact ? 3 : 4,
+          gap: compact ? 2 : 4,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, flexWrap: 'wrap' }}>
@@ -689,7 +688,7 @@ export function BossGauntletView({
           }}
         />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? 5 : 7 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? 4 : 7 }}>
           {hint.freeRecallPlan && hint.hintTier > 0 ? (
             <FreeRecallHintBar
               plan={hint.freeRecallPlan}
@@ -744,53 +743,14 @@ export function BossGauntletView({
               outline: 'none',
             }}
           />
-          {!drawerOpen ? (
-            <div
-              aria-label="Accent character bar"
-              dir={langDir}
-              className="console-scroll-pane"
-              style={{
-                maxHeight: compact ? 66 : 96,
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: compact ? 3 : hasManyAccents ? 4 : 6,
-                justifyContent: 'center',
-                padding: '2px',
-              }}
-            >
-              {langMeta.helperAccents.map((ch) => (
-                <button
-                  key={ch}
-                  type="button"
-                  className="tactile-tile"
-                  style={{
-                    padding: compact
-                      ? '2px 6px'
-                      : hasManyAccents
-                        ? '3px 7px'
-                        : '4px 10px',
-                    fontSize: compact
-                      ? '0.82rem'
-                      : hasManyAccents
-                        ? '0.84rem'
-                        : '0.9rem',
-                    minWidth: compact ? 26 : hasManyAccents ? 28 : 34,
-                    lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
-                  }}
-                  disabled={turnOutcome?.kind === 'ok'}
-                  onClick={() => insertAccentChar(ch)}
-                >
-                  {ch}
-                </button>
-              ))}
-            </div>
-          ) : null}
-          <VirtualScriptDrawer
-            key={`${exercise.id}:${currentTurn.id}`}
+          <FreeRecallScriptStrip
             language={language}
+            direction="to_foreign"
+            typedText={typedText}
             compact={compact}
             disabled={turnOutcome?.kind === 'ok'}
-            open={drawerOpen}
+            drawerOpen={drawerOpen}
+            drawerKey={`${exercise.id}:${currentTurn.id}`}
             onOpenChange={setDrawerOpen}
             onInsertChar={insertAccentChar}
           />

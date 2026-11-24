@@ -8,6 +8,7 @@ import {
   type KidProfile,
   type LanguageCode,
   type ProficiencyTier,
+  type SaveVault,
 } from '../../types/contracts';
 
 export interface AvatarShopMetadata {
@@ -45,6 +46,8 @@ interface ExtendedVaultActions {
     initialTrack?: AdultLanguageCode;
   }) => KidProfile | null;
   setAdultModeActive?: (active: boolean) => void;
+  setRestoreKidProfileOnStudyBreak?: (enabled: boolean) => void;
+  returnToPriorKidProfile?: () => boolean | KidProfile | null | void;
   verifyAdultEasterEggCode?: (code: string) => boolean;
 }
 
@@ -95,21 +98,83 @@ export const safeVaultActions = {
     adultProfileName?: string;
     initialTrack?: AdultLanguageCode;
   }): KidProfile | null {
-    return typeof extVault.unlockAdultMode === 'function'
-      ? (extVault.unlockAdultMode(options) ?? null)
-      : null;
+    if (!('unlockAdultMode' in vaultActions) || typeof extVault.unlockAdultMode !== 'function') {
+      return null;
+    }
+    const normalizedOptions = {
+      ...options,
+      adultProfileName: options?.adultProfileName?.trim() || 'Parent',
+    };
+    return extVault.unlockAdultMode(normalizedOptions) ?? null;
   },
   setAdultModeActive(active: boolean): void {
-    extVault.setAdultModeActive?.(active);
+    if ('setAdultModeActive' in vaultActions && typeof extVault.setAdultModeActive === 'function') {
+      extVault.setAdultModeActive(active);
+    }
+  },
+  setRestoreKidProfileOnStudyBreak(enabled: boolean): void {
+    if (
+      'setRestoreKidProfileOnStudyBreak' in vaultActions &&
+      typeof extVault.setRestoreKidProfileOnStudyBreak === 'function'
+    ) {
+      extVault.setRestoreKidProfileOnStudyBreak(enabled);
+    }
+  },
+  returnToPriorKidProfile(fallbackKidId?: string | null): boolean {
+    if (
+      'returnToPriorKidProfile' in vaultActions &&
+      typeof extVault.returnToPriorKidProfile === 'function'
+    ) {
+      const result = extVault.returnToPriorKidProfile();
+      return result === undefined ? true : Boolean(result);
+    }
+    if (fallbackKidId) {
+      vaultActions.switchProfile(fallbackKidId);
+      return true;
+    }
+    return false;
   },
   verifyAdultEasterEggCode(code: string): boolean {
-    if (typeof extVault.verifyAdultEasterEggCode === 'function') {
+    if (
+      'verifyAdultEasterEggCode' in vaultActions &&
+      typeof extVault.verifyAdultEasterEggCode === 'function'
+    ) {
       return extVault.verifyAdultEasterEggCode(code);
     }
     const normalized = code.trim().toUpperCase();
     return (ADULT_EASTER_EGG_CODES as readonly string[]).includes(normalized);
   },
 };
+
+/** Resolves the most recent non-adult kid profile available in the vault for 1-tap restore. */
+export function resolvePriorKidProfile(
+  vault: Pick<SaveVault, 'profiles' | 'lastKidProfileId'>,
+  activeProfileId: string
+): KidProfile | null {
+  const candidates = vault.profiles.filter(
+    (p) => p.id !== activeProfileId && !p.adultModeUnlocked
+  );
+  if (candidates.length === 0) return null;
+  if (vault.lastKidProfileId) {
+    const exact = candidates.find((p) => p.id === vault.lastKidProfileId);
+    if (exact) return exact;
+  }
+  return candidates[0];
+}
+
+/** Disarms Adult Mode on Study Break and restores the prior kid profile when opted in. */
+export function performStudyBreakExit(
+  vault: Pick<SaveVault, 'profiles' | 'lastKidProfileId' | 'restoreKidProfileOnStudyBreak'>,
+  activeProfileId: string
+): void {
+  if (vault.restoreKidProfileOnStudyBreak) {
+    const priorKid = resolvePriorKidProfile(vault, activeProfileId);
+    if (safeVaultActions.returnToPriorKidProfile(priorKid?.id)) {
+      return;
+    }
+  }
+  safeVaultActions.setAdultModeActive(false);
+}
 
 const FALLBACK_AVATAR_SHOP_CATALOG: readonly AvatarShopMetadata[] = [
   {

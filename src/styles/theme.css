@@ -1306,6 +1306,39 @@ select {
   text-align: left;
 }
 
+.unified-script-strip {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+}
+
+.unified-script-strip.is-compact-row {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 5px;
+}
+
+.unified-accent-strip.is-compact {
+  flex: 1 1 0%;
+  min-width: 0;
+  max-height: 38px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.unified-accent-strip.is-compact::-webkit-scrollbar {
+  height: 3px;
+}
+
+.free-recall-note {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
 /* ==========================================================================
    SPLIT CONSOLE & BOUNDED ZERO-SCROLL META PANELS
    ========================================================================== */
