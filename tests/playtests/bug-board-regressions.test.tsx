@@ -16,9 +16,11 @@ import {
   resolveFreeRecallTextAlign,
 } from '../../src/components/lesson/useFreeRecallInput';
 import { CompanionShop } from '../../src/components/meta/CompanionShop';
-import { getCourse, getCourseGlossary } from '../../src/curriculum';
+import { gradeAnswer } from '../../src/core';
+import { getArcadeLexicon, getCourse, getCourseGlossary } from '../../src/curriculum';
 import { lookupGlossaryEntry } from '../../src/curriculum/helpers';
 import {
+  STORAGE_KEY,
   exportVaultJson,
   importVaultJson,
   loadVaultFromStorage,
@@ -28,6 +30,7 @@ import {
   LANGUAGE_META,
   type BossGauntletExercise,
   type LanguageCode,
+  type MapNode,
   type WordBankExercise,
 } from '../../src/types/contracts';
 
@@ -938,6 +941,372 @@ describe('Sprint 2 Bug Board Targeted Regression Gates (BUG-S2-001..BUG-S2-011)'
     } finally {
       vi.doUnmock('../../src/curriculum');
       vi.resetModules();
+    }
+  });
+});
+
+function parseHexToRgbTuple(raw: string): [number, number, number] | null {
+  const m = /^#([0-9a-f]{6})$/i.exec(raw.trim());
+  if (!m) return null;
+  const h = m[1];
+  return [
+    Number.parseInt(h.slice(0, 2), 16),
+    Number.parseInt(h.slice(2, 4), 16),
+    Number.parseInt(h.slice(4, 6), 16),
+  ];
+}
+
+function compositeCssOver(
+  fgRaw: string,
+  bgRgb: [number, number, number]
+): [number, number, number] {
+  const rgba = /^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([0-9.]+)\s*\)$/i.exec(
+    fgRaw.trim()
+  );
+  if (!rgba) {
+    return parseHexToRgbTuple(fgRaw) ?? bgRgb;
+  }
+  const alpha = Number(rgba[4]);
+  return [
+    Math.round(Number(rgba[1]) * alpha + bgRgb[0] * (1 - alpha)),
+    Math.round(Number(rgba[2]) * alpha + bgRgb[1] * (1 - alpha)),
+    Math.round(Number(rgba[3]) * alpha + bgRgb[2] * (1 - alpha)),
+  ];
+}
+
+function rgbTupleContrast(a: [number, number, number], b: [number, number, number]): number {
+  const toHex = ([r, g, bCh]: [number, number, number]) =>
+    `#${[r, g, bCh].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+  return contrastRatio(toHex(a), toHex(b));
+}
+
+describe('Sprint 3 Bug Board Targeted Regression Gates (BUG-S3-001..BUG-S3-004)', () => {
+  const originalInnerWidth = window.innerWidth;
+  const originalInnerHeight = window.innerHeight;
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    vaultActions.resetVaultToDefaults();
+    stopSpeech();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 1);
+  });
+
+  afterEach(() => {
+    cleanup();
+    stopSpeech();
+    setViewportSize(originalInnerWidth, originalInnerHeight);
+    vi.restoreAllMocks();
+  });
+
+  it('[BUG-S3-001] remounts active Arcade cabinet via turnKey on mid-Turn-1 Kid-Safety Quarantine with zero stale Adult slang lingering', () => {
+    vaultActions.switchProfile('kid-leo');
+    vaultActions.setActiveLanguage('es');
+    const parent = vaultActions.unlockAdultMode({
+      adultProfileName: 'Parent',
+      initialTrack: 'ebonics',
+    });
+
+    vaultActions.createProfile({
+      name: 'Auntie',
+      avatarId: 'pip_explorer',
+      bannerColor: '#2563EB',
+      activeLanguage: 'es',
+    });
+    const auntie = vaultActions.unlockAdultMode({
+      adultProfileName: 'Auntie',
+      initialTrack: 'suburban',
+    });
+    expect(auntie.id).not.toBe(parent.id);
+    vaultActions.switchProfile(parent.id);
+
+    const safeMaskSpy = vi.fn();
+    const { unmount } = render(
+      <ArcadeHub
+        initialMode="hub"
+        onExitToMap={vi.fn()}
+        onCoopSafeMaskChange={safeMaskSpy}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('arcade-coop-toggle'));
+    fireEvent.change(screen.getByTestId('coop-p1-select'), { target: { value: parent.id } });
+    fireEvent.change(screen.getByTestId('coop-p2-select'), { target: { value: auntie.id } });
+
+    expect(safeMaskSpy).toHaveBeenLastCalledWith({ active: false, safeLanguage: 'es' });
+
+    // Launch Stack Gelato into active Turn 1 under Adult 'ebonics'
+    fireEvent.click(screen.getByRole('button', { name: 'Stack Gelato' }));
+    fireEvent.click(screen.getByRole('button', { name: /Start Stacking!/i }));
+    expect(screen.getByRole('button', { name: /Drop Scoop!/i })).toBeInTheDocument();
+    expect(screen.getByText(LANGUAGE_META.ebonics.nativeName)).toBeInTheDocument();
+    expect(document.querySelector('[data-language="ebonics"]')).not.toBeNull();
+
+    // Disarm Auntie mid-Turn-1 via vault import while Parent remains on 'ebonics'
+    const armedVault = JSON.parse(exportVaultJson()) as {
+      profiles: Array<{
+        id: string;
+        adultModeActive?: boolean;
+        activeLanguage: string;
+        lastBaseLanguage?: string;
+      }>;
+    };
+    const auntieEntry = armedVault.profiles.find((p) => p.id === auntie.id)!;
+    auntieEntry.adultModeActive = false;
+    auntieEntry.activeLanguage = 'es';
+    auntieEntry.lastBaseLanguage = 'es';
+
+    act(() => {
+      expect(importVaultJson(JSON.stringify(armedVault), 'replace').ok).toBe(true);
+    });
+
+    // Safe Atlas Mask activates immediately and updated turnKey remounts the stale cabinet cleanly onto 'ready'
+    expect(safeMaskSpy).toHaveBeenLastCalledWith({ active: true, safeLanguage: 'es' });
+    expect(screen.queryByRole('button', { name: /Drop Scoop!/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Start Stacking!/i })).toBeInTheDocument();
+    expect(screen.queryByText(LANGUAGE_META.ebonics.nativeName)).not.toBeInTheDocument();
+
+    // Starting the freshly remounted cabinet deals only safe Spanish items with zero ebonics bleed
+    fireEvent.click(screen.getByRole('button', { name: /Start Stacking!/i }));
+    expect(screen.getByText(LANGUAGE_META.es.nativeName)).toBeInTheDocument();
+    expect(document.querySelector('[data-language="es"]')).not.toBeNull();
+    expect(document.querySelector('[data-language="ebonics"]')).toBeNull();
+    const ebonicsTerms = new Set(
+      getArcadeLexicon('ebonics', [], 0, 'sprout').map((c) => c.foreign)
+    );
+    const bodyText = document.body.textContent ?? '';
+    for (const slang of ebonicsTerms) {
+      expect(bodyText).not.toContain(slang);
+    }
+
+    // Complete Turn 1 -> Turn 2 -> Finale and verify Build Star Bridge also resets Adult state on mid-Turn-1 quarantine
+    fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
+    fireEvent.click(screen.getByRole('button', { name: /Start Auntie's Turn!/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Start Stacking!/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
+    expect(screen.getByTestId('arcade-coop-summary')).toBeInTheDocument();
+    expect(screen.getByTestId('coop-finale-credited-languages')).toHaveTextContent(/Parent:\s*Spanish.*Auntie:\s*Spanish/i);
+    unmount();
+  });
+
+  it('[BUG-S3-002] rejects orphaned coopPairStreaks profile IDs on replace/merge import while pruning them cleanly on storage hydration', () => {
+    const validVault = JSON.parse(exportVaultJson()) as {
+      coopPairStreaks?: Record<string, unknown>;
+      profiles: Array<{ id: string }>;
+    };
+    const orphanStreak = {
+      pairKey: 'kid-ghost::kid-leo',
+      playerIds: ['kid-ghost', 'kid-leo'],
+      streakDays: 3,
+      lastPlayedISO: '2026-11-23',
+      matchesTogether: 3,
+      bestCombinedScore: 240,
+    };
+    const legitStreak = {
+      pairKey: 'kid-leo::kid-maya',
+      playerIds: ['kid-leo', 'kid-maya'],
+      streakDays: 2,
+      lastPlayedISO: '2026-11-23',
+      matchesTogether: 2,
+      bestCombinedScore: 210,
+    };
+
+    const orphanOnlyPayload = JSON.stringify({
+      ...validVault,
+      coopPairStreaks: {
+        'kid-ghost::kid-leo': orphanStreak,
+      },
+    });
+    const replaceRes = importVaultJson(orphanOnlyPayload, 'replace');
+    expect(replaceRes.ok).toBe(false);
+    expect(replaceRes.error).toMatch(/unknown profile ID/i);
+
+    const mergeRes = importVaultJson(orphanOnlyPayload, 'merge');
+    expect(mergeRes.ok).toBe(false);
+    expect(mergeRes.error).toMatch(/unknown profile ID/i);
+
+    const committedAfterRejection = JSON.parse(exportVaultJson()) as {
+      coopPairStreaks?: Record<string, unknown>;
+    };
+    expect(committedAfterRejection.coopPairStreaks).toEqual({});
+
+    // Storage hydration prunes orphaned pair streaks cleanly without wiping valid explorer profiles or valid streaks
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        ...validVault,
+        coopPairStreaks: {
+          'kid-ghost::kid-leo': orphanStreak,
+          'kid-leo::kid-maya': legitStreak,
+        },
+      })
+    );
+    const hydrated = loadVaultFromStorage();
+    expect(hydrated.profiles.map((p) => p.id)).toEqual(['kid-leo', 'kid-maya']);
+    expect(hydrated.coopPairStreaks?.['kid-ghost::kid-leo']).toBeUndefined();
+    expect(hydrated.coopPairStreaks?.['kid-leo::kid-maya']?.streakDays).toBe(2);
+  });
+
+  it('[BUG-S3-003] grades apostrophe-exact Mandarin numeric Pinyin (Ma3te4\'ao4) cleanly and never renders literal () when highlightedChars is empty', async () => {
+    const zhCourse = getCourse('zh');
+    const mateoEx = zhCourse.units
+      .flatMap((u) => u.nodes)
+      .flatMap((n) => n.exercises)
+      .find((ex): ex is WordBankExercise => ex.id === 'zh-u1-n3-e7');
+    expect(mateoEx).toBeDefined();
+
+    // 1. Grader exactMatch parity with optional Pinyin syllable apostrophe
+    const numericMateo = gradeAnswer({
+      submitted: "Wo3 de5 ming2zi5 jiao4 Ma3te4'ao4",
+      expected: mateoEx!.expectedSentence,
+      accepted: mateoEx!.acceptedSentences,
+      language: 'zh',
+    });
+    expect(numericMateo.isCorrect).toBe(true);
+    expect(numericMateo.exactMatch).toBe(true);
+    expect(numericMateo.heartPenalty).toBe(0);
+    expect(numericMateo.accentCoaching).toBeUndefined();
+
+    const accentedMateo = gradeAnswer({
+      submitted: "Wǒ de míngzi jiào Mǎtè'ào.",
+      expected: mateoEx!.expectedSentence,
+      accepted: mateoEx!.acceptedSentences,
+      language: 'zh',
+    });
+    expect(accentedMateo.isCorrect).toBe(true);
+    expect(accentedMateo.exactMatch).toBe(true);
+    expect(accentedMateo.accentCoaching).toBeUndefined();
+
+    const wanAn = gradeAnswer({
+      submitted: 'Wan3an1',
+      expected: '晚安',
+      accepted: ["Wǎn'ān"],
+      language: 'zh',
+    });
+    expect(wanAn.isCorrect).toBe(true);
+    expect(wanAn.exactMatch).toBe(true);
+    expect(wanAn.accentCoaching).toBeUndefined();
+
+    // 2. Real LessonArena submission on zh-u1-n3-e7 passes cleanly with zero empty () spotlight
+    const zhNode3 = zhCourse.units[0].nodes.find((n) => n.id === 'zh-u1-n3')!;
+    const isolatedMateoNode: MapNode = {
+      ...zhNode3,
+      id: 'zh-u1-n3-mateo-probe',
+      rewardVocabIds: [],
+      exercises: [mateoEx!],
+    };
+    const { container, unmount } = render(
+      <LessonArena node={isolatedMateoNode} language="zh" onExit={vi.fn()} />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Keyboard Free-Recall|Type Instead/i }));
+    fireEvent.change(screen.getByLabelText('Type your translation'), {
+      target: { value: "Wo3 de5 ming2zi5 jiao4 Ma3te4'ao4" },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Check$/i }));
+    expect(container.textContent).not.toContain('()');
+    expect(container.textContent).not.toContain('Spell with accents:');
+    expect(container.querySelector('.lesson-header-hearts')).toHaveTextContent('5/5');
+    unmount();
+    cleanup();
+
+    // 3. Even if accentCoaching.highlightedChars is empty/whitespace, LessonArena never renders literal ()
+    vi.resetModules();
+    const actualGrader = await vi.importActual<typeof import('../../src/core/grader')>(
+      '../../src/core/grader'
+    );
+    vi.doMock('../../src/core/grader', () => ({
+      ...actualGrader,
+      gradeAnswer: vi.fn(() => ({
+        isCorrect: true,
+        exactMatch: false,
+        normalizedSubmitted: 'wo de mingzi jiao mateao',
+        normalizedExpected: 'wo de mingzi jiao mateao',
+        heartPenalty: 0,
+        accentCoaching: {
+          expected: 'Wǒ de míngzi jiào Mǎtèào.',
+          submitted: "Wǒ de míngzi jiào Mǎtè'ào",
+          highlightedChars: [' ', ''],
+          friendlyTip: 'Pinyin syllables matched with an optional apostrophe.',
+        },
+      })),
+    }));
+
+    try {
+      const { LessonArena: MockedLessonArena } = await import(
+        '../../src/components/lesson/LessonArena'
+      );
+      const { container: mockedContainer, unmount: unmountMocked } = render(
+        <MockedLessonArena node={isolatedMateoNode} language="zh" onExit={vi.fn()} />
+      );
+      fireEvent.click(screen.getByRole('button', { name: /Keyboard Free-Recall|Type Instead/i }));
+      fireEvent.change(screen.getByLabelText('Type your translation'), {
+        target: { value: "Wo3 de5 ming2zi5 jiao4 Ma3te4'ao4" },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /^Check$/i }));
+      expect(mockedContainer.textContent).toContain('Spell with accents:');
+      expect(mockedContainer.textContent).toContain('Wǒ de míngzi jiào Mǎtèào.');
+      expect(mockedContainer.textContent).not.toContain('()');
+      unmountMocked();
+    } finally {
+      vi.doUnmock('../../src/core/grader');
+      vi.resetModules();
+    }
+  });
+
+  it('[BUG-S3-004] passes WCAG AA >= 4.5:1 contrast for selected tiles/cards in theme_emerald_rainforest and across all 15 palettes', () => {
+    const themeCss = readFileSync(resolve(ROOT_DIR, 'src/styles/theme.css'), 'utf8');
+    const selectors = [
+      ':root',
+      ".app-root[data-theme='theme_cosmic_galaxy']",
+      ".app-root[data-theme='theme_aurora_borealis']",
+      ".app-root[data-theme='theme_starlight_indigo']",
+      ".app-root[data-theme='theme_royal_velvet']",
+      ".app-root[data-theme='theme_sunset_plaza']",
+      ".app-root[data-theme='theme_candy_sakura']",
+      ".app-root[data-theme='theme_ocean_lagoon']",
+      ".app-root[data-theme='theme_alpine_meadow']",
+      ".app-root[data-theme='theme_kyoto_matcha']",
+      ".app-root[data-theme='theme_sahara_mirage']",
+      ".app-root[data-theme='theme_emerald_rainforest']",
+      ".app-root[data-theme='theme_neon_night_market']",
+      ".app-root[data-theme='theme_nordic_fjord']",
+      ".app-root[data-theme='theme_laureate_imperial']",
+    ] as const;
+    expect(selectors).toHaveLength(15);
+
+    const getBlock = (selector: string): string => {
+      const idx = themeCss.indexOf(selector);
+      expect(idx, `Missing CSS block ${selector}`).toBeGreaterThanOrEqual(0);
+      const braceStart = themeCss.indexOf('{', idx);
+      const braceEnd = themeCss.indexOf('}', braceStart);
+      return themeCss.slice(braceStart, braceEnd + 1);
+    };
+    const readVar = (block: string, fallback: string, varName: string): string => {
+      const m = new RegExp(`${varName}\\s*:\\s*([^;]+);`).exec(block);
+      if (m) return m[1].trim();
+      const mf = new RegExp(`${varName}\\s*:\\s*([^;]+);`).exec(fallback);
+      return mf ? mf[1].trim() : '';
+    };
+
+    const rootBlock = getBlock(':root');
+    for (const sel of selectors) {
+      const block = getBlock(sel);
+      const modalRgb = parseHexToRgbTuple(readVar(block, rootBlock, '--modal-bg')) ?? [255, 255, 255];
+      const cardRgb = compositeCssOver(readVar(block, rootBlock, '--card-bg'), modalRgb);
+      const selectedBgRaw = readVar(block, rootBlock, '--tile-selected-bg');
+      const selectedBgRgb = compositeCssOver(selectedBgRaw, cardRgb);
+
+      if (sel.includes('theme_emerald_rainforest')) {
+        expect(selectedBgRaw).toBe('#065f46');
+      }
+
+      for (const fgVar of ['--text-main', '--text-muted', '--tile-selected-ink'] as const) {
+        const fgRgb = parseHexToRgbTuple(readVar(block, rootBlock, fgVar));
+        expect(fgRgb, `${sel} ${fgVar}`).not.toBeNull();
+        expect(
+          rgbTupleContrast(fgRgb!, selectedBgRgb),
+          `${sel} ${fgVar} on --tile-selected-bg`
+        ).toBeGreaterThanOrEqual(4.5);
+      }
     }
   });
 });
