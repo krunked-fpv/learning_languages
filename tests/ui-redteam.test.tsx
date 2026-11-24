@@ -1,10 +1,11 @@
 import '@testing-library/jest-dom/vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
-import { SkyCatcherArcade } from '../src/components/arcade/SkyCatcherArcade';
+import * as speechModule from '../src/audio/speechEngine';
+import { SKY_CATCHER_TUNING, SkyCatcherArcade } from '../src/components/arcade/SkyCatcherArcade';
 import { BossGauntletView } from '../src/components/lesson/BossGauntletView';
 import { ContextClozeView } from '../src/components/lesson/ContextClozeView';
 import { DiscoveryCardView } from '../src/components/lesson/DiscoveryCardView';
@@ -360,6 +361,97 @@ describe('Challenge 6: UI/CSS/Component Static & DOM Red-Team Audit', () => {
     expect(screen.getByText('Sky-Catcher Complete!')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Back to Atlas Map' }));
     expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it('speaks target foreign word aloud on initial spawn, subsequent target spawns, and missed-target respawns in SkyCatcherArcade', () => {
+    const speakSpy = vi
+      .spyOn(speechModule, 'speakPhrase')
+      .mockResolvedValue({ usedNativeVoice: false, fallbackActive: true });
+    const stopSpy = vi.spyOn(speechModule, 'stopSpeech').mockImplementation(() => {});
+
+    let fakeNow = 1000;
+    vi.spyOn(performance, 'now').mockImplementation(() => fakeNow);
+
+    let rafCb: FrameRequestCallback | null = null;
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      rafCb = cb;
+      return 1;
+    });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {
+      rafCb = null;
+    });
+
+    const stepFrames = (count: number, dtMs = 40) => {
+      for (let i = 0; i < count; i += 1) {
+        if (!rafCb) break;
+        const cb = rafCb;
+        rafCb = null;
+        fakeNow += dtMs;
+        act(() => {
+          cb(fakeNow);
+        });
+      }
+    };
+
+    expect(SKY_CATCHER_TUNING.initialLanternSpeed).toBeLessThanOrEqual(16);
+    expect(SKY_CATCHER_TUNING.lanternMinSpeed + SKY_CATCHER_TUNING.lanternSpeedRange).toBeLessThanOrEqual(18.5);
+
+    const { container } = render(<SkyCatcherArcade arcadeTier="sprout" onExit={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /Start 45s Fiesta!/i }));
+
+    // 1. Initial target lantern spawns & speaks immediately
+    expect(speakSpy).toHaveBeenCalledTimes(1);
+    const firstReq = speakSpy.mock.calls[0][0];
+    expect(firstReq).toEqual(
+      expect.objectContaining({
+        language: 'es',
+        speed: 'normal',
+      })
+    );
+    expect(firstReq.text.trim().length).toBeGreaterThan(0);
+    expect(firstReq.phonetic?.trim().length).toBeGreaterThan(0);
+    expect(screen.getByTestId('sky-catcher-voice-cue')).toBeInTheDocument();
+
+    // 2. Slower pace: after 3.5s (87 * 40ms = 3.48s), initial lantern is still descending and not yet caught
+    stepFrames(87, 40);
+    expect(screen.getByText('Catches: 0')).toBeInTheDocument();
+
+    // Step until Pip (centered at x=50%) catches the initial lantern
+    stepFrames(35, 40);
+    expect(screen.getByText('Catches: 1')).toBeInTheDocument();
+
+    // 3. Step ~0.6s more for the next target lantern to spawn and speak aloud
+    stepFrames(16, 40);
+    expect(speakSpy).toHaveBeenCalledTimes(2);
+    const secondReq = speakSpy.mock.calls[1][0];
+    expect(secondReq.language).toBe('es');
+    expect(secondReq.text).not.toBe(firstReq.text);
+
+    // 4. Move Pip away from the spawned 2nd target lantern so it drifts past uncaught and respawns
+    const lanterns = Array.from(container.querySelectorAll<HTMLElement>('.arcade-sky-lantern'));
+    const secondLantern = lanterns.find((el) => el.textContent?.includes(secondReq.text));
+    const secondX = secondLantern ? parseFloat(secondLantern.style.left) : 50;
+    const dodgeBtnName = secondX >= 50 ? 'Move Pip left' : 'Move Pip right';
+    for (let i = 0; i < 4; i += 1) {
+      fireEvent.click(screen.getByRole('button', { name: dodgeBtnName }));
+    }
+
+    // Advance up to 11s until the 2nd target drifts past y >= 105 and respawns at the top
+    for (let i = 0; i < 275 && speakSpy.mock.calls.length < 3; i += 1) {
+      stepFrames(1, 40);
+    }
+    expect(speakSpy).toHaveBeenCalledTimes(3);
+    expect(speakSpy.mock.calls[2][0]).toEqual(
+      expect.objectContaining({
+        text: secondReq.text,
+        language: 'es',
+        speed: 'normal',
+      })
+    );
+
+    // 5. Finishing the round stops any active speech cleanly
+    fireEvent.click(screen.getByRole('button', { name: /Claim \+\d+ Hearts/i }));
+    expect(stopSpy).toHaveBeenCalled();
   });
 
   it('exercises standalone CompanionShop filters/unequip and ProfileVaultModal last-profile delete guard', () => {
