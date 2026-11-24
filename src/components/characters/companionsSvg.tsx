@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import type { CharacterPose, CompanionId } from '../../types/contracts';
 import { COMPANION_ANCHORS, MASCOT_INK } from './cosmeticsSvg';
 
@@ -9,6 +9,7 @@ interface PoseProps {
   look: { x: number; y: number };
   isBlinking: boolean;
   hasCustomGlasses: boolean;
+  hasHat?: boolean;
 }
 
 function getArmMotion(pose: CharacterPose, side: 'left' | 'right') {
@@ -172,29 +173,35 @@ export function BodyAndArmsLayer({
   pose: CharacterPose;
   uid: string;
 }) {
-  const leftAnim = getArmMotion(pose, 'left');
-  const rightAnim = getArmMotion(pose, 'right');
-  const dur = pose === 'happy' || pose === 'victory_dance' || pose === 'streak_fire' ? 0.7 : 2.6;
+  const reducedMotion = useReducedMotion();
+  const leftAnim = reducedMotion ? undefined : getArmMotion(pose, 'left');
+  const rightAnim = reducedMotion ? undefined : getArmMotion(pose, 'right');
+  const dur = pose === 'happy' || pose === 'victory_dance' || pose === 'streak_fire' ? 0.9 : 3.6;
 
   if (companionId === 'pip') {
     return (
       <g>
         <defs>
-          <radialGradient id={`pip-body-${uid}`} cx="42%" cy="35%" r="65%">
-            <stop offset="0%" stopColor="#60A5FA" />
-            <stop offset="65%" stopColor="#2563EB" />
-            <stop offset="100%" stopColor="#1E40AF" />
+          <radialGradient id={`pip-body-${uid}`} cx="34%" cy="28%" r="72%">
+            <stop offset="0%" stopColor="#7CC2FA" />
+            <stop offset="56%" stopColor="#3476DE" />
+            <stop offset="100%" stopColor="#1F4A9C" />
+          </radialGradient>
+          <radialGradient id={`pip-belly-${uid}`} cx="38%" cy="30%" r="70%">
+            <stop offset="0%" stopColor="#FFF7D6" />
+            <stop offset="68%" stopColor="#FDE293" />
+            <stop offset="100%" stopColor="#F2C05E" />
           </radialGradient>
         </defs>
-        {/* Orange bird feet */}
-        <path d="M87 183L81 193M87 183L88 194M87 183L94 192" stroke="#F59E0B" strokeWidth="4.2" strokeLinecap="round" />
-        <path d="M133 183L126 192M133 183L133 194M133 183L139 193" stroke="#F59E0B" strokeWidth="4.2" strokeLinecap="round" />
+        {/* Warm golden bird feet */}
+        <path d="M87 183L81 193M87 183L88 194M87 183L94 192" stroke="#E89A25" strokeWidth="4.2" strokeLinecap="round" />
+        <path d="M133 183L126 192M133 183L133 194M133 183L139 193" stroke="#E89A25" strokeWidth="4.2" strokeLinecap="round" />
         {/* Flapping Wing Left & Right */}
         <motion.path
           d="M72 135C51 139 41 158 51 171C60 177 73 169 78 154Z"
-          fill="#1D4ED8"
+          fill="#265CC2"
           stroke={MASCOT_INK}
-          strokeWidth="2.4"
+          strokeWidth="2.3"
           strokeLinejoin="round"
           animate={leftAnim}
           transition={{ duration: dur, repeat: Infinity, ease: 'easeInOut' }}
@@ -202,27 +209,28 @@ export function BodyAndArmsLayer({
         />
         <motion.path
           d="M148 135C169 139 179 158 169 171C160 177 147 169 142 154Z"
-          fill="#1D4ED8"
+          fill="#265CC2"
           stroke={MASCOT_INK}
-          strokeWidth="2.4"
+          strokeWidth="2.3"
           strokeLinejoin="round"
           animate={rightAnim}
           transition={{ duration: dur, repeat: Infinity, ease: 'easeInOut' }}
           style={{ originX: '145px', originY: '142px' }}
         />
-        {/* Plump Songbird Body */}
-        <ellipse cx="110" cy="154" rx="39" ry="34" fill={`url(#pip-body-${uid})`} stroke={MASCOT_INK} strokeWidth="2.5" />
-        {/* Warm Golden Belly Patch */}
-        <ellipse cx="110" cy="158" rx="25" ry="23" fill="#FDE68A" />
+        {/* Plump Songbird Body with gouache gradient & warm sunlit upper-left rim */}
+        <ellipse cx="110" cy="154" rx="39" ry="34" fill={`url(#pip-body-${uid})`} stroke={MASCOT_INK} strokeWidth="2.4" />
+        {/* Warm Golden Belly Patch with soft inner shading */}
+        <ellipse cx="110" cy="158" rx="25" ry="23" fill={`url(#pip-belly-${uid})`} />
+        <path d="M90 148C94 140 103 137 112 138" stroke="#FFFDF5" strokeWidth="2.2" strokeLinecap="round" opacity="0.55" />
         {/* Crimson Explorer Ribbon & Oversized Brass Starlight Compass Medallion */}
-        <path d="M85 130L110 148L135 130" fill="none" stroke="#E11D48" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M85 130L110 148L135 130" fill="none" stroke={MASCOT_INK} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.4" />
+        <path d="M85 130L110 148L135 130" fill="none" stroke="#D9324A" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M85 130L110 148L135 130" fill="none" stroke={MASCOT_INK} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" opacity="0.35" />
         <g>
-          <circle cx="110" cy="155" r="12.5" fill="#F59E0B" stroke={MASCOT_INK} strokeWidth="2.2" />
-          <circle cx="110" cy="155" r="9" fill="#1E1B4B" stroke="#FDE047" strokeWidth="1.2" />
+          <circle cx="110" cy="155" r="12.5" fill="#E8A227" stroke={MASCOT_INK} strokeWidth="2.1" />
+          <circle cx="110" cy="155" r="9" fill="#2A2454" stroke="#FDE047" strokeWidth="1.2" />
           <path d="M110 147L112.4 155L110 163L107.6 155Z" fill="#EF4444" />
-          <path d="M102 155L110 152.6L118 155L110 157.4Z" fill="#FDE047" />
-          <circle cx="110" cy="155" r="2" fill="#FFFFFF" />
+          <path d="M102 155L110 152.6L118 155L110 157.4Z" fill="#FEF08A" />
+          <circle cx="110" cy="155" r="2" fill="#FFFDF7" />
         </g>
       </g>
     );
@@ -424,7 +432,9 @@ export function HeadAndExpressionLayer({
   look,
   isBlinking,
   hasCustomGlasses,
+  hasHat = false,
 }: PoseProps) {
+  const reducedMotion = useReducedMotion();
   const anchor = COMPANION_ANCHORS[companionId];
   const lx = 110 - anchor.eyeSpread;
   const rx = 110 + anchor.eyeSpread;
@@ -434,126 +444,151 @@ export function HeadAndExpressionLayer({
   const isHappyCrescent = pose === 'happy' || pose === 'victory_dance';
   const irisColor =
     companionId === 'pip'
-      ? '#1E293B'
+      ? '#2C223B'
       : companionId === 'benni'
-        ? '#0F766E'
-        : '#1E293B';
+        ? '#145E5A'
+        : companionId === 'colette'
+          ? '#4E2A1E'
+          : '#38251C';
+  const irisBounce =
+    companionId === 'pip'
+      ? '#7DD3FC'
+      : companionId === 'benni'
+        ? '#6EE7B7'
+        : '#FDE68A';
 
   return (
     <g>
-      {/* 1. Companion-specific Head Base */}
+      {/* 1. Companion-specific Head Base with painterly upper-left sunlit shading */}
       {companionId === 'pip' && (
         <g>
           <defs>
-            <radialGradient id={`pip-head-${uid}`} cx="42%" cy="32%" r="68%">
-              <stop offset="0%" stopColor="#60A5FA" />
-              <stop offset="65%" stopColor="#2563EB" />
-              <stop offset="100%" stopColor="#1D4ED8" />
+            <radialGradient id={`pip-head-${uid}`} cx="34%" cy="26%" r="74%">
+              <stop offset="0%" stopColor="#89CBFC" />
+              <stop offset="56%" stopColor="#387CE2" />
+              <stop offset="100%" stopColor="#1F4A9C" />
             </radialGradient>
           </defs>
           {/* Crown Tuft Feathers */}
           <path
             d="M100 58C95 40 104 34 109 49C113 33 124 38 119 58Z"
-            fill="#3B82F6"
+            fill="#4B8EEB"
             stroke={MASCOT_INK}
-            strokeWidth="2.4"
+            strokeWidth="2.3"
             strokeLinejoin="round"
           />
           {/* Plump Round Starling Head */}
-          <circle cx="110" cy="94" r="41" fill={`url(#pip-head-${uid})`} stroke={MASCOT_INK} strokeWidth="2.5" />
-          {/* Rosy Golden Cheeks */}
-          <ellipse cx="81" cy="105" rx="7" ry="4.5" fill="#FDA4AF" opacity="0.72" />
-          <ellipse cx="139" cy="105" rx="7" ry="4.5" fill="#FDA4AF" opacity="0.72" />
+          <circle cx="110" cy="94" r="41" fill={`url(#pip-head-${uid})`} stroke={MASCOT_INK} strokeWidth="2.4" />
+          {/* Upper-left sunlit gouache rim sheen */}
+          <path
+            d="M78 78C83 65 96 58 111 58"
+            stroke="#E0F2FE"
+            strokeWidth="3.2"
+            strokeLinecap="round"
+            opacity="0.48"
+          />
+          {/* Soft Rosy Watercolor Cheeks */}
+          <ellipse cx="81" cy="105" rx="7.5" ry="4.6" fill="#FDA4AF" opacity="0.68" />
+          <ellipse cx="139" cy="105" rx="7.5" ry="4.6" fill="#FDA4AF" opacity="0.68" />
         </g>
       )}
 
       {companionId === 'mateo' && (
         <g>
           <defs>
-            <radialGradient id={`mat-head-${uid}`} cx="45%" cy="35%" r="65%">
-              <stop offset="0%" stopColor="#FDA4AF" />
-              <stop offset="70%" stopColor="#FB7185" />
-              <stop offset="100%" stopColor="#E11D48" />
+            <radialGradient id={`mat-head-${uid}`} cx="34%" cy="28%" r="72%">
+              <stop offset="0%" stopColor="#FECDD3" />
+              <stop offset="60%" stopColor="#FB7D91" />
+              <stop offset="100%" stopColor="#D63B59" />
             </radialGradient>
           </defs>
           {/* Animated Feathery Axolotl Gill Frills */}
           <motion.path
             d="M69 86L44 74L58 93L41 99L59 106L47 119L71 111Z"
-            fill="#F43F5E"
+            fill="#E84A67"
             stroke={MASCOT_INK}
-            strokeWidth="2.2"
+            strokeWidth="2.1"
             strokeLinejoin="round"
-            animate={{ rotate: [-3, 3, -3] }}
-            transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+            animate={reducedMotion ? undefined : { rotate: [-2.5, 2.5, -2.5] }}
+            transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
             style={{ originX: '70px', originY: '98px' }}
           />
           <motion.path
             d="M151 86L176 74L162 93L179 99L161 106L173 119L149 111Z"
-            fill="#F43F5E"
+            fill="#E84A67"
             stroke={MASCOT_INK}
-            strokeWidth="2.2"
+            strokeWidth="2.1"
             strokeLinejoin="round"
-            animate={{ rotate: [3, -3, 3] }}
-            transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+            animate={reducedMotion ? undefined : { rotate: [2.5, -2.5, 2.5] }}
+            transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
             style={{ originX: '150px', originY: '98px' }}
           />
           {/* Wide Rounded Axolotl Head */}
-          <ellipse cx="110" cy="99" rx="44" ry="36" fill={`url(#mat-head-${uid})`} stroke={MASCOT_INK} strokeWidth="2.5" />
-          <ellipse cx="81" cy="108" rx="6.5" ry="4" fill="#E11D48" opacity="0.35" />
-          <ellipse cx="139" cy="108" rx="6.5" ry="4" fill="#E11D48" opacity="0.35" />
+          <ellipse cx="110" cy="99" rx="44" ry="36" fill={`url(#mat-head-${uid})`} stroke={MASCOT_INK} strokeWidth="2.4" />
+          <path d="M77 83C84 71 97 67 112 67" stroke="#FFF1F2" strokeWidth="3" strokeLinecap="round" opacity="0.52" />
+          <ellipse cx="81" cy="108" rx="6.8" ry="4.2" fill="#E11D48" opacity="0.34" />
+          <ellipse cx="139" cy="108" rx="6.8" ry="4.2" fill="#E11D48" opacity="0.34" />
         </g>
       )}
 
       {companionId === 'colette' && (
         <g>
           <defs>
-            <radialGradient id={`col-head-${uid}`} cx="44%" cy="35%" r="68%">
-              <stop offset="0%" stopColor="#FB923C" />
-              <stop offset="70%" stopColor="#EA580C" />
-              <stop offset="100%" stopColor="#C2410C" />
+            <radialGradient id={`col-head-${uid}`} cx="34%" cy="28%" r="72%">
+              <stop offset="0%" stopColor="#FDB06A" />
+              <stop offset="62%" stopColor="#E46525" />
+              <stop offset="100%" stopColor="#B54414" />
             </radialGradient>
           </defs>
           {/* Pointed Fox Ears */}
-          <path d="M74 82L67 43L96 66Z" fill="#C2410C" stroke={MASCOT_INK} strokeWidth="2.4" strokeLinejoin="round" />
-          <path d="M77 76L73 53L91 67Z" fill="#FEF3C7" />
-          <path d="M146 82L153 43L124 66Z" fill="#C2410C" stroke={MASCOT_INK} strokeWidth="2.4" strokeLinejoin="round" />
-          <path d="M143 76L147 53L129 67Z" fill="#FEF3C7" />
+          <path d="M74 82L67 43L96 66Z" fill="#C44D18" stroke={MASCOT_INK} strokeWidth="2.3" strokeLinejoin="round" />
+          <path d="M77 76L73 53L91 67Z" fill="#FFF4D6" />
+          <path d="M146 82L153 43L124 66Z" fill="#C44D18" stroke={MASCOT_INK} strokeWidth="2.3" strokeLinejoin="round" />
+          <path d="M143 76L147 53L129 67Z" fill="#FFF4D6" />
           {/* Fox Head */}
           <path
             d="M68 98C68 72 86 61 110 61C134 61 152 72 152 98C152 120 132 133 110 133C88 133 68 120 68 98Z"
             fill={`url(#col-head-${uid})`}
             stroke={MASCOT_INK}
-            strokeWidth="2.5"
+            strokeWidth="2.4"
           />
+          <path d="M80 76C87 67 99 64 112 64" stroke="#FFEDD5" strokeWidth="2.8" strokeLinecap="round" opacity="0.48" />
           {/* Cream Cheek Ruffs */}
           <path
             d="M69 102C78 96 93 103 110 119C127 103 142 96 151 102C146 121 130 133 110 133C90 133 74 121 69 102Z"
-            fill="#FFF7ED"
+            fill="#FFF7EB"
           />
-          <ellipse cx="82" cy="111" rx="6" ry="3.8" fill="#FB7185" opacity="0.52" />
-          <ellipse cx="138" cy="111" rx="6" ry="3.8" fill="#FB7185" opacity="0.52" />
+          <ellipse cx="82" cy="111" rx="6.2" ry="3.8" fill="#FB7185" opacity="0.48" />
+          <ellipse cx="138" cy="111" rx="6.2" ry="3.8" fill="#FB7185" opacity="0.48" />
         </g>
       )}
 
       {companionId === 'benni' && (
         <g>
+          <defs>
+            <radialGradient id={`ben-head-${uid}`} cx="36%" cy="28%" r="72%">
+              <stop offset="0%" stopColor="#FFFDF5" />
+              <stop offset="68%" stopColor="#F9F1D8" />
+              <stop offset="100%" stopColor="#E6D7B8" />
+            </radialGradient>
+          </defs>
           {/* Badger Rounded Ears */}
-          <circle cx="77" cy="67" r="13" fill="#1E293B" stroke={MASCOT_INK} strokeWidth="2.3" />
-          <circle cx="77" cy="67" r="6.5" fill="#E2E8F0" />
-          <circle cx="143" cy="67" r="13" fill="#1E293B" stroke={MASCOT_INK} strokeWidth="2.3" />
-          <circle cx="143" cy="67" r="6.5" fill="#E2E8F0" />
-          {/* Cream Badger Head */}
-          <ellipse cx="110" cy="99" rx="43" ry="36" fill="#FEFCE8" stroke={MASCOT_INK} strokeWidth="2.5" />
-          {/* Bold Badger Eye-Mask Stripes */}
-          <path d="M80 73C89 77 98 92 98 112C88 115 76 110 72 95Z" fill="#1E293B" />
-          <path d="M140 73C131 77 122 92 122 112C132 115 144 110 148 95Z" fill="#1E293B" />
-          {/* Default Brow Tinkerer Goggles (hidden when custom aviator glasses equipped) */}
-          {!hasCustomGlasses && (
+          <circle cx="77" cy="67" r="13" fill="#3B3338" stroke={MASCOT_INK} strokeWidth="2.2" />
+          <circle cx="77" cy="67" r="6.5" fill="#EAE0CE" />
+          <circle cx="143" cy="67" r="13" fill="#3B3338" stroke={MASCOT_INK} strokeWidth="2.2" />
+          <circle cx="143" cy="67" r="6.5" fill="#EAE0CE" />
+          {/* Warm Cream Badger Head */}
+          <ellipse cx="110" cy="99" rx="43" ry="36" fill={`url(#ben-head-${uid})`} stroke={MASCOT_INK} strokeWidth="2.4" />
+          {/* Warm Charcoal-Umber Eye-Mask Stripes */}
+          <path d="M80 73C89 77 98 92 98 112C88 115 76 110 72 95Z" fill="#3B3338" />
+          <path d="M140 73C131 77 122 92 122 112C132 115 144 110 148 95Z" fill="#3B3338" />
+          {/* Default Brow Tinkerer Goggles (hidden when custom glasses or hat occupies brow) */}
+          {!hasCustomGlasses && !hasHat && (
             <g>
-              <rect x="78" y="64" width="64" height="8" rx="4" fill="#78350F" />
-              <circle cx="94" cy="69" r="10.5" fill="#38BDF8" stroke="#D97706" strokeWidth="3.2" />
-              <circle cx="126" cy="69" r="10.5" fill="#38BDF8" stroke="#D97706" strokeWidth="3.2" />
-              <path d="M90 65L97 72M122 65L129 72" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" opacity="0.85" />
+              <rect x="78" y="64" width="64" height="8" rx="4" fill="#7C4724" />
+              <circle cx="94" cy="69" r="10.5" fill="#5BC4F2" stroke="#D18A26" strokeWidth="3.2" />
+              <circle cx="126" cy="69" r="10.5" fill="#5BC4F2" stroke="#D18A26" strokeWidth="3.2" />
+              <path d="M90 65L97 72M122 65L129 72" stroke="#FFFDF7" strokeWidth="2" strokeLinecap="round" opacity="0.85" />
             </g>
           )}
         </g>
@@ -562,31 +597,32 @@ export function HeadAndExpressionLayer({
       {companionId === 'luca' && (
         <g>
           <defs>
-            <radialGradient id={`luc-head-${uid}`} cx="44%" cy="35%" r="68%">
-              <stop offset="0%" stopColor="#D97706" />
-              <stop offset="68%" stopColor="#B45309" />
-              <stop offset="100%" stopColor="#78350F" />
+            <radialGradient id={`luc-head-${uid}`} cx="34%" cy="28%" r="72%">
+              <stop offset="0%" stopColor="#E69A4A" />
+              <stop offset="64%" stopColor="#B86622" />
+              <stop offset="100%" stopColor="#7C3F14" />
             </radialGradient>
           </defs>
           {/* Rounded Otter Ears */}
-          <circle cx="74" cy="76" r="11" fill="#92400E" stroke={MASCOT_INK} strokeWidth="2.3" />
-          <circle cx="146" cy="76" r="11" fill="#92400E" stroke={MASCOT_INK} strokeWidth="2.3" />
+          <circle cx="74" cy="76" r="11" fill="#9A501A" stroke={MASCOT_INK} strokeWidth="2.2" />
+          <circle cx="146" cy="76" r="11" fill="#9A501A" stroke={MASCOT_INK} strokeWidth="2.2" />
           {/* Otter Head */}
-          <ellipse cx="110" cy="99" rx="42" ry="36" fill={`url(#luc-head-${uid})`} stroke={MASCOT_INK} strokeWidth="2.5" />
+          <ellipse cx="110" cy="99" rx="42" ry="36" fill={`url(#luc-head-${uid})`} stroke={MASCOT_INK} strokeWidth="2.4" />
+          <path d="M78 82C86 70 98 66 112 66" stroke="#FDE68A" strokeWidth="2.8" strokeLinecap="round" opacity="0.38" />
           {/* Cream Muzzle & Whiskers */}
-          <ellipse cx="110" cy="112" rx="25" ry="16" fill="#FEF3C7" />
+          <ellipse cx="110" cy="112" rx="25" ry="16" fill="#FFF3D6" />
           <path
             d="M84 109L66 105M84 115L65 117M136 109L154 105M136 115L155 117"
-            stroke="#78350F"
+            stroke="#6E3D1C"
             strokeWidth="1.8"
             strokeLinecap="round"
           />
-          <ellipse cx="83" cy="107" rx="5.5" ry="3.5" fill="#FB7185" opacity="0.48" />
-          <ellipse cx="137" cy="107" rx="5.5" ry="3.5" fill="#FB7185" opacity="0.48" />
+          <ellipse cx="83" cy="107" rx="5.5" ry="3.5" fill="#FB7185" opacity="0.46" />
+          <ellipse cx="137" cy="107" rx="5.5" ry="3.5" fill="#FB7185" opacity="0.46" />
         </g>
       )}
 
-      {/* 2. Expressive Animated Eyes with Pointer-Tracking Pupils & Blinking */}
+      {/* 2. Soulful Expressive Eyes with Rich Catchlights, Bounce Rim & Blinking */}
       {[lx, rx].map((cx, idx) => {
         const isLeft = idx === 0;
         if (isHappyCrescent) {
@@ -595,8 +631,8 @@ export function HeadAndExpressionLayer({
               key={cx}
               d={`M${cx - 8} ${eyeY + 2} C${cx - 4} ${eyeY - 7} ${cx + 4} ${eyeY - 7} ${cx + 8} ${eyeY + 2}`}
               fill="none"
-              stroke={companionId === 'benni' ? '#FFFFFF' : MASCOT_INK}
-              strokeWidth="3.4"
+              stroke={companionId === 'benni' ? '#FFFDF5' : MASCOT_INK}
+              strokeWidth="3.3"
               strokeLinecap="round"
             />
           );
@@ -607,7 +643,7 @@ export function HeadAndExpressionLayer({
               key={cx}
               d={`M${cx - 8} ${eyeY} Q${cx} ${eyeY + 4} ${cx + 8} ${eyeY}`}
               fill="none"
-              stroke={companionId === 'benni' ? '#FFFFFF' : MASCOT_INK}
+              stroke={companionId === 'benni' ? '#FFFDF5' : MASCOT_INK}
               strokeWidth="3"
               strokeLinecap="round"
             />
@@ -618,19 +654,38 @@ export function HeadAndExpressionLayer({
         const pupilShiftY = look.y;
         return (
           <g key={cx}>
+            {/* Warm cream sclera */}
             <ellipse
               cx={cx}
               cy={eyeY}
-              rx={pose === 'listening' ? 10.5 : 9.5}
-              ry={pose === 'listening' ? 11.2 : 10.2}
-              fill="#FFFFFF"
+              rx={pose === 'listening' ? 10.6 : 9.8}
+              ry={pose === 'listening' ? 11.4 : 10.6}
+              fill="#FFFDF9"
               stroke={MASCOT_INK}
-              strokeWidth="2"
+              strokeWidth="1.9"
             />
-            <circle cx={cx + pupilShiftX} cy={eyeY + pupilShiftY} r="5.6" fill={irisColor} />
-            {/* Catchlights */}
-            <circle cx={cx + pupilShiftX + 2.1} cy={eyeY + pupilShiftY - 2.3} r="2.2" fill="#FFFFFF" />
-            <circle cx={cx + pupilShiftX - 1.6} cy={eyeY + pupilShiftY + 2} r="1" fill="#FFFFFF" opacity="0.85" />
+            {/* Soft upper-lid shading inside eye */}
+            <path
+              d={`M${cx - 8.2} ${eyeY - 4.2} Q${cx} ${eyeY - 10.5} ${cx + 8.2} ${eyeY - 4.2}`}
+              fill="none"
+              stroke={MASCOT_INK}
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              opacity="0.14"
+            />
+            {/* Deep soulful iris + subtle lower bounce-light crescent */}
+            <circle cx={cx + pupilShiftX} cy={eyeY + pupilShiftY} r="6.1" fill={irisColor} />
+            <path
+              d={`M${cx + pupilShiftX - 3.6} ${eyeY + pupilShiftY + 2.4} Q${cx + pupilShiftX} ${eyeY + pupilShiftY + 5.8} ${cx + pupilShiftX + 3.6} ${eyeY + pupilShiftY + 2.4}`}
+              fill="none"
+              stroke={irisBounce}
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              opacity="0.62"
+            />
+            {/* Dual pearl catchlights (primary upper-left + secondary sparkle) */}
+            <circle cx={cx + pupilShiftX - 2.1} cy={eyeY + pupilShiftY - 2.4} r="2.35" fill="#FFFDF9" />
+            <circle cx={cx + pupilShiftX + 2.1} cy={eyeY + pupilShiftY + 1.8} r="1.05" fill="#FFFDF9" opacity="0.88" />
             {/* Pose-specific Eyebrows */}
             {pose === 'sympathetic' && (
               <path

@@ -55,13 +55,15 @@ export function FlagIcon({ language, size = 28, className = '' }: FlagIconProps)
   const uid = useId().replace(/:/g, '');
   const clipId = `flag-clip-${uid}`;
   const glossId = `flag-gloss-${uid}`;
+  const bezelId = `flag-bezel-${uid}`;
+  const waveId = `flag-wave-${uid}`;
   const height = Math.round((size * 2) / 3);
 
   return (
     <svg
       width={size}
       height={height}
-      viewBox="0 0 36 24"
+      viewBox="0 0 38 26"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
@@ -71,13 +73,25 @@ export function FlagIcon({ language, size = 28, className = '' }: FlagIconProps)
     >
       <defs>
         <clipPath id={clipId}>
-          <rect x="1" y="1" width="34" height="22" rx="4.5" />
+          <rect x="2" y="1.5" width="33" height="21" rx="4.2" />
         </clipPath>
-        <linearGradient id={glossId} x1="18" y1="1" x2="18" y2="23" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.42" />
-          <stop offset="42%" stopColor="#FFFFFF" stopOpacity="0.08" />
-          <stop offset="72%" stopColor="#0F172A" stopOpacity="0" />
-          <stop offset="100%" stopColor="#0F172A" stopOpacity="0.18" />
+        <linearGradient id={bezelId} x1="2" y1="1" x2="35" y2="23" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FFF0B8" />
+          <stop offset="48%" stopColor="#D9A84E" />
+          <stop offset="100%" stopColor="#8A5E22" />
+        </linearGradient>
+        <linearGradient id={glossId} x1="4" y1="1" x2="26" y2="23" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FFFDF5" stopOpacity="0.46" />
+          <stop offset="38%" stopColor="#FFF8E2" stopOpacity="0.1" />
+          <stop offset="72%" stopColor="#4a3426" stopOpacity="0" />
+          <stop offset="100%" stopColor="#4a3426" stopOpacity="0.2" />
+        </linearGradient>
+        <linearGradient id={waveId} x1="2" y1="12" x2="35" y2="12" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FFFDF5" stopOpacity="0.12" />
+          <stop offset="28%" stopColor="#4a3426" stopOpacity="0.08" />
+          <stop offset="56%" stopColor="#FFFDF5" stopOpacity="0.14" />
+          <stop offset="84%" stopColor="#4a3426" stopOpacity="0.1" />
+          <stop offset="100%" stopColor="#FFFDF5" stopOpacity="0.04" />
         </linearGradient>
         <linearGradient id={`eb-bg-${uid}`} x1="1" y1="1" x2="35" y2="23" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#3B0764" />
@@ -103,7 +117,10 @@ export function FlagIcon({ language, size = 28, className = '' }: FlagIconProps)
         </linearGradient>
       </defs>
 
-      <g clipPath={`url(#${clipId})`}>
+      {/* Soft down-right warm-tinted enamel pin cast shadow */}
+      <rect x="3" y="2.8" width="33.5" height="21.5" rx="4.8" fill="#4a3426" opacity="0.22" />
+
+      <g clipPath={`url(#${clipId})`} transform="translate(0.5, 0.5)">
         {language === 'es' && (
           <>
             <rect x="1" y="1" width="34" height="5.5" fill="#DC2626" />
@@ -758,26 +775,37 @@ export function FlagIcon({ language, size = 28, className = '' }: FlagIconProps)
           </>
         )}
 
-        {/* Glossy toy-craft sheen + top bevel highlight */}
+        {/* Subtle woven silk wave + warm cloisonné enamel dome sheen */}
+        <rect x="1" y="1" width="34" height="22" fill={`url(#${waveId})`} />
         <rect x="1" y="1" width="34" height="22" fill={`url(#${glossId})`} />
         <path
-          d="M2.5 5.2C2.5 3.1 4.1 2 6.2 2H29.8C31.9 2 33.5 3.1 33.5 5.2"
-          stroke="#FFFFFF"
-          strokeOpacity="0.48"
-          strokeWidth="1.1"
+          d="M2.6 5.2C2.6 3.1 4.2 2 6.3 2H26.5"
+          stroke="#FFFDF5"
+          strokeOpacity="0.58"
+          strokeWidth="1.15"
           strokeLinecap="round"
         />
       </g>
 
-      {/* Crisp dark tactile frame */}
+      {/* Gilded brass cloisonné bezel + warm sepia ink rim */}
       <rect
-        x="1"
-        y="1"
-        width="34"
-        height="22"
+        x="1.75"
+        y="1.25"
+        width="33.5"
+        height="21.5"
         rx="4.5"
-        stroke="#0F172A"
-        strokeWidth="1.6"
+        stroke={`url(#${bezelId})`}
+        strokeWidth="2.1"
+      />
+      <rect
+        x="1.1"
+        y="0.6"
+        width="34.8"
+        height="22.8"
+        rx="5"
+        stroke="var(--ink-warm, #4a3426)"
+        strokeOpacity="0.68"
+        strokeWidth="0.95"
       />
     </svg>
   );

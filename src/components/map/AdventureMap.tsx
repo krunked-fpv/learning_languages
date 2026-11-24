@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { AvatarBadge } from '../../art/AvatarBadge';
 import { FlagIcon } from '../../art/FlagIcon';
 import {
@@ -206,6 +206,7 @@ export function AdventureMap({
   onStartTierCheckpoint,
   onStartSrsQuest,
 }: AdventureMapProps) {
+  const prefersReducedMotion = useReducedMotion();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [isCompactWidth, setIsCompactWidth] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.innerWidth < 680 : false
@@ -491,12 +492,14 @@ export function AdventureMap({
           flexShrink: 0,
           borderRadius: 20,
           padding: isCompactWidth ? '7px 10px' : '10px 14px',
-          background: 'var(--card-bg, #ffffff)',
-          color: 'var(--text-main, #0f172a)',
+          background:
+            'linear-gradient(155deg, var(--paper-base, #fbf1dc) 0%, var(--paper-shade, #efe0c2) 100%)',
+          color: 'var(--text-main, #1e1b4b)',
           borderStyle: 'solid',
-          borderWidth: '2px 2px 4px 2px',
-          borderColor: 'var(--card-border, #cbd5e1)',
-          boxShadow: '0 6px 18px rgba(15, 23, 42, 0.08)',
+          borderWidth: '1.5px 1.5px 3.5px 1.5px',
+          borderColor: 'color-mix(in oklab, var(--gild, #c99a3e) 58%, var(--ink-warm, #4a3426) 28%)',
+          boxShadow:
+            '2px 6px 18px var(--shadow-tint, rgba(74, 52, 38, 0.16)), inset 0 1px 0 rgba(255, 253, 245, 0.52)',
         }}
       >
         <div
@@ -817,8 +820,8 @@ export function AdventureMap({
                 data-tier-locked={isUnlocked ? 'false' : 'true'}
                 aria-pressed={isActiveTier}
                 aria-label={`${meta.cefrLabel} ${meta.title}`}
-                whileTap={hasUnits ? { scale: 0.96, y: 1 } : undefined}
-                transition={{ type: 'spring', stiffness: 460, damping: 26 }}
+                whileTap={hasUnits ? { scale: 0.97, y: 1.5 } : undefined}
+                transition={{ type: 'spring', stiffness: 220, damping: 24, mass: 1.1 }}
                 onClick={() => handleSelectTier(tier)}
                 style={{
                   flex: isCompactWidth ? '0 0 auto' : '1 1 0%',
@@ -838,19 +841,19 @@ export function AdventureMap({
                     ? TIER_ACTIVE_BG[tier]
                     : isUnlocked
                       ? meta.surfaceTint
-                      : 'var(--card-soft-bg, #f8fafc)',
+                      : 'var(--paper-base, #fbf1dc)',
                   color: isActiveTier
-                    ? '#FFFFFF'
+                    ? '#FFFDF7'
                     : isUnlocked
-                      ? '#0F172A'
-                      : 'var(--text-main, #0f172a)',
+                      ? '#3A2518'
+                      : 'var(--ink-warm, #4a3426)',
                   borderStyle: 'solid',
-                  borderWidth: '1.5px 1.5px 3px 1.5px',
+                  borderWidth: '1.4px 1.4px 2.8px 1.4px',
                   borderColor: isActiveTier
-                    ? 'var(--text-main, #0f172a)'
+                    ? 'var(--ink-warm, #4a3426)'
                     : isUnlocked
                       ? meta.badgeColor
-                      : 'var(--card-border, #cbd5e1)',
+                      : 'color-mix(in oklab, var(--gild, #c99a3e) 48%, var(--ink-warm, #4a3426) 24%)',
                 }}
               >
                 <span
@@ -954,8 +957,8 @@ export function AdventureMap({
                   aria-label={`Chapter ${unit.order}: ${unit.title}`}
                   data-unit-tab={unit.id}
                   data-unit-tier={unitTier}
-                  whileTap={{ scale: 0.95, y: 1 }}
-                  transition={{ type: 'spring', stiffness: 460, damping: 26 }}
+                  whileTap={{ scale: 0.97, y: 1.5 }}
+                  transition={{ type: 'spring', stiffness: 220, damping: 24, mass: 1.1 }}
                   onClick={() => handleSelectChapter(idx)}
                   style={{
                     flexShrink: 0,
@@ -969,11 +972,13 @@ export function AdventureMap({
                     fontWeight: 800,
                     backgroundColor: isSelected
                       ? palette.primary
-                      : 'var(--card-soft-bg, #f8fafc)',
-                    color: isSelected ? '#FFFFFF' : 'var(--text-main, #0f172a)',
+                      : 'var(--paper-base, #fbf1dc)',
+                    color: isSelected ? '#FFFDF7' : 'var(--ink-warm, #4a3426)',
                     borderStyle: 'solid',
-                    borderWidth: '2px 2px 3px 2px',
-                    borderColor: isSelected ? palette.bevel : 'var(--card-border, #cbd5e1)',
+                    borderWidth: '1.5px 1.5px 3px 1.5px',
+                    borderColor: isSelected
+                      ? palette.bevel
+                      : 'color-mix(in oklab, var(--gild, #c99a3e) 48%, var(--ink-warm, #4a3426) 24%)',
                   }}
                 >
                   <span
@@ -1073,13 +1078,14 @@ export function AdventureMap({
               borderRadius: 24,
               overflow: 'hidden',
               borderStyle: 'solid',
-              borderWidth: '2.5px 2.5px 5px 2.5px',
-              borderColor: 'var(--card-border, #cbd5e1)',
-              backgroundColor: 'var(--card-bg, #ffffff)',
-              boxShadow: '0 10px 26px rgba(15, 23, 42, 0.1)',
+              borderWidth: '2px 2px 4.5px 2px',
+              borderColor: 'color-mix(in oklab, var(--gild, #c99a3e) 65%, var(--ink-warm, #4a3426) 35%)',
+              backgroundColor: 'var(--paper-base, #fbf1dc)',
+              boxShadow:
+                '3px 10px 26px var(--shadow-tint, rgba(74, 52, 38, 0.2)), inset 0 0 0 1px rgba(255, 251, 235, 0.35)',
             }}
           >
-            {/* Compact Unit Header */}
+            {/* Compact Unit Header — Storybook Atlas Chapter Banner */}
             <header
               style={{
                 flexShrink: 0,
@@ -1092,10 +1098,12 @@ export function AdventureMap({
                 gap: isCompactWidth ? 6 : 10,
                 padding: isCompactWidth ? '7px 10px' : '10px 16px',
                 backgroundColor: currentUnit.themeColor || palette.primary,
-                color: '#FFFFFF',
+                backgroundImage: `linear-gradient(135deg, color-mix(in oklab, ${currentUnit.themeColor || palette.primary} 82%, #ffe9b8) 0%, ${currentUnit.themeColor || palette.primary} 48%, color-mix(in oklab, ${currentUnit.themeColor || palette.primary} 76%, #2f1d14) 100%)`,
+                color: '#FFFDF7',
                 borderBottomStyle: 'solid',
                 borderBottomWidth: 3,
-                borderBottomColor: 'rgba(15, 23, 42, 0.22)',
+                borderBottomColor: 'color-mix(in oklab, var(--gild, #c99a3e) 68%, #4a3426 32%)',
+                boxShadow: 'inset 0 1px 0 rgba(255, 251, 235, 0.35), 0 3px 10px rgba(74, 52, 38, 0.18)',
               }}
             >
               <div style={{ flex: '1 1 160px', minWidth: 0 }}>
@@ -1387,44 +1395,54 @@ export function AdventureMap({
                       </div>
                     )}
 
-                    {/* Pulsing Starlight Compass Beacon */}
+                    {/* Pulsing Lantern-Gold Compass Beacon */}
                     {isActive && (
                       <motion.div
                         aria-hidden="true"
-                        animate={{ scale: [1, 1.28, 1], opacity: [0.74, 0.16, 0.74] }}
-                        transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                        animate={
+                          prefersReducedMotion
+                            ? undefined
+                            : { scale: [1, 1.24, 1], opacity: [0.76, 0.22, 0.76] }
+                        }
+                        transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
                         style={{
                           position: 'absolute',
-                          inset: isCompactWidth ? -7 : -9,
+                          inset: isCompactWidth ? -8 : -10,
                           borderRadius: '50%',
                           borderStyle: 'solid',
-                          borderWidth: 3.5,
-                          borderColor: palette.secondary,
-                          backgroundColor: 'rgba(250, 204, 21, 0.24)',
+                          borderWidth: 2.5,
+                          borderColor: 'var(--gild, #d9b46a)',
+                          backgroundColor:
+                            'color-mix(in oklab, var(--lantern-glow, #ffd48a) 34%, transparent)',
+                          boxShadow:
+                            '0 0 18px color-mix(in oklab, var(--lantern-glow, #ffd48a) 55%, transparent)',
                           pointerEvents: 'none',
                         }}
                       />
                     )}
 
-                    {/* Floating START! CTA Badge */}
+                    {/* Floating START! Wax-Ribbon Badge */}
                     {isActive && (
                       <motion.div
-                        animate={{ y: [0, -3, 0] }}
-                        transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                        animate={prefersReducedMotion ? undefined : { y: [0, -2.5, 0] }}
+                        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
                         style={{
                           position: 'absolute',
-                          bottom: 'calc(100% + 6px)',
+                          bottom: 'calc(100% + 7px)',
                           left: '50%',
                           x: '-50%',
-                          padding: isCompactWidth ? '1px 8px' : '2px 10px',
+                          padding: isCompactWidth ? '2px 8px' : '2.5px 11px',
                           borderRadius: 999,
-                          backgroundColor: '#0F172A',
-                          color: '#FDE047',
+                          backgroundColor: '#3a2518',
+                          color: '#FEF3C7',
+                          borderStyle: 'solid',
+                          borderWidth: 1.4,
+                          borderColor: 'var(--gild, #d9b46a)',
                           fontSize: isCompactWidth ? 9.5 : 10.5,
                           fontWeight: 900,
-                          letterSpacing: '0.06em',
+                          letterSpacing: '0.07em',
                           whiteSpace: 'nowrap',
-                          boxShadow: '0 4px 10px rgba(15, 23, 42, 0.24)',
+                          boxShadow: '1px 4px 10px rgba(74, 52, 38, 0.28)',
                           pointerEvents: 'none',
                         }}
                       >
@@ -1436,7 +1454,7 @@ export function AdventureMap({
                       </motion.div>
                     )}
 
-                    {/* Tactile 3D-Bevel Node Medallion Button */}
+                    {/* Tactile Enamel-Medallion Node Button */}
                     <motion.button
                       type="button"
                       disabled={state === 'locked'}
@@ -1450,9 +1468,9 @@ export function AdventureMap({
                             ? 'Ready to play'
                             : 'Locked'
                       }`}
-                      whileHover={state !== 'locked' ? { scale: 1.09, y: -3 } : undefined}
-                      whileTap={state !== 'locked' ? { scale: 0.94, y: 2 } : undefined}
-                      transition={{ type: 'spring', stiffness: 420, damping: 20 }}
+                      whileHover={state !== 'locked' ? { scale: 1.07, y: -2.5 } : undefined}
+                      whileTap={state !== 'locked' ? { scale: 0.97, y: 2 } : undefined}
+                      transition={{ type: 'spring', stiffness: 220, damping: 24, mass: 1.1 }}
                       onClick={() => {
                         if (state !== 'locked') {
                           onSelectNode(node);
@@ -1463,22 +1481,26 @@ export function AdventureMap({
                         width: buttonSize,
                         height: buttonSize,
                         borderRadius: '50%',
-                        backgroundColor: buttonBg,
+                        backgroundColor: state === 'locked' ? '#E8DEC9' : buttonBg,
+                        backgroundImage:
+                          state === 'locked'
+                            ? 'radial-gradient(circle at 30% 24%, rgba(255, 252, 244, 0.72), transparent 60%)'
+                            : 'radial-gradient(circle at 30% 24%, rgba(255, 252, 240, 0.44), transparent 58%)',
                         borderStyle: 'solid',
-                        borderWidth: isCompactWidth ? '2.5px 2.5px 5px 2.5px' : '3px 3px 6px 3px',
-                        borderTopColor: state === 'locked' ? '#94A3B8' : '#0F172A',
-                        borderRightColor: state === 'locked' ? '#94A3B8' : '#0F172A',
-                        borderLeftColor: state === 'locked' ? '#94A3B8' : '#0F172A',
-                        borderBottomColor: buttonBevel,
+                        borderWidth: isCompactWidth ? '2px 2px 4.5px 2px' : '2.5px 2.5px 5.5px 2.5px',
+                        borderTopColor: state === 'locked' ? '#B8A890' : '#4a3426',
+                        borderRightColor: state === 'locked' ? '#B8A890' : '#4a3426',
+                        borderLeftColor: state === 'locked' ? '#B8A890' : '#4a3426',
+                        borderBottomColor: state === 'locked' ? '#8C7A64' : buttonBevel,
                         boxShadow: isActive
-                          ? `0 6px 18px ${palette.glow}`
-                          : '0 4px 10px rgba(15, 23, 42, 0.16)',
+                          ? `2px 7px 18px color-mix(in oklab, ${palette.primary} 38%, rgba(74, 52, 38, 0.26)), 0 0 0 2px color-mix(in oklab, var(--gild, #c99a3e) 60%, transparent)`
+                          : '2px 5px 12px rgba(74, 52, 38, 0.2)',
                         cursor: state === 'locked' ? 'not-allowed' : 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         padding: 0,
-                        opacity: state === 'locked' ? 0.88 : 1,
+                        opacity: state === 'locked' ? 0.9 : 1,
                       }}
                     >
                       <div style={{ transform: isCompactWidth ? 'scale(0.84)' : 'scale(0.95)', display: 'flex' }}>
@@ -1490,12 +1512,12 @@ export function AdventureMap({
                             position: 'absolute',
                             right: -4,
                             bottom: -4,
-                            backgroundColor: '#FFFFFF',
+                            backgroundColor: '#FBF3E2',
                             borderRadius: '50%',
                             padding: 2,
                             borderStyle: 'solid',
                             borderWidth: 1.5,
-                            borderColor: '#64748B',
+                            borderColor: '#8A6B52',
                             display: 'inline-flex',
                           }}
                         >
@@ -1504,7 +1526,7 @@ export function AdventureMap({
                       )}
                     </motion.button>
 
-                    {/* Stars & Node Title Pill anchored cleanly beneath */}
+                    {/* Stars & Parchment Node Title Plate anchored cleanly beneath */}
                     <div
                       style={{
                         position: 'absolute',
@@ -1530,10 +1552,10 @@ export function AdventureMap({
                             zIndex: 4,
                             padding: '1px 5px',
                             borderRadius: 999,
-                            backgroundColor: '#FFFFFF',
+                            backgroundColor: 'var(--paper-base, #fbf1dc)',
                             borderStyle: 'solid',
                             borderWidth: 1.5,
-                            borderColor: '#F59E0B',
+                            borderColor: 'var(--gild, #c99a3e)',
                           }}
                         >
                           {[1, 2, 3].map((n) => (
@@ -1544,14 +1566,16 @@ export function AdventureMap({
 
                       <div
                         style={{
-                          marginTop: 2,
-                          padding: isCompactWidth ? '1px 6px' : '2px 8px',
-                          borderRadius: 9,
-                          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                          marginTop: 3,
+                          padding: isCompactWidth ? '1.5px 7px' : '2.5px 9px',
+                          borderRadius: 10,
+                          background:
+                            'linear-gradient(180deg, var(--paper-base, #fbf1dc) 0%, var(--paper-shade, #efe0c2) 100%)',
                           borderStyle: 'solid',
-                          borderWidth: 1.5,
-                          borderColor: 'rgba(15, 23, 42, 0.14)',
-                          boxShadow: '0 2px 6px rgba(15, 23, 42, 0.08)',
+                          borderWidth: 1.4,
+                          borderColor:
+                            'color-mix(in oklab, var(--gild, #c99a3e) 55%, var(--ink-warm, #4a3426) 28%)',
+                          boxShadow: '1.5px 3px 8px var(--shadow-tint, rgba(74, 52, 38, 0.18))',
                           textAlign: 'center',
                           maxWidth: isCompactWidth ? 98 : 138,
                         }}
@@ -1560,7 +1584,10 @@ export function AdventureMap({
                           style={{
                             fontSize: isCompactWidth ? 9.5 : 10.5,
                             fontWeight: 800,
-                            color: state === 'locked' ? '#64748B' : '#0F172A',
+                            color:
+                              state === 'locked'
+                                ? 'var(--ink-soft, #7c5f4b)'
+                                : 'var(--ink-warm, #4a3426)',
                             lineHeight: 1.18,
                             display: '-webkit-box',
                             WebkitLineClamp: 2,

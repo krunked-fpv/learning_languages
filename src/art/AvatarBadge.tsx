@@ -88,31 +88,31 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
       <circle cx="14" cy="17" r="1.3" fill="#FDE047" opacity="0.85" />
       <circle cx="51" cy="21" r="1.1" fill="#FDE047" opacity="0.75" />
       {/* Body shoulders & explorer collar */}
-      <path d="M12 62C14 49 22 44 32 44C42 44 50 49 52 62Z" fill="#1E40AF" stroke="#0F172A" strokeWidth="1.6" />
+      <path d="M12 62C14 49 22 44 32 44C42 44 50 49 52 62Z" fill="#1E40AF" stroke="#4a3426" strokeWidth="1.6" />
       <path d="M21 59C23 49 27 46 32 46C37 46 41 49 43 59Z" fill="#FDE68A" />
       {/* Brass compass medallion */}
-      <circle cx="32" cy="54" r="4.8" fill="#F59E0B" stroke="#0F172A" strokeWidth="1.2" />
+      <circle cx="32" cy="54" r="4.8" fill="#F59E0B" stroke="#4a3426" strokeWidth="1.2" />
       <circle cx="32" cy="54" r="2.8" fill="#FEF3C7" />
       <path d="M32 51.6L32.8 54L32 56.4L31.2 54Z" fill="#DC2626" />
       {/* Crown feather tuft */}
       <path
         d="M28 16C26 10 30 7 32 13C34 7 39 9 36 16Z"
         fill="#3B82F6"
-        stroke="#0F172A"
+        stroke="#4a3426"
         strokeWidth="1.5"
         strokeLinejoin="round"
       />
       {/* Plump round songbird head */}
-      <circle cx="32" cy="31" r="17" fill={`url(#pip-head-${uid})`} stroke="#0F172A" strokeWidth="1.8" />
+      <circle cx="32" cy="31" r="17" fill={`url(#pip-head-${uid})`} stroke="#4a3426" strokeWidth="1.8" />
       {/* Explorer cap brim */}
-      <path d="M17 23C21 15 43 15 47 23C40 20 24 20 17 23Z" fill="#D97706" stroke="#0F172A" strokeWidth="1.4" />
-      <path d="M19 20C22 12 42 12 45 20Z" fill="#F59E0B" stroke="#0F172A" strokeWidth="1.4" />
+      <path d="M17 23C21 15 43 15 47 23C40 20 24 20 17 23Z" fill="#D97706" stroke="#4a3426" strokeWidth="1.4" />
+      <path d="M19 20C22 12 42 12 45 20Z" fill="#F59E0B" stroke="#4a3426" strokeWidth="1.4" />
       {/* Rosy cheeks */}
       <ellipse cx="20.5" cy="35.5" rx="3.2" ry="2" fill="#FDA4AF" opacity="0.7" />
       <ellipse cx="43.5" cy="35.5" rx="3.2" ry="2" fill="#FDA4AF" opacity="0.7" />
       {/* Big bright eyes */}
-      <circle cx="24.5" cy="30.5" r="4.1" fill="#FFFFFF" stroke="#0F172A" strokeWidth="1.3" />
-      <circle cx="39.5" cy="30.5" r="4.1" fill="#FFFFFF" stroke="#0F172A" strokeWidth="1.3" />
+      <circle cx="24.5" cy="30.5" r="4.1" fill="#FFFFFF" stroke="#4a3426" strokeWidth="1.3" />
+      <circle cx="39.5" cy="30.5" r="4.1" fill="#FFFFFF" stroke="#4a3426" strokeWidth="1.3" />
       <circle cx="25.2" cy="30.8" r="2.4" fill="#0F172A" />
       <circle cx="38.8" cy="30.8" r="2.4" fill="#0F172A" />
       <circle cx="26.1" cy="29.6" r="1" fill="#FFFFFF" />
@@ -121,7 +121,7 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
       <path
         d="M28.2 34.2C30.4 33 33.6 33 35.8 34.2L32 40.5Z"
         fill="#FBBF24"
-        stroke="#0F172A"
+        stroke="#4a3426"
         strokeWidth="1.4"
         strokeLinejoin="round"
       />
@@ -139,24 +139,24 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
         </radialGradient>
       </defs>
       {/* Shoulders + neckerchief */}
-      <path d="M13 62C15 50 22 46 32 46C42 46 49 50 51 62Z" fill="#FB7185" stroke="#0F172A" strokeWidth="1.6" />
-      <path d="M21 48L32 56L43 48L38 45H26Z" fill="#FBBF24" stroke="#0F172A" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M13 62C15 50 22 46 32 46C42 46 49 50 51 62Z" fill="#FB7185" stroke="#4a3426" strokeWidth="1.6" />
+      <path d="M21 48L32 56L43 48L38 45H26Z" fill="#FBBF24" stroke="#4a3426" strokeWidth="1.3" strokeLinejoin="round" />
       {/* Signature Axolotl feathery gill frills */}
-      <g stroke="#0F172A" strokeWidth="1.3" strokeLinejoin="round">
+      <g stroke="#4a3426" strokeWidth="1.3" strokeLinejoin="round">
         <path d="M16 28L8 23L12 31L7 33L13 36L9 41L17 38Z" fill="#F43F5E" />
         <path d="M48 28L56 23L52 31L57 33L51 36L55 41L47 38Z" fill="#F43F5E" />
       </g>
       {/* Axolotl head */}
-      <ellipse cx="32" cy="34" rx="16.5" ry="14" fill={`url(#mat-head-${uid})`} stroke="#0F172A" strokeWidth="1.8" />
+      <ellipse cx="32" cy="34" rx="16.5" ry="14" fill={`url(#mat-head-${uid})`} stroke="#4a3426" strokeWidth="1.8" />
       {/* Mini Chef Toque */}
       <path
         d="M22 22C18 16 23 9 28 11C30 7 35 7 36 11C41 9 46 16 42 22Z"
         fill="#FFFFFF"
-        stroke="#0F172A"
+        stroke="#4a3426"
         strokeWidth="1.4"
         strokeLinejoin="round"
       />
-      <rect x="22" y="20" width="20" height="4.5" rx="1.5" fill="#F1F5F9" stroke="#0F172A" strokeWidth="1.3" />
+      <rect x="22" y="20" width="20" height="4.5" rx="1.5" fill="#F1F5F9" stroke="#4a3426" strokeWidth="1.3" />
       {/* Cheeks */}
       <ellipse cx="21" cy="37" rx="3" ry="1.8" fill="#E11D48" opacity="0.35" />
       <ellipse cx="43" cy="37" rx="3" ry="1.8" fill="#E11D48" opacity="0.35" />
@@ -168,7 +168,7 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
       {/* Friendly wide grin */}
       <path
         d="M25 37.5C27.5 41.2 36.5 41.2 39 37.5"
-        stroke="#0F172A"
+        stroke="#4a3426"
         strokeWidth="1.7"
         strokeLinecap="round"
         fill="none"
@@ -186,18 +186,18 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
         </radialGradient>
       </defs>
       {/* Bakery apron shoulders */}
-      <path d="M12 62C14 50 22 45 32 45C42 45 50 50 52 62Z" fill="#EA580C" stroke="#0F172A" strokeWidth="1.6" />
-      <path d="M22 48H42L45 62H19Z" fill="#FFFBEB" stroke="#0F172A" strokeWidth="1.3" />
+      <path d="M12 62C14 50 22 45 32 45C42 45 50 50 52 62Z" fill="#EA580C" stroke="#4a3426" strokeWidth="1.6" />
+      <path d="M22 48H42L45 62H19Z" fill="#FFFBEB" stroke="#4a3426" strokeWidth="1.3" />
       {/* Pointed Fox Ears */}
-      <path d="M16 29L14 11L27 21Z" fill="#C2410C" stroke="#0F172A" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M16 29L14 11L27 21Z" fill="#C2410C" stroke="#4a3426" strokeWidth="1.6" strokeLinejoin="round" />
       <path d="M17.5 26L16.5 15.5L24.5 21.5Z" fill="#FEF3C7" />
-      <path d="M48 29L50 11L37 21Z" fill="#C2410C" stroke="#0F172A" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M48 29L50 11L37 21Z" fill="#C2410C" stroke="#4a3426" strokeWidth="1.6" strokeLinejoin="round" />
       <path d="M46.5 26L47.5 15.5L39.5 21.5Z" fill="#FEF3C7" />
       {/* Fox Head */}
       <path
         d="M15 34C15 24 22 19 32 19C42 19 49 24 49 34C49 42 40 47 32 47C24 47 15 42 15 34Z"
         fill={`url(#col-head-${uid})`}
-        stroke="#0F172A"
+        stroke="#4a3426"
         strokeWidth="1.8"
       />
       {/* Cream cheek ruffs */}
@@ -206,10 +206,10 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
       <path
         d="M21 20C22 12 37 10 43 16C46 19 41 23 32 22C24 22 20 22 21 20Z"
         fill="#E11D48"
-        stroke="#0F172A"
+        stroke="#4a3426"
         strokeWidth="1.5"
       />
-      <path d="M33 12L34.5 9.5" stroke="#0F172A" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M33 12L34.5 9.5" stroke="#4a3426" strokeWidth="1.5" strokeLinecap="round" />
       {/* Eyes */}
       <ellipse cx="24.5" cy="31.5" rx="2.7" ry="3.2" fill="#0F172A" />
       <ellipse cx="39.5" cy="31.5" rx="2.7" ry="3.2" fill="#0F172A" />
@@ -217,7 +217,7 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
       <circle cx="40.4" cy="30.3" r="1.05" fill="#FFFFFF" />
       {/* Nose + sweet smile */}
       <path d="M29.6 36.2H34.4L32 39.2Z" fill="#1E293B" />
-      <path d="M28.5 40.8C30 42.3 34 42.3 35.5 40.8" stroke="#0F172A" strokeWidth="1.4" strokeLinecap="round" fill="none" />
+      <path d="M28.5 40.8C30 42.3 34 42.3 35.5 40.8" stroke="#4a3426" strokeWidth="1.4" strokeLinecap="round" fill="none" />
     </g>
   ),
 
@@ -230,16 +230,16 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
         </radialGradient>
       </defs>
       {/* Tinkerer leather collar & brass gear */}
-      <path d="M12 62C14 50 22 46 32 46C42 46 50 50 52 62Z" fill="#334155" stroke="#0F172A" strokeWidth="1.6" />
-      <circle cx="32" cy="54" r="4.5" fill="#F59E0B" stroke="#0F172A" strokeWidth="1.2" />
+      <path d="M12 62C14 50 22 46 32 46C42 46 50 50 52 62Z" fill="#334155" stroke="#4a3426" strokeWidth="1.6" />
+      <circle cx="32" cy="54" r="4.5" fill="#F59E0B" stroke="#4a3426" strokeWidth="1.2" />
       <circle cx="32" cy="54" r="1.8" fill="#1E293B" />
       {/* Round Badger Ears */}
-      <circle cx="18" cy="20" r="5.5" fill="#1E293B" stroke="#0F172A" strokeWidth="1.5" />
+      <circle cx="18" cy="20" r="5.5" fill="#1E293B" stroke="#4a3426" strokeWidth="1.5" />
       <circle cx="18" cy="20" r="2.7" fill="#E2E8F0" />
-      <circle cx="46" cy="20" r="5.5" fill="#1E293B" stroke="#0F172A" strokeWidth="1.5" />
+      <circle cx="46" cy="20" r="5.5" fill="#1E293B" stroke="#4a3426" strokeWidth="1.5" />
       <circle cx="46" cy="20" r="2.7" fill="#E2E8F0" />
       {/* Head */}
-      <ellipse cx="32" cy="33" rx="16.5" ry="14.5" fill={`url(#ben-face-${uid})`} stroke="#0F172A" strokeWidth="1.8" />
+      <ellipse cx="32" cy="33" rx="16.5" ry="14.5" fill={`url(#ben-face-${uid})`} stroke="#4a3426" strokeWidth="1.8" />
       {/* Signature Badger dark stripes */}
       <path d="M19.5 22.5C22.5 24 27 29 27.5 36.5C24 38 19.5 36 17.5 30.5Z" fill="#1E293B" />
       <path d="M44.5 22.5C41.5 24 37 29 36.5 36.5C40 38 44.5 36 46.5 30.5Z" fill="#1E293B" />
@@ -256,7 +256,7 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
       <circle cx="39.8" cy="31.5" r="1.4" fill="#0F172A" />
       {/* Snout & smile */}
       <ellipse cx="32" cy="36.5" rx="3.2" ry="2.2" fill="#0F172A" />
-      <path d="M28.2 40.5C30 42.3 34 42.3 35.8 40.5" stroke="#0F172A" strokeWidth="1.4" strokeLinecap="round" fill="none" />
+      <path d="M28.2 40.5C30 42.3 34 42.3 35.8 40.5" stroke="#4a3426" strokeWidth="1.4" strokeLinecap="round" fill="none" />
     </g>
   ),
 
@@ -270,16 +270,16 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
         </radialGradient>
       </defs>
       {/* Striped Venetian Gondolier Scarf */}
-      <path d="M12 62C14 50 22 46 32 46C42 46 50 50 52 62Z" fill="#0284C7" stroke="#0F172A" strokeWidth="1.6" />
+      <path d="M12 62C14 50 22 46 32 46C42 46 50 50 52 62Z" fill="#0284C7" stroke="#4a3426" strokeWidth="1.6" />
       <path d="M18 52H46M16 57H48" stroke="#FFFFFF" strokeWidth="2.4" />
       {/* Round Otter Ears */}
-      <circle cx="17.5" cy="24.5" r="4.5" fill="#92400E" stroke="#0F172A" strokeWidth="1.5" />
-      <circle cx="46.5" cy="24.5" r="4.5" fill="#92400E" stroke="#0F172A" strokeWidth="1.5" />
+      <circle cx="17.5" cy="24.5" r="4.5" fill="#92400E" stroke="#4a3426" strokeWidth="1.5" />
+      <circle cx="46.5" cy="24.5" r="4.5" fill="#92400E" stroke="#4a3426" strokeWidth="1.5" />
       {/* Otter Head */}
-      <ellipse cx="32" cy="33.5" rx="16" ry="14" fill={`url(#luc-head-${uid})`} stroke="#0F172A" strokeWidth="1.8" />
+      <ellipse cx="32" cy="33.5" rx="16" ry="14" fill={`url(#luc-head-${uid})`} stroke="#4a3426" strokeWidth="1.8" />
       {/* Gondolier Boater Cap */}
-      <ellipse cx="32" cy="19.5" rx="18.5" ry="3.2" fill="#FEF3C7" stroke="#0F172A" strokeWidth="1.4" />
-      <rect x="21.5" y="13" width="21" height="6.5" rx="2.5" fill="#FDE68A" stroke="#0F172A" strokeWidth="1.4" />
+      <ellipse cx="32" cy="19.5" rx="18.5" ry="3.2" fill="#FEF3C7" stroke="#4a3426" strokeWidth="1.4" />
+      <rect x="21.5" y="13" width="21" height="6.5" rx="2.5" fill="#FDE68A" stroke="#4a3426" strokeWidth="1.4" />
       <rect x="21.5" y="16.6" width="21" height="2.4" fill="#DC2626" />
       {/* Cream Muzzle */}
       <ellipse cx="32" cy="37.5" rx="9.5" ry="6.2" fill="#FEF3C7" />
@@ -290,7 +290,7 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
       <circle cx="40.3" cy="29.6" r="1" fill="#FFFFFF" />
       {/* Nose & Whiskers */}
       <path d="M29.2 35.2C30.8 34 33.2 34 34.8 35.2L32 38Z" fill="#0F172A" />
-      <path d="M28.5 40.3C30.5 42 33.5 42 35.5 40.3" stroke="#0F172A" strokeWidth="1.3" strokeLinecap="round" fill="none" />
+      <path d="M28.5 40.3C30.5 42 33.5 42 35.5 40.3" stroke="#4a3426" strokeWidth="1.3" strokeLinecap="round" fill="none" />
       <path d="M21 36.5L15 35.5M21 38.8L15 39.5M43 36.5L49 35.5M43 38.8L49 39.5" stroke="#78350F" strokeWidth="1" strokeLinecap="round" />
     </g>
   ),
@@ -311,7 +311,7 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
       {/* Top Hanging Compass Ring */}
       <circle cx="32" cy="11.5" r="4.2" fill="none" stroke={`url(#cmp-rim-${uid})`} strokeWidth="2.8" />
       {/* Outer Brass Compass Case */}
-      <circle cx="32" cy="34.5" r="20.5" fill={`url(#cmp-rim-${uid})`} stroke="#0F172A" strokeWidth="1.8" />
+      <circle cx="32" cy="34.5" r="20.5" fill={`url(#cmp-rim-${uid})`} stroke="#4a3426" strokeWidth="1.8" />
       <circle cx="32" cy="34.5" r="16.5" fill={`url(#cmp-face-${uid})`} stroke="#F59E0B" strokeWidth="1.2" />
       {/* Cardinal ticks */}
       <path d="M32 19.5V22.5M32 46.5V49.5M17 34.5H20M44 34.5H47" stroke="#FDE047" strokeWidth="1.6" strokeLinecap="round" />
@@ -341,13 +341,13 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
       <circle cx="50" cy="46" r="2" fill="#FDE047" opacity="0.8" />
       <circle cx="48" cy="16" r="1.4" fill="#FFFFFF" opacity="0.85" />
       {/* Back Origami Wing */}
-      <polygon points="30,31 46,14 42,35" fill="#F9A8D4" stroke="#0F172A" strokeWidth="1.4" strokeLinejoin="round" />
+      <polygon points="30,31 46,14 42,35" fill="#F9A8D4" stroke="#4a3426" strokeWidth="1.4" strokeLinejoin="round" />
       {/* Tail & Neck Fold */}
-      <polygon points="24,38 11,22 20,40" fill="#FB7185" stroke="#0F172A" strokeWidth="1.4" strokeLinejoin="round" />
-      <polygon points="39,35 50,23 54,26 48,29 42,39" fill="#FFFBEB" stroke="#0F172A" strokeWidth="1.4" strokeLinejoin="round" />
+      <polygon points="24,38 11,22 20,40" fill="#FB7185" stroke="#4a3426" strokeWidth="1.4" strokeLinejoin="round" />
+      <polygon points="39,35 50,23 54,26 48,29 42,39" fill="#FFFBEB" stroke="#4a3426" strokeWidth="1.4" strokeLinejoin="round" />
       {/* Main Folded Paper Body & Front Wing */}
-      <polygon points="20,40 31,29 42,39 32,48" fill="#FFF1F2" stroke="#0F172A" strokeWidth="1.5" strokeLinejoin="round" />
-      <polygon points="16,19 34,29 24,41" fill={`url(#ori-wing-${uid})`} stroke="#0F172A" strokeWidth="1.5" strokeLinejoin="round" />
+      <polygon points="20,40 31,29 42,39 32,48" fill="#FFF1F2" stroke="#4a3426" strokeWidth="1.5" strokeLinejoin="round" />
+      <polygon points="16,19 34,29 24,41" fill={`url(#ori-wing-${uid})`} stroke="#4a3426" strokeWidth="1.5" strokeLinejoin="round" />
       {/* Crisp Origami Crease Highlights */}
       <line x1="25" y1="31" x2="32" y2="48" stroke="#DB2777" strokeWidth="1" opacity="0.55" />
       <circle cx="49" cy="25" r="0.9" fill="#0F172A" />
@@ -366,14 +366,14 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
       {/* Brass Gear Halo Behind Head */}
       <circle cx="32" cy="33" r="20" fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.7" />
       {/* Shoulders */}
-      <path d="M13 62C15 49 22 45 32 45C42 45 49 49 51 62Z" fill="#1E3A8A" stroke="#0F172A" strokeWidth="1.6" />
-      <circle cx="32" cy="54" r="4.8" fill="#F59E0B" stroke="#0F172A" strokeWidth="1.2" />
+      <path d="M13 62C15 49 22 45 32 45C42 45 49 49 51 62Z" fill="#1E3A8A" stroke="#4a3426" strokeWidth="1.6" />
+      <circle cx="32" cy="54" r="4.8" fill="#F59E0B" stroke="#4a3426" strokeWidth="1.2" />
       <circle cx="32" cy="54" r="2" fill="#38BDF8" />
       {/* Ear Tufts */}
-      <polygon points="18,22 14,11 25,18" fill="#D97706" stroke="#0F172A" strokeWidth="1.4" strokeLinejoin="round" />
-      <polygon points="46,22 50,11 39,18" fill="#D97706" stroke="#0F172A" strokeWidth="1.4" strokeLinejoin="round" />
+      <polygon points="18,22 14,11 25,18" fill="#D97706" stroke="#4a3426" strokeWidth="1.4" strokeLinejoin="round" />
+      <polygon points="46,22 50,11 39,18" fill="#D97706" stroke="#4a3426" strokeWidth="1.4" strokeLinejoin="round" />
       {/* Owl Head */}
-      <ellipse cx="32" cy="31.5" rx="16.5" ry="14.5" fill={`url(#cwo-body-${uid})`} stroke="#0F172A" strokeWidth="1.7" />
+      <ellipse cx="32" cy="31.5" rx="16.5" ry="14.5" fill={`url(#cwo-body-${uid})`} stroke="#4a3426" strokeWidth="1.7" />
       {/* Brass Lens Eyes */}
       <circle cx="24.5" cy="30" r="6" fill="#0F172A" stroke="#FEF08A" strokeWidth="1.5" />
       <circle cx="39.5" cy="30" r="6" fill="#0F172A" stroke="#FEF08A" strokeWidth="1.5" />
@@ -382,7 +382,7 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
       <circle cx="25.6" cy="28.8" r="1.2" fill="#FFFFFF" />
       <circle cx="40.6" cy="28.8" r="1.2" fill="#FFFFFF" />
       {/* Brass Beak */}
-      <polygon points="29,34.5 35,34.5 32,40.5" fill="#FDE047" stroke="#0F172A" strokeWidth="1.3" strokeLinejoin="round" />
+      <polygon points="29,34.5 35,34.5 32,40.5" fill="#FDE047" stroke="#4a3426" strokeWidth="1.3" strokeLinejoin="round" />
     </g>
   ),
 
@@ -396,18 +396,18 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
         </radialGradient>
       </defs>
       {/* Explorer Turquoise Scarf */}
-      <path d="M13 62C15 50 22 46 32 46C42 46 49 50 51 62Z" fill="#0284C7" stroke="#0F172A" strokeWidth="1.6" />
+      <path d="M13 62C15 50 22 46 32 46C42 46 49 50 51 62Z" fill="#0284C7" stroke="#4a3426" strokeWidth="1.6" />
       <path d="M22 48L32 56L42 48" fill="none" stroke="#FDE047" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
       {/* Signature Oversized Fennec Ears */}
-      <polygon points="18,31 9,10 28,22" fill="#F59E0B" stroke="#0F172A" strokeWidth="1.5" strokeLinejoin="round" />
+      <polygon points="18,31 9,10 28,22" fill="#F59E0B" stroke="#4a3426" strokeWidth="1.5" strokeLinejoin="round" />
       <polygon points="17.5,27.5 12.5,14.5 25,22" fill="#FFFBEB" />
-      <polygon points="46,31 55,10 36,22" fill="#F59E0B" stroke="#0F172A" strokeWidth="1.5" strokeLinejoin="round" />
+      <polygon points="46,31 55,10 36,22" fill="#F59E0B" stroke="#4a3426" strokeWidth="1.5" strokeLinejoin="round" />
       <polygon points="46.5,27.5 51.5,14.5 39,22" fill="#FFFBEB" />
       {/* Fennec Face */}
       <path
         d="M16 34C16 25 23 20 32 20C41 20 48 25 48 34C48 42 40 46 32 46C24 46 16 42 16 34Z"
         fill={`url(#fnv-fur-${uid})`}
-        stroke="#0F172A"
+        stroke="#4a3426"
         strokeWidth="1.7"
       />
       {/* Rosy Cheeks & Eyes */}
@@ -419,7 +419,7 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
       <circle cx="40.4" cy="30.9" r="1.1" fill="#FFFFFF" />
       {/* Tiny Nose & Smile */}
       <polygon points="29.8,36.5 34.2,36.5 32,39.2" fill="#0F172A" />
-      <path d="M28.5 40.8C30.2 42.3 33.8 42.3 35.5 40.8" stroke="#0F172A" strokeWidth="1.3" strokeLinecap="round" fill="none" />
+      <path d="M28.5 40.8C30.2 42.3 33.8 42.3 35.5 40.8" stroke="#4a3426" strokeWidth="1.3" strokeLinecap="round" fill="none" />
     </g>
   ),
 
@@ -446,7 +446,7 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
           ry="2.8"
           transform={`rotate(${rot} ${cx} ${cy})`}
           fill={`url(#glc-gold-${uid})`}
-          stroke="#0F172A"
+          stroke="#4a3426"
           strokeWidth="1.1"
         />
       ))}
@@ -464,7 +464,7 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
           ry="2.8"
           transform={`rotate(${rot} ${cx} ${cy})`}
           fill={`url(#glc-gold-${uid})`}
-          stroke="#0F172A"
+          stroke="#4a3426"
           strokeWidth="1.1"
         />
       ))}
@@ -473,8 +473,8 @@ const AVATAR_PORTRAITS: Record<AvatarId, (uid: string) => ReactNode> = {
       <path d="M25 27C29 26 32 29 30 34C27 37 23 34 25 27Z" fill="#4ADE80" />
       <path d="M35 28C39 28 41 33 38 38C34 40 33 33 35 28Z" fill="#22C55E" />
       {/* Crown Apex Star & Crimson Ribbon Base */}
-      <path d="M32 10L34 15L39 17L34 19L32 24L30 19L25 17L30 15Z" fill="#FDE047" stroke="#0F172A" strokeWidth="1" />
-      <path d="M22 46L17 55L26 52L32 48L38 52L47 55L42 46Z" fill="#E11D48" stroke="#0F172A" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M32 10L34 15L39 17L34 19L32 24L30 19L25 17L30 15Z" fill="#FDE047" stroke="#4a3426" strokeWidth="1" />
+      <path d="M22 46L17 55L26 52L32 48L38 52L47 55L42 46Z" fill="#E11D48" stroke="#4a3426" strokeWidth="1.3" strokeLinejoin="round" />
     </g>
   ),
 };
@@ -484,12 +484,14 @@ export function AvatarBadge({ avatarId, size = 44, className = '' }: AvatarBadge
   const meta = AVATAR_META[avatarId];
   const bgId = `avatar-bg-${uid}`;
   const clipId = `avatar-clip-${uid}`;
+  const bezelId = `avatar-bezel-${uid}`;
+  const domeId = `avatar-dome-${uid}`;
 
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 64 64"
+      viewBox="0 0 66 66"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
@@ -498,28 +500,45 @@ export function AvatarBadge({ avatarId, size = 44, className = '' }: AvatarBadge
       data-avatar={avatarId}
     >
       <defs>
-        <radialGradient id={bgId} cx="38%" cy="30%" r="74%">
+        <radialGradient id={bgId} cx="34%" cy="28%" r="76%">
           <stop offset="0%" stopColor={meta.bgStart} />
           <stop offset="100%" stopColor={meta.bgEnd} />
         </radialGradient>
+        <linearGradient id={bezelId} x1="10" y1="8" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FFF2BF" />
+          <stop offset="42%" stopColor={meta.rimColor} />
+          <stop offset="100%" stopColor="#8E5D1E" />
+        </linearGradient>
+        <radialGradient id={domeId} cx="30%" cy="22%" r="76%">
+          <stop offset="0%" stopColor="#FFFDF5" stopOpacity="0.34" />
+          <stop offset="46%" stopColor="#FFFDF5" stopOpacity="0" />
+          <stop offset="100%" stopColor="#4a3426" stopOpacity="0.22" />
+        </radialGradient>
         <clipPath id={clipId}>
-          <circle cx="32" cy="32" r="27.5" />
+          <circle cx="32" cy="32" r="27" />
         </clipPath>
       </defs>
 
-      {/* Outer medallion ring */}
-      <circle cx="32" cy="32" r="30.5" fill={meta.rimColor} stroke="#0F172A" strokeWidth="2" />
-      <circle cx="32" cy="32" r="27.5" fill={`url(#${bgId})`} />
+      {/* Soft down-right warm-tinted medallion cast shadow */}
+      <circle cx="34.2" cy="34.4" r="30" fill="#4a3426" opacity="0.2" />
 
-      <g clipPath={`url(#${clipId})`}>{AVATAR_PORTRAITS[avatarId](uid)}</g>
+      {/* Heirloom gilded enamel bezel ring */}
+      <circle cx="32" cy="32" r="30.2" fill={`url(#${bezelId})`} stroke="var(--ink-warm, #4a3426)" strokeWidth="1.7" />
+      <circle cx="32" cy="32" r="27" fill={`url(#${bgId})`} />
 
-      {/* Crisp inner frame + glossy rim highlight */}
-      <circle cx="32" cy="32" r="27.5" stroke="#0F172A" strokeWidth="1.5" />
+      <g clipPath={`url(#${clipId})`}>
+        {AVATAR_PORTRAITS[avatarId](uid)}
+        {/* Painterly enamel dome sheen */}
+        <circle cx="32" cy="32" r="27" fill={`url(#${domeId})`} />
+      </g>
+
+      {/* Crisp warm-ink inner frame + upper-left specular highlight */}
+      <circle cx="32" cy="32" r="27" stroke="#4a3426" strokeOpacity="0.72" strokeWidth="1.4" />
       <path
         d="M12.5 21C16.5 11.5 26 7 36.5 8.2"
-        stroke="#FFFFFF"
-        strokeOpacity="0.48"
-        strokeWidth="2"
+        stroke="#FFFDF5"
+        strokeOpacity="0.62"
+        strokeWidth="2.1"
         strokeLinecap="round"
       />
     </svg>

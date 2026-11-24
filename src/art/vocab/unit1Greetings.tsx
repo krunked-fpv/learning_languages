@@ -4,52 +4,65 @@ export const UNIT1_SCENES = {
   wave_hello: (uid) => (
     <g>
       <defs>
-        <radialGradient id={`wh-bg-${uid}`} cx="50%" cy="50%" r="55%">
-          <stop offset="0%" stopColor="#FEF08A" />
-          <stop offset="100%" stopColor="#FDE047" stopOpacity="0" />
+        <radialGradient id={`wh-bg-${uid}`} cx="42%" cy="38%" r="58%">
+          <stop offset="0%" stopColor="#FFF5C2" />
+          <stop offset="60%" stopColor="#FDE29B" stopOpacity="0.65" />
+          <stop offset="100%" stopColor="#F5B841" stopOpacity="0" />
         </radialGradient>
-        <linearGradient id={`wh-hand-${uid}`} x1="40" y1="30" x2="82" y2="95" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#FED7AA" />
-          <stop offset="100%" stopColor="#FDBA74" />
+        <linearGradient id={`wh-hand-${uid}`} x1="34" y1="26" x2="82" y2="94" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FFE6C7" />
+          <stop offset="58%" stopColor="#F9C592" />
+          <stop offset="100%" stopColor="#E69E67" />
+        </linearGradient>
+        <linearGradient id={`wh-sleeve-${uid}`} x1="42" y1="84" x2="72" y2="103" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#4A86D9" />
+          <stop offset="100%" stopColor="#26509A" />
         </linearGradient>
       </defs>
-      <circle cx="60" cy="60" r="42" fill={`url(#wh-bg-${uid})`} />
-      <GroundShadow cx={60} cy={100} rx={24} ry={5} />
-      {/* Wave motion arcs */}
-      <path d="M24 44C20 36 22 27 28 22" stroke="#F97316" strokeWidth="3.2" strokeLinecap="round" />
-      <path d="M18 48C13 38 15 26 23 18" stroke="#FB923C" strokeWidth="2.4" strokeLinecap="round" opacity="0.7" />
-      <path d="M94 36C99 44 98 53 92 60" stroke="#F97316" strokeWidth="3.2" strokeLinecap="round" />
-      {/* Cuff & sleeve */}
-      <path d="M46 86L42 103H72L70 86Z" fill="#2563EB" stroke={INK} strokeWidth="2.2" strokeLinejoin="round" />
-      <rect x="44" y="81" width="28" height="8" rx="4" fill="#F8FAFC" stroke={INK} strokeWidth="2" />
-      {/* Friendly waving hand */}
+      {/* Warm sunlit lantern halo + subtle botanical sprigs */}
+      <circle cx="58" cy="58" r="44" fill={`url(#wh-bg-${uid})`} />
+      <path d="M22 86C26 78 33 75 40 76C35 83 28 87 22 86Z" fill="#7FB069" stroke={INK} strokeWidth="1.2" opacity="0.72" />
+      <path d="M98 84C93 77 86 75 80 77C85 83 92 86 98 84Z" fill="#7FB069" stroke={INK} strokeWidth="1.2" opacity="0.72" />
+      <GroundShadow cx={60} cy={101} rx={24} ry={5} />
+      {/* Warm storybook wave motion arcs */}
+      <path d="M24 44C20 36 22 27 28 22" stroke="#D96B27" strokeWidth="3" strokeLinecap="round" />
+      <path d="M18 48C13 38 15 26 23 18" stroke="#E89A4B" strokeWidth="2.2" strokeLinecap="round" opacity="0.7" />
+      <path d="M94 36C99 44 98 53 92 60" stroke="#D96B27" strokeWidth="3" strokeLinecap="round" />
+      {/* Explorer coat sleeve + stitched parchment cuff + brass button */}
+      <path d="M46 86L42 103H72L70 86Z" fill={`url(#wh-sleeve-${uid})`} stroke={INK} strokeWidth="2.1" strokeLinejoin="round" />
+      <rect x="44" y="81" width="28" height="8" rx="4" fill="#FFF9EB" stroke={INK} strokeWidth="1.9" />
+      <circle cx="65" cy="95" r="2.5" fill="#F4C44E" stroke={INK} strokeWidth="1.1" />
+      {/* Friendly waving hand with warm gouache shading */}
       <path
         d="M46 82C41 75 36 66 31 58C29 54 33 50 37 53L45 61L41 37C40 32 46 31 48 36L53 54L54 30C54 25 60 25 61 30L62 53L67 32C68 27 74 28 74 33L70 55L77 41C79 36 85 38 83 44L74 72C72 78 68 82 62 82Z"
         fill={`url(#wh-hand-${uid})`}
         stroke={INK}
-        strokeWidth="2.2"
+        strokeWidth="2.1"
         strokeLinejoin="round"
       />
-      <path d="M49 66C53 63 60 63 64 67" stroke="#EA580C" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
-      <Sparkle cx={89} cy={26} r={6} fill="#FACC15" />
-      <Sparkle cx={28} cy={72} r={4.5} fill="#38BDF8" />
+      {/* Upper-left sunlit palm highlight + warm inner palm crease */}
+      <path d="M46 66C51 62 59 62 64 67" stroke="#B85B2A" strokeWidth="1.9" strokeLinecap="round" opacity="0.52" />
+      <ellipse cx="53" cy="60" rx="5.5" ry="3.2" fill="#FFF5E6" opacity="0.48" />
+      <Sparkle cx={89} cy={26} r={6} fill="#F5C443" />
+      <Sparkle cx={27} cy={67} r={4.5} fill="#5BB5E5" />
     </g>
   ),
 
   morning_sun: (uid) => (
     <g>
       <defs>
-        <linearGradient id={`ms-sky-${uid}`} x1="60" y1="16" x2="60" y2="85" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#7DD3FC" />
-          <stop offset="100%" stopColor="#FEF3C7" />
+        <linearGradient id={`ms-sky-${uid}`} x1="60" y1="16" x2="60" y2="88" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#9EDAF5" />
+          <stop offset="58%" stopColor="#FDECC8" />
+          <stop offset="100%" stopColor="#FCD49B" />
         </linearGradient>
-        <radialGradient id={`ms-sun-${uid}`} cx="42%" cy="38%" r="65%">
-          <stop offset="0%" stopColor="#FEF08A" />
-          <stop offset="55%" stopColor="#FBBF24" />
-          <stop offset="100%" stopColor="#F59E0B" />
+        <radialGradient id={`ms-sun-${uid}`} cx="38%" cy="34%" r="68%">
+          <stop offset="0%" stopColor="#FFF7C2" />
+          <stop offset="55%" stopColor="#F8C64A" />
+          <stop offset="100%" stopColor="#DE8B26" />
         </radialGradient>
       </defs>
-      <rect x="16" y="18" width="88" height="80" rx="20" fill={`url(#ms-sky-${uid})`} stroke={INK} strokeWidth="2" />
+      <rect x="16" y="18" width="88" height="80" rx="20" fill={`url(#ms-sky-${uid})`} stroke={INK} strokeWidth="1.9" />
       {/* Sun rays */}
       {[0, 30, 60, 90, 120, 150, 180].map((deg) => (
         <line
@@ -58,27 +71,27 @@ export const UNIT1_SCENES = {
           y1="62"
           x2={60 + Math.cos(((deg - 180) * Math.PI) / 180) * 34}
           y2={62 + Math.sin(((deg - 180) * Math.PI) / 180) * 34}
-          stroke="#F59E0B"
-          strokeWidth="3.5"
+          stroke="#E59B2C"
+          strokeWidth="3.2"
           strokeLinecap="round"
         />
       ))}
       {/* Smiling rising sun */}
-      <circle cx="60" cy="62" r="22" fill={`url(#ms-sun-${uid})`} stroke={INK} strokeWidth="2.2" />
-      <path d="M51 58C52.5 55.5 55 55.5 56.5 58" stroke={INK} strokeWidth="2" strokeLinecap="round" />
-      <path d="M63.5 58C65 55.5 67.5 55.5 69 58" stroke={INK} strokeWidth="2" strokeLinecap="round" />
-      <ellipse cx="48" cy="63" rx="3" ry="1.8" fill="#FB7185" opacity="0.6" />
-      <ellipse cx="72" cy="63" rx="3" ry="1.8" fill="#FB7185" opacity="0.6" />
-      <path d="M55 64C57.5 67.5 62.5 67.5 65 64" stroke={INK} strokeWidth="2" strokeLinecap="round" />
-      {/* Green morning hills */}
-      <path d="M16 80C32 68 50 70 65 82C77 72 91 71 104 79V98H16Z" fill="#22C55E" stroke={INK} strokeWidth="2.1" />
-      <path d="M16 86C36 78 60 80 104 88V98H16Z" fill="#16A34A" />
-      {/* Puffy cloud */}
+      <circle cx="60" cy="62" r="22" fill={`url(#ms-sun-${uid})`} stroke={INK} strokeWidth="2.1" />
+      <path d="M51 58C52.5 55.5 55 55.5 56.5 58" stroke={INK} strokeWidth="1.9" strokeLinecap="round" />
+      <path d="M63.5 58C65 55.5 67.5 55.5 69 58" stroke={INK} strokeWidth="1.9" strokeLinecap="round" />
+      <ellipse cx="48" cy="63" rx="3.2" ry="1.9" fill="#E87488" opacity="0.55" />
+      <ellipse cx="72" cy="63" rx="3.2" ry="1.9" fill="#E87488" opacity="0.55" />
+      <path d="M55 64C57.5 67.5 62.5 67.5 65 64" stroke={INK} strokeWidth="1.9" strokeLinecap="round" />
+      {/* Layered gouache morning hills */}
+      <path d="M16 80C32 68 50 70 65 82C77 72 91 71 104 79V98H16Z" fill="#5EA862" stroke={INK} strokeWidth="1.9" />
+      <path d="M16 86C36 78 60 80 104 88V98H16Z" fill="#3D8247" />
+      {/* Puffy sunlit cloud */}
       <path
         d="M25 40C25 36 29 33 33 34C35 30 41 30 43 34C46 34 49 36 49 40C49 43 46 45 43 45H30C27 45 25 43 25 40Z"
-        fill="#FFFFFF"
+        fill="#FFFDF7"
         stroke={INK}
-        strokeWidth="1.7"
+        strokeWidth="1.6"
       />
     </g>
   ),
@@ -87,33 +100,37 @@ export const UNIT1_SCENES = {
     <g>
       <defs>
         <linearGradient id={`ns-sky-${uid}`} x1="20" y1="16" x2="96" y2="100" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#1E1B4B" />
-          <stop offset="100%" stopColor="#3730A3" />
+          <stop offset="0%" stopColor="#1D1A47" />
+          <stop offset="60%" stopColor="#352E7A" />
+          <stop offset="100%" stopColor="#4C3E99" />
         </linearGradient>
         <linearGradient id={`ns-moon-${uid}`} x1="34" y1="28" x2="72" y2="86" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#FEF08A" />
-          <stop offset="100%" stopColor="#F59E0B" />
+          <stop offset="0%" stopColor="#FFF7C2" />
+          <stop offset="100%" stopColor="#E6A12E" />
         </linearGradient>
       </defs>
-      <rect x="16" y="18" width="88" height="84" rx="22" fill={`url(#ns-sky-${uid})`} stroke={INK} strokeWidth="2.2" />
+      <rect x="16" y="18" width="88" height="84" rx="22" fill={`url(#ns-sky-${uid})`} stroke={INK} strokeWidth="2.1" />
+      {/* Soft lunar halo */}
+      <circle cx="54" cy="58" r="28" fill="#FEF08A" opacity="0.16" />
       {/* Crescent Moon */}
       <path
         d="M58 31C42 32 32 46 34 62C36 78 51 89 67 86C73 85 78 82 81 78C68 81 55 72 53 58C51 47 56 36 66 32C63 31 61 31 58 31Z"
         fill={`url(#ns-moon-${uid})`}
         stroke={INK}
-        strokeWidth="2.2"
+        strokeWidth="2.1"
         strokeLinejoin="round"
       />
       {/* Sleepy smile on moon */}
       <path d="M43 56C45 58 48 58 50 56" stroke={INK} strokeWidth="1.8" strokeLinecap="round" />
       <path d="M46 65C49 67 53 66 55 64" stroke={INK} strokeWidth="1.8" strokeLinecap="round" />
-      {/* Twinkling stars */}
+      {/* Subtle constellation filigree + twinkling stars */}
+      <path d="M66 49L79 40L86 61" stroke="#FEF08A" strokeWidth="0.9" strokeDasharray="2 2.5" opacity="0.5" fill="none" />
       <Sparkle cx={79} cy={40} r={7.5} fill="#FDE047" />
-      <Sparkle cx={86} cy={61} r={5} fill="#FACC15" />
-      <Sparkle cx={66} cy={49} r={4.5} fill="#FEF08A" />
+      <Sparkle cx={86} cy={61} r={5} fill="#F5C443" />
+      <Sparkle cx={66} cy={49} r={4.5} fill="#FFF5C2" />
       <circle cx="29" cy="36" r="2" fill="#E0E7FF" />
       <circle cx="31" cy="86" r="1.8" fill="#FDE047" />
-      <circle cx="88" cy="27" r="1.6" fill="#FFFFFF" />
+      <circle cx="88" cy="27" r="1.6" fill="#FFFDF7" />
     </g>
   ),
 

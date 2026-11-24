@@ -8,32 +8,32 @@ import {
   type ProficiencyTier,
 } from '../../types/contracts';
 
-const INK = '#1E293B';
+const INK = '#4a3426';
 
 const LANGUAGE_ACCENTS: Record<LanguageCode, { roof: string; glow: string; hill: string }> = {
-  es: { roof: '#EA580C', glow: '#FBBF24', hill: '#FED7AA' },
-  fr: { roof: '#4F46E5', glow: '#C4B5FD', hill: '#DDD6FE' },
-  de: { roof: '#D97706', glow: '#6EE7B7', hill: '#BBF7D0' },
-  it: { roof: '#059669', glow: '#67E8F9', hill: '#BAE6FD' },
-  pt: { roof: '#0D9488', glow: '#FDE047', hill: '#CCFBF1' },
-  en: { roof: '#1D4ED8', glow: '#FBBF24', hill: '#DBEAFE' },
-  zh: { roof: '#DC2626', glow: '#FDE047', hill: '#FEE2E2' },
-  ja: { roof: '#DB2777', glow: '#F9A8D4', hill: '#FCE7F3' },
-  hi: { roof: '#EA580C', glow: '#FDBA74', hill: '#FEF3C7' },
-  bn: { roof: '#047857', glow: '#6EE7B7', hill: '#D1FAE5' },
-  ar: { roof: '#059669', glow: '#F59E0B', hill: '#D1FAE5' },
-  arz: { roof: '#0284C7', glow: '#FDE047', hill: '#E0F2FE' },
-  ru: { roof: '#4F46E5', glow: '#FDA4AF', hill: '#E0E7FF' },
-  id: { roof: '#0891B2', glow: '#FB923C', hill: '#CFFAFE' },
-  vi: { roof: '#E11D48', glow: '#34D399', hill: '#FFE4E6' },
-  sw: { roof: '#D97706', glow: '#38BDF8', hill: '#FEF3C7' },
-  ebonics: { roof: '#7C3AED', glow: '#FBBF24', hill: '#EDE9FE' },
-  suburban: { roof: '#0284C7', glow: '#FB923C', hill: '#E0F2FE' },
-  corp_trades: { roof: '#0F766E', glow: '#5EEAD4', hill: '#CCFBF1' },
-  midwest_northeast: { roof: '#B91C1C', glow: '#93C5FD', hill: '#DBEAFE' },
-  south_genz: { roof: '#C026D3', glow: '#FDE047', hill: '#FAE8FF' },
-  cali_country: { roof: '#059669', glow: '#6EE7B7', hill: '#FFEDD5' },
-  stoner_tactical: { roof: '#4D7C0F', glow: '#BEF264', hill: '#E0E7FF' },
+  es: { roof: '#D95A2B', glow: '#F8C652', hill: '#F7D2A8' },
+  fr: { roof: '#5B52B8', glow: '#D5C5FA', hill: '#DDD4F6' },
+  de: { roof: '#C87822', glow: '#86DFB8', hill: '#C5EBD4' },
+  it: { roof: '#158A65', glow: '#7EE2F0', hill: '#C6E9F7' },
+  pt: { roof: '#12857C', glow: '#FDE068', hill: '#C9F2EA' },
+  en: { roof: '#2A5BB8', glow: '#F8C852', hill: '#D6E6FB' },
+  zh: { roof: '#C93430', glow: '#FCE068', hill: '#FADCD6' },
+  ja: { roof: '#CE3E7D', glow: '#F9B8D8', hill: '#FBE2EE' },
+  hi: { roof: '#D86327', glow: '#FAC082', hill: '#FBEBC6' },
+  bn: { roof: '#137858', glow: '#82E3BC', hill: '#CEEEDB' },
+  ar: { roof: '#148662', glow: '#F2B035', hill: '#D2EFE0' },
+  arz: { roof: '#187EB5', glow: '#FDE068', hill: '#DCEFFA' },
+  ru: { roof: '#544BB8', glow: '#F8B0BA', hill: '#DFE3FA' },
+  id: { roof: '#1588A5', glow: '#F8A054', hill: '#CEF1F7' },
+  vi: { roof: '#CE3052', glow: '#52D6A0', hill: '#FBE0E4' },
+  sw: { roof: '#C9781A', glow: '#54BCEF', hill: '#FBECC8' },
+  ebonics: { roof: '#7642D9', glow: '#F8C446', hill: '#EAE2FA' },
+  suburban: { roof: '#1480B8', glow: '#F89B52', hill: '#DCEFFA' },
+  corp_trades: { roof: '#16746D', glow: '#6BE2D1', hill: '#CEF1EC' },
+  midwest_northeast: { roof: '#B02828', glow: '#9DC4FA', hill: '#D9E8FB' },
+  south_genz: { roof: '#B432C4', glow: '#FCE068', hill: '#F6E2FA' },
+  cali_country: { roof: '#148A62', glow: '#7EE3BC', hill: '#FCE8D5' },
+  stoner_tactical: { roof: '#4D7C16', glow: '#C4F072', hill: '#DFE5FA' },
 };
 
 const SCENERY_SVG_STYLE = {
@@ -42,7 +42,7 @@ const SCENERY_SVG_STYLE = {
   width: '100%',
   height: '100%',
   pointerEvents: 'none',
-  opacity: 0.9,
+  opacity: 1,
 } as const;
 
 function DioramaSvg({
@@ -74,9 +74,27 @@ function DioramaSvg({
           {skyMid ? <stop offset="56%" stopColor={skyMid} /> : null}
           <stop offset="100%" stopColor={skyBottom} />
         </linearGradient>
+        <radialGradient id={`${skyId}-sun`} cx="14%" cy="10%" r="65%">
+          <stop offset="0%" stopColor="#FFF5D6" stopOpacity="0.62" />
+          <stop offset="55%" stopColor="#FFE1A8" stopOpacity="0.16" />
+          <stop offset="100%" stopColor="#FFE1A8" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id={`${skyId}-fill`} cx="92%" cy="94%" r="62%">
+          <stop offset="0%" stopColor="#5C4D8C" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="#5C4D8C" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id={`${skyId}-mist`} x1="0" y1="0.45" x2="0" y2="1">
+          <stop offset="0%" stopColor="#FFFBF0" stopOpacity="0" />
+          <stop offset="58%" stopColor="#FFF8E8" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="#E9D6BA" stopOpacity="0.12" />
+        </linearGradient>
       </defs>
       <rect width="600" height="420" fill={`url(#${skyId})`} />
+      <rect width="600" height="420" fill={`url(#${skyId}-sun)`} />
       {children}
+      {/* Shared gouache atmospheric horizon mist + cool lower-right bounce fill */}
+      <rect width="600" height="420" fill={`url(#${skyId}-mist)`} />
+      <rect width="600" height="420" fill={`url(#${skyId}-fill)`} />
     </svg>
   );
 }
@@ -1199,180 +1217,325 @@ export function RegionalScenery({
   }
 
   if (language === 'es') {
+    const sunX = unitOrder % 2 === 0 ? 495 : 102;
     return (
-      <svg
-        viewBox="0 0 600 420"
-        preserveAspectRatio="xMidYMid slice"
-        aria-hidden="true"
-        data-unit-scenery={unitOrder}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          pointerEvents: 'none',
-          opacity: 0.9,
-        }}
+      <DioramaSvg
+        unitOrder={unitOrder}
+        skyId={`es-sky-${uid}`}
+        skyTop="#FFF4DF"
+        skyMid="#FDE2BE"
+        skyBottom="#F8C897"
       >
         <defs>
-          <linearGradient id={`es-sky-${uid}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#FFF7ED" />
-            <stop offset="100%" stopColor="#FFEDD5" />
+          <radialGradient id={`es-sun-g-${uid}`} cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#FFFBEB" stopOpacity="0.95" />
+            <stop offset="35%" stopColor="#FDE068" stopOpacity="0.82" />
+            <stop offset="72%" stopColor="#F59E0B" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="#F59E0B" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id={`es-lan-${uid}`} cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#FEF08A" stopOpacity="0.88" />
+            <stop offset="55%" stopColor="#F59E0B" stopOpacity="0.34" />
+            <stop offset="100%" stopColor="#F59E0B" stopOpacity="0" />
+          </radialGradient>
+          <linearGradient id={`es-hill-far-${uid}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#E6B29C" />
+            <stop offset="100%" stopColor="#F4CFA9" />
+          </linearGradient>
+          <linearGradient id={`es-hill-mid-${uid}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#E8A26A" />
+            <stop offset="100%" stopColor="#D98348" />
+          </linearGradient>
+          <linearGradient id={`es-plaza-${uid}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#F6D5A9" />
+            <stop offset="100%" stopColor="#E5B480" />
           </linearGradient>
         </defs>
-        <rect width="600" height="420" fill={`url(#es-sky-${uid})`} />
 
-        {/* Distant warm Pyrenees peaks */}
-        <path d="M0 320L95 215L190 305L310 195L430 295L535 210L600 280V420H0Z" fill="#FED7AA" opacity="0.7" />
-        <path d="M68 245L95 215L122 245L108 238L95 247L82 238Z" fill="#FFFBEB" opacity="0.85" />
-        <path d="M282 225L310 195L338 225L324 218L310 227L296 218Z" fill="#FFFBEB" opacity="0.85" />
+        {/* Warm Andalusian Sun with radiant halo */}
+        <circle cx={sunX} cy="76" r="76" fill={`url(#es-sun-g-${uid})`} />
+        <circle cx={sunX} cy="76" r="24" fill="#FEF3C7" opacity="0.94" />
 
-        {/* Warm Andalusian/Castilian Sun */}
-        <circle cx={unitOrder % 2 === 0 ? 505 : 95} cy="72" r="34" fill="#FDE047" opacity="0.78" />
-        <circle cx={unitOrder % 2 === 0 ? 505 : 95} cy="72" r="24" fill="#FBBF24" opacity="0.85" />
+        {/* Painterly Gouache Clouds (sunlit cream top, warm rose underside) */}
+        <g opacity="0.82">
+          <path d="M188 76C188 64 202 58 214 62C222 50 244 48 256 58C268 56 280 64 280 76Z" fill="#FFF9EE" />
+          <path d="M192 76C205 71 258 71 277 76Z" fill="#F4C7A3" opacity="0.55" />
+          <path d="M352 96C352 86 364 81 374 84C382 74 401 73 410 82C420 80 430 87 430 96Z" fill="#FFF9EE" />
+          <path d="M356 96C372 91 412 91 427 96Z" fill="#F4C7A3" opacity="0.5" />
+        </g>
+
+        {/* Distant Swallows */}
+        <g stroke="#7A4F38" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0.55">
+          <path d="M274 114Q279 109 283 114Q287 109 292 114" />
+          <path d="M300 124Q304 120 307 124Q310 120 314 124" />
+        </g>
+
+        {/* Layer 1: Far Misty Sierra Peaks */}
+        <path
+          d="M0 290L62 214L134 268L226 196L318 258L416 192L512 254L600 218V420H0Z"
+          fill={`url(#es-hill-far-${uid})`}
+          opacity="0.78"
+        />
+        {/* Sunlit left snow/limestone ridges & shadowed right slopes */}
+        <path d="M226 196L180 232L224 226Z" fill="#FFF8EB" opacity="0.72" />
+        <path d="M226 196L270 228L224 226Z" fill="#B57E7E" opacity="0.28" />
+        <path d="M416 192L374 226L415 220Z" fill="#FFF8EB" opacity="0.72" />
+        <path d="M416 192L464 224L415 220Z" fill="#B57E7E" opacity="0.28" />
+
+        {/* Layer 2: Mid Rolling Sierra Foothills & Olive Groves */}
+        <path
+          d="M0 322Q110 264 235 304T468 290Q540 278 600 306V420H0Z"
+          fill={`url(#es-hill-mid-${uid})`}
+          opacity="0.78"
+        />
+        {/* Sunlit olive tree tufts dotting the middle hills */}
+        {[154, 182, 344, 372, 434].map((x, i) => (
+          <g key={x} opacity="0.75">
+            <ellipse cx={x} cy={292 + (i % 2) * 8} rx="12" ry="7.5" fill="#6D8C48" />
+            <ellipse cx={x - 3} cy={290 + (i % 2) * 8} rx="7" ry="4.5" fill="#9BB86B" />
+          </g>
+        ))}
+
+        {/* Layer 3: Sunlit Plaza Terracotta Ground */}
+        <path d="M0 356Q160 340 315 352T600 346V420H0Z" fill={`url(#es-plaza-${uid})`} />
+        <path
+          d="M0 356Q160 340 315 352T600 346"
+          fill="none"
+          stroke="#FFF4DC"
+          strokeWidth="2"
+          opacity="0.75"
+        />
+        {/* Subtle stone cobble hints */}
+        {[148, 224, 310, 396, 456].map((x, idx) => (
+          <ellipse
+            key={x}
+            cx={x}
+            cy={378 + (idx % 2) * 14}
+            rx="16"
+            ry="3.5"
+            fill="#C99262"
+            opacity="0.34"
+          />
+        ))}
 
         {/* Festive Papel Picado Banners across top */}
-        <path d="M0 24Q150 48 300 22T600 26" fill="none" stroke="#9A3412" strokeWidth="1.8" opacity="0.55" />
-        {[35, 85, 135, 185, 415, 465, 515, 565].map((x, idx) => {
-          const colors = ['#F43F5E', '#FBBF24', '#0EA5E9', '#10B981'];
+        <path d="M0 20Q150 48 300 20T600 22" fill="none" stroke="#7A4128" strokeWidth="1.6" opacity="0.6" />
+        {[34, 82, 130, 178, 422, 470, 518, 566].map((x, idx) => {
+          const colors = ['#D94A5A', '#F2B63D', '#3296B5', '#429B6B'];
           return (
-            <path
-              key={x}
-              d={`M${x - 16} 28L${x + 16} 28L${x + 12} 54L${x} 48L${x - 12} 54Z`}
-              fill={colors[idx % colors.length]}
-              opacity="0.75"
-              stroke={INK}
-              strokeWidth="1"
-            />
+            <g key={x} opacity="0.84">
+              <path
+                d={`M${x - 15} 24L${x + 15} 24L${x + 12} 49L${x + 6} 45L${x} 51L${x - 6} 45L${x - 12} 49Z`}
+                fill={colors[idx % colors.length]}
+                stroke={INK}
+                strokeWidth="1.1"
+                strokeLinejoin="round"
+              />
+              <circle cx={x} cy="36" r="2.6" fill="#FFF7E6" opacity="0.8" />
+            </g>
           );
         })}
 
-        {/* Left Terracotta Sun Plaza Archway & Cactus */}
-        <g transform="translate(18, 210)" opacity="0.88">
-          <rect x="0" y="30" width="84" height="110" rx="6" fill="#FDBA74" stroke="#9A3412" strokeWidth="1.8" />
-          <path d="M-4 30L42 4L88 30Z" fill="#EA580C" stroke="#9A3412" strokeWidth="1.8" />
-          <path d="M24 140V84C24 68 60 68 60 84V140Z" fill="#FFF7ED" stroke="#9A3412" strokeWidth="1.8" />
-          <rect x="92" y="114" width="20" height="18" rx="3" fill="#C2410C" stroke={INK} strokeWidth="1.4" />
-          <rect x="98" y="88" width="8" height="27" rx="4" fill="#16A34A" stroke={INK} strokeWidth="1.4" />
-          <path d="M98 102H92V95" fill="none" stroke="#16A34A" strokeWidth="5" strokeLinecap="round" />
+        {/* Left Terracotta Sun Plaza Villa, Archway, Glowing Lantern & Potted Cactus */}
+        <g transform="translate(10, 198)">
+          {/* Soft ground cast shadow to the right */}
+          <ellipse cx="64" cy="154" rx="58" ry="8" fill="#5C3A28" opacity="0.22" />
+          {/* Stucco villa body with sunlit left wall + warm shadowed right wall */}
+          <rect x="6" y="34" width="84" height="118" rx="4" fill="#F9CC99" stroke={INK} strokeWidth="1.8" />
+          <rect x="64" y="34" width="26" height="118" fill="#E39B66" opacity="0.65" />
+          {/* Barrel-tile Terracotta Roof */}
+          <path d="M-2 36L48 6L98 36Z" fill="#D15429" stroke={INK} strokeWidth="1.9" strokeLinejoin="round" />
+          <path d="M4 34L48 9L68 34Z" fill="#E97542" opacity="0.65" />
+          {[14, 30, 46, 62, 78].map((rx) => (
+            <path key={rx} d={`M${rx} 36Q${rx + 6} 31 ${rx + 12} 36`} fill="#B53E1E" stroke={INK} strokeWidth="0.9" />
+          ))}
+          {/* Arched Courtyard Doorway with recessed depth */}
+          <path d="M24 152V88C24 70 64 70 64 88V152Z" fill="#7D4932" stroke={INK} strokeWidth="1.8" />
+          <path d="M30 152V92C30 78 58 78 58 92V152Z" fill="#FFF3D6" stroke="#9A5C38" strokeWidth="1.4" />
+          {/* Warm Hanging Courtyard Lantern */}
+          <circle cx="77" cy="70" r="22" fill={`url(#es-lan-${uid})`} />
+          <path d="M77 56V62" stroke={INK} strokeWidth="1.5" />
+          <path d="M72 62H82L80 74H74Z" fill="#FEF08A" stroke={INK} strokeWidth="1.3" strokeLinejoin="round" />
+          <path d="M70 62L77 57L84 62Z" fill={INK} />
+          {/* Talavera Clay Pot & Saguaro Cactus */}
+          <rect x="96" y="126" width="22" height="22" rx="3" fill="#C4502A" stroke={INK} strokeWidth="1.5" />
+          <path d="M96 133H118" stroke="#FEF3C7" strokeWidth="2.4" strokeDasharray="3 3" />
+          <rect x="103" y="96" width="9" height="31" rx="4.5" fill="#4B8F4C" stroke={INK} strokeWidth="1.5" />
+          <path d="M103 111H96V102" fill="none" stroke="#4B8F4C" strokeWidth="5.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M112 108H118V100" fill="none" stroke="#3D7A3E" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="107.5" cy="95" r="2.6" fill="#F46B6B" />
         </g>
 
-        {/* Right Sunflower & Adobe Tower */}
-        <g transform="translate(495, 225)" opacity="0.88">
-          <rect x="14" y="25" width="66" height="110" rx="5" fill="#FDE68A" stroke="#9A3412" strokeWidth="1.8" />
-          <path d="M10 25L47 0L84 25Z" fill="#DC2626" stroke="#9A3412" strokeWidth="1.8" />
-          <circle cx="47" cy="56" r="10" fill="#FFF7ED" stroke="#9A3412" strokeWidth="1.6" />
+        {/* Right Adobe Bell-Tower (Campanario), Cypress & Sunflowers */}
+        <g transform="translate(486, 198)">
+          <ellipse cx="48" cy="156" rx="52" ry="8" fill="#5C3A28" opacity="0.22" />
+          {/* Slender Mediterranean Cypress */}
+          <rect x="4" y="114" width="5" height="34" fill="#6E442A" />
+          <path d="M6.5 34C15 58 17 98 13 122H0C-4 98 -2 58 6.5 34Z" fill="#3C6E42" stroke={INK} strokeWidth="1.5" />
+          <path d="M5 42C2 68 2 98 4 120H1C-2 98 0 66 5 42Z" fill="#689E5B" opacity="0.65" />
+          {/* Campanario Tower */}
+          <rect x="20" y="34" width="66" height="120" rx="4" fill="#F8E2AF" stroke={INK} strokeWidth="1.8" />
+          <rect x="64" y="34" width="22" height="120" fill="#DEBA7A" opacity="0.68" />
+          {/* Tiled Belfry Roof */}
+          <path d="M14 35L53 4L92 35Z" fill="#C9442D" stroke={INK} strokeWidth="1.9" strokeLinejoin="round" />
+          <path d="M20 33L53 8L68 33Z" fill="#E36544" opacity="0.6" />
+          {/* Arched Belfry Window with Hanging Brass Bell & Warm Glow */}
+          <path d="M39 74V56C39 46 67 46 67 56V74Z" fill="#6D4531" stroke={INK} strokeWidth="1.6" />
+          <circle cx="53" cy="60" r="16" fill={`url(#es-lan-${uid})`} />
+          <path d="M47 68C47 60 50 56 53 56C56 56 59 60 59 68Z" fill="#EAB308" stroke={INK} strokeWidth="1.3" />
+          {/* Lower Illuminated Window */}
+          <rect x="44" y="96" width="18" height="24" rx="9" fill="#FEF08A" stroke={INK} strokeWidth="1.5" />
+          <path d="M53 96V120M44 108H62" stroke={INK} strokeWidth="1.2" opacity="0.65" />
         </g>
-      </svg>
+      </DioramaSvg>
     );
   }
 
   if (language === 'fr') {
+    const flip = unitOrder % 2 === 0;
     return (
-      <svg
-        viewBox="0 0 600 420"
-        preserveAspectRatio="xMidYMid slice"
-        aria-hidden="true"
-        data-unit-scenery={unitOrder}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          pointerEvents: 'none',
-          opacity: 0.9,
-        }}
+      <DioramaSvg
+        unitOrder={unitOrder}
+        skyId={`fr-sky-${uid}`}
+        skyTop="#FEF6EB"
+        skyMid="#EAE2FA"
+        skyBottom="#D5C8F5"
       >
         <defs>
-          <linearGradient id={`fr-sky-${uid}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#EFF6FF" />
-            <stop offset="100%" stopColor="#EDE9FE" />
+          <radialGradient id={`fr-lamp-${uid}`} cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#FFF5B8" stopOpacity="0.92" />
+            <stop offset="48%" stopColor="#F5C04A" stopOpacity="0.34" />
+            <stop offset="100%" stopColor="#F5C04A" stopOpacity="0" />
+          </radialGradient>
+          <linearGradient id={`fr-lav1-${uid}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#C4B1EE" />
+            <stop offset="100%" stopColor="#9C84DC" />
+          </linearGradient>
+          <linearGradient id={`fr-lav2-${uid}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#A98EE5" />
+            <stop offset="100%" stopColor="#7C63C4" />
           </linearGradient>
         </defs>
-        <rect width="600" height="420" fill={`url(#fr-sky-${uid})`} />
 
-        {/* Rolling Provence Lavender Hills */}
-        <path d="M0 295Q140 235 290 285T600 275V420H0Z" fill="#C4B5FD" opacity="0.65" />
-        <path d="M0 335Q180 285 360 330T600 320V420H0Z" fill="#A78BFA" opacity="0.52" />
-        {[28, 48, 68, 520, 540, 560].map((x) => (
-          <ellipse key={x} cx={x} cy="365" rx="14" ry="7" fill="#7C3AED" opacity="0.35" />
+        {/* Soft Pastel Storybook Clouds */}
+        <g opacity="0.82">
+          <path d="M165 72C165 62 178 56 189 60C197 49 218 48 228 57C238 56 248 63 248 72Z" fill="#FFFBF5" />
+          <path d="M366 86C366 76 378 72 388 75C396 66 414 66 422 74C431 73 440 79 440 86Z" fill="#FFFBF5" />
+        </g>
+
+        {/* Rolling Provence Lavender Hills with sunlit lavender rows */}
+        <path d="M0 286Q145 224 295 276T600 264V420H0Z" fill={`url(#fr-lav1-${uid})`} opacity="0.72" />
+        <path d="M0 330Q180 280 360 326T600 314V420H0Z" fill={`url(#fr-lav2-${uid})`} opacity="0.7" />
+        <path d="M0 364Q220 344 410 362T600 356V420H0Z" fill="#E8DCCB" opacity="0.86" />
+        {/* Lavender bush rows */}
+        {[24, 52, 80, 108, 492, 520, 548, 576].map((x, idx) => (
+          <g key={x} opacity="0.62">
+            <ellipse cx={x} cy={354 + (idx % 2) * 8} rx="14" ry="6.5" fill="#6D48B8" />
+            <ellipse cx={x - 3} cy={352 + (idx % 2) * 8} rx="8" ry="3.5" fill="#B596F2" />
+          </g>
         ))}
 
-        {/* Iconic Eiffel Tower Silhouette */}
-        <g transform={unitOrder % 2 === 0 ? 'translate(470, 82)' : 'translate(34, 82)'} opacity="0.82">
+        {/* Iconic Eiffel Tower with Lattice Bracing & Golden Beacon */}
+        <g transform={flip ? 'translate(466, 78)' : 'translate(32, 78)'} opacity="0.9">
+          <circle cx="47.5" cy="14" r="24" fill={`url(#fr-lamp-${uid})`} />
           <path
-            d="M46 0L49 0L53 75C58 125 70 165 88 205H66C61 180 55 168 47.5 168C40 168 34 180 29 205H7C25 165 37 125 42 75Z"
-            fill="#6366F1"
-            stroke="#312E81"
-            strokeWidth="1.8"
+            d="M46 0L49 0L53 75C58 125 70 165 89 208H66C61 182 55 169 47.5 169C40 169 34 182 29 208H6C25 165 37 125 42 75Z"
+            fill="#6660B5"
+            stroke={INK}
+            strokeWidth="1.7"
+            strokeLinejoin="round"
           />
-          <rect x="33" y="96" width="29" height="6" rx="2" fill="#4338CA" />
-          <rect x="26" y="136" width="43" height="7" rx="2" fill="#4338CA" />
-          <circle cx="47.5" cy="14" r="7" fill="#FDE047" opacity="0.55" />
+          {/* Sunlit left steel edge */}
+          <path d="M46 6L42 75C37 125 25 165 11 204" stroke="#C7C2F5" strokeWidth="1.6" fill="none" opacity="0.65" />
+          {/* Lattice diagonals */}
+          <path d="M41 84L54 96M54 84L41 96M36 112L59 132M59 112L36 132M28 152L67 166" stroke="#3F397E" strokeWidth="1.2" opacity="0.55" />
+          <rect x="33" y="96" width="29" height="6.5" rx="2" fill="#4B4491" stroke={INK} strokeWidth="1.2" />
+          <rect x="25" y="136" width="45" height="7.5" rx="2" fill="#4B4491" stroke={INK} strokeWidth="1.2" />
+          <circle cx="47.5" cy="14" r="5" fill="#FEF08A" />
         </g>
 
-        {/* Warm Parisian Streetlamp */}
-        <g transform={unitOrder % 2 === 0 ? 'translate(38, 210)' : 'translate(515, 210)'} opacity="0.9">
-          <rect x="18" y="34" width="6" height="120" rx="3" fill="#1E293B" />
-          <rect x="12" y="144" width="18" height="14" rx="4" fill="#334155" />
-          <circle cx="21" cy="24" r="19" fill="#FDE047" opacity="0.35" />
-          <path d="M12 18H30L27 35H15Z" fill="#FEF08A" stroke={INK} strokeWidth="1.6" />
-          <path d="M9 18L21 9L33 18Z" fill="#1E293B" />
+        {/* Warm Ornate Parisian Streetlamp with Golden Halo */}
+        <g transform={flip ? 'translate(36, 206)' : 'translate(514, 206)'}>
+          <ellipse cx="24" cy="158" rx="18" ry="4.5" fill="#4a3426" opacity="0.24" />
+          <circle cx="21" cy="26" r="38" fill={`url(#fr-lamp-${uid})`} />
+          <rect x="18.5" y="36" width="5" height="114" rx="2.5" fill="#463A4E" stroke={INK} strokeWidth="1.2" />
+          <path d="M12 146C12 138 30 138 30 146V158H12Z" fill="#5A4B63" stroke={INK} strokeWidth="1.4" />
+          <path d="M12 18H30L27 36H15Z" fill="#FFF3B0" stroke={INK} strokeWidth="1.6" strokeLinejoin="round" />
+          <path d="M8 18L21 8L34 18Z" fill="#463A4E" stroke={INK} strokeWidth="1.4" strokeLinejoin="round" />
+          <circle cx="21" cy="7" r="2.2" fill="#EAB308" />
         </g>
-      </svg>
+      </DioramaSvg>
     );
   }
 
   if (language === 'de') {
+    const flip = unitOrder % 2 === 0;
     return (
-      <svg
-        viewBox="0 0 600 420"
-        preserveAspectRatio="xMidYMid slice"
-        aria-hidden="true"
-        data-unit-scenery={unitOrder}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          pointerEvents: 'none',
-          opacity: 0.9,
-        }}
+      <DioramaSvg
+        unitOrder={unitOrder}
+        skyId={`de-sky-${uid}`}
+        skyTop="#FEF8E7"
+        skyMid="#DFF4E7"
+        skyBottom="#C2E6D2"
       >
         <defs>
-          <linearGradient id={`de-sky-${uid}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#FFFBEB" />
-            <stop offset="100%" stopColor="#DCFCE7" />
-          </linearGradient>
+          <radialGradient id={`de-win-${uid}`} cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#FEF08A" stopOpacity="0.92" />
+            <stop offset="100%" stopColor="#F59E0B" stopOpacity="0" />
+          </radialGradient>
         </defs>
-        <rect width="600" height="420" fill={`url(#de-sky-${uid})`} />
+
+        {/* Snow-Dusted Bavarian Alpine Peaks */}
+        <path d="M0 296L92 178L192 266L308 164L426 264L524 184L600 250V420H0Z" fill="#A6C8BC" opacity="0.72" />
+        <path d="M92 178L58 220L94 212Z" fill="#FFFDF7" opacity="0.88" />
+        <path d="M308 164L264 214L310 205Z" fill="#FFFDF7" opacity="0.9" />
+        <path d="M308 164L352 214L310 205Z" fill="#7D9EA8" opacity="0.35" />
+        <path d="M524 184L492 220L526 214Z" fill="#FFFDF7" opacity="0.86" />
+
+        {/* Rolling Emerald Meadow Hills */}
+        <path d="M0 326Q155 278 310 318T600 302V420H0Z" fill="#7DC48F" opacity="0.78" />
+        <path d="M0 356Q210 330 410 356T600 344V420H0Z" fill="#5BA672" opacity="0.72" />
 
         {/* Alpine Cable Car Wire & Gondola */}
-        <line x1="0" y1="74" x2="600" y2="34" stroke="#475569" strokeWidth="2.2" opacity="0.6" />
-        <g transform="translate(465, 38)">
-          <line x1="20" y1="3" x2="20" y2="20" stroke="#334155" strokeWidth="2.5" />
-          <rect x="4" y="20" width="32" height="24" rx="6" fill="#DC2626" stroke={INK} strokeWidth="1.8" />
-          <rect x="9" y="24" width="22" height="10" rx="2.5" fill="#BAE6FD" stroke={INK} strokeWidth="1.2" />
+        <path d="M0 78Q300 62 600 30" fill="none" stroke="#5A4A3E" strokeWidth="2" opacity="0.65" />
+        <g transform="translate(460, 38)">
+          <line x1="20" y1="4" x2="20" y2="20" stroke={INK} strokeWidth="2.2" />
+          <rect x="4" y="20" width="32" height="24" rx="6" fill="#C93B2B" stroke={INK} strokeWidth="1.7" />
+          <rect x="8" y="24" width="24" height="10" rx="2.5" fill="#FEF3C7" stroke={INK} strokeWidth="1.2" />
+          <path d="M16 24V34M24 24V34" stroke={INK} strokeWidth="1" opacity="0.55" />
         </g>
 
-        {/* Evergreen Black Forest Pines */}
-        {[24, 62, 520, 560].map((x, idx) => (
-          <g key={x} transform={`translate(${x}, ${idx % 2 === 0 ? 185 : 210})`} opacity="0.85">
-            <rect x="13" y="75" width="8" height="28" fill="#78350F" />
-            <path d="M17 0L34 38H0Z" fill="#15803D" stroke={INK} strokeWidth="1.5" strokeLinejoin="round" />
-            <path d="M17 22L38 62H-4Z" fill="#166534" stroke={INK} strokeWidth="1.5" strokeLinejoin="round" />
-            <path d="M17 44L41 82H-7Z" fill="#14532D" stroke={INK} strokeWidth="1.5" strokeLinejoin="round" />
+        {/* Evergreen Black Forest Pines with sunlit left needles */}
+        {[18, 58, 520, 560].map((x, idx) => (
+          <g key={x} transform={`translate(${x}, ${idx % 2 === 0 ? 186 : 212})`}>
+            <rect x="13" y="75" width="8" height="28" fill="#6E442A" stroke={INK} strokeWidth="1.2" />
+            <path d="M17 0L34 38H0Z" fill="#2A6F44" stroke={INK} strokeWidth="1.5" strokeLinejoin="round" />
+            <path d="M17 0L2 38H17Z" fill="#46965E" opacity="0.55" />
+            <path d="M17 22L38 62H-4Z" fill="#235F3A" stroke={INK} strokeWidth="1.5" strokeLinejoin="round" />
+            <path d="M17 22L-1 62H17Z" fill="#3C8452" opacity="0.48" />
+            <path d="M17 44L41 82H-7Z" fill="#1C4E30" stroke={INK} strokeWidth="1.5" strokeLinejoin="round" />
           </g>
         ))}
 
-        {/* Half-Timbered Storybook Cottage */}
-        <g transform={unitOrder % 2 === 0 ? 'translate(20, 290)' : 'translate(480, 290)'} opacity="0.9">
-          <rect x="8" y="34" width="76" height="64" fill="#FFFBEB" stroke={INK} strokeWidth="1.8" />
-          <path d="M0 36L46 0L92 36Z" fill="#D97706" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
-          <path d="M8 58H84M32 34V98M60 34V98M8 34L32 58M84 34L60 58" stroke="#78350F" strokeWidth="3.5" />
-          <rect x="38" y="68" width="16" height="30" rx="3" fill="#92400E" stroke={INK} strokeWidth="1.4" />
+        {/* Half-Timbered Storybook Cottage with Glowing Hearth Window & Chimney Smoke */}
+        <g transform={flip ? 'translate(20, 282)' : 'translate(480, 282)'}>
+          <ellipse cx="48" cy="100" rx="48" ry="7" fill="#4a3426" opacity="0.22" />
+          {/* Chimney & gentle curling smoke */}
+          <rect x="64" y="6" width="10" height="22" rx="1.5" fill="#8C4F32" stroke={INK} strokeWidth="1.4" />
+          <circle cx="71" cy="-3" r="4.5" fill="#FFFBF2" opacity="0.72" />
+          <circle cx="76" cy="-12" r="6" fill="#FFFBF2" opacity="0.52" />
+          {/* Walls */}
+          <rect x="8" y="34" width="76" height="64" rx="2" fill="#FFF8E7" stroke={INK} strokeWidth="1.8" />
+          <path d="M0 36L46 0L92 36Z" fill="#C96824" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+          <path d="M6 34L46 4L64 34Z" fill="#E3843E" opacity="0.55" />
+          <path d="M8 58H84M32 34V98M60 34V98M8 34L32 58M84 34L60 58" stroke="#6E442A" strokeWidth="3.2" />
+          {/* Warm glowing cottage window */}
+          <circle cx="20" cy="74" r="16" fill={`url(#de-win-${uid})`} />
+          <rect x="14" y="66" width="12" height="14" rx="2" fill="#FEF08A" stroke={INK} strokeWidth="1.3" />
+          <rect x="66" y="66" width="12" height="14" rx="2" fill="#FEF08A" stroke={INK} strokeWidth="1.3" />
+          <rect x="38" y="68" width="16" height="30" rx="3" fill="#8A4D28" stroke={INK} strokeWidth="1.5" />
         </g>
-      </svg>
+      </DioramaSvg>
     );
   }
 
@@ -1541,62 +1704,88 @@ export function RegionalScenery({
   }
 
   if (language === 'ja') {
-    // Japanese (ja — Sakura Sky Trail: vermilion torii gate, sakura blossoms & Mt. Fuji)
+    // Japanese (ja — Sakura Sky Trail: vermilion torii gate, glowing stone lantern, sakura blossoms & Mt. Fuji)
     const flip = unitOrder % 2 === 0;
     return (
-      <DioramaSvg unitOrder={unitOrder} skyId={`ja-sky-${uid}`} skyTop="#FDF2F8" skyBottom="#E0E7FF">
-        {/* Snow-Capped Mt. Fuji Backdrop */}
+      <DioramaSvg
+        unitOrder={unitOrder}
+        skyId={`ja-sky-${uid}`}
+        skyTop="#FFF1F5"
+        skyMid="#FCE1EC"
+        skyBottom="#DCE3FA"
+      >
+        <defs>
+          <radialGradient id={`ja-toro-${uid}`} cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#FFF7B8" stopOpacity="0.92" />
+            <stop offset="52%" stopColor="#F5B841" stopOpacity="0.32" />
+            <stop offset="100%" stopColor="#F5B841" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        {/* Snow-Capped Mt. Fuji with Warm Sunlit Left Slope & Cool Violet Shadow */}
         <path
-          d="M120 355C195 275 245 190 272 136H328C355 190 405 275 480 355Z"
-          fill="#818CF8"
-          opacity="0.42"
+          d="M112 355C192 272 244 186 272 132H328C356 186 408 272 488 355Z"
+          fill="#7C85CE"
+          opacity="0.52"
         />
         <path
-          d="M244 190L272 136H328L356 190L334 176L316 194L300 176L284 194L266 176Z"
-          fill="#FFFFFF"
-          opacity="0.92"
+          d="M302 132H328C356 186 408 272 488 355H330C320 270 310 190 302 132Z"
+          fill="#5C62A8"
+          opacity="0.28"
         />
-        <path d="M0 322Q160 282 320 322T600 310V420H0Z" fill="#A7F3D0" opacity="0.48" />
+        <path
+          d="M244 188L272 132H328L356 188L334 174L316 192L300 174L284 192L266 174Z"
+          fill="#FFFDF9"
+          opacity="0.94"
+        />
+        {/* Misty Pine Foothills & Tranquil Reflection Pond */}
+        <path d="M0 318Q160 276 320 316T600 304V420H0Z" fill="#92C9A8" opacity="0.62" />
+        <path d="M0 356Q200 342 400 356T600 348V420H0Z" fill="#B8D4EE" opacity="0.68" />
+        <path d="M90 382Q160 376 230 382M370 390Q430 385 495 390" stroke="#FFFDF7" strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.72" />
 
-        {/* Vermilion Torii Gate */}
-        <g transform={flip ? 'translate(454, 214)' : 'translate(24, 214)'} opacity="0.92">
-          <path d="M0 16Q60 26 120 16L114 28Q60 36 6 28Z" fill="#DC2626" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
-          <rect x="14" y="42" width="92" height="10" rx="2" fill="#EF4444" stroke={INK} strokeWidth="1.6" />
-          <rect x="26" y="28" width="12" height="114" fill="#DC2626" stroke={INK} strokeWidth="1.8" />
-          <rect x="82" y="28" width="12" height="114" fill="#DC2626" stroke={INK} strokeWidth="1.8" />
-          <rect x="22" y="132" width="20" height="12" rx="2" fill="#1E293B" />
-          <rect x="78" y="132" width="20" height="12" rx="2" fill="#1E293B" />
+        {/* Vermilion Torii Gate with Shimenawa Rope & Moss Pedestals */}
+        <g transform={flip ? 'translate(454, 210)' : 'translate(22, 210)'}>
+          <ellipse cx="64" cy="144" rx="58" ry="7" fill="#4a3426" opacity="0.2" />
+          <path d="M0 16Q60 26 120 16L114 28Q60 36 6 28Z" fill="#C9362B" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+          <path d="M4 17Q60 25 116 17L114 21Q60 28 6 21Z" fill="#4a3426" opacity="0.78" />
+          <rect x="14" y="42" width="92" height="10" rx="2" fill="#DE4B3A" stroke={INK} strokeWidth="1.6" />
+          <rect x="52" y="28" width="16" height="16" rx="2" fill="#3B2B22" stroke="#EAB308" strokeWidth="1.1" />
+          <rect x="26" y="28" width="12" height="114" fill="#C9362B" stroke={INK} strokeWidth="1.8" />
+          <rect x="82" y="28" width="12" height="114" fill="#C9362B" stroke={INK} strokeWidth="1.8" />
+          <rect x="22" y="132" width="20" height="12" rx="2" fill="#4E413B" stroke={INK} strokeWidth="1.2" />
+          <rect x="78" y="132" width="20" height="12" rx="2" fill="#4E413B" stroke={INK} strokeWidth="1.2" />
         </g>
 
-        {/* Arching Sakura Cherry Blossom Branch & Drifting Petals */}
-        <g transform={flip ? 'translate(0, 12)' : 'translate(410, 12)'} opacity="0.92">
+        {/* Glowing Stone Tōrō Lantern */}
+        <g transform={flip ? 'translate(26, 286)' : 'translate(518, 286)'}>
+          <circle cx="24" cy="28" r="28" fill={`url(#ja-toro-${uid})`} />
+          <rect x="17" y="42" width="14" height="36" rx="2" fill="#BDB3A4" stroke={INK} strokeWidth="1.4" />
+          <rect x="10" y="74" width="28" height="8" rx="3" fill="#A59B8C" stroke={INK} strokeWidth="1.4" />
+          <rect x="14" y="20" width="20" height="20" rx="2" fill="#FEF08A" stroke={INK} strokeWidth="1.5" />
+          <path d="M6 21Q24 4 42 21Z" fill="#9E9384" stroke={INK} strokeWidth="1.5" strokeLinejoin="round" />
+        </g>
+
+        {/* Arching Sakura Cherry Blossom Branch */}
+        <g transform={flip ? 'translate(0, 10)' : 'translate(410, 10)'}>
           <path
             d={flip ? 'M0 78Q68 48 134 62' : 'M190 78Q122 48 56 62'}
             fill="none"
-            stroke="#78350F"
-            strokeWidth="6"
+            stroke="#6B442B"
+            strokeWidth="6.5"
             strokeLinecap="round"
           />
           {[
-            [flip ? 34 : 156, 54, 14],
-            [flip ? 74 : 116, 42, 16],
-            [flip ? 114 : 76, 58, 13],
-            [flip ? 56 : 134, 82, 12],
+            [flip ? 34 : 156, 54, 15],
+            [flip ? 74 : 116, 42, 17],
+            [flip ? 114 : 76, 58, 14],
+            [flip ? 56 : 134, 82, 13],
           ].map(([cx, cy, r], idx) => (
             <g key={idx}>
-              <circle cx={cx} cy={cy} r={r} fill="#F9A8D4" stroke="#DB2777" strokeWidth="1.2" />
-              <circle cx={cx} cy={cy} r={r * 0.36} fill="#FEF08A" />
+              <circle cx={cx} cy={cy} r={r} fill="#F9B4CF" stroke="#B84B78" strokeWidth="1.2" />
+              <circle cx={cx - r * 0.25} cy={cy - r * 0.25} r={r * 0.55} fill="#FFE6F0" opacity="0.65" />
+              <circle cx={cx} cy={cy} r={r * 0.34} fill="#FEF08A" />
             </g>
           ))}
         </g>
-        {[
-          [210, 64],
-          [340, 48],
-          [420, 118],
-          [165, 134],
-        ].map(([x, y], idx) => (
-          <ellipse key={idx} cx={x} cy={y} rx="5" ry="3" transform={`rotate(${idx * 35} ${x} ${y})`} fill="#F472B6" opacity="0.72" />
-        ))}
       </DioramaSvg>
     );
   }
@@ -1951,75 +2140,84 @@ export function RegionalScenery({
     );
   }
 
-  // Italian (it — La Via del Mare)
+  // Italian (it — La Via del Mare: Venetian canals, stone arch bridge, glowing lantern & lemon grove)
   return (
-    <svg
-      viewBox="0 0 600 420"
-      preserveAspectRatio="xMidYMid slice"
-      aria-hidden="true"
-      data-unit-scenery={unitOrder}
-      style={{
-        position: 'absolute',
-        inset: 0,
-        width: '100%',
-        height: '100%',
-        pointerEvents: 'none',
-        opacity: 0.9,
-      }}
+    <DioramaSvg
+      unitOrder={unitOrder}
+      skyId={`it-sky-${uid}`}
+      skyTop="#FBF6E8"
+      skyMid="#E3F4ED"
+      skyBottom="#C9EAF7"
     >
       <defs>
-        <linearGradient id={`it-sky-${uid}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ECFDF5" />
-          <stop offset="100%" stopColor="#E0F2FE" />
+        <radialGradient id={`it-lan-${uid}`} cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#FEF08A" stopOpacity="0.9" />
+          <stop offset="100%" stopColor="#F59E0B" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id={`it-sea-${uid}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#5CB8DF" />
+          <stop offset="100%" stopColor="#2E86B8" />
         </linearGradient>
       </defs>
-      <rect width="600" height="420" fill={`url(#it-sky-${uid})`} />
 
-      {/* Venetian Canal Water Band at bottom */}
-      <path d="M0 328Q150 315 300 328T600 325V420H0Z" fill="#38BDF8" opacity="0.5" />
-      <path d="M25 362Q70 356 115 362M440 375Q495 368 550 375" stroke="#FFFFFF" strokeWidth="2.4" strokeLinecap="round" fill="none" opacity="0.7" />
-
-      {/* Venetian Stone Arch Bridge */}
-      <g transform="translate(18, 252)" opacity="0.88">
-        <path
-          d="M0 64C35 28 95 28 130 64V92H106C98 66 32 66 24 92H0Z"
-          fill="#FDE68A"
-          stroke="#92400E"
-          strokeWidth="1.8"
-          strokeLinejoin="round"
-        />
-        <path d="M4 58C38 25 92 25 126 58" fill="none" stroke="#B45309" strokeWidth="3" />
+      {/* Distant Tuscan Hills & Venetian Campanile Silhouette */}
+      <path d="M0 306Q150 264 310 302T600 288V420H0Z" fill="#C4DFBA" opacity="0.65" />
+      <g transform="translate(268, 178)" opacity="0.48">
+        <rect x="18" y="42" width="26" height="92" fill="#E39B6D" />
+        <path d="M14 42L31 8L48 42Z" fill="#C9593B" />
       </g>
 
-      {/* Slender Mediterranean Cypress Trees */}
-      {[515, 550].map((x, idx) => (
-        <g key={x} transform={`translate(${x}, ${idx === 0 ? 150 : 185})`} opacity="0.88">
-          <rect x="9" y="96" width="5" height="24" fill="#78350F" />
-          <ellipse cx="11.5" cy="54" rx="11" ry="48" fill="#15803D" stroke={INK} strokeWidth="1.6" />
-        </g>
-      ))}
+      {/* Shimmering Venetian Canal Water */}
+      <path d="M0 326Q150 314 300 326T600 322V420H0Z" fill={`url(#it-sea-${uid})`} opacity="0.82" />
+      <path d="M25 360Q75 354 125 360M435 374Q495 367 555 374M230 392Q280 386 330 392" stroke="#FFFDF5" strokeWidth="2.2" strokeLinecap="round" fill="none" opacity="0.72" />
 
-      {/* Gliding Venetian Gondola */}
-      <g transform="translate(435, 314)" opacity="0.92">
+      {/* Venetian Stone Arch Bridge & Warm Lantern */}
+      <g transform="translate(14, 248)">
         <path
-          d="M8 22C34 38 92 38 118 16L110 34C88 47 36 47 14 34Z"
-          fill="#1E293B"
+          d="M0 64C35 28 95 28 130 64V92H106C98 66 32 66 24 92H0Z"
+          fill="#F5DDA6"
           stroke={INK}
           strokeWidth="1.8"
           strokeLinejoin="round"
         />
-        <rect x="52" y="18" width="22" height="11" rx="3" fill="#DC2626" stroke={INK} strokeWidth="1.4" />
-        <line x1="94" y1="3" x2="72" y2="38" stroke="#92400E" strokeWidth="2.8" strokeLinecap="round" />
+        <path d="M4 58C38 25 92 25 126 58" fill="none" stroke="#B46E2E" strokeWidth="3" />
+        {/* Bridge lantern */}
+        <circle cx="65" cy="24" r="18" fill={`url(#it-lan-${uid})`} />
+        <line x1="65" y1="24" x2="65" y2="38" stroke={INK} strokeWidth="1.8" />
+        <rect x="61" y="18" width="8" height="10" rx="2" fill="#FEF08A" stroke={INK} strokeWidth="1.2" />
       </g>
 
-      {/* Sunlit Lemon Tree */}
-      <g transform="translate(26, 86)" opacity="0.86">
-        <rect x="20" y="54" width="7" height="36" rx="2" fill="#78350F" />
-        <circle cx="24" cy="40" r="24" fill="#22C55E" stroke={INK} strokeWidth="1.6" />
-        <circle cx="15" cy="34" r="4.5" fill="#FACC15" stroke={INK} strokeWidth="1.1" />
-        <circle cx="31" cy="44" r="4.5" fill="#FACC15" stroke={INK} strokeWidth="1.1" />
-        <circle cx="24" cy="24" r="4" fill="#FACC15" stroke={INK} strokeWidth="1.1" />
+      {/* Slender Mediterranean Cypress Trees with sunlit left highlight */}
+      {[515, 550].map((x, idx) => (
+        <g key={x} transform={`translate(${x}, ${idx === 0 ? 150 : 185})`}>
+          <rect x="9" y="96" width="5" height="24" fill="#6E442A" />
+          <ellipse cx="11.5" cy="54" rx="11" ry="48" fill="#2B6B3D" stroke={INK} strokeWidth="1.6" />
+          <ellipse cx="8.5" cy="52" rx="4.5" ry="38" fill="#4E9458" opacity="0.55" />
+        </g>
+      ))}
+
+      {/* Gliding Venetian Gondola */}
+      <g transform="translate(432, 312)">
+        <path
+          d="M8 22C34 38 92 38 118 16L110 34C88 47 36 47 14 34Z"
+          fill="#3B2B23"
+          stroke={INK}
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+        <rect x="52" y="18" width="22" height="11" rx="3" fill="#C93636" stroke={INK} strokeWidth="1.4" />
+        <line x1="94" y1="3" x2="72" y2="38" stroke="#8C5228" strokeWidth="2.8" strokeLinecap="round" />
       </g>
-    </svg>
+
+      {/* Sunlit Amalfi Lemon Tree */}
+      <g transform="translate(24, 86)">
+        <rect x="20" y="54" width="7" height="36" rx="2" fill="#6E442A" stroke={INK} strokeWidth="1.2" />
+        <circle cx="24" cy="40" r="24" fill="#3C8D4A" stroke={INK} strokeWidth="1.6" />
+        <circle cx="17" cy="34" r="13" fill="#64B362" opacity="0.55" />
+        <circle cx="15" cy="34" r="4.5" fill="#F8D24A" stroke={INK} strokeWidth="1.1" />
+        <circle cx="31" cy="44" r="4.5" fill="#F8D24A" stroke={INK} strokeWidth="1.1" />
+        <circle cx="24" cy="24" r="4" fill="#F8D24A" stroke={INK} strokeWidth="1.1" />
+      </g>
+    </DioramaSvg>
   );
 }
