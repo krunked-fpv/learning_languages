@@ -306,7 +306,51 @@ export function ProfileVaultModal({ onClose, coopSafeMask }: ProfileVaultModalPr
     setVaultFeedback({ kind: 'ok', message: 'Saved wanderling-save.json backup!' });
   };
 
+  const requireCoopParentGate = (message: string) => {
+    playSfx('gentle_nudge');
+    setCoopParentGateOpen(true);
+    setVaultFeedback({ kind: 'err', message });
+  };
+
+  const getCoopMaskedImportBlockMessage = (raw: string): string | null => {
+    if (!isCoopMasked) return null;
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+    if (!parsed || typeof parsed !== 'object') return null;
+    const payload = parsed as { activeProfileId?: unknown; profiles?: unknown };
+    if (!Array.isArray(payload.profiles)) return null;
+
+    const profiles = payload.profiles.filter(
+      (p): p is Record<string, unknown> => Boolean(p) && typeof p === 'object'
+    );
+    if (importMode === 'replace') {
+      const requestedActiveId =
+        typeof payload.activeProfileId === 'string' ? payload.activeProfileId : undefined;
+      const target =
+        (requestedActiveId ? profiles.find((p) => p.id === requestedActiveId) : undefined) ??
+        profiles[0];
+      if (Boolean(target?.adultModeActive)) {
+        return 'Confirm Parent Controls (18+) before replacing with this active explorer during Family Co-Op.';
+      }
+      return null;
+    }
+    if (profiles.some((p) => p.id === activeProfile.id && p.adultModeActive === true)) {
+      return 'Confirm Parent Controls (18+) before merging this active explorer during Family Co-Op.';
+    }
+    return null;
+  };
+
   const applyImportText = (raw: string) => {
+    const blockedMessage = getCoopMaskedImportBlockMessage(raw);
+    if (blockedMessage) {
+      requireCoopParentGate(blockedMessage);
+      return;
+    }
+
     const res = importVaultJson(raw, importMode);
     if (res.ok) {
       playSfx('chest_open');
@@ -463,6 +507,7 @@ export function ProfileVaultModal({ onClose, coopSafeMask }: ProfileVaultModalPr
                       playSfx('button_click');
                       setCoopMaskUnlockedByParent(true);
                       setCoopParentGateOpen(false);
+                      setVaultFeedback((prev) => (prev?.kind === 'err' ? null : prev));
                     }}
                   >
                     I am 18+ — Show Parent Controls
@@ -534,6 +579,16 @@ export function ProfileVaultModal({ onClose, coopSafeMask }: ProfileVaultModalPr
                     color: 'var(--text-main)',
                   }}
                   onClick={() => {
+                    if (
+                      isCoopMasked &&
+                      Boolean(profile.adultModeActive) &&
+                      profile.id !== activeProfile.id
+                    ) {
+                      requireCoopParentGate(
+                        'Confirm Parent Controls (18+) before switching into this profile during Family Co-Op.'
+                      );
+                      return;
+                    }
                     playSfx('button_click');
                     vaultActions.switchProfile(profile.id);
                   }}

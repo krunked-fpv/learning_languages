@@ -88,6 +88,22 @@ export function convertNumericPinyinSafe(text: string): string {
   return coreFn ? coreFn(text) : fallbackConvertNumericPinyin(text);
 }
 
+const PARTIAL_NUMERIC_PINYIN_TOKEN_RE =
+  /(?:[A-Za-z\u00C0-\u024F\u1E00-\u1EFF\u0300-\u036F0-9]|(?<=[uU]):)+/g;
+const PARTIAL_NUMERIC_PINYIN_TAIL_RE = /^(.+[0-5])([A-Za-z]+)$/;
+
+function convertNumericPinyinWithPartialTailSafe(text: string): string {
+  const converted = convertNumericPinyinSafe(text);
+  return converted.replace(PARTIAL_NUMERIC_PINYIN_TOKEN_RE, (token) => {
+    if (!/[0-5]/.test(token)) return token;
+    const partialSplit = PARTIAL_NUMERIC_PINYIN_TAIL_RE.exec(token);
+    if (partialSplit && hasNumericPinyinSyllableSafe(partialSplit[1])) {
+      return `${convertNumericPinyinSafe(partialSplit[1])}${partialSplit[2]}`;
+    }
+    return token;
+  });
+}
+
 /** Returns live tone-marked Pinyin preview text for zh to_foreign Free-Recall when numeric tones are typed. */
 export function getPinyinTonePreview(
   language: LanguageCode,
@@ -95,9 +111,14 @@ export function getPinyinTonePreview(
   typedText: string
 ): string | null {
   if (language !== 'zh' || direction !== 'to_foreign') return null;
-  if (!hasNumericPinyinSyllableSafe(typedText)) return null;
-  const converted = convertNumericPinyinSafe(typedText).trim();
-  return converted || null;
+  const trimmed = typedText.trim();
+  if (!trimmed || !/[0-5]/.test(trimmed)) return null;
+  const converted = convertNumericPinyinWithPartialTailSafe(trimmed).trim();
+  if (!converted) return null;
+  if (converted === trimmed && !hasNumericPinyinSyllableSafe(trimmed)) {
+    return null;
+  }
+  return converted;
 }
 
 const NON_LATIN_COURSES = new Set<LanguageCode>(['zh', 'ja', 'hi', 'bn', 'ar', 'arz', 'ru']);
