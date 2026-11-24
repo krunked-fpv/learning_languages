@@ -1427,19 +1427,24 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                     ) : null}
                   </div>
 
-                  {feedback.accentCoaching ? (
-                    <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--tint-amber-ink)' }}>
-                      Spell with accents:{' '}
-                      <strong
-                        dir={/[\u0600-\u06FF]/.test(feedback.accentCoaching.expected) ? 'rtl' : 'ltr'}
-                        style={{ unicodeBidi: 'isolate' }}
-                      >
-                        {feedback.accentCoaching.expected}
-                      </strong>{' '}
-                      ({feedback.accentCoaching.highlightedChars.join(', ')}) —{' '}
-                      {feedback.accentCoaching.friendlyTip}
-                    </div>
-                  ) : feedback.expectedText ? (
+                  {feedback.accentCoaching ? (() => {
+                    const spotlightChars = feedback.accentCoaching.highlightedChars.filter(
+                      (ch) => ch.trim().length > 0
+                    );
+                    return (
+                      <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--tint-amber-ink)' }}>
+                        Spell with accents:{' '}
+                        <strong
+                          dir={/[\u0600-\u06FF]/.test(feedback.accentCoaching.expected) ? 'rtl' : 'ltr'}
+                          style={{ unicodeBidi: 'isolate' }}
+                        >
+                          {feedback.accentCoaching.expected}
+                        </strong>
+                        {spotlightChars.length > 0 ? ` (${spotlightChars.join(', ')})` : ''} —{' '}
+                        {feedback.accentCoaching.friendlyTip}
+                      </div>
+                    );
+                  })() : feedback.expectedText ? (
                     <div
                       dir="ltr"
                       style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-main)' }}
