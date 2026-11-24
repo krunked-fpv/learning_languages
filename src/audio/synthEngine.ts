@@ -198,6 +198,37 @@ function detachUnlockListeners(): void {
   unlockListenersAttached = false;
 }
 
+function connectMasterChain(ctx: AudioContext, gain: GainNode): void {
+  // Master -> warm low-pass (lamp-light roll-off) -> soft limiter -> speakers.
+  try {
+    if (
+      typeof ctx.createBiquadFilter === 'function' &&
+      typeof ctx.createDynamicsCompressor === 'function'
+    ) {
+      const warm = ctx.createBiquadFilter();
+      warm.type = 'lowpass';
+      safeSetParam(warm.frequency, 'setValueAtTime', 7200, 0);
+      safeSetParam(warm.Q, 'setValueAtTime', 0.5, 0);
+      const limiter = ctx.createDynamicsCompressor();
+      safeSetParam(limiter.threshold, 'setValueAtTime', -14, 0);
+      safeSetParam(limiter.knee, 'setValueAtTime', 24, 0);
+      safeSetParam(limiter.ratio, 'setValueAtTime', 10, 0);
+      safeSetParam(limiter.attack, 'setValueAtTime', 0.004, 0);
+      safeSetParam(limiter.release, 'setValueAtTime', 0.22, 0);
+      gain.connect(warm);
+      warm.connect(limiter);
+      limiter.connect(ctx.destination);
+      return;
+    }
+  } catch {
+    try {
+      gain.disconnect();
+    } catch {
+      // Ignore.
+    }
+  }
+  gain.connect(ctx.destination);
+}
 function ensureAudioContext(): { ctx: AudioContext; master: GainNode } | null {
   attachUnlockListeners();
   const Ctor = getAudioContextConstructor();
@@ -216,7 +247,7 @@ function ensureAudioContext(): { ctx: AudioContext; master: GainNode } | null {
       masterGain = audioCtx.createGain();
       const target = preferences.muted ? 0 : preferences.volume;
       masterGain.gain.value = target;
-      masterGain.connect(audioCtx.destination);
+      connectMasterChain(audioCtx, masterGain);
     } catch {
       audioCtx = null;
       audioCtxCtorUsed = null;
@@ -229,7 +260,7 @@ function ensureAudioContext(): { ctx: AudioContext; master: GainNode } | null {
     try {
       masterGain = audioCtx.createGain();
       masterGain.gain.value = preferences.muted ? 0 : preferences.volume;
-      masterGain.connect(audioCtx.destination);
+      connectMasterChain(audioCtx, masterGain);
     } catch {
       return null;
     }
@@ -290,9 +321,9 @@ function scheduleWarmTone(
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
       if (filter.Q) {
-        safeSetParam(filter.Q, 'setValueAtTime', 1.4, startTime);
+        safeSetParam(filter.Q, 'setValueAtTime', 0.9, startTime);
       }
-      const cutoffStart = spec.filterCutoff ?? 2200;
+      const cutoffStart = Math.min(4800, spec.filterCutoff ?? 2200);
       const cutoffEnd = spec.filterEndCutoff ?? Math.max(400, cutoffStart * 0.55);
       safeSetParam(filter.frequency, 'setValueAtTime', cutoffStart, startTime);
       safeSetParam(
@@ -405,6 +436,73 @@ function scheduleSequence(ctx: AudioContext, dest: AudioNode, notes: readonly To
   }
 }
 
+interface NoiseSpec {
+  delay?: number;
+  duration: number;
+  attack: number;
+  gain: number;
+  type: 'lowpass' | 'bandpass';
+  freq: number;
+  endFreq?: number;
+  q?: number;
+  smooth?: number;
+}
+
+/** Soft filtered noise burst: paper rustle, felt settle, wood body air. */
+function scheduleNoiseBurst(ctx: AudioContext, dest: AudioNode, spec: NoiseSpec): void {
+  if (
+    typeof ctx.createBuffer !== 'function' ||
+    typeof ctx.createBufferSource !== 'function' ||
+    typeof ctx.createBiquadFilter !== 'function'
+  ) {
+    return;
+  }
+  try {
+    const sampleRate = typeof ctx.sampleRate === 'number' && ctx.sampleRate > 0 ? ctx.sampleRate : 44100;
+    const frameCount = Math.max(256, Math.floor(sampleRate * spec.duration));
+    const buffer = ctx.createBuffer(1, frameCount, sampleRate);
+    const data = buffer.getChannelData(0);
+    const k = spec.smooth ?? 0.7;
+    let s = 0;
+    for (let i = 0; i < frameCount; i += 1) {
+      s = s * k + (Math.random() * 2 - 1) * (1 - k);
+      data[i] = s;
+    }
+    const start = getSafeCurrentTime(ctx) + Math.max(0, spec.delay ?? 0);
+    const end = start + spec.duration;
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = spec.type;
+    safeSetParam(filter.Q, 'setValueAtTime', spec.q ?? 0.8, start);
+    safeSetParam(filter.frequency, 'setValueAtTime', spec.freq, start);
+    if (spec.endFreq) {
+      safeSetParam(filter.frequency, 'exponentialRampToValueAtTime', spec.endFreq, end);
+    }
+    const env = ctx.createGain();
+    const peak = Math.min(0.5, Math.max(0.005, spec.gain));
+    safeSetParam(env.gain, 'setValueAtTime', 0.0001, start);
+    safeSetParam(env.gain, 'linearRampToValueAtTime', peak, start + Math.max(0.005, spec.attack));
+    safeSetParam(env.gain, 'exponentialRampToValueAtTime', 0.0001, end);
+    safeSetParam(env.gain, 'setValueAtTime', 0, end + 0.004);
+    source.connect(filter);
+    filter.connect(env);
+    env.connect(dest);
+    source.start(start);
+    source.stop(end + 0.008);
+    source.onended = () => {
+      try {
+        source.disconnect();
+        filter.disconnect();
+        env.disconnect();
+      } catch {
+        // Ignore already disconnected nodes.
+      }
+    };
+  } catch {
+    // Ignore optional noise buffer limitations.
+  }
+}
 const TAP_SCALE = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5] as const;
 const BUBBLE_PENTATONIC_SCALE = [
   523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.51,
@@ -486,6 +584,24 @@ const SFX_RECIPES: Record<
       filterCutoff: 2100,
       filterEndCutoff: 780,
     });
+    scheduleWarmTone(ctx, dest, {
+      freq: 196,
+      endFreq: 146,
+      wave: 'sine',
+      attack: 0.006,
+      decay: 0.07,
+      gain: 0.2,
+      filterCutoff: 700,
+      filterEndCutoff: 300,
+    });
+    scheduleNoiseBurst(ctx, dest, {
+      duration: 0.03,
+      attack: 0.005,
+      gain: 0.08,
+      type: 'lowpass',
+      freq: 1800,
+      endFreq: 600,
+    });
   },
 
   tile_remove: (ctx, dest) => {
@@ -499,6 +615,15 @@ const SFX_RECIPES: Record<
       gain: 0.2,
       filterCutoff: 1200,
       filterEndCutoff: 500,
+    });
+    scheduleNoiseBurst(ctx, dest, {
+      duration: 0.07,
+      attack: 0.01,
+      gain: 0.06,
+      type: 'lowpass',
+      freq: 900,
+      endFreq: 350,
+      smooth: 0.82,
     });
   },
 
@@ -525,6 +650,27 @@ const SFX_RECIPES: Record<
   },
 
   flip_card: (ctx, dest) => {
+    scheduleNoiseBurst(ctx, dest, {
+      duration: 0.11,
+      attack: 0.02,
+      gain: 0.1,
+      type: 'bandpass',
+      freq: 1500,
+      endFreq: 2600,
+      q: 0.7,
+      smooth: 0.55,
+    });
+    scheduleNoiseBurst(ctx, dest, {
+      delay: 0.05,
+      duration: 0.09,
+      attack: 0.015,
+      gain: 0.07,
+      type: 'bandpass',
+      freq: 2800,
+      endFreq: 1400,
+      q: 0.7,
+      smooth: 0.55,
+    });
     scheduleSequence(ctx, dest, [
       {
         freq: 392.0,
@@ -809,6 +955,15 @@ const SFX_RECIPES: Record<
   },
 
   boss_hit: (ctx, dest) => {
+    scheduleNoiseBurst(ctx, dest, {
+      duration: 0.09,
+      attack: 0.008,
+      gain: 0.1,
+      type: 'lowpass',
+      freq: 700,
+      endFreq: 250,
+      smooth: 0.85,
+    });
     scheduleSequence(ctx, dest, [
       {
         freq: 196.0,
@@ -1574,7 +1729,7 @@ const SFX_RECIPES: Record<
 };
 
 const PHRASE_PUNCT_SPLIT_RE =
-  /[¡!¿?.,;:"“”()[\]{}«»。？！，、・「」『』（）【】《》〈〉〔〕：；،؟؛।॥/|·•…]+/;
+  /[Ã‚Â¡!Ã‚Â¿?.,;:"Ã¢â‚¬Å“Ã¢â‚¬Â()[\]{}Ã‚Â«Ã‚Â»Ã£â‚¬â€šÃ¯Â¼Å¸Ã¯Â¼ÂÃ¯Â¼Å’Ã£â‚¬ÂÃ£Æ’Â»Ã£â‚¬Å’Ã£â‚¬ÂÃ£â‚¬Å½Ã£â‚¬ÂÃ¯Â¼Ë†Ã¯Â¼â€°Ã£â‚¬ÂÃ£â‚¬â€˜Ã£â‚¬Å Ã£â‚¬â€¹Ã£â‚¬Ë†Ã£â‚¬â€°Ã£â‚¬â€Ã£â‚¬â€¢Ã¯Â¼Å¡Ã¯Â¼â€ºÃ˜Å’Ã˜Å¸Ã˜â€ºÃ Â¥Â¤Ã Â¥Â¥/|Ã‚Â·Ã¢â‚¬Â¢Ã¢â‚¬Â¦]+/;
 const CJK_KANA_MORA_RE =
   /[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF][\u3041\u3043\u3045\u3047\u3049\u3083\u3085\u3087\u308E\u30A1\u30A3\u30A5\u30A7\u30A9\u30E3\u30E5\u30E7\u30EE\u30FC\u3099\u309A\u309D\u309E\u30FD\u30FE]*|[^\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]+/g;
 const INVISIBLE_OR_TATWEEL_RE = /[\u0640\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g;
@@ -1595,11 +1750,11 @@ function parsePhoneticSyllables(phonetic: string): ParsedSyllable[] {
 
     const clauses = sanitized.split(PHRASE_PUNCT_SPLIT_RE).filter(Boolean);
     for (const rawClause of clauses) {
-      const clause = rawClause.replace(/^['‘’]+|['‘’]+$/g, '');
+      const clause = rawClause.replace(/^['Ã¢â‚¬ËœÃ¢â‚¬â„¢]+|['Ã¢â‚¬ËœÃ¢â‚¬â„¢]+$/g, '');
       if (!clause) continue;
 
       let isWordStart = true;
-      const parts = clause.split(/[-–—]+/).filter(Boolean);
+      const parts = clause.split(/[-Ã¢â‚¬â€œÃ¢â‚¬â€]+/).filter(Boolean);
       for (const part of parts) {
         for (const seg of splitCjkMorae(part)) {
           if (!/[\p{L}\p{N}]/u.test(seg)) continue;
