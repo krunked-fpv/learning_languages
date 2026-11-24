@@ -15,6 +15,7 @@ import { MascotStage } from '../characters/MascotStage';
 import {
   ARCADE_SHELL_STYLE,
   ARCADE_TIER_META,
+  ArcadeMiniOfflineDeckPill,
   ArcadeSummaryCard,
   CARD_SURFACE_STYLE,
   CoopTurnPill,
@@ -502,12 +503,12 @@ export function StarlightSecretGame({
             ...CARD_SURFACE_STYLE,
             flex: 1,
             minHeight: 0,
-            padding: isCompact ? 14 : 22,
+            padding: isCompact ? '10px 12px' : 22,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: isCompact ? 8 : 12,
+            gap: isCompact ? 6 : 12,
             textAlign: 'center',
             overflowY: 'auto',
           }}
@@ -519,7 +520,7 @@ export function StarlightSecretGame({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                padding: isCompact ? '3px 10px' : '4px 12px',
+                padding: isCompact ? '2px 9px' : '4px 12px',
                 borderRadius: 999,
                 background: 'var(--tint-indigo-bg, #eef2ff)',
                 borderTopWidth: 2,
@@ -530,11 +531,11 @@ export function StarlightSecretGame({
                 borderColor: coopTurn.playerProfile.bannerColor || '#6366f1',
                 color: 'var(--tint-indigo-ink, #312e81)',
                 fontFamily: 'var(--font-display)',
-                fontSize: isCompact ? '0.74rem' : '0.84rem',
+                fontSize: isCompact ? '0.72rem' : '0.84rem',
                 fontWeight: 900,
               }}
             >
-              <AvatarBadge avatarId={coopTurn.playerProfile.avatarId} size={isCompact ? 18 : 22} />
+              <AvatarBadge avatarId={coopTurn.playerProfile.avatarId} size={isCompact ? 16 : 22} />
               <span>
                 Co-Op Turn {coopTurn.turnNumber} of 2 · {coopTurn.playerProfile.name}&apos;s Turn!
               </span>
@@ -563,9 +564,10 @@ export function StarlightSecretGame({
             style={{
               margin: 0,
               fontFamily: 'var(--font-display)',
-              fontSize: isCompact ? '1.12rem' : '1.35rem',
+              fontSize: isCompact ? '1.04rem' : '1.35rem',
               fontWeight: 900,
               color: 'var(--text-main, #1e1b4b)',
+              lineHeight: 1.15,
             }}
           >
             Pop Musical Song-Bubbles With All 5 Companions!
@@ -574,34 +576,46 @@ export function StarlightSecretGame({
             style={{
               margin: 0,
               maxWidth: 500,
-              fontSize: isCompact ? '0.82rem' : '0.92rem',
+              fontSize: isCompact ? '0.78rem' : '0.92rem',
               fontWeight: 700,
               color: 'var(--text-muted, #475569)',
+              lineHeight: isCompact ? 1.3 : 1.38,
             }}
           >
             Pop musical Song-Bubbles to play rising pentatonic melodies! Hit a 5x
             streak to trigger STARLIGHT DISCO FEVER (2x points), and tap Golden Star Notes for
             extra time & Gems!
           </p>
-          <span
+          <div
             style={{
-              padding: '4px 10px',
-              borderRadius: 999,
-              background: tierMeta.bgColor,
-              borderTopWidth: 2,
-              borderRightWidth: 2,
-              borderLeftWidth: 2,
-              borderBottomWidth: 3,
-              borderStyle: 'solid',
-              borderColor: tierMeta.borderColor,
-              color: tierMeta.textColor,
-              fontSize: '0.78rem',
-              fontWeight: 900,
-              fontFamily: 'var(--font-display)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: isCompact ? 5 : 8,
+              flexWrap: 'wrap',
+              justifyContent: 'center',
             }}
           >
-            {tierMeta.label} ({tierMeta.cefrLabel}) · {tierMeta.paceLabel} Pace · {tierMeta.rewardLabel} Rewards
-          </span>
+            <span
+              style={{
+                padding: isCompact ? '2px 8px' : '4px 10px',
+                borderRadius: 999,
+                background: tierMeta.bgColor,
+                borderTopWidth: 2,
+                borderRightWidth: 2,
+                borderLeftWidth: 2,
+                borderBottomWidth: 3,
+                borderStyle: 'solid',
+                borderColor: tierMeta.borderColor,
+                color: tierMeta.textColor,
+                fontSize: isCompact ? '0.7rem' : '0.78rem',
+                fontWeight: 900,
+                fontFamily: 'var(--font-display)',
+              }}
+            >
+              {tierMeta.label} ({tierMeta.cefrLabel}) · {tierMeta.paceLabel} Pace · {tierMeta.rewardLabel} Rewards
+            </span>
+            <ArcadeMiniOfflineDeckPill language={language} isCompact={isCompact} />
+          </div>
           <button
             type="button"
             className="tactile-btn tactile-btn-hero tactile-btn-indigo"

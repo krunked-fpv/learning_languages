@@ -2582,6 +2582,55 @@ export function TargetPromptBar({
   );
 }
 
+/**
+ * Renders the standardized WCAG AA amber Mini Offline Deck indicator pill when
+ * a non-adult language's lazy course chunk failed to load offline.
+ */
+export function ArcadeMiniOfflineDeckPill({
+  language,
+  isCompact,
+}: {
+  language: LanguageCode;
+  isCompact: boolean;
+}) {
+  const langLoadState = useArcadeLanguageLoadState(language);
+  const showMiniOfflineDeckPill =
+    !isAdultLanguage(language) &&
+    Boolean(langLoadState.error) &&
+    !langLoadState.loaded;
+
+  if (!showMiniOfflineDeckPill) {
+    return null;
+  }
+
+  return (
+    <span
+      data-testid="cabinet-mini-offline-deck-pill"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        padding: isCompact ? '2px 8px' : '4px 10px',
+        borderRadius: 999,
+        background: 'var(--tint-amber-bg, #fffbeb)',
+        borderTopWidth: 2,
+        borderRightWidth: 2,
+        borderLeftWidth: 2,
+        borderBottomWidth: 3,
+        borderStyle: 'solid',
+        borderColor: 'var(--tint-amber-border, #f59e0b)',
+        color: 'var(--tint-amber-ink, #92400e)',
+        fontSize: isCompact ? '0.68rem' : '0.78rem',
+        fontWeight: 900,
+        fontFamily: 'var(--font-display)',
+      }}
+    >
+      <WifiOff size={isCompact ? 11 : 13} aria-hidden="true" />
+      <span>Mini Offline Deck · 8 Starter Cards</span>
+    </span>
+  );
+}
+
 export function ArcadeReadyCard({
   companionId,
   badgeText,
@@ -2620,11 +2669,6 @@ export function ArcadeReadyCard({
       fallbackProfile: activeProfile,
       kidQuarantined,
     });
-  const langLoadState = useArcadeLanguageLoadState(effectiveLanguage);
-  const showMiniOfflineDeckPill =
-    !isAdultLanguage(effectiveLanguage) &&
-    Boolean(langLoadState.error) &&
-    !langLoadState.loaded;
   const tierMeta = arcadeTier ? ARCADE_TIER_META[arcadeTier] : null;
 
   return (
@@ -2758,32 +2802,7 @@ export function ArcadeReadyCard({
             {tierMeta.label} ({tierMeta.cefrLabel}) · {tierMeta.paceLabel} Pace · {tierMeta.rewardLabel} Rewards
           </span>
         ) : null}
-        {showMiniOfflineDeckPill ? (
-          <span
-            data-testid="cabinet-mini-offline-deck-pill"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              padding: isCompact ? '2px 8px' : '4px 10px',
-              borderRadius: 999,
-              background: 'var(--tint-amber-bg, #fffbeb)',
-              borderTopWidth: 2,
-              borderRightWidth: 2,
-              borderLeftWidth: 2,
-              borderBottomWidth: 3,
-              borderStyle: 'solid',
-              borderColor: 'var(--tint-amber-border, #f59e0b)',
-              color: 'var(--tint-amber-ink, #92400e)',
-              fontSize: isCompact ? '0.68rem' : '0.78rem',
-              fontWeight: 900,
-              fontFamily: 'var(--font-display)',
-            }}
-          >
-            <WifiOff size={isCompact ? 11 : 13} aria-hidden="true" />
-            <span>Mini Offline Deck · 8 Starter Cards</span>
-          </span>
-        ) : null}
+        <ArcadeMiniOfflineDeckPill language={effectiveLanguage} isCompact={isCompact} />
       </div>
 
       <button

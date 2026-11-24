@@ -365,7 +365,7 @@ function CoopOfflineRecoveryGuard({
       style={{
         width: '100%',
         maxWidth: 560,
-        padding: isCompact ? '4px 7px' : '7px 11px',
+        padding: isCompact ? '3px 7px' : '7px 11px',
         borderRadius: 12,
         background: 'var(--tint-amber-bg, #fffbeb)',
         border: '1.5px solid var(--tint-amber-border, #f59e0b)',
@@ -373,7 +373,7 @@ function CoopOfflineRecoveryGuard({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: isCompact ? 5 : 10,
+        gap: isCompact ? 4 : 10,
         flexWrap: 'wrap',
         textAlign: 'left',
       }}
@@ -383,7 +383,7 @@ function CoopOfflineRecoveryGuard({
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'flex-start',
-          gap: isCompact ? 3 : 4,
+          gap: isCompact ? 2 : 4,
           flex: '1 1 190px',
           minWidth: 0,
         }}
@@ -396,7 +396,7 @@ function CoopOfflineRecoveryGuard({
             minWidth: 0,
             fontSize: isCompact ? '0.67rem' : '0.76rem',
             fontWeight: 800,
-            lineHeight: 1.26,
+            lineHeight: isCompact ? 1.2 : 1.26,
           }}
         >
           <WifiOff size={isCompact ? 14 : 15} style={{ flexShrink: 0 }} />
@@ -421,7 +421,7 @@ function CoopOfflineRecoveryGuard({
           Mini Offline Deck (8 Starter Cards)
         </span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: isCompact ? 5 : 6, flexWrap: 'wrap' }}>
         <button
           type="button"
           data-testid="coop-handoff-retry-btn"
@@ -429,7 +429,7 @@ function CoopOfflineRecoveryGuard({
           disabled={retrying}
           onClick={onRetry}
           style={{
-            padding: isCompact ? '3px 8px' : '5px 10px',
+            padding: isCompact ? '2px 7px' : '5px 10px',
             fontSize: isCompact ? '0.67rem' : '0.75rem',
             borderRadius: 10,
           }}
@@ -443,7 +443,7 @@ function CoopOfflineRecoveryGuard({
           className="tactile-btn tactile-btn-soft"
           onClick={onFallbackEs}
           style={{
-            padding: isCompact ? '3px 8px' : '5px 10px',
+            padding: isCompact ? '2px 7px' : '5px 10px',
             fontSize: isCompact ? '0.67rem' : '0.75rem',
             borderRadius: 10,
           }}
@@ -2021,7 +2021,7 @@ export function ArcadeHub({
               ? 'minmax(0, 1fr) minmax(0, 1fr) auto'
               : 'repeat(3, minmax(0, 1fr))',
           gridAutoRows:
-            isNarrow && effectiveCoopEnabled && page !== 2 ? 'minmax(112px, 1fr)' : undefined,
+            isNarrow && effectiveCoopEnabled && page !== 2 ? 'minmax(118px, auto)' : undefined,
           gap: isCompact ? 5 : 9,
           overflowY: isNarrow && effectiveCoopEnabled ? 'auto' : 'hidden',
           overflowX: 'hidden',
@@ -2036,11 +2036,11 @@ export function ArcadeHub({
                 ...CARD_SURFACE_STYLE,
                 borderColor: cab.accentBorder,
                 borderRadius: isNarrow ? 16 : 20,
-                padding: isNarrow ? 7 : isTightHeight ? 10 : 12,
+                padding: isNarrow ? '6px 7px' : isTightHeight ? 10 : 12,
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
-                gap: isNarrow ? 4 : 6,
+                gap: isNarrow ? 3 : 6,
                 minHeight: 0,
                 overflow: 'hidden',
               }}
@@ -2060,7 +2060,7 @@ export function ArcadeHub({
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'flex-end',
-                    gap: isNarrow ? 2 : 3,
+                    gap: isNarrow ? 1 : 3,
                     minWidth: 0,
                   }}
                 >
@@ -2110,7 +2110,8 @@ export function ArcadeHub({
                     fontSize: isNarrow ? '0.78rem' : isTightHeight ? '0.92rem' : '0.98rem',
                     fontWeight: 900,
                     color: 'var(--text-main, #1e1b4b)',
-                    lineHeight: isNarrow ? 1.12 : 1.15,
+                    lineHeight: isNarrow ? 1.18 : 1.15,
+                    paddingBottom: isNarrow ? 1 : 0,
                     display: '-webkit-box',
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: 'vertical',
