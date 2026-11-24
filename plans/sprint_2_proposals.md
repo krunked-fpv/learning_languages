@@ -85,9 +85,9 @@ Contributors: **Mila (`mila-playtester`)**, **Devon (`devon-chaos`)**, Coordinat
 
 ---
 
-## Sprint 3 Backlog Proposals (`S3-001`–`S3-006`)
+## Sprint 3 Backlog Proposals (`S3-001`–`S3-006`) — `PROMOTED TO SPRINT 3`
 
-Curated from Sprint 2 Wave 2 playtesting (`vera-s2`, `devon-s2`, `mila-s2`):
+Promoted into [sprint_3_proposals.md](./sprint_3_proposals.md) (`Operation Aurora Pact`) and curated from Sprint 2 Wave 2 playtesting (`vera-s2`, `devon-s2`, `mila-s2`):
 
 ### S3-001 — Safe Atlas Masking in `TopHud` During Kid-Quarantined 2P Co-Op
 - **Triggered By:** Co-Op quarantine audit (`devon-s2` #64)

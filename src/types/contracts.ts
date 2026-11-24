@@ -1431,6 +1431,21 @@ export interface FreeRecallToneCoaching {
   expectedWord: string;
   typedWord: string;
   tip: string;
+  convertedNumericPinyin?: string;
+}
+
+export interface CoopSafeAtlasMask {
+  active: boolean;
+  safeLanguage: BaseLanguageCode;
+}
+
+export interface CoopPairStreakEntry {
+  pairKey: string;
+  playerIds: [string, string];
+  streakDays: number;
+  lastPlayedISO: string;
+  matchesTogether: number;
+  bestCombinedScore: number;
 }
 
 export interface CoopArcadeSessionParams {
@@ -1451,6 +1466,10 @@ export interface CoopArcadeSessionSummary {
   playerOneGemsAwarded: number;
   playerTwoGemsAwarded: number;
   xpAwardedEach: number;
+  playerOneCreditedLanguage?: LanguageCode;
+  playerTwoCreditedLanguage?: LanguageCode;
+  pairStreakDays?: number;
+  pairMatchesTogether?: number;
 }
 
 export interface LanguageProgressState {
@@ -1520,6 +1539,9 @@ export interface SaveVault {
   schemaVersion: 1;
   activeProfileId: string;
   profiles: KidProfile[];
+  coopPairStreaks?: Record<string, CoopPairStreakEntry>;
+  lastKidProfileId?: string | null;
+  restoreKidProfileOnStudyBreak?: boolean;
   audioSettings: {
     volume: number;
     muted: boolean;

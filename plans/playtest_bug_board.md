@@ -1,6 +1,17 @@
 # Studio Wanderling — Master Playtest Bug Board
 
-## Sprint 2 — Operation Starlight Horizon (`PT-001`–`PT-115`)
+## Sprint 3 — Operation Aurora Pact (`PT-001`–`PT-125`)
+
+- **Sprint 3 Status:** `IN_EXECUTION` (`S3-001`–`S3-006` contracts locked; Wave 1 specialists deploying; `PT-001`–`PT-125` blitz pending Wave 2)
+- **Lead Quartermaster:** **Vera (`vera-s3`)** | **Scouts:** **Devon (`devon-s3`)**, **Mila (`mila-s3`)**
+- **Open Sprint 3 Bugs (`BUG-S3-###`):** `0` (awaiting Wave 2 blitz)
+
+| Bug ID | Playtest / Area | Severity | Owner | Status | Summary |
+| :--- | :--- | :---: | :--- | :---: | :--- |
+
+---
+
+## Sprint 2 — Operation Starlight Horizon (`PT-001`–`PT-115`) — ARCHIVE
 
 - **Sprint 2 Status:** `VERIFIED_CLOSED` (`0` open Sprint 2 bugs; `11 / 11` verified closed; `S2-001`–`S2-007` shipped & verified; `npx tsc --noEmit` -> `0` errors; unfiltered `npx vitest run` -> `19 / 19` suites & `251 / 251` tests passing including `115 / 115` playtests `PT-001`–`PT-115` and `16 / 16` `tests/playtests/bug-board-regressions.test.tsx`; live `http://127.0.0.1:4173/wanderling-subpath/` Chrome audits across `1440x900`, `768x1024`, `375x667` -> `0` console/page/HTTP errors, `0` outer overflow)
 - **Lead Quartermaster:** **Vera (`vera-s2`)** | **Scouts:** **Devon (`devon-s2`)**, **Mila (`mila-s2`)**
