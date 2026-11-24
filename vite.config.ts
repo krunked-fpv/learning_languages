@@ -47,6 +47,14 @@ export default defineConfig(({ mode }) => ({
           if (norm.includes('/src/art/vocab/')) {
             return 'art-vocab';
           }
+          if (
+            norm.includes('/src/types/') ||
+            norm.endsWith('/src/curriculum/helpers.ts') ||
+            norm.endsWith('/src/curriculum/arcadeLexicon.ts') ||
+            norm.endsWith('/src/curriculum/adultMode/types.ts')
+          ) {
+            return 'curriculum-shared';
+          }
           if (norm.includes('/src/curriculum/adultMode/mashups/')) {
             if (norm.includes('/corpTrades') || norm.includes('/wave1/corp')) {
               return 'adult-mashup-corp-trades';
@@ -76,6 +84,35 @@ export default defineConfig(({ mode }) => ({
           if (courseMatch) {
             const [, lang, suffix] = courseMatch;
             return suffix === 'Units9to16' ? `course-${lang}-b1c2` : `course-${lang}-a1a2`;
+          }
+          if (
+            norm.includes('/src/core/') ||
+            norm.includes('/src/store/') ||
+            norm.includes('/src/audio/') ||
+            norm.includes('/src/art/') ||
+            norm.includes('/src/curriculum/') ||
+            norm.includes('/src/components/characters/') ||
+            norm.includes('/src/components/fx/') ||
+            norm.includes('/src/components/shell/') ||
+            norm.includes('/src/components/lesson/lessonHelpers') ||
+            norm.includes('/src/components/lesson/useHintEngine') ||
+            norm.includes('/src/components/lesson/StarlightHintButton') ||
+            norm.includes('/src/components/lesson/SayItNormallyButton') ||
+            norm.includes('/src/components/meta/paletteSwatches')
+          ) {
+            return 'ui-foundation';
+          }
+          if (norm.includes('/src/components/arcade/')) {
+            return 'arcade-suite';
+          }
+          if (norm.includes('/src/components/map/')) {
+            return 'atlas-map';
+          }
+          if (norm.includes('/src/components/meta/')) {
+            return 'meta-views';
+          }
+          if (norm.includes('/src/components/lesson/')) {
+            return 'lesson-arena';
           }
           return undefined;
         },
