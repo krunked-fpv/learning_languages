@@ -340,7 +340,7 @@ export function MascotStage({
           }
           transition={{ duration: bodyMotion.transition.duration, repeat: Infinity, ease: 'easeInOut' }}
         >
-          <ellipse cx="110" cy="196" rx="48" ry="9" fill="#0F172A" />
+          <ellipse cx="116" cy="197" rx="50" ry="9" fill="#4a3426" /><ellipse cx="114" cy="196" rx="30" ry="5" fill="#4a3426" />
         </motion.g>
 
         {/* Streak Fire Backdrop Glow */}

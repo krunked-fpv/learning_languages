@@ -68,6 +68,9 @@ export function VocabIllustration({
   const uid = useId().replace(/:/g, '');
   const bgId = `vocab-bg-${uid}`;
   const clipId = `vocab-clip-${uid}`;
+  const keyId = `vocab-key-${uid}`;
+  const fillId = `vocab-fill-${uid}`;
+  const grainId = `vocab-grain-${uid}`;
   const palette = language ? STICKER_BACKGROUNDS[language] : STICKER_BACKGROUNDS.default;
   const baseScene = VOCAB_ILLUSTRATIONS[illustrationKey];
   const renderScene =
@@ -93,38 +96,39 @@ export function VocabIllustration({
           <stop offset="0%" stopColor={palette.top} />
           <stop offset="100%" stopColor={palette.bottom} />
         </linearGradient>
+        <radialGradient id={keyId} cx="22" cy="18" r="80" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#FFE9B8" stopOpacity="0.95" />
+          <stop offset="1" stopColor="#FFE9B8" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id={fillId} cx="104" cy="108" r="70" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#7C6BC4" stopOpacity="0.2" />
+          <stop offset="1" stopColor="#7C6BC4" stopOpacity="0" />
+        </radialGradient>
+        <filter id={grainId} x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" />
+          <feColorMatrix values="0 0 0 0 0.29  0 0 0 0 0.2  0 0 0 0 0.15  0 0 0 0.9 0" />
+        </filter>
         <clipPath id={clipId}>
           <rect x="6" y="6" width="108" height="108" rx="26" />
         </clipPath>
       </defs>
 
-      {/* Tactile sticker drop shadow base */}
-      <rect x="6" y="8" width="108" height="108" rx="26" fill="#0F172A" opacity="0.1" />
+      {/* Cast shadow: down-right, warm-tinted (key light upper-left) */}
+      <rect x="8" y="10" width="108" height="108" rx="26" fill="#4a3426" opacity="0.2" />
 
-      {/* Glossy sticker tile */}
-      <rect
-        x="6"
-        y="6"
-        width="108"
-        height="108"
-        rx="26"
-        fill={`url(#${bgId})`}
-        stroke="#FFFFFF"
-        strokeWidth="3.5"
-      />
-      <rect
-        x="8"
-        y="8"
-        width="104"
-        height="104"
-        rx="24"
-        stroke={palette.ring}
-        strokeWidth="1.5"
-        strokeOpacity="0.65"
-      />
-
+      {/* Die-cut paper sticker tile */}
+      <rect x="6" y="6" width="108" height="108" rx="26" fill={`url(#${bgId})`} stroke="#FFFBF0" strokeWidth="3.5" />
+      <rect x="8" y="8" width="104" height="104" rx="24" stroke={palette.ring} strokeWidth="1.5" strokeOpacity="0.65" />
       {/* Scene Artwork */}
-      <g clipPath={`url(#${clipId})`}>{renderScene(uid)}</g>
+      <g clipPath={`url(#${clipId})`}>
+        {renderScene(uid)}
+        {/* Shared storybook lighting: warm key glow upper-left, cool fill lower-right, gouache grain */}
+        <rect x="6" y="6" width="108" height="108" fill={`url(#${keyId})`} style={{ mixBlendMode: 'soft-light' }} />
+        <rect x="6" y="6" width="108" height="108" fill={`url(#${fillId})`} />
+        <rect x="6" y="6" width="108" height="108" filter={`url(#${grainId})`} opacity="0.16" style={{ mixBlendMode: 'multiply' }} />
+      </g>
+      {/* Inked inner rim, warm not black */}
+      <rect x="6.75" y="6.75" width="106.5" height="106.5" rx="25.25" stroke="var(--ink-warm, #4a3426)" strokeOpacity="0.45" strokeWidth="1.2" />
 
       {/* Subtle top-left glossy sticker sheen */}
       <path

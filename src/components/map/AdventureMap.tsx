@@ -19,6 +19,7 @@ import {
 import { MascotStage } from '../characters/MascotStage';
 import { GoldStar, MapNodeIcon, PadlockBadge, StarlightGemIcon } from './NodeIcons';
 import { RegionalScenery } from './RegionalScenery';
+import { AtmosphereLayer } from './AtmosphereLayer';
 
 export interface AdventureMapProps {
   course: LanguageCourse;
@@ -1240,6 +1241,7 @@ export function AdventureMap({
                 unitOrder={currentUnit.order}
                 proficiencyTier={currentUnitTier}
               />
+              <AtmosphereLayer language={course.language} />
 
               {/* Smooth Percentage S-Curve Vector Path */}
               <svg
@@ -1270,7 +1272,7 @@ export function AdventureMap({
                       <path
                         d={seg.d}
                         fill="none"
-                        stroke={isTrailLit ? '#FEF3C7' : '#F8FAFC'}
+                        stroke={isTrailLit ? 'var(--gild, #f3dca0)' : 'var(--paper-base, #fbf3e2)'}
                         strokeWidth={isCompactWidth ? '8' : '10'}
                         strokeLinecap="round"
                         vectorEffect="non-scaling-stroke"
@@ -1278,7 +1280,7 @@ export function AdventureMap({
                       <path
                         d={seg.d}
                         fill="none"
-                        stroke={isTrailLit ? palette.primary : '#94A3B8'}
+                        stroke={isTrailLit ? palette.primary : 'var(--ink-soft, #8b7360)'}
                         strokeWidth={isCompactWidth ? '3' : '3.8'}
                         strokeDasharray={isTrailLit ? 'none' : '7 7'}
                         strokeLinecap="round"
