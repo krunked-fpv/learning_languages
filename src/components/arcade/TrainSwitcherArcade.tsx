@@ -22,6 +22,7 @@ import {
   useArcadeContainerMetrics,
   useArcadeCoopReport,
   useArcadeDeck,
+  ArcadeStageDressing,
 } from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 45;
@@ -388,13 +389,88 @@ export function TrainSwitcherArcade({
               borderLeftWidth: 3,
               borderBottomWidth: 5,
               borderStyle: 'solid',
-              borderColor: '#10b981',
-              background: 'linear-gradient(180deg, #dcfce7 0%, #a7f3d0 55%, #6ee7b7 100%)',
+              borderColor: '#5b7a53',
+              background:
+                'radial-gradient(80% 55% at 12% 8%, rgba(255, 248, 224, 0.72), transparent 58%), linear-gradient(180deg, #e7f3de 0%, #c6e5bd 52%, #98cf98 100%)',
               overflow: 'hidden',
               userSelect: 'none',
+              boxShadow: 'inset 0 2px 14px rgba(74, 52, 38, 0.16)',
             }}
           >
-            {/* Alpine Scenery + 3 Curved Tracks SVG */}
+            <ArcadeStageDressing glowKey={score} combo={combo} tone="daylight" />
+            {/* Storybook Hand-Inked Alpine Mountains & Pine Trees Backdrop */}
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 800 440"
+              preserveAspectRatio="xMidYMin slice"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                pointerEvents: 'none',
+              }}
+            >
+              {/* Soft sunlit sky horizon glow & distant lavender-mist ridge */}
+              <path
+                d="M0 175 Q 150 118 285 162 T 535 154 T 800 168 L 800 440 L 0 440 Z"
+                fill="#b8c9b4"
+                opacity="0.45"
+              />
+              {/* Left Snow-Capped Gouache Peak (warm sunlit left, cool-violet shadow right, warm sepia ink) */}
+              <g stroke="#4a3426" strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round">
+                <path d="M52 192 L176 48 L302 192 Z" fill="#dfd2bf" />
+                <path d="M176 48 L302 192 L192 192 Z" fill="#a69bb3" stroke="none" opacity="0.62" />
+                <path d="M176 48 L139 92 L160 86 L176 102 L193 86 L214 91 Z" fill="#fffdf7" />
+                <path d="M52 192 L176 48 L302 192" fill="none" />
+              </g>
+              {/* Right Snow-Capped Gouache Peak */}
+              <g stroke="#4a3426" strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round">
+                <path d="M498 192 L624 44 L748 192 Z" fill="#dfd2bf" />
+                <path d="M624 44 L748 192 L638 192 Z" fill="#a69bb3" stroke="none" opacity="0.62" />
+                <path d="M624 44 L587 88 L608 82 L624 98 L641 82 L662 88 Z" fill="#fffdf7" />
+                <path d="M498 192 L624 44 L748 192" fill="none" />
+              </g>
+              {/* Soft rolling alpine meadow foreground contour */}
+              <path
+                d="M0 190 Q 210 170 400 186 T 800 188 L 800 440 L 0 440 Z"
+                fill="#b8dfad"
+                opacity="0.58"
+              />
+              <path
+                d="M0 190 Q 210 170 400 186 T 800 188"
+                fill="none"
+                stroke="#4a3426"
+                strokeOpacity="0.28"
+                strokeWidth="1.8"
+              />
+              {/* Left Storybook Pine Cluster with Cast Shadows & Ink Outlines */}
+              <g>
+                <ellipse cx="144" cy="222" rx="22" ry="5" fill="#4a3426" opacity="0.18" />
+                <rect x="139" y="202" width="8" height="19" rx="2" fill="#7c4d2b" stroke="#4a3426" strokeWidth="1.8" />
+                <path d="M119 206 L143 174 L167 206 Z" fill="#4e8a5c" stroke="#4a3426" strokeWidth="2" strokeLinejoin="round" />
+                <path d="M124 187 L143 158 L162 187 Z" fill="#5da06b" stroke="#4a3426" strokeWidth="2" strokeLinejoin="round" />
+                <path d="M130 169 L143 145 L156 169 Z" fill="#71b57e" stroke="#4a3426" strokeWidth="2" strokeLinejoin="round" />
+                <ellipse cx="188" cy="218" rx="14" ry="3.5" fill="#4a3426" opacity="0.16" />
+                <rect x="184" y="204" width="6" height="14" rx="1.5" fill="#7c4d2b" stroke="#4a3426" strokeWidth="1.6" />
+                <path d="M170 206 L187 180 L204 206 Z" fill="#457d53" stroke="#4a3426" strokeWidth="1.8" strokeLinejoin="round" />
+                <path d="M175 190 L187 168 L199 190 Z" fill="#5e9f6c" stroke="#4a3426" strokeWidth="1.8" strokeLinejoin="round" />
+              </g>
+              {/* Right Storybook Pine Cluster */}
+              <g>
+                <ellipse cx="656" cy="224" rx="22" ry="5" fill="#4a3426" opacity="0.18" />
+                <rect x="651" y="204" width="8" height="19" rx="2" fill="#7c4d2b" stroke="#4a3426" strokeWidth="1.8" />
+                <path d="M631 208 L655 176 L679 208 Z" fill="#4e8a5c" stroke="#4a3426" strokeWidth="2" strokeLinejoin="round" />
+                <path d="M636 189 L655 160 L674 189 Z" fill="#5da06b" stroke="#4a3426" strokeWidth="2" strokeLinejoin="round" />
+                <path d="M642 171 L655 147 L668 171 Z" fill="#71b57e" stroke="#4a3426" strokeWidth="2" strokeLinejoin="round" />
+                <ellipse cx="612" cy="219" rx="14" ry="3.5" fill="#4a3426" opacity="0.16" />
+                <rect x="608" y="205" width="6" height="14" rx="1.5" fill="#7c4d2b" stroke="#4a3426" strokeWidth="1.6" />
+                <path d="M594 207 L611 181 L628 207 Z" fill="#457d53" stroke="#4a3426" strokeWidth="1.8" strokeLinejoin="round" />
+                <path d="M599 191 L611 169 L623 191 Z" fill="#5e9f6c" stroke="#4a3426" strokeWidth="1.8" strokeLinejoin="round" />
+              </g>
+            </svg>
+
+            {/* 3 Curved Wooden-Tie & Brass Tracks SVG */}
             <svg
               aria-hidden="true"
               viewBox="0 0 100 100"
@@ -407,15 +483,12 @@ export function TrainSwitcherArcade({
                 pointerEvents: 'none',
               }}
             >
-              {/* Distant Alpine Peaks */}
-              <polygon points="0,35 16,10 34,35" fill="#cbd5e1" opacity="0.45" />
-              <polygon points="66,35 84,8 100,35" fill="#cbd5e1" opacity="0.45" />
+              {/* Wooden Sleeper Crossties + Main Entry Brass Rail */}
+              <line x1="50" y1="6" x2="50" y2="36" stroke="#6b4226" strokeWidth="6.4" strokeDasharray="1.6 2.1" />
+              <line x1="50" y1="6" x2="50" y2="36" stroke="#4a3426" strokeWidth="4.2" strokeLinecap="round" />
+              <line x1="50" y1="6" x2="50" y2="36" stroke="#f6c56a" strokeWidth="1.5" />
 
-              {/* Main Entry Rail */}
-              <line x1="50" y1="6" x2="50" y2="36" stroke="#78350f" strokeWidth="4" />
-              <line x1="50" y1="6" x2="50" y2="36" stroke="#fde047" strokeWidth="1.4" />
-
-              {/* Branch Rails */}
+              {/* Branch Rails with Wooden Ties */}
               {TRACK_X.map((tx, idx) => {
                 const isSelected = selectedLane === idx;
                 const d = `M 50 36 C 50 54, ${tx} 54, ${tx} 75`;
@@ -424,14 +497,22 @@ export function TrainSwitcherArcade({
                     <path
                       d={d}
                       fill="none"
-                      stroke={isSelected ? '#92400e' : '#64748b'}
-                      strokeWidth={isSelected ? '4.5' : '3.2'}
+                      stroke={isSelected ? '#7c4d2b' : '#7b6f63'}
+                      strokeOpacity={isSelected ? 0.8 : 0.45}
+                      strokeWidth={isSelected ? '6.6' : '5.2'}
+                      strokeDasharray="1.5 2.4"
+                    />
+                    <path
+                      d={d}
+                      fill="none"
+                      stroke={isSelected ? '#4a3426' : '#5e5a54'}
+                      strokeWidth={isSelected ? '4.4' : '3.1'}
                       strokeLinecap="round"
                     />
                     <path
                       d={d}
                       fill="none"
-                      stroke={isSelected ? '#fde047' : '#cbd5e1'}
+                      stroke={isSelected ? '#fde047' : '#e6dfd3'}
                       strokeWidth={isSelected ? '1.8' : '1.1'}
                       strokeDasharray={isSelected ? 'none' : '2 2'}
                     />
@@ -439,12 +520,14 @@ export function TrainSwitcherArcade({
                 );
               })}
 
-              {/* Junction Switch Lever Ring */}
-              <circle cx="50" cy="36" r="4.2" fill="#f59e0b" stroke="#78350f" strokeWidth="1.4" />
+              {/* Brass Junction Switch Lever Ring with Cast Shadow */}
+              <circle cx="50.8" cy="37" r="4.3" fill="#4a3426" fillOpacity="0.22" />
+              <circle cx="50" cy="36" r="4.2" fill="#f59e0b" stroke="#4a3426" strokeWidth="1.4" />
             </svg>
 
             {/* Coupled Golden Carriages Counter */}
             <div
+              className="arcade-toast-ribbon"
               style={{
                 position: 'absolute',
                 top: 8,
@@ -452,9 +535,9 @@ export function TrainSwitcherArcade({
                 display: 'flex',
                 alignItems: 'center',
                 gap: 4,
-                padding: '3px 9px',
+                padding: '3px 10px',
                 borderRadius: 999,
-                background: 'rgba(15, 23, 42, 0.78)',
+                background: 'rgba(74, 52, 38, 0.9)',
                 color: '#fde047',
                 fontSize: '0.72rem',
                 fontWeight: 900,
@@ -466,15 +549,16 @@ export function TrainSwitcherArcade({
             </div>
 
             <div
+              className="arcade-toast-ribbon"
               style={{
                 position: 'absolute',
                 top: 8,
                 right: 10,
                 maxWidth: '58%',
-                padding: '3px 10px',
+                padding: '3px 11px',
                 borderRadius: 999,
-                background: 'rgba(15, 23, 42, 0.78)',
-                color: '#ffffff',
+                background: 'rgba(74, 52, 38, 0.9)',
+                color: '#fff8ea',
                 fontSize: '0.72rem',
                 fontWeight: 800,
                 whiteSpace: 'nowrap',
@@ -512,12 +596,14 @@ export function TrainSwitcherArcade({
                 zIndex: 7,
               }}
             >
-              <svg width={isCompact ? 46 : 56} height={isCompact ? 42 : 50} viewBox="0 0 60 54" aria-label="Alpine Express train">
-                <rect x="10" y="10" width="40" height="32" rx="10" fill="#d97706" stroke="#78350f" strokeWidth="3" />
-                <rect x="17" y="15" width="26" height="14" rx="5" fill="#fef3c7" stroke="#92400e" strokeWidth="2" />
-                <circle cx="30" cy="36" r="5" fill="#fde047" stroke="#78350f" strokeWidth="2" />
-                <circle cx="16" cy="43" r="4.5" fill="#1e293b" />
-                <circle cx="44" cy="43" r="4.5" fill="#1e293b" />
+              <svg width={isCompact ? 48 : 58} height={isCompact ? 44 : 52} viewBox="0 0 60 56" aria-label="Alpine Express train">
+                <ellipse cx="32" cy="49" rx="20" ry="4" fill="#4a3426" fillOpacity="0.24" />
+                <rect x="10" y="10" width="40" height="32" rx="10" fill="#d97706" stroke="#4a3426" strokeWidth="2.8" />
+                <path d="M16 14H44" stroke="#fef3c7" strokeWidth="2" strokeLinecap="round" opacity="0.65" />
+                <rect x="17" y="16" width="26" height="13" rx="5" fill="#fef3c7" stroke="#6b3e1e" strokeWidth="1.8" />
+                <circle cx="30" cy="36" r="5" fill="#fde047" stroke="#4a3426" strokeWidth="1.8" />
+                <circle cx="16" cy="43" r="4.5" fill="#4a3426" stroke="#f6c56a" strokeWidth="1.5" />
+                <circle cx="44" cy="43" r="4.5" fill="#4a3426" stroke="#f6c56a" strokeWidth="1.5" />
               </svg>
             </div>
 
@@ -542,18 +628,19 @@ export function TrainSwitcherArcade({
                     key={`${item.id}-${lane}`}
                     type="button"
                     dir="ltr"
+                    className="arcade-toy-tile"
                     onClick={() => selectTrack(lane)}
                     style={{
                       padding: isCompact ? '4px 4px' : '8px 10px',
                       borderRadius: 16,
-                      background: isSelected ? '#fef3c7' : '#ffffff',
+                      background: isSelected ? '#fef3c7' : '#fffdf8',
                       borderTopWidth: 2.5,
                       borderRightWidth: 2.5,
                       borderLeftWidth: 2.5,
                       borderBottomWidth: 5,
                       borderStyle: 'solid',
-                      borderColor: isSelected ? '#d97706' : '#059669',
-                      color: '#1e1b4b',
+                      borderColor: isSelected ? '#b45309' : '#3d7a5b',
+                      color: '#3a2618',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',

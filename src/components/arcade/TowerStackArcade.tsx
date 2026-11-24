@@ -23,6 +23,7 @@ import {
   useArcadeContainerMetrics,
   useArcadeCoopReport,
   useArcadeDeck,
+  ArcadeStageDressing,
 } from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 45;
@@ -446,40 +447,60 @@ export function TowerStackArcade({
               borderLeftWidth: 3,
               borderBottomWidth: 5,
               borderStyle: 'solid',
-              borderColor: perfectFlash ? '#f59e0b' : '#f472b6',
-              background: 'linear-gradient(180deg, #fff1f2 0%, #fef3c7 58%, #fde68a 100%)',
+              borderColor: perfectFlash ? '#d97706' : '#c96f88',
+              background:
+                'radial-gradient(85% 60% at 14% 8%, rgba(255, 250, 238, 0.85), transparent 62%), linear-gradient(180deg, #fff5f5 0%, #fef1d2 56%, #f6d99a 100%)',
               overflow: 'hidden',
               userSelect: 'none',
               cursor: 'pointer',
+              boxShadow: 'inset 0 2px 14px rgba(74, 52, 38, 0.14)',
             }}
           >
-            {/* Striped Patisserie Awning Top */}
-            <div
+            <ArcadeStageDressing glowKey={score} combo={combo} fever={perfectFlash} tone="warm" />
+            {/* True Scalloped Cloth Patisserie Awning with Soft Cast Shadow */}
+            <svg
               aria-hidden="true"
+              viewBox="0 0 800 34"
+              preserveAspectRatio="none"
               style={{
                 position: 'absolute',
                 top: 0,
                 left: 0,
-                right: 0,
-                height: 14,
-                background:
-                  'repeating-linear-gradient(90deg, #fb7185 0px, #fb7185 24px, #ffffff 24px, #ffffff 48px)',
-                opacity: 0.78,
+                width: '100%',
+                height: isCompact ? 18 : 26,
+                pointerEvents: 'none',
+                zIndex: 5,
+                filter: 'drop-shadow(0 4px 4px rgba(74, 52, 38, 0.24))',
               }}
-            />
+            >
+              {Array.from({ length: 20 }, (_, i) => {
+                const x = i * 40;
+                const fill = i % 2 === 0 ? '#d86079' : '#fffaf0';
+                return (
+                  <path
+                    key={i}
+                    d={`M${x} 0 H${x + 40} V17 Q${x + 20} 34 ${x} 17 Z`}
+                    fill={fill}
+                    stroke="#4a3426"
+                    strokeWidth="1.4"
+                  />
+                );
+              })}
+            </svg>
 
             {/* Status Toast */}
             <div
+              className="arcade-toast-ribbon"
               style={{
                 position: 'absolute',
-                top: 18,
+                top: isCompact ? 22 : 30,
                 left: '50%',
                 transform: 'translateX(-50%)',
                 maxWidth: 'calc(100% - 16px)',
-                padding: '3px 12px',
+                padding: '3px 13px',
                 borderRadius: 999,
-                background: perfectFlash ? '#b45309' : 'rgba(30, 27, 75, 0.82)',
-                color: perfectFlash ? '#fef08a' : '#ffffff',
+                background: perfectFlash ? '#9a4f0a' : 'rgba(74, 52, 38, 0.9)',
+                color: perfectFlash ? '#fef08a' : '#fff8ea',
                 fontSize: '0.75rem',
                 fontWeight: 800,
                 whiteSpace: 'nowrap',
@@ -492,7 +513,7 @@ export function TowerStackArcade({
               {toast}
             </div>
 
-            {/* Dual Brass Rails & Target Drop Crosshair */}
+            {/* Dual Brass Rails & Golden-Hour Spotlight Drop Cloche */}
             {SCOOP_RAIL_TOPS.map((railTop) => (
               <div
                 key={railTop}
@@ -502,10 +523,12 @@ export function TowerStackArcade({
                   top: `${railTop}%`,
                   left: '8%',
                   right: '8%',
-                  height: 5,
+                  height: 6,
                   borderRadius: 999,
-                  background: '#d97706',
-                  opacity: 0.4,
+                  background: 'linear-gradient(180deg, #f3cb74 0%, #b47320 100%)',
+                  border: '1px solid rgba(74, 52, 38, 0.45)',
+                  boxShadow: '0 2px 4px rgba(74, 52, 38, 0.2)',
+                  opacity: 0.78,
                   pointerEvents: 'none',
                 }}
               />
@@ -514,18 +537,23 @@ export function TowerStackArcade({
               aria-hidden="true"
               style={{
                 position: 'absolute',
-                top: '14%',
-                bottom: '12%',
+                top: '16%',
+                bottom: '11%',
                 left: '50%',
-                width: isCompact ? 96 : 122,
+                width: isCompact ? 98 : 128,
                 transform: 'translateX(-50%)',
-                borderRadius: 20,
-                borderStyle: 'dashed',
+                borderRadius: '64px 64px 20px 20px',
+                borderStyle: 'solid',
                 borderWidth: 2,
-                borderColor: targetOverZone ? '#10b981' : 'rgba(217, 119, 6, 0.35)',
-                background: targetOverZone ? 'rgba(16, 185, 129, 0.14)' : 'transparent',
+                borderColor: targetOverZone ? 'rgba(16, 185, 129, 0.72)' : 'rgba(180, 115, 32, 0.42)',
+                background: targetOverZone
+                  ? 'linear-gradient(180deg, rgba(16, 185, 129, 0.22) 0%, rgba(254, 240, 138, 0.26) 60%, rgba(16, 185, 129, 0.08) 100%)'
+                  : 'linear-gradient(180deg, rgba(246, 197, 106, 0.24) 0%, rgba(255, 248, 224, 0.16) 60%, rgba(246, 197, 106, 0.04) 100%)',
+                boxShadow: targetOverZone
+                  ? 'inset 0 0 18px rgba(16, 185, 129, 0.26), 0 0 18px rgba(246, 197, 106, 0.35)'
+                  : 'inset 0 0 14px rgba(246, 197, 106, 0.2)',
                 pointerEvents: 'none',
-                transition: 'border-color 120ms ease, background-color 120ms ease',
+                transition: 'border-color 140ms ease, background 140ms ease, box-shadow 140ms ease',
               }}
             />
 
@@ -607,16 +635,18 @@ export function TowerStackArcade({
                 zIndex: 4,
               }}
             >
-              {/* Waffle Cone Base */}
-              <svg width={isCompact ? 62 : 76} height={isCompact ? 48 : 58} viewBox="0 0 80 62" aria-hidden="true">
+              {/* Waffle Cone Base with warm cast shadow */}
+              <svg width={isCompact ? 64 : 78} height={isCompact ? 50 : 60} viewBox="0 0 80 66" aria-hidden="true">
+                <ellipse cx="42" cy="60" rx="18" ry="4" fill="#4a3426" fillOpacity="0.22" />
                 <polygon
                   points="14,6 66,6 40,58"
                   fill="#f59e0b"
-                  stroke="#92400E"
-                  strokeWidth="3.5"
+                  stroke="#4a3426"
+                  strokeWidth="3.2"
                   strokeLinejoin="round"
                 />
-                <path d="M24 14L46 42M56 14L34 42" stroke="#b45309" strokeWidth="2" strokeLinecap="round" />
+                <path d="M24 14L46 42M56 14L34 42" stroke="#92400e" strokeWidth="2" strokeLinecap="round" />
+                <path d="M20 10H34" stroke="#fef3c7" strokeWidth="2" strokeLinecap="round" opacity="0.7" />
               </svg>
 
               {/* Stacked Treat Scoops */}

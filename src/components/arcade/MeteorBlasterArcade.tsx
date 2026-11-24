@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Crosshair, Rocket, Sparkles, Zap } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase } from '../../audio';
@@ -23,6 +23,7 @@ import {
   useArcadeCoopReport,
   useArcadeDeck,
   useArcadeEffectiveProfile,
+  ArcadeStageDressing,
 } from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 45;
@@ -68,6 +69,7 @@ export function MeteorBlasterArcade({
   const { language, lexicon, targetLexicon, bestScoreFor, paceMultiplier } =
     useArcadeDeck(arcadeTier);
   const { containerRef, isCompact } = useArcadeContainerMetrics();
+  const rocketUid = useId().replace(/:/g, '-');
   const langDir = LANGUAGE_META[language].dir;
 
   const [phase, setPhase] = useState<'ready' | 'playing' | 'summary'>('ready');
@@ -540,7 +542,7 @@ export function MeteorBlasterArcade({
             }
           />
 
-          {/* Space Cockpit Viewport */}
+          {/* Celestial Star-Chart Cockpit Viewport */}
           <div
             style={{
               position: 'relative',
@@ -553,13 +555,51 @@ export function MeteorBlasterArcade({
               borderLeftWidth: 3,
               borderBottomWidth: 5,
               borderStyle: 'solid',
-              borderColor: '#818cf8',
-              background: 'radial-gradient(circle at 50% 20%, #1e1b4b 0%, #090d26 68%, #020617 100%)',
+              borderColor: '#d9b46a',
+              background:
+                'radial-gradient(ellipse at 24% 12%, rgba(246, 197, 106, 0.16), transparent 46%), radial-gradient(circle at 50% 24%, #352b76 0%, #1d1a4b 58%, #131130 100%)',
+              display: 'flex',
+              flexDirection: 'column',
               overflow: 'hidden',
               userSelect: 'none',
+              boxShadow: 'inset 0 2px 18px rgba(10, 8, 28, 0.45)',
             }}
           >
-            {/* Starfield & 3 Lane Guides */}
+            <ArcadeStageDressing glowKey={score} combo={combo} tone="celestial" />
+
+            {/* Dedicated top celestial ticker strip (asteroids fall strictly below it — zero overlap) */}
+            <div
+              style={{
+                position: 'relative',
+                zIndex: 9,
+                flexShrink: 0,
+                padding: isCompact ? '4px 10px' : '5px 14px',
+                background: 'rgba(20, 16, 48, 0.86)',
+                borderBottom: '1px solid rgba(217, 180, 106, 0.36)',
+                color: '#fef08a',
+                fontSize: isCompact ? '0.68rem' : '0.75rem',
+                fontWeight: 800,
+                textAlign: 'center',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                pointerEvents: 'none',
+              }}
+            >
+              {toast}
+            </div>
+
+            {/* Falling Asteroid Arena (strictly below ticker strip) */}
+            <div
+              style={{
+                position: 'relative',
+                flex: 1,
+                minHeight: 0,
+                width: '100%',
+                overflow: 'hidden',
+              }}
+            >
+            {/* Gilded Star-Chart & 3 Lane Guides */}
             <svg
               aria-hidden="true"
               viewBox="0 0 100 100"
@@ -572,16 +612,21 @@ export function MeteorBlasterArcade({
                 pointerEvents: 'none',
               }}
             >
+              <circle cx="50" cy="48" r="34" fill="none" stroke="#d9b46a" strokeOpacity="0.14" strokeWidth="0.4" strokeDasharray="1.8 2.4" />
+              <circle cx="14" cy="18" r="0.6" fill="#fef08a" opacity="0.7" />
+              <circle cx="86" cy="22" r="0.7" fill="#fde68a" opacity="0.65" />
+              <circle cx="32" cy="64" r="0.5" fill="#bae6fd" opacity="0.55" />
+              <circle cx="72" cy="58" r="0.6" fill="#fef08a" opacity="0.6" />
               {LANE_X.map((lx) => (
                 <line
                   key={lx}
                   x1={lx}
-                  y1="0"
+                  y1="4"
                   x2={lx}
                   y2="82"
-                  stroke="#818cf8"
-                  strokeOpacity="0.18"
-                  strokeWidth="0.6"
+                  stroke="#d9b46a"
+                  strokeOpacity="0.24"
+                  strokeWidth="0.55"
                   strokeDasharray="2 3"
                 />
               ))}
@@ -608,29 +653,6 @@ export function MeteorBlasterArcade({
                 </g>
               ))}
             </svg>
-
-            <div
-              style={{
-                position: 'absolute',
-                top: 8,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                maxWidth: 'calc(100% - 16px)',
-                padding: '3px 11px',
-                borderRadius: 999,
-                background: 'rgba(15, 23, 42, 0.84)',
-                color: '#7dd3fc',
-                fontSize: '0.75rem',
-                fontWeight: 800,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                zIndex: 6,
-                pointerEvents: 'none',
-              }}
-            >
-              {toast}
-            </div>
 
             {/* Asteroids */}
             {asteroids.map((ast) =>
@@ -681,31 +703,30 @@ export function MeteorBlasterArcade({
                     top: `${ast.y}%`,
                     transform: 'translate(-50%, -50%)',
                     willChange: 'top',
-                    padding: isCompact ? '4px 6px' : '6px 10px',
+                    padding: isCompact ? '4px 5px' : '6px 10px',
                     borderRadius: 18,
-                    background: 'linear-gradient(180deg, #312e81 0%, #1e1b4b 100%)',
+                    background: 'linear-gradient(180deg, #352b78 0%, #201a4f 100%)',
                     borderTopWidth: 2,
                     borderRightWidth: 2,
                     borderLeftWidth: 2,
                     borderBottomWidth: 4,
                     borderStyle: 'solid',
-                    borderColor: '#c084fc',
-                    color: '#f8fafc',
+                    borderColor: '#d9b46a',
+                    color: '#fffbeb',
                     display: 'flex',
                     flexDirection:
-                      (isCompact && ast.item.foreign.length > 12) ||
-                      ast.item.foreign.length > 26
+                      isCompact || ast.item.foreign.length > 26
                         ? 'column'
                         : 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: isCompact ? 3 : 5,
-                    maxWidth: isCompact ? '31%' : '32%',
+                    gap: isCompact ? 2 : 5,
+                    maxWidth: isCompact ? '32%' : '32%',
                     minWidth: 0,
                     overflow: 'hidden',
                     cursor: 'pointer',
                     zIndex: 7,
-                    boxShadow: '0 0 16px rgba(168, 85, 247, 0.4)',
+                    boxShadow: '0 4px 14px rgba(10, 8, 28, 0.45), 0 0 12px rgba(217, 180, 106, 0.25)',
                   }}
                 >
                   <span style={{ flexShrink: 0, display: 'inline-flex' }}>
@@ -714,9 +735,9 @@ export function MeteorBlasterArcade({
                       language={language}
                       size={
                         isCompact
-                          ? ast.item.foreign.length > 12
-                            ? 17
-                            : 20
+                          ? ast.item.foreign.length > 14
+                            ? 16
+                            : 18
                           : ast.item.foreign.length > 26
                             ? 20
                             : 26
@@ -729,12 +750,15 @@ export function MeteorBlasterArcade({
                       ...getArcadeForeignTextStyle(language, ast.item.foreign, {
                         isCompact,
                         density: 'tight',
-                        color: '#f8fafc',
+                        color: '#fffbeb',
                       }),
+                      fontSize: isCompact ? 'clamp(0.62rem, 2.75vw, 0.74rem)' : undefined,
+                      lineHeight: isCompact ? 1.15 : undefined,
+                      overflowWrap: 'break-word',
+                      wordBreak: 'normal',
                       flex: '0 1 auto',
                       width:
-                        (isCompact && ast.item.foreign.length > 12) ||
-                        ast.item.foreign.length > 26
+                        isCompact || ast.item.foreign.length > 26
                           ? '100%'
                           : undefined,
                     }}
@@ -767,7 +791,7 @@ export function MeteorBlasterArcade({
               </div>
             ))}
 
-            {/* Pip Starship Cockpit */}
+            {/* Pip Painted Brass & Enamel Storybook Rocket Cockpit */}
             <div
               style={{
                 position: 'absolute',
@@ -782,9 +806,35 @@ export function MeteorBlasterArcade({
                 zIndex: 5,
               }}
             >
-              <svg width={isCompact ? 46 : 56} height={isCompact ? 36 : 44} viewBox="0 0 64 48" aria-hidden="true">
-                <path d="M32 4L56 38L32 30L8 38L32 4Z" fill="#38bdf8" stroke="#e0f2fe" strokeWidth="2.5" strokeLinejoin="round" />
-                <circle cx="32" cy="21" r="6" fill="#fde047" />
+              <svg width={isCompact ? 46 : 58} height={isCompact ? 44 : 54} viewBox="0 0 64 60" fill="none" aria-hidden="true">
+                <defs>
+                  <linearGradient id={`rocket-hull-${rocketUid}`} x1="20" y1="8" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor="#FFFDF5" />
+                    <stop offset="55%" stopColor="#F5E6C8" />
+                    <stop offset="100%" stopColor="#D9C196" />
+                  </linearGradient>
+                  <linearGradient id={`rocket-brass-${rocketUid}`} x1="24" y1="6" x2="40" y2="18" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor="#FDE68A" />
+                    <stop offset="100%" stopColor="#C2781F" />
+                  </linearGradient>
+                </defs>
+                {/* Warm lantern thruster plume */}
+                <path d="M26 44 L32 57 L38 44 Z" fill="#F97316" opacity="0.9" />
+                <path d="M28.5 44 L32 53 L35.5 44 Z" fill="#FEF08A" />
+                {/* Painted terracotta-brass side fins */}
+                <path d="M21 30 L10 43 L22 41 Z" fill="#C85A32" stroke="#4A3426" strokeWidth="2.2" strokeLinejoin="round" />
+                <path d="M43 30 L54 43 L42 41 Z" fill="#C85A32" stroke="#4A3426" strokeWidth="2.2" strokeLinejoin="round" />
+                {/* Enamel ivory rocket fuselage */}
+                <path d="M32 5 C41 13 44 26 43 42 H21 C20 26 23 13 32 5 Z" fill={`url(#rocket-hull-${rocketUid})`} stroke="#4A3426" strokeWidth="2.3" strokeLinejoin="round" />
+                {/* Brass nosecone cap */}
+                <path d="M32 5 C36.5 9.5 39 14 40 17 H24 C25 14 27.5 9.5 32 5 Z" fill={`url(#rocket-brass-${rocketUid})`} stroke="#4A3426" strokeWidth="2" strokeLinejoin="round" />
+                {/* Upper-left highlight stripe */}
+                <path d="M26 22 C26 28 26.5 34 27 38" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
+                {/* Brass-rimmed sky porthole */}
+                <circle cx="32" cy="27" r="6.5" fill="#38BDF8" stroke="#B47320" strokeWidth="2.4" />
+                <circle cx="30" cy="25" r="2" fill="#FFFBEB" opacity="0.85" />
+                {/* Engine collar */}
+                <rect x="23" y="40" width="18" height="4.5" rx="2" fill="#B47320" stroke="#4A3426" strokeWidth="1.8" />
               </svg>
               <MascotStage
                 companionId="pip"
@@ -792,6 +842,7 @@ export function MeteorBlasterArcade({
                 equippedCosmetics={activeProfile.equippedCosmetics}
                 size={isCompact ? 46 : 58}
               />
+            </div>
             </div>
           </div>
 

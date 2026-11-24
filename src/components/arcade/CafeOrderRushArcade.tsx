@@ -33,16 +33,17 @@ import {
   useArcadeCoopTurn,
   useArcadeDeck,
   useArcadeEffectiveProfile,
+  ArcadeStageDressing,
 } from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 45;
 const CAFE_GUESTS: readonly CompanionId[] = ['colette', 'mateo', 'benni', 'luca', 'pip'];
 
 const PLATTER_ACCENTS = [
-  { border: '#f97316', badgeBg: '#ffedd5', badgeInk: '#9a3412' },
-  { border: '#10b981', badgeBg: '#d1fae5', badgeInk: '#065f46' },
-  { border: '#ec4899', badgeBg: '#fce7f3', badgeInk: '#9d174d' },
-  { border: '#6366f1', badgeBg: '#e0e7ff', badgeInk: '#312e81' },
+  { border: '#c46a34', rim: 'rgba(196, 106, 52, 0.24)', badgeBg: '#faead7', badgeInk: '#7c3916' },
+  { border: '#468265', rim: 'rgba(70, 130, 101, 0.24)', badgeBg: '#e1f2e9', badgeInk: '#1f533a' },
+  { border: '#b85c75', rim: 'rgba(184, 92, 117, 0.24)', badgeBg: '#f8e3ea', badgeInk: '#7c2b43' },
+  { border: '#5c66a4', rim: 'rgba(92, 102, 164, 0.24)', badgeBg: '#e6e9f8', badgeInk: '#2f386e' },
 ] as const;
 
 type OrderDirection = 'foreign_to_english' | 'english_to_foreign';
@@ -540,50 +541,70 @@ export function CafeOrderRushArcade({
               borderLeftWidth: 3,
               borderBottomWidth: 5,
               borderStyle: 'solid',
-              borderColor: '#f97316',
-              background: 'linear-gradient(180deg, #fff7ed 0%, #ffedd5 55%, #fde68a 100%)',
+              borderColor: '#b45309',
+              background:
+                'radial-gradient(85% 65% at 12% 8%, rgba(255, 248, 226, 0.85), transparent 60%), linear-gradient(180deg, #fff8ed 0%, #fcebd1 56%, #f5d8a8 100%)',
               display: 'flex',
               flexDirection: 'column',
               gap: isCompact ? 8 : 12,
               overflow: 'hidden',
               userSelect: 'none',
+              boxShadow: 'inset 0 2px 12px rgba(74, 52, 38, 0.14)',
             }}
           >
-            {/* Striped Bistro Awning */}
-            <div
+            <ArcadeStageDressing glowKey={score} combo={combo} tone="warm" />
+            {/* True Scalloped Cloth Bistro Awning with Soft Cast Shadow */}
+            <svg
               aria-hidden="true"
+              viewBox="0 0 800 32"
+              preserveAspectRatio="none"
               style={{
                 position: 'absolute',
                 top: 0,
                 left: 0,
-                right: 0,
-                height: isCompact ? 10 : 14,
-                background:
-                  'repeating-linear-gradient(90deg, #ea580c 0px, #ea580c 22px, #ffffff 22px, #ffffff 44px)',
-                opacity: 0.85,
+                width: '100%',
+                height: isCompact ? 17 : 24,
                 pointerEvents: 'none',
+                zIndex: 5,
+                filter: 'drop-shadow(0 4px 4px rgba(74, 52, 38, 0.24))',
               }}
-            />
+            >
+              {Array.from({ length: 20 }, (_, i) => {
+                const x = i * 40;
+                const fill = i % 2 === 0 ? '#cf5b28' : '#fffaf0';
+                return (
+                  <path
+                    key={i}
+                    d={`M${x} 0 H${x + 40} V16 Q${x + 20} 32 ${x} 16 Z`}
+                    fill={fill}
+                    stroke="#4a3426"
+                    strokeWidth="1.4"
+                  />
+                );
+              })}
+            </svg>
 
             {/* Customer Order Counter Card */}
             <div
               style={{
-                marginTop: isCompact ? 8 : 12,
+                position: 'relative',
+                zIndex: 4,
+                marginTop: isCompact ? 12 : 18,
                 flexShrink: 0,
                 padding: isCompact ? '8px 10px' : '12px 16px',
                 borderRadius: 18,
-                background: 'rgba(255, 255, 255, 0.94)',
+                background: 'linear-gradient(145deg, #fffdf8 0%, #fff7ea 100%)',
                 borderTopWidth: 2,
                 borderRightWidth: 2,
                 borderLeftWidth: 2,
                 borderBottomWidth: 4,
                 borderStyle: 'solid',
-                borderColor: '#fdba74',
+                borderColor: '#c9884f',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 gap: isCompact ? 8 : 14,
-                boxShadow: '0 8px 18px rgba(154, 52, 18, 0.12)',
+                boxShadow: '2px 5px 0 rgba(74, 52, 38, 0.16), 0 8px 18px rgba(124, 67, 33, 0.14)',
               }}
             >
               {/* Active Companion with Live 60fps Patience Ring */}
@@ -878,49 +899,63 @@ export function CafeOrderRushArcade({
                     dir="ltr"
                     data-hint-dimmed={isDimmed ? 'true' : undefined}
                     data-hint-spotlight={isSpotlight ? 'true' : undefined}
-                    className={`tactile-btn starlight-choice-tile ${
+                    className={`tactile-btn arcade-toy-tile starlight-choice-tile ${
                       isDimmed ? 'is-starlight-dimmed' : ''
                     } ${isSpotlight ? 'is-starlight-spotlight' : ''}`}
                     onClick={() => handleServePlatter(platterIdx)}
                     style={{
                       position: 'relative',
+                      zIndex: 4,
                       width: '100%',
                       height: '100%',
                       minWidth: 0,
                       minHeight: 0,
                       padding: isCompact ? '15px 6px 5px' : '12px 14px',
                       borderRadius: 20,
-                      background: '#ffffff',
+                      background:
+                        `radial-gradient(circle at 50% 48%, #fffefb 0%, #fdf7eb 44%, ${accent.rim} 45%, transparent 47%), linear-gradient(155deg, #fffaf0 0%, #f5e6cc 100%)`,
                       borderTopWidth: 2.5,
                       borderRightWidth: 2.5,
                       borderLeftWidth: 2.5,
                       borderBottomWidth: 5,
                       borderStyle: 'solid',
                       borderColor: isSpotlight ? '#a78bfa' : accent.border,
-                      color: '#1e1b4b',
+                      color: '#3a2618',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: isCompact ? 2 : 6,
+                      gap: isCompact ? 2 : 7,
                       cursor: 'pointer',
                       opacity: isDimmed ? 0.38 : 1,
                       transform: isFlashed ? 'scale(0.95)' : 'scale(1)',
                       transition: 'transform 90ms ease, opacity 220ms ease',
                       boxShadow: isSpotlight
-                        ? '0 0 0 2px var(--starlight-glow-a), 0 0 18px 2px var(--starlight-glow-b), 0 8px 18px rgba(154, 52, 18, 0.12)'
-                        : '0 8px 18px rgba(154, 52, 18, 0.12)',
+                        ? '0 0 0 2px var(--starlight-glow-a), 0 0 18px 2px var(--starlight-glow-b), 0 8px 18px rgba(74, 52, 38, 0.16)'
+                        : '2px 5px 0 rgba(74, 52, 38, 0.18), 0 8px 18px rgba(74, 52, 38, 0.15)',
                       overflow: 'visible',
                     }}
                   >
+                    {/* Embossed porcelain rim accent */}
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        position: 'absolute',
+                        inset: isCompact ? 4 : 6,
+                        borderRadius: 14,
+                        border: `1px dashed ${accent.rim}`,
+                        pointerEvents: 'none',
+                      }}
+                    />
                     <span
                       style={{
                         position: 'absolute',
-                        top: isCompact ? 4 : 6,
-                        left: isCompact ? 6 : 8,
-                        padding: '1px 7px',
-                        borderRadius: 999,
+                        top: isCompact ? 4 : 7,
+                        left: isCompact ? 6 : 9,
+                        padding: '1px 8px',
+                        borderRadius: 8,
                         background: accent.badgeBg,
+                        border: `1px solid ${accent.rim}`,
                         color: accent.badgeInk,
                         fontSize: isCompact ? '0.6rem' : '0.66rem',
                         fontWeight: 900,
@@ -929,16 +964,26 @@ export function CafeOrderRushArcade({
                       Platter {platterIdx + 1}
                     </span>
 
-                    <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                    <span
+                      style={{
+                        flexShrink: 0,
+                        display: 'inline-flex',
+                        padding: isCompact ? 3 : 8,
+                        borderRadius: 999,
+                        background: 'radial-gradient(circle at 35% 30%, #ffffff 0%, #faf2e2 100%)',
+                        border: `2px solid ${accent.rim}`,
+                        boxShadow: '2px 4px 8px rgba(74, 52, 38, 0.14), inset 0 1px 0 #ffffff',
+                      }}
+                    >
                       <VocabIllustration
                         illustrationKey={item.illustrationKey}
                         language={language}
                         size={
                           isCompact
                             ? (showForeignOnPlatter ? item.foreign.length : item.english.length) > 24
-                              ? 19
-                              : 23
-                            : 44
+                              ? 20
+                              : 24
+                            : 64
                         }
                       />
                     </span>

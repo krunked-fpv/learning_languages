@@ -1,0 +1,501 @@
+/* ============================================================================
+ * Wanderling Arcade — Cozy Tabletop & Paper-Theater Craft
+ * Obeys Cozy ASMR Storybook Art Bible:
+ *  - Key light upper-left (~10 o'clock), cool-violet fill lower-right
+ *  - Warm ink contours (--ink-warm) and tinted cast shadows (never grey/black)
+ *  - Static cached paper grain only (never animated)
+ *  - Motion strictly transform/opacity, gated by prefers-reduced-motion
+ * ============================================================================ */
+
+/* ---- Curio Shelf Container (ArcadeHub) ---- */
+.arcade-curio-shell {
+  position: relative;
+  isolation: isolate;
+  border-radius: 24px;
+  padding: 6px;
+  background:
+    radial-gradient(
+      115% 75% at 8% 0%,
+      color-mix(in oklab, var(--lantern-glow, #f6c56a) 22%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      95% 75% at 96% 100%,
+      color-mix(in oklab, var(--ambient-fill, #8b7cc8) 14%, transparent),
+      transparent 68%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--paper-shade, #e7d7bc) 42%, transparent) 0%,
+      color-mix(in oklab, var(--paper-base, #f6ebd6) 24%, transparent) 100%
+    );
+  border: 1.5px solid color-mix(in oklab, var(--ink-warm, #4a3426) 22%, transparent);
+  box-shadow:
+    inset 0 2px 12px color-mix(in oklab, var(--ink-warm, #4a3426) 10%, transparent),
+    inset 0 1px 0 color-mix(in oklab, var(--key-light, #fff8e7) 55%, transparent);
+}
+
+.arcade-curio-shell.is-compact {
+  padding: 3px;
+  border-radius: 18px;
+}
+
+/* Warm wooden header marquee plaque */
+.arcade-hub-marquee {
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--key-light, #fff6e0) 38%, transparent) 0%,
+      transparent 48%
+    ),
+    var(--card-bg, #fffcf5) !important;
+  border-color: color-mix(in oklab, var(--ink-warm, #4a3426) 44%, var(--gild, #d4a44a)) !important;
+  box-shadow:
+    0 3px 0 color-mix(in oklab, var(--ink-warm, #4a3426) 16%, transparent),
+    0 8px 18px color-mix(in oklab, var(--shadow-tint, #4a3426) 15%, transparent),
+    inset 0 1px 0 color-mix(in oklab, var(--key-light, #fffdf7) 70%, transparent) !important;
+}
+
+.arcade-hub-marquee::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: inherit;
+  border: 1px solid color-mix(in oklab, var(--gild, #d4a44a) 38%, transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.arcade-hub-marquee > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Wooden curio shelf grid with subtle recessed shelf ledge shadows */
+.arcade-curio-grid {
+  padding: 3px 2px 4px;
+}
+
+/* ---- Illustrated Storybook Game Boxes ---- */
+.arcade-box {
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(
+      140deg,
+      color-mix(in oklab, var(--key-light, #fff8e8) 38%, transparent) 0%,
+      transparent 46%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--box-accent, #d4a44a) 13%, var(--card-bg, #fffcf5)) 0%,
+      var(--card-bg, #fffcf5) 56%,
+      color-mix(in oklab, var(--paper-shade, #e7d7bc) 22%, var(--card-bg, #fffcf5)) 100%
+    ) !important;
+  border-color: color-mix(in oklab, var(--box-accent, #d4a44a) 55%, var(--ink-warm, #4a3426)) !important;
+  box-shadow:
+    3px 5px 0 color-mix(in oklab, var(--ink-warm, #4a3426) 18%, transparent),
+    6px 11px 18px color-mix(in oklab, var(--shadow-tint, #4a3426) 16%, transparent),
+    inset 1px 1px 0 color-mix(in oklab, var(--key-light, #fffdf7) 75%, transparent) !important;
+  transition: transform 240ms cubic-bezier(0.28, 1.25, 0.5, 1);
+  will-change: transform;
+}
+
+/* Cloth book-spine binding + embossed gold band ticks on left edge */
+.arcade-box::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--box-accent, #d4a44a) 78%, var(--ink-warm, #4a3426)) 0,
+      color-mix(in oklab, var(--box-accent, #d4a44a) 68%, var(--ink-warm, #4a3426)) 9px,
+      color-mix(in oklab, var(--ink-warm, #4a3426) 28%, transparent) 9px,
+      color-mix(in oklab, var(--ink-warm, #4a3426) 28%, transparent) 10.5px,
+      color-mix(in oklab, var(--key-light, #fff8e7) 65%, transparent) 10.5px,
+      color-mix(in oklab, var(--key-light, #fff8e7) 65%, transparent) 12px,
+      transparent 12px
+    ),
+    radial-gradient(
+      85% 65% at 12% 0%,
+      color-mix(in oklab, var(--lantern-glow, #f6c56a) 22%, transparent),
+      transparent 68%
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Delicate gilded inner bookplate border + static cached paper grain */
+.arcade-box::after {
+  content: '';
+  position: absolute;
+  inset: 4px 4px 4px 14px;
+  border-radius: 13px;
+  border: 1px solid color-mix(in oklab, var(--gild, #d4a44a) 36%, var(--box-accent, #d4a44a));
+  background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.29 0 0 0 0 0.2 0 0 0 0 0.15 0 0 0 0.45 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23g)' opacity='0.26'/%3E%3C/svg%3E");
+  opacity: var(--paper-grain-opacity, 0.65);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.arcade-box > * {
+  position: relative;
+  z-index: 1;
+}
+
+.arcade-box:hover,
+.arcade-box:focus-within {
+  transform: translateY(-3px);
+}
+
+.arcade-box:active {
+  transform: translateY(2px) scale(0.975);
+}
+
+/* Framed miniature diorama emblem cover window inside each box */
+.arcade-emblem-window {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border-radius: 15px;
+  background: linear-gradient(
+    145deg,
+    color-mix(in oklab, var(--gild, #e5ba62) 65%, #fff8e7),
+    color-mix(in oklab, var(--ink-warm, #6b4423) 35%, var(--gild, #c7933b))
+  );
+  box-shadow:
+    2px 3px 0 color-mix(in oklab, var(--ink-warm, #4a3426) 22%, transparent),
+    0 5px 10px color-mix(in oklab, var(--shadow-tint, #4a3426) 16%, transparent);
+  flex-shrink: 0;
+}
+
+/* Wax-seal / gilded brass medallion for Best Score */
+.arcade-best-seal {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+  border-top: 1px solid #d99b26;
+  border-right: 1px solid #d99b26;
+  border-left: 1px solid #d99b26;
+  border-bottom: 2px solid #9a5b13;
+  color: #7c3f0c;
+  box-shadow: 0 2px 4px color-mix(in oklab, var(--ink-warm, #4a3426) 14%, transparent);
+}
+
+/* Stamped paper ticket for cabinet category tag */
+.arcade-ticket-tag {
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--paper-base, #f8f0df) 72%, var(--card-soft-bg, #f1f5f9));
+  border: 1px dashed color-mix(in oklab, var(--ink-soft, #7a5c47) 45%, transparent);
+  color: var(--text-muted, #574336);
+}
+
+/* ---- Secret Keepsake Music Box (#9 Starlight Critter Choir) ---- */
+.arcade-box-secret::before {
+  background:
+    linear-gradient(
+      90deg,
+      #c6933a 0,
+      #e5bd67 7px,
+      #8b5e1a 7px,
+      #8b5e1a 9px,
+      rgba(255, 245, 214, 0.5) 9px,
+      rgba(255, 245, 214, 0.5) 10.5px,
+      transparent 10.5px
+    ),
+    radial-gradient(
+      70% 100% at 15% 0%,
+      rgba(246, 197, 106, 0.24),
+      transparent 65%
+    );
+}
+
+.arcade-box-secret::after {
+  inset: 4px 4px 4px 13px;
+  border-radius: 14px;
+  border: 1px solid rgba(246, 197, 106, 0.45);
+  background: none;
+  opacity: 0.9;
+}
+
+.arcade-box-secret.is-locked {
+  background:
+    radial-gradient(85% 95% at 10% 10%, rgba(246, 197, 106, 0.2), transparent 58%),
+    linear-gradient(135deg, #211a4f 0%, #31256b 52%, #1a143f 100%) !important;
+  border-color: #d9b46a !important;
+  box-shadow:
+    3px 5px 0 rgba(20, 14, 46, 0.34),
+    0 10px 22px rgba(20, 14, 46, 0.26),
+    inset 0 1px 0 rgba(254, 240, 138, 0.35) !important;
+}
+
+/* ---- Cabinet Playbill Ready & Summary Cards ---- */
+.arcade-playbill-card {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(
+      85% 55% at 15% 0%,
+      color-mix(in oklab, var(--lantern-glow, #f6c56a) 24%, transparent),
+      transparent 65%
+    ),
+    radial-gradient(
+      75% 55% at 90% 100%,
+      color-mix(in oklab, var(--ambient-fill, #8b7cc8) 12%, transparent),
+      transparent 65%
+    ),
+    var(--card-bg, #fffcf5) !important;
+}
+
+.arcade-playbill-card::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in oklab, var(--gild, #d4a44a) 42%, transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.arcade-playbill-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.arcade-pedestal-stage {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 18px 10px;
+  border-radius: 999px;
+  background: radial-gradient(
+    ellipse at 50% 82%,
+    color-mix(in oklab, var(--ink-warm, #4a3426) 16%, transparent) 0%,
+    color-mix(in oklab, var(--lantern-glow, #f6c56a) 18%, transparent) 52%,
+    transparent 76%
+  );
+}
+
+/* ---- Paper-Theater Stage Proscenium (All 9 Cabinet Playfields) ---- */
+.arcade-stage-dressing {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+  /* Delicate wooden/gilded proscenium inner bevel + lamp-warm vignette */
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in oklab, var(--gild, #e2b85c) 38%, transparent),
+    inset 0 12px 26px color-mix(in oklab, var(--ink-warm, #4a3426) 14%, transparent),
+    inset 0 -18px 28px color-mix(in oklab, var(--ink-warm, #4a3426) 12%, transparent);
+  background:
+    radial-gradient(
+      70% 55% at 6% 4%,
+      color-mix(in oklab, var(--key-light, #fff3d1) 20%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      65% 55% at 96% 96%,
+      color-mix(in oklab, var(--ambient-fill, #8b7cc8) 12%, transparent),
+      transparent 65%
+    );
+}
+
+.arcade-stage-dressing.is-celestial {
+  box-shadow:
+    inset 0 0 0 1.5px rgba(217, 180, 106, 0.42),
+    inset 0 12px 28px rgba(10, 8, 28, 0.34),
+    inset 0 -18px 30px rgba(10, 8, 28, 0.28);
+}
+
+.arcade-stage-filigree {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.72;
+}
+
+.arcade-stage-footlight {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: 0;
+  height: 22%;
+  background: radial-gradient(
+    ellipse 75% 100% at 50% 100%,
+    color-mix(in oklab, var(--lantern-glow, #f6c56a) 28%, transparent),
+    transparent 74%
+  );
+  opacity: 0.78;
+}
+
+/* Golden-Hour Score Pulse (fires on every score increment) */
+.arcade-stage-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    75% 65% at 50% 50%,
+    color-mix(in oklab, var(--lantern-glow, #f6c56a) 52%, transparent),
+    color-mix(in oklab, var(--gild, #f59e0b) 22%, transparent) 48%,
+    transparent 78%
+  );
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: arcade-golden-pulse 950ms cubic-bezier(0.22, 1, 0.36, 1) 1;
+}
+
+/* Cozy Golden-Hour Fever persistent lantern aura (combo >= 2 or feverActive) */
+.arcade-stage-fever-aura {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 26px 4px rgba(246, 197, 106, 0.52),
+    inset 0 0 0 2.5px rgba(251, 191, 36, 0.65);
+  background: radial-gradient(
+    80% 50% at 50% 100%,
+    rgba(246, 197, 106, 0.26),
+    transparent 70%
+  );
+  opacity: 0.85;
+  will-change: opacity;
+  animation: arcade-fever-breathe 3.4s ease-in-out infinite;
+}
+
+/* Drifting golden lantern firefly motes during Golden-Hour Fever */
+.arcade-stage-mote {
+  position: absolute;
+  bottom: 12%;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: radial-gradient(circle, #fffbeb 0%, #fde047 55%, rgba(245, 158, 11, 0) 100%);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: arcade-mote-rise 4.2s ease-in-out infinite;
+}
+
+.arcade-stage-mote-1 { left: 16%; animation-delay: 0s; }
+.arcade-stage-mote-2 { left: 38%; animation-delay: 1.1s; width: 6px; height: 6px; }
+.arcade-stage-mote-3 { left: 64%; animation-delay: 2.1s; width: 8px; height: 8px; }
+.arcade-stage-mote-4 { left: 84%; animation-delay: 0.6s; width: 6px; height: 6px; }
+
+/* ---- Scalloped Paper-Theater Awning (Cafe & Patisserie Tower) ---- */
+.arcade-awning-scallop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 4;
+  border-bottom: 2px solid color-mix(in oklab, var(--ink-warm, #4a3426) 45%, transparent);
+  box-shadow: 0 4px 10px color-mix(in oklab, var(--ink-warm, #4a3426) 18%, transparent);
+}
+
+/* ---- Tactile Painted-Toy Tile / Platter / Pad / Plank ---- */
+.arcade-toy-tile {
+  background-image: linear-gradient(
+    145deg,
+    rgba(255, 250, 236, 0.72) 0%,
+    rgba(255, 255, 255, 0) 50%
+  );
+  box-shadow:
+    2px 5px 0 color-mix(in oklab, var(--ink-warm, #4a3426) 18%, transparent),
+    0 8px 16px color-mix(in oklab, var(--shadow-tint, #4a3426) 18%, transparent),
+    inset 0 1px 0 rgba(255, 253, 245, 0.85) !important;
+  transition: transform 160ms cubic-bezier(0.3, 1.3, 0.5, 1), opacity 200ms ease;
+}
+
+.arcade-toy-tile:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.arcade-toy-tile:active:not(:disabled) {
+  transform: translateY(2px) scale(0.97);
+}
+
+/* ---- Storybook Inked Stage Ribbon Toast ---- */
+.arcade-toast-ribbon {
+  border: 1.5px solid rgba(246, 197, 106, 0.65);
+  box-shadow: 0 3px 10px rgba(42, 26, 16, 0.28);
+  letter-spacing: 0.01em;
+}
+
+/* ---- Keyframes (transform/opacity only) ---- */
+@keyframes arcade-golden-pulse {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  26% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes arcade-fever-breathe {
+  0%,
+  100% {
+    opacity: 0.62;
+  }
+  50% {
+    opacity: 0.96;
+  }
+}
+
+@keyframes arcade-mote-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.75);
+  }
+  25% {
+    opacity: 0.9;
+  }
+  80% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-64px) scale(1.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arcade-box,
+  .arcade-toy-tile {
+    transition: none;
+  }
+  .arcade-box:hover,
+  .arcade-box:focus-within,
+  .arcade-box:active,
+  .arcade-toy-tile:hover:not(:disabled),
+  .arcade-toy-tile:active:not(:disabled) {
+    transform: none;
+  }
+  .arcade-stage-glow {
+    animation: none;
+    opacity: 0.2;
+  }
+  .arcade-stage-fever-aura {
+    animation: none;
+    opacity: 0.72;
+  }
+  .arcade-stage-mote {
+    animation: none;
+    opacity: 0;
+  }
+}

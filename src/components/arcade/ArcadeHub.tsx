@@ -65,6 +65,7 @@ import {
   type ArcadeCoopSettledResult,
   type CoopArcadeTurnContextValue,
 } from './arcadeShared';
+import './arcadeCraft.css';
 import { CafeOrderRushArcade } from './CafeOrderRushArcade';
 import { ConstellationMemoryArcade } from './ConstellationMemoryArcade';
 import { MeteorBlasterArcade } from './MeteorBlasterArcade';
@@ -1414,12 +1415,13 @@ export function ArcadeHub({
 
   const showSecretCabinet = !isNarrow || page === 2;
   const isSecretCardLayout = isNarrow || !isWideDesktop;
-  const emblemSize = isNarrow ? 30 : isWideDesktop ? (isTightHeight ? 38 : 42) : 40;
+  const emblemSize = isNarrow ? 34 : isWideDesktop ? (isTightHeight ? 46 : 54) : 46;
 
   return (
     <section
       ref={containerRef}
       aria-label="Wanderling Arcade Hub"
+      className={`arcade-curio-shell ${isCompact ? 'is-compact' : ''}`}
       style={{
         height: '100%',
         maxHeight: '100%',
@@ -1435,6 +1437,7 @@ export function ArcadeHub({
     >
       {/* Compact Arcade Plaza Header + Selectable Proficiency Tiers */}
       <div
+        className="arcade-hub-marquee"
         style={{
           ...CARD_SURFACE_STYLE,
           flexShrink: 0,
@@ -1676,20 +1679,14 @@ export function ArcadeHub({
             ) : null}
 
             <span
+              className="arcade-best-seal"
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
                 padding: isCompact ? '2px 6px' : '4px 9px',
-                borderRadius: 999,
-                background: '#fffbeb',
                 borderTopWidth: 2,
                 borderRightWidth: 2,
                 borderLeftWidth: 2,
                 borderBottomWidth: 3,
                 borderStyle: 'solid',
-                borderColor: '#f59e0b',
-                color: '#b45309',
                 fontFamily: 'var(--font-display)',
                 fontSize: isCompact ? '0.67rem' : '0.76rem',
                 fontWeight: 900,
@@ -1997,9 +1994,13 @@ export function ArcadeHub({
         ) : null}
       </div>
 
-      {/* 9-Cabinet Console Grid */}
+      {/* 9-Cabinet Curio Shelf Grid */}
       <div
-        className={isNarrow && effectiveCoopEnabled ? 'console-scroll-pane' : undefined}
+        className={
+          isNarrow && effectiveCoopEnabled
+            ? 'arcade-curio-grid console-scroll-pane'
+            : 'arcade-curio-grid'
+        }
         style={{
           flex: 1,
           minHeight: 0,
@@ -2032,11 +2033,18 @@ export function ArcadeHub({
           return (
             <div
               key={cab.id}
+              className="arcade-box"
+              data-cabinet={cab.id}
               style={{
                 ...CARD_SURFACE_STYLE,
+                ['--box-accent' as string]: cab.accentBorder,
                 borderColor: cab.accentBorder,
-                borderRadius: isNarrow ? 16 : 20,
-                padding: isNarrow ? '6px 7px' : isTightHeight ? 10 : 12,
+                borderRadius: isNarrow ? 15 : 18,
+                padding: isNarrow
+                  ? '6px 7px 6px 15px'
+                  : isTightHeight
+                    ? '9px 11px 9px 18px'
+                    : '11px 13px 11px 19px',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
@@ -2045,7 +2053,7 @@ export function ArcadeHub({
                 overflow: 'hidden',
               }}
             >
-              {/* Top Row: Emblem + Tag + Best Score */}
+              {/* Top Row: Framed Miniature Diorama Emblem + Paper Ticket + Gilded Seal */}
               <div
                 style={{
                   display: 'flex',
@@ -2054,44 +2062,34 @@ export function ArcadeHub({
                   gap: isNarrow ? 4 : 6,
                 }}
               >
-                <div style={{ flexShrink: 0 }}>{cab.emblem(emblemSize)}</div>
+                <div className="arcade-emblem-window">{cab.emblem(emblemSize)}</div>
                 <div
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'flex-end',
-                    gap: isNarrow ? 1 : 3,
+                    gap: isNarrow ? 2 : 4,
                     minWidth: 0,
                   }}
                 >
                   <span
+                    className="arcade-ticket-tag"
                     style={{
-                      padding: isNarrow ? '1px 5px' : '1px 6px',
-                      borderRadius: 999,
-                      background: 'var(--card-soft-bg, #f1f5f9)',
-                      color: 'var(--text-muted, #475569)',
-                      fontSize: isNarrow ? '0.58rem' : '0.62rem',
+                      padding: isNarrow ? '1px 5px' : '2px 7px',
+                      fontSize: isNarrow ? '0.56rem' : '0.6rem',
                       fontWeight: 900,
                       textTransform: 'uppercase',
-                      letterSpacing: '0.03em',
+                      letterSpacing: '0.04em',
                     }}
                   >
                     {cab.tag}
                   </span>
                   <span
+                    className="arcade-best-seal"
                     style={{
-                      padding: isNarrow ? '1px 6px' : '1px 7px',
-                      borderRadius: 999,
-                      background: '#fffbeb',
-                      borderTopWidth: 1,
-                      borderRightWidth: 1,
-                      borderLeftWidth: 1,
-                      borderBottomWidth: 2,
-                      borderStyle: 'solid',
-                      borderColor: '#f59e0b',
-                      color: '#b45309',
+                      padding: isNarrow ? '1px 6px' : '2px 8px',
                       fontFamily: 'var(--font-display)',
-                      fontSize: isNarrow ? '0.62rem' : '0.66rem',
+                      fontSize: isNarrow ? '0.6rem' : '0.66rem',
                       fontWeight: 900,
                       whiteSpace: 'nowrap',
                     }}
@@ -2160,25 +2158,26 @@ export function ArcadeHub({
           );
         })}
 
-        {/* Cabinet #9: Secret Unlockable — Starlight Critter Choir */}
+        {/* Cabinet #9: Secret Unlockable — Starlight Critter Choir Keepsake Music Box */}
         {showSecretCabinet ? (
           <div
+            className={`arcade-box arcade-box-secret ${secretUnlocked ? '' : 'is-locked'}`}
             style={{
               ...CARD_SURFACE_STYLE,
               gridColumn: isWideDesktop ? '1 / -1' : 'span 1',
-              padding: isNarrow ? 12 : isWideDesktop ? '9px 14px' : 12,
+              padding: isNarrow ? '12px 12px 12px 18px' : isWideDesktop ? '9px 16px 9px 22px' : '11px 12px 11px 18px',
               display: 'flex',
               flexDirection: isSecretCardLayout ? 'column' : 'row',
               alignItems: isSecretCardLayout ? 'stretch' : 'center',
               justifyContent: isNarrow ? 'center' : 'space-between',
-              gap: isNarrow ? 14 : isSecretCardLayout ? 8 : 14,
+              gap: isNarrow ? 12 : isSecretCardLayout ? 8 : 14,
               minHeight: 0,
               overflow: 'hidden',
               background: secretUnlocked
                 ? 'var(--card-bg, #ffffff)'
-                : 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)',
-              borderColor: secretUnlocked ? '#818cf8' : '#fbbf24',
-              color: secretUnlocked ? 'var(--text-main, #1e1b4b)' : '#f8fafc',
+                : 'linear-gradient(135deg, #211a4f 0%, #31256b 100%)',
+              borderColor: secretUnlocked ? '#818cf8' : '#d9b46a',
+              color: secretUnlocked ? 'var(--text-main, #1e1b4b)' : '#fdf8ec',
             }}
           >
             {secretUnlocked ? (
@@ -2191,7 +2190,7 @@ export function ArcadeHub({
                     minWidth: 0,
                   }}
                 >
-                  <div style={{ flexShrink: 0 }}>
+                  <div className="arcade-emblem-window">
                     <StarlightChoirEmblem size={isNarrow ? 44 : isWideDesktop ? 48 : 42} />
                   </div>
                   <div style={{ minWidth: 0 }}>
@@ -2383,6 +2382,7 @@ export function ArcadeHub({
       {/* Narrow Screen Page 1 / 3 Cabinet Pager */}
       {isNarrow ? (
         <div
+          className="arcade-hub-marquee"
           style={{
             flexShrink: 0,
             display: 'flex',

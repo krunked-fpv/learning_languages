@@ -28,6 +28,7 @@ import {
   useArcadeCoopTurn,
   useArcadeDeck,
   useArcadeEffectiveProfile,
+  ArcadeStageDressing,
 } from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 45;
@@ -700,24 +701,27 @@ export function StarlightSecretGame({
               borderLeftWidth: 3,
               borderBottomWidth: 5,
               borderStyle: 'solid',
-              borderColor: discoActive ? '#f43f5e' : '#6366f1',
+              borderColor: discoActive ? '#f59e0b' : '#d9b46a',
               background: discoActive
-                ? 'radial-gradient(circle at 50% 35%, #4c1d95 0%, #312e81 55%, #1e1b4b 100%)'
-                : 'radial-gradient(circle at 50% 25%, #3730a3 0%, #1e1b4b 70%, #0f172a 100%)',
+                ? 'radial-gradient(ellipse at 20% 10%, rgba(251, 191, 36, 0.28), transparent 48%), radial-gradient(circle at 50% 35%, #5b268e 0%, #34256e 55%, #1c1646 100%)'
+                : 'radial-gradient(ellipse at 20% 10%, rgba(246, 197, 106, 0.18), transparent 46%), radial-gradient(circle at 50% 25%, #3c2f86 0%, #211b52 68%, #151238 100%)',
               overflow: 'hidden',
               userSelect: 'none',
+              boxShadow: 'inset 0 2px 18px rgba(10, 8, 28, 0.45)',
             }}
           >
+            <ArcadeStageDressing glowKey={score} combo={streak} fever={discoActive} tone="celestial" />
             <div
+              className="arcade-toast-ribbon"
               style={{
                 position: 'absolute',
                 top: 8,
                 left: '50%',
                 transform: 'translateX(-50%)',
                 maxWidth: 'calc(100% - 16px)',
-                padding: '3px 11px',
+                padding: '3px 12px',
                 borderRadius: 999,
-                background: 'rgba(15, 23, 42, 0.78)',
+                background: 'rgba(26, 20, 62, 0.88)',
                 color: '#fef08a',
                 fontSize: '0.75rem',
                 fontWeight: 800,
@@ -843,18 +847,21 @@ export function StarlightSecretGame({
               );
             })}
 
-            {/* Bottom 5-Companion Choir Stage */}
+            {/* Bottom 5-Companion Choir Stage Riser */}
             <div
               aria-label="Critter Choir"
               style={{
                 position: 'absolute',
                 left: 0,
                 right: 0,
-                bottom: 2,
+                bottom: 0,
                 display: 'flex',
                 alignItems: 'flex-end',
                 justifyContent: 'space-around',
-                padding: '0 6px',
+                padding: '4px 6px 2px',
+                background:
+                  'linear-gradient(0deg, rgba(246, 197, 106, 0.22) 0%, rgba(246, 197, 106, 0) 100%)',
+                borderTop: '1px solid rgba(217, 180, 106, 0.22)',
                 pointerEvents: 'none',
                 zIndex: 4,
               }}
