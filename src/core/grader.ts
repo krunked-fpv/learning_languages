@@ -71,7 +71,7 @@ const PINYIN_TONE_VOWELS: Readonly<Record<string, readonly [string, string, stri
   Ü: ['Ü', 'Ǖ', 'Ǘ', 'Ǚ', 'Ǜ'],
 };
 
-const PINYIN_TOKEN_RE = /(?:[A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9]|(?<=[uU]):)+/g;
+const PINYIN_TOKEN_RE = /(?:[A-Za-z\u00C0-\u024F\u1E00-\u1EFF\u0300-\u036F0-9]|(?<=[uU]):)+/g;
 
 function normalizePinyinForLookup(raw: string): string {
   return raw
@@ -188,8 +188,9 @@ function parseNumericPinyinToken(token: string): { converted: string; hasNumeric
   if (!/[0-9]/.test(token)) {
     return { converted: token, hasNumeric: false };
   }
+  const nfcToken = token.normalize('NFC');
   // Reject tokens starting with digits, multi-digit numbers, or tones outside 0-5.
-  if (/^[0-9]|[6-9]|\d{2,}/.test(token)) {
+  if (/^[0-9]|[6-9]|\d{2,}/.test(nfcToken)) {
     return { converted: token, hasNumeric: false };
   }
 
@@ -197,7 +198,7 @@ function parseNumericPinyinToken(token: string): { converted: string; hasNumeric
   const segRe = /([A-Za-z\u00C0-\u024F\u1E00-\u1EFF:]+)([0-5])/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
-  while ((match = segRe.exec(token)) !== null) {
+  while ((match = segRe.exec(nfcToken)) !== null) {
     if (match.index !== lastIndex) {
       return { converted: token, hasNumeric: false };
     }
@@ -209,7 +210,7 @@ function parseNumericPinyinToken(token: string): { converted: string; hasNumeric
     return { converted: token, hasNumeric: false };
   }
 
-  const trailing = token.slice(lastIndex);
+  const trailing = nfcToken.slice(lastIndex);
   if (/[0-9]/.test(trailing)) {
     return { converted: token, hasNumeric: false };
   }
@@ -591,6 +592,19 @@ function normalizeGermanMixed(input: string): string {
   );
 }
 
+const LATIN_PINYIN_LETTER_RE = /[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]/;
+const NON_LATIN_SCRIPT_RE =
+  /[\u3005\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\u0900-\u097F\u0980-\u09FF\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\u0400-\u04FF]/;
+
+function isLatinPinyinPair(a: string, b: string): boolean {
+  return (
+    LATIN_PINYIN_LETTER_RE.test(a) &&
+    LATIN_PINYIN_LETTER_RE.test(b) &&
+    !NON_LATIN_SCRIPT_RE.test(a) &&
+    !NON_LATIN_SCRIPT_RE.test(b)
+  );
+}
+
 /**
  * Strips optional Mandarin Pinyin syllable-divider apostrophes strictly between
  * Pinyin letters (e.g. "Mǎtè'ào" -> "Mǎtèào", "Wǎn'ān" -> "Wǎnān").
@@ -600,6 +614,10 @@ function stripPinyinSyllableApostrophes(text: string): string {
     /(?<=[a-z\u00C0-\u024F\u1E00-\u1EFF])'(?=[a-z\u00C0-\u024F\u1E00-\u1EFF])/g,
     ''
   );
+}
+
+function collapseZhPinyinSpacingAndApostrophes(text: string): string {
+  return stripPinyinSyllableApostrophes(text.replace(/\s+/g, ''));
 }
 
 function matchesExact(
@@ -615,6 +633,12 @@ function matchesExact(
   const cleanCand = stripSentencePunctuation(normCand);
   if (cleanSub === cleanCand) return true;
   if (language === 'zh') {
+    if (isLatinPinyinPair(cleanSub, cleanCand)) {
+      return (
+        collapseZhPinyinSpacingAndApostrophes(cleanSub) ===
+        collapseZhPinyinSpacingAndApostrophes(cleanCand)
+      );
+    }
     return (
       stripPinyinSyllableApostrophes(cleanSub) === stripPinyinSyllableApostrophes(cleanCand)
     );
@@ -635,6 +659,16 @@ function matchesAccentForgiving(
   );
   if (!subStripped || !candStripped) return false;
   if (subStripped === candStripped) return true;
+
+  if (language === 'zh' && isLatinPinyinPair(subStripped, candStripped)) {
+    const compactZh = (s: string) =>
+      collapseZhPinyinSpacingAndApostrophes(
+        s.replace(/u:/g, 'u').replace(/([nl])v/g, '$1u').replace(/-/g, '')
+      );
+    if (compactZh(subStripped) === compactZh(candStripped)) {
+      return true;
+    }
+  }
 
   // Forgivingly relax romanization syllable apostrophes (e.g. "Wǎn'ān" -> "wanan" or "wan an")
   // and clitic hyphens (e.g. "al-qalīl" -> "al qalil") for non-Latin courses.
@@ -964,6 +998,37 @@ function buildAccentCoaching(
     if (extras.length > 0) {
       highlightedChars = extras;
       extraOnly = true;
+    }
+  }
+
+  if (
+    highlightedChars.length === 0 &&
+    language === 'zh' &&
+    isLatinPinyinPair(normCand, normSub)
+  ) {
+    const collapsedCand = collapseZhPinyinSpacingAndApostrophes(
+      stripSentencePunctuation(normCand)
+    );
+    const collapsedSub = collapseZhPinyinSpacingAndApostrophes(
+      stripSentencePunctuation(normSub)
+    );
+    if (collapsedCand !== collapsedSub) {
+      const candChars = Array.from(collapsedCand);
+      const subChars = Array.from(collapsedSub);
+      const minLen = Math.min(candChars.length, subChars.length);
+      for (let i = 0; i < minLen; i += 1) {
+        if (candChars[i] !== subChars[i] && SPECIAL_ACCENT_CHAR_REGEX.test(candChars[i])) {
+          highlightedChars.push(candChars[i]);
+        }
+      }
+      if (highlightedChars.length === 0) {
+        for (let i = 0; i < minLen; i += 1) {
+          if (candChars[i] !== subChars[i] && SPECIAL_ACCENT_CHAR_REGEX.test(subChars[i])) {
+            highlightedChars.push(subChars[i]);
+            extraOnly = true;
+          }
+        }
+      }
     }
   }
 
@@ -1857,6 +1922,35 @@ export function gradeAnswer(req: GradeRequest): GradeResult {
     }
   }
 
+  const zhPrioritizedCandidates =
+    req.language === 'zh'
+      ? [
+          ...candidates.filter((c) => SPECIAL_ACCENT_CHAR_REGEX.test(c)),
+          ...candidates.filter((c) => !SPECIAL_ACCENT_CHAR_REGEX.test(c)),
+        ]
+      : candidates;
+
+  const tryForgivingMatch = (
+    submittedText: string,
+    candidateList: readonly string[]
+  ): GradeResult | null => {
+    for (const candidate of candidateList) {
+      if (matchesAccentForgiving(submittedText, candidate, req.language)) {
+        const accentCoaching = buildAccentCoaching(candidate, submittedText, req.language);
+        return {
+          isCorrect: true,
+          exactMatch: !accentCoaching,
+          normalizedSubmitted,
+          normalizedExpected,
+          heartPenalty: 0,
+          ...(accentCoaching ? { accentCoaching } : {}),
+          ...(articleCoaching ? { articleCoaching } : {}),
+        };
+      }
+    }
+    return null;
+  };
+
   if (req.language === 'zh' && hasNumericPinyinSyllable(req.submitted)) {
     const converted = convertNumericPinyin(req.submitted);
     for (const candidate of candidates) {
@@ -1871,40 +1965,12 @@ export function gradeAnswer(req: GradeRequest): GradeResult {
         };
       }
     }
-    const prioritizedCandidates = [
-      ...candidates.filter((c) => SPECIAL_ACCENT_CHAR_REGEX.test(c)),
-      ...candidates.filter((c) => !SPECIAL_ACCENT_CHAR_REGEX.test(c)),
-    ];
-    for (const candidate of prioritizedCandidates) {
-      if (matchesAccentForgiving(converted, candidate, req.language)) {
-        const accentCoaching = buildAccentCoaching(candidate, converted, 'zh');
-        return {
-          isCorrect: true,
-          exactMatch: !accentCoaching,
-          normalizedSubmitted,
-          normalizedExpected,
-          heartPenalty: 0,
-          ...(accentCoaching ? { accentCoaching } : {}),
-          ...(articleCoaching ? { articleCoaching } : {}),
-        };
-      }
-    }
+    const numericForgiving = tryForgivingMatch(converted, zhPrioritizedCandidates);
+    if (numericForgiving) return numericForgiving;
   }
 
-  for (const candidate of candidates) {
-    if (matchesAccentForgiving(req.submitted, candidate, req.language)) {
-      const accentCoaching = buildAccentCoaching(candidate, req.submitted, req.language);
-      return {
-        isCorrect: true,
-        exactMatch: !accentCoaching,
-        normalizedSubmitted,
-        normalizedExpected,
-        heartPenalty: 0,
-        ...(accentCoaching ? { accentCoaching } : {}),
-        ...(articleCoaching ? { articleCoaching } : {}),
-      };
-    }
-  }
+  const forgivingResult = tryForgivingMatch(req.submitted, zhPrioritizedCandidates);
+  if (forgivingResult) return forgivingResult;
 
   return {
     isCorrect: false,
