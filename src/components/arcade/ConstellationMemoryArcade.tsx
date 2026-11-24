@@ -22,6 +22,7 @@ import {
   getArcadeClueTextStyle,
   getArcadeForeignTextStyle,
   isAdultArcadeActive,
+  isCoopTurnQuarantined,
   resolveArcadePlainEnglish,
   useArcadeContainerMetrics,
   useArcadeCoopReport,
@@ -76,7 +77,7 @@ export function ConstellationMemoryArcade({
   const { containerRef, isCompact, isNarrow } = useArcadeContainerMetrics();
   const langDir = LANGUAGE_META[language].dir;
   const roundDuration = Math.round(ROUND_DURATION_SECONDS / Math.pow(paceMultiplier, 0.5));
-  const showPlainButton = !coopTurn?.kidQuarantined && isAdultArcadeActive(language, activeProfile);
+  const showPlainButton = !isCoopTurnQuarantined(coopTurn) && isAdultArcadeActive(language, activeProfile);
 
   const [phase, setPhase] = useState<'ready' | 'playing' | 'summary'>('ready');
   const [plainOpen, setPlainOpen] = useState(false);

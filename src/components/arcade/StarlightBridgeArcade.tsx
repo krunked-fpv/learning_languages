@@ -25,6 +25,7 @@ import {
   getArcadeClueTextStyle,
   getArcadeForeignTextStyle,
   isAdultArcadeActive,
+  isCoopTurnQuarantined,
   pickDistinctItems,
   resolveArcadePlainEnglish,
   useArcadeContainerMetrics,
@@ -203,7 +204,7 @@ export function StarlightBridgeArcade({
   const [plankLocked, setPlankLocked] = useState(false);
   const [wrongChoiceIdx, setWrongChoiceIdx] = useState<number | null>(null);
   const showPlainButton =
-    !coopTurn?.kidQuarantined && isAdultArcadeActive(language, activeProfile);
+    !isCoopTurnQuarantined(coopTurn) && isAdultArcadeActive(language, activeProfile);
   const [plainOpen, setPlainOpen] = useState(false);
 
   const [round, setRound] = useState<BridgeRound>(() => makeRound(1));

@@ -1280,15 +1280,132 @@ function matchesArcadeProficiencyTier(
   return proficiencyTier === 'C1_C2';
 }
 
-interface CurriculumAdultLazyHelpers {
-  ensureAdultCourseLoaded?: (lang: AdultLanguageCode) => Promise<unknown>;
-  isAdultTrackLoaded?: (lang: AdultLanguageCode) => boolean;
-  subscribeAdultRegistry?: (listener: () => void) => () => void;
-  getAdultRegistryVersion?: () => number;
+/** Returns true only when a non-default profile has After-Hours unlocked and currently active. */
+export function isAdultProfileActive(
+  profile?: Pick<KidProfile, 'id' | 'adultModeUnlocked' | 'adultModeActive'>
+): boolean {
+  return Boolean(
+    profile &&
+      !isDefaultKidProfileId(profile.id) &&
+      profile.adultModeUnlocked &&
+      profile.adultModeActive
+  );
 }
 
-const subscribeRegistryNoop = () => () => {};
-const getRegistryVersionFallback = () => 0;
+/** Returns true whenever an active Co-Op turn must be quarantined to safe base languages. */
+export function isCoopTurnQuarantined(
+  coopTurn: CoopArcadeTurnContextValue | null | undefined
+): boolean {
+  if (!coopTurn) return false;
+  return (
+    Boolean(coopTurn.kidQuarantined) ||
+    !isAdultProfileActive(coopTurn.playerProfile) ||
+    !isAdultProfileActive(coopTurn.partnerProfile)
+  );
+}
+
+/** Resolves the effective arcade language for a player, enforcing Kid-Safety Quarantine. */
+export function resolveEffectiveArcadeLanguage(
+  player: Pick<
+    KidProfile,
+    'id' | 'activeLanguage' | 'lastBaseLanguage' | 'adultModeUnlocked' | 'adultModeActive'
+  >,
+  options?: {
+    languageOverride?: LanguageCode;
+    fallbackProfile?: Pick<KidProfile, 'activeLanguage' | 'lastBaseLanguage'>;
+    kidQuarantined?: boolean;
+  }
+): LanguageCode {
+  const rawLang = options?.languageOverride ?? player.activeLanguage;
+  const isBlockedAdultAccess =
+    isAdultLanguage(rawLang) &&
+    (Boolean(options?.kidQuarantined) || !isAdultProfileActive(player));
+  return isBlockedAdultAccess
+    ? resolveSafeBaseLanguage(player, options?.fallbackProfile)
+    : rawLang;
+}
+
+function readOptionalCurriculumFn<T>(key: string): T | undefined {
+  try {
+    if (!(key in curriculum)) return undefined;
+    const candidate = (curriculum as Record<string, unknown>)[key];
+    return typeof candidate === 'function' ? (candidate as T) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function isArcadeCourseLoaded(language: LanguageCode): boolean {
+  if (isAdultLanguage(language)) {
+    const fn = readOptionalCurriculumFn<(lang: AdultLanguageCode) => boolean>('isAdultTrackLoaded');
+    if (typeof fn === 'function') return fn(language);
+  } else {
+    const fn =
+      readOptionalCurriculumFn<(lang: BaseLanguageCode) => boolean>('isBaseTrackLoaded') ??
+      readOptionalCurriculumFn<(lang: BaseLanguageCode) => boolean>('isBaseCourseLoaded');
+    if (typeof fn === 'function') return fn(language);
+  }
+  const getCourseFn = readOptionalCurriculumFn<
+    (lang: LanguageCode) => { units?: unknown[] } | undefined
+  >('getCourse');
+  try {
+    return (getCourseFn?.(language)?.units?.length ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Triggers on-demand curriculum hydration for a base or unlocked/active adult
+ * language track without leaking unhandled rejections when offline.
+ */
+export function ensureArcadeLanguageLoaded(
+  language: LanguageCode,
+  allowAdultAccess: boolean
+): void {
+  if (isAdultLanguage(language)) {
+    if (!allowAdultAccess || isArcadeCourseLoaded(language)) return;
+    const ensureAdultFn = readOptionalCurriculumFn<
+      (lang: AdultLanguageCode) => Promise<unknown>
+    >('ensureAdultCourseLoaded');
+    if (typeof ensureAdultFn === 'function') {
+      void Promise.resolve(ensureAdultFn(language)).catch(() => {});
+    }
+    return;
+  }
+
+  if (isArcadeCourseLoaded(language)) return;
+  const ensureBaseFn = readOptionalCurriculumFn<
+    (lang: BaseLanguageCode) => Promise<unknown>
+  >('ensureBaseCourseLoaded');
+  if (typeof ensureBaseFn === 'function') {
+    void Promise.resolve(ensureBaseFn(language)).catch(() => {});
+  }
+}
+
+function useSafeRegistryVersion(
+  subscribeKey: 'subscribeAdultRegistry' | 'subscribeBaseRegistry',
+  versionKey: 'getAdultRegistryVersion' | 'getBaseRegistryVersion'
+): number {
+  const fallbackVersionRef = useRef(0);
+  const subscribe = useCallback(
+    (listener: () => void) => {
+      const subFn = readOptionalCurriculumFn<(l: () => void) => () => void>(subscribeKey);
+      if (typeof subFn !== 'function') return () => {};
+      return subFn(() => {
+        fallbackVersionRef.current += 1;
+        listener();
+      });
+    },
+    [subscribeKey]
+  );
+  const getSnapshot = useCallback(() => {
+    const verFn = readOptionalCurriculumFn<() => number>(versionKey);
+    return typeof verFn === 'function' ? verFn() : fallbackVersionRef.current;
+  }, [versionKey]);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
 
 export function useArcadeDeck(
   arcadeTier: ArcadeProficiencyTier = 'sprout',
@@ -1306,22 +1423,23 @@ export function useArcadeDeck(
   const { activeProfile, activeProgress } = useVaultStore();
   const coopTurn = useContext(CoopArcadeTurnContext);
   const effectiveProfile = override?.profile ?? coopTurn?.playerProfile ?? activeProfile;
-  const kidQuarantined = Boolean(override?.kidQuarantined ?? coopTurn?.kidQuarantined);
-  const lazyCurriculum = curriculum as typeof curriculum & CurriculumAdultLazyHelpers;
-  const registryVersion = useSyncExternalStore(
-    lazyCurriculum.subscribeAdultRegistry ?? subscribeRegistryNoop,
-    lazyCurriculum.getAdultRegistryVersion ?? getRegistryVersionFallback,
-    lazyCurriculum.getAdultRegistryVersion ?? getRegistryVersionFallback
+  const kidQuarantined =
+    override?.kidQuarantined !== undefined
+      ? Boolean(override.kidQuarantined)
+      : isCoopTurnQuarantined(coopTurn);
+  const adultRegistryVersion = useSafeRegistryVersion(
+    'subscribeAdultRegistry',
+    'getAdultRegistryVersion'
+  );
+  const baseRegistryVersion = useSafeRegistryVersion(
+    'subscribeBaseRegistry',
+    'getBaseRegistryVersion'
   );
 
   const rawLang =
     override?.languageOverride ?? coopTurn?.languageOverride ?? effectiveProfile.activeLanguage;
   const isBlockedAdultAccess =
-    isAdultLanguage(rawLang) &&
-    (kidQuarantined ||
-      isDefaultKidProfileId(effectiveProfile.id) ||
-      !effectiveProfile.adultModeUnlocked ||
-      !effectiveProfile.adultModeActive);
+    isAdultLanguage(rawLang) && (kidQuarantined || !isAdultProfileActive(effectiveProfile));
   const language: LanguageCode = isBlockedAdultAccess
     ? resolveSafeBaseLanguage(effectiveProfile, activeProfile)
     : rawLang;
@@ -1330,12 +1448,11 @@ export function useArcadeDeck(
     (effectiveProfile.id === activeProfile.id ? activeProgress : undefined);
   const tierMeta = ARCADE_TIER_META[arcadeTier];
 
-  // Hydrate lazy After-Hours mashup chunks only when Adult Mode is explicitly unlocked & active
+  // Hydrate lazy After-Hours mashup chunks when Adult Mode is unlocked & active,
+  // and hydrate lazy base course chunks (`fr`, `ja`, `ar`, etc.) on demand.
   useEffect(() => {
-    if (isBlockedAdultAccess || !isAdultLanguage(language)) return;
-    if (lazyCurriculum.isAdultTrackLoaded?.(language)) return;
-    void lazyCurriculum.ensureAdultCourseLoaded?.(language);
-  }, [language, isBlockedAdultAccess, lazyCurriculum]);
+    ensureArcadeLanguageLoaded(language, !isBlockedAdultAccess);
+  }, [language, isBlockedAdultAccess]);
 
   const rawLexicon = useMemo(() => {
     const fallbackItems = FALLBACK_ARCADE_LEXICON[language] ?? FALLBACK_ARCADE_LEXICON.es;
@@ -1367,7 +1484,8 @@ export function useArcadeDeck(
     progressForLanguage?.unlockedVocabIds,
     progressForLanguage?.currentUnitIndex,
     arcadeTier,
-    registryVersion,
+    adultRegistryVersion,
+    baseRegistryVersion,
   ]);
 
   const { lexicon, targetLexicon } = useMemo(() => {
@@ -1812,12 +1930,7 @@ export function isAdultArcadeActive(
   language: LanguageCode,
   profile: Pick<KidProfile, 'id' | 'adultModeUnlocked' | 'adultModeActive'>
 ): boolean {
-  return (
-    isAdultLanguage(language) &&
-    Boolean(profile.adultModeUnlocked) &&
-    Boolean(profile.adultModeActive) &&
-    !isDefaultKidProfileId(profile.id)
-  );
+  return isAdultLanguage(language) && isAdultProfileActive(profile);
 }
 
 export function resolveArcadePlainEnglish(
@@ -1942,7 +2055,7 @@ export function ArcadeSayItNormallyButton({
 }) {
   const effectiveProfile = useArcadeEffectiveProfile();
   const coopTurn = useArcadeCoopTurn();
-  if (coopTurn?.kidQuarantined || !isAdultArcadeActive(language, effectiveProfile)) {
+  if (isCoopTurnQuarantined(coopTurn) || !isAdultArcadeActive(language, effectiveProfile)) {
     return null;
   }
 
@@ -2009,7 +2122,7 @@ export function TargetPromptBar({
   const coopTurn = useArcadeCoopTurn();
   const langMeta = LANGUAGE_META[language];
   const showPlainButton =
-    !coopTurn?.kidQuarantined && isAdultArcadeActive(language, effectiveProfile);
+    !isCoopTurnQuarantined(coopTurn) && isAdultArcadeActive(language, effectiveProfile);
   const [plainOpen, setPlainOpen] = useState(false);
 
   useEffect(() => {

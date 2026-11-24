@@ -25,6 +25,7 @@ import {
   getArcadeClueTextStyle,
   getArcadeForeignTextStyle,
   isAdultArcadeActive,
+  isCoopTurnQuarantined,
   pickDistinctItems,
   resolveArcadePlainEnglish,
   useArcadeContainerMetrics,
@@ -71,7 +72,7 @@ export function CafeOrderRushArcade({
   const { containerRef, isCompact } = useArcadeContainerMetrics();
   const langMeta = LANGUAGE_META[language];
   const langDir = langMeta.dir;
-  const showPlainButton = !coopTurn?.kidQuarantined && isAdultArcadeActive(language, activeProfile);
+  const showPlainButton = !isCoopTurnQuarantined(coopTurn) && isAdultArcadeActive(language, activeProfile);
 
   const [phase, setPhase] = useState<'ready' | 'playing' | 'summary'>('ready');
   const [plainOpen, setPlainOpen] = useState(false);
@@ -657,7 +658,9 @@ export function CafeOrderRushArcade({
                       ? round.direction === 'foreign_to_english'
                         ? 'Order: Match Meaning Clue'
                         : 'Order: Match English Phrase'
-                      : langMeta.isAdultOnly && langMeta.translationLanguageLabel
+                      : !isCoopTurnQuarantined(coopTurn) &&
+                          langMeta.isAdultOnly &&
+                          langMeta.translationLanguageLabel
                         ? round.direction === 'foreign_to_english'
                           ? `Order: Match ${langMeta.translationLanguageLabel}`
                           : `Order: Match ${langMeta.name}`
