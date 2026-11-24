@@ -17,7 +17,13 @@ export {
   type TileSequenceHintInput,
   type TileSequenceHintPlan,
 } from './hintEngine';
-export { gradeAnswer, normalizeAnswer, type NormalizeOptions } from './grader';
+export {
+  convertNumericPinyin,
+  gradeAnswer,
+  hasNumericPinyinSyllable,
+  normalizeAnswer,
+  type NormalizeOptions,
+} from './grader';
 export {
   decodeToNormalEnglish,
   type PlainEnglishRequest,

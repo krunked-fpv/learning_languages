@@ -31,6 +31,7 @@ import {
   type BaseLanguageCode,
   type CoopArcadeSessionParams,
   type CoopArcadeSessionSummary,
+  type CoopPairStreakEntry,
   type CosmeticId,
   type CosmeticSlot,
   type EquippedCosmetics,
@@ -94,6 +95,12 @@ const TIER_RANK: Record<LeagueTier, number> = {
 };
 
 const MAX_SEEN_EXERCISES = 1500;
+const MS_PER_DAY = 86_400_000;
+
+/** Returns the canonical sorted pair key for a 2-player Family Co-Op team. */
+export function buildCoopPairKey(idA: string, idB: string): string {
+  return [idA.trim(), idB.trim()].sort().join('::');
+}
 
 function emptyLangProgress(): LanguageProgressState {
   return {
@@ -330,6 +337,9 @@ export function createDefaultVault(): SaveVault {
     schemaVersion: 1,
     activeProfileId: leo.id,
     profiles: [leo, maya],
+    coopPairStreaks: {},
+    lastKidProfileId: null,
+    restoreKidProfileOnStudyBreak: false,
     audioSettings: { volume: 0.85, muted: false },
   };
 }
@@ -1007,6 +1017,14 @@ function validateKidProfile(
     }
   }
 
+  if (raw.createdAtISO !== undefined) {
+    if (typeof raw.createdAtISO !== 'string' || !isValidISODateString(raw.createdAtISO)) {
+      if (!options?.sanitizeInvalidDates) {
+        return { ok: false, error: `${prefix}.createdAtISO must be a valid ISO date string.` };
+      }
+    }
+  }
+
   const hydratedUnlockedAvatars = Array.from(
     new Set([...STARTER_AVATAR_IDS, ...unlockedAvatarsRes.value, avatarId])
   );
@@ -1046,6 +1064,125 @@ function validateKidProfile(
   };
 }
 
+function isValidNonNegInt(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
+
+function validateCoopPairStreaks(
+  rawStreaks: unknown,
+  validProfileIds: ReadonlySet<string>,
+  options?: VaultValidationOptions
+): ValidationResult<Record<string, CoopPairStreakEntry>> {
+  const result: Record<string, CoopPairStreakEntry> = {};
+  if (rawStreaks === undefined) return { ok: true, value: result };
+  if (!isPlainObject(rawStreaks)) {
+    if (options?.sanitizeInvalidDates) return { ok: true, value: result };
+    return { ok: false, error: 'coopPairStreaks must be an object.' };
+  }
+
+  for (const [key, entryVal] of Object.entries(rawStreaks)) {
+    if (!isPlainObject(entryVal)) {
+      if (options?.sanitizeInvalidDates) continue;
+      return { ok: false, error: `coopPairStreaks["${key}"] must be an object.` };
+    }
+    if (
+      !Array.isArray(entryVal.playerIds) ||
+      entryVal.playerIds.length !== 2 ||
+      typeof entryVal.playerIds[0] !== 'string' ||
+      typeof entryVal.playerIds[1] !== 'string'
+    ) {
+      if (options?.sanitizeInvalidDates) continue;
+      return { ok: false, error: `coopPairStreaks["${key}"].playerIds must contain 2 profile IDs.` };
+    }
+
+    const idA = entryVal.playerIds[0].trim();
+    const idB = entryVal.playerIds[1].trim();
+    if (!idA || !idB || idA === idB) {
+      if (options?.sanitizeInvalidDates) continue;
+      return {
+        ok: false,
+        error: `coopPairStreaks["${key}"].playerIds must contain 2 distinct non-empty IDs.`,
+      };
+    }
+
+    const canonicalKey = buildCoopPairKey(idA, idB);
+    if (typeof entryVal.pairKey !== 'string' || entryVal.pairKey !== key || entryVal.pairKey !== canonicalKey) {
+      if (options?.sanitizeInvalidDates) continue;
+      return {
+        ok: false,
+        error: `coopPairStreaks["${key}"].pairKey must match "${canonicalKey}".`,
+      };
+    }
+
+    if (
+      !isValidNonNegInt(entryVal.streakDays) ||
+      !isValidNonNegInt(entryVal.matchesTogether) ||
+      !isValidNonNegInt(entryVal.bestCombinedScore)
+    ) {
+      if (options?.sanitizeInvalidDates) continue;
+      return {
+        ok: false,
+        error: `coopPairStreaks["${key}"] counts must be non-negative integers.`,
+      };
+    }
+
+    if (!isValidISODateString(entryVal.lastPlayedISO)) {
+      if (options?.sanitizeInvalidDates) continue;
+      return {
+        ok: false,
+        error: `coopPairStreaks["${key}"].lastPlayedISO must be a valid ISO date string.`,
+      };
+    }
+
+    if (options?.sanitizeInvalidDates && (!validProfileIds.has(idA) || !validProfileIds.has(idB))) {
+      continue;
+    }
+
+    result[canonicalKey] = {
+      pairKey: canonicalKey,
+      playerIds: [idA, idB].sort() as [string, string],
+      streakDays: entryVal.streakDays,
+      lastPlayedISO: entryVal.lastPlayedISO.trim(),
+      matchesTogether: entryVal.matchesTogether,
+      bestCombinedScore: entryVal.bestCombinedScore,
+    };
+  }
+
+  return { ok: true, value: result };
+}
+
+function cloneCoopPairStreaks(
+  streaks?: Readonly<Record<string, CoopPairStreakEntry>>
+): Record<string, CoopPairStreakEntry> {
+  const cloned: Record<string, CoopPairStreakEntry> = {};
+  if (!streaks) return cloned;
+  for (const [key, entry] of Object.entries(streaks)) {
+    if (!entry || entry.playerIds.length !== 2) continue;
+    const canonicalKey = buildCoopPairKey(entry.playerIds[0], entry.playerIds[1]);
+    if (canonicalKey !== key || entry.playerIds[0].trim() === entry.playerIds[1].trim()) continue;
+    cloned[canonicalKey] = {
+      pairKey: canonicalKey,
+      playerIds: [entry.playerIds[0].trim(), entry.playerIds[1].trim()].sort() as [string, string],
+      streakDays: entry.streakDays,
+      lastPlayedISO: entry.lastPlayedISO,
+      matchesTogether: entry.matchesTogether,
+      bestCombinedScore: entry.bestCombinedScore,
+    };
+  }
+  return cloned;
+}
+
+function resolveValidKidProfileId(
+  candidateId: string | null | undefined,
+  profiles: readonly KidProfile[]
+): string | null {
+  if (typeof candidateId !== 'string') return null;
+  const trimmed = candidateId.trim();
+  if (!trimmed) return null;
+  const target = profiles.find((p) => p.id === trimmed);
+  return target && !canUseAdultMode(target) ? target.id : null;
+}
+
 function validateVaultObject(
   raw: unknown,
   options?: VaultValidationOptions
@@ -1059,6 +1196,18 @@ function validateVaultObject(
       error: `Unsupported save schemaVersion "${String(raw.schemaVersion)}". Expected version 1.`,
     };
   }
+
+  for (const envelopeKey of ['exportedAt', 'exportedAtISO'] as const) {
+    const envelopeVal = raw[envelopeKey];
+    if (envelopeVal !== undefined) {
+      if (typeof envelopeVal !== 'string' || !isValidISODateString(envelopeVal)) {
+        if (!options?.sanitizeInvalidDates) {
+          return { ok: false, error: `${envelopeKey} must be a valid ISO date string.` };
+        }
+      }
+    }
+  }
+
   if (typeof raw.activeProfileId !== 'string' || raw.activeProfileId.trim().length === 0) {
     return { ok: false, error: 'Missing or invalid activeProfileId.' };
   }
@@ -1089,6 +1238,31 @@ function validateVaultObject(
     };
   }
 
+  const streaksRes = validateCoopPairStreaks(raw.coopPairStreaks, seenIds, options);
+  if (!streaksRes.ok) return streaksRes;
+
+  let lastKidProfileId: string | null = null;
+  if (raw.lastKidProfileId !== undefined && raw.lastKidProfileId !== null) {
+    if (typeof raw.lastKidProfileId !== 'string') {
+      if (!options?.sanitizeInvalidDates) {
+        return { ok: false, error: 'lastKidProfileId must be a string or null.' };
+      }
+    } else {
+      lastKidProfileId = resolveValidKidProfileId(raw.lastKidProfileId, profiles);
+    }
+  }
+
+  let restoreKidProfileOnStudyBreak = false;
+  if (raw.restoreKidProfileOnStudyBreak !== undefined) {
+    if (typeof raw.restoreKidProfileOnStudyBreak !== 'boolean') {
+      if (!options?.sanitizeInvalidDates) {
+        return { ok: false, error: 'restoreKidProfileOnStudyBreak must be a boolean.' };
+      }
+    } else {
+      restoreKidProfileOnStudyBreak = raw.restoreKidProfileOnStudyBreak;
+    }
+  }
+
   let audioSettings = { volume: 0.85, muted: false };
   if (raw.audioSettings !== undefined) {
     if (!isPlainObject(raw.audioSettings)) {
@@ -1117,6 +1291,9 @@ function validateVaultObject(
       schemaVersion: 1,
       activeProfileId: activeId,
       profiles,
+      coopPairStreaks: streaksRes.value,
+      lastKidProfileId,
+      restoreKidProfileOnStudyBreak,
       audioSettings,
     },
   };
@@ -1413,6 +1590,54 @@ function mergeTwoProfiles(existing: KidProfile, incoming: KidProfile): KidProfil
   };
 }
 
+function mergeCoopPairStreaks(
+  existingStreaks: Readonly<Record<string, CoopPairStreakEntry>> | undefined,
+  incomingStreaks: Readonly<Record<string, CoopPairStreakEntry>> | undefined,
+  validProfileIds: ReadonlySet<string>
+): Record<string, CoopPairStreakEntry> {
+  const merged: Record<string, CoopPairStreakEntry> = {};
+  const applyEntry = (entry: CoopPairStreakEntry) => {
+    const idA = entry.playerIds[0]?.trim();
+    const idB = entry.playerIds[1]?.trim();
+    if (!idA || !idB || idA === idB) return;
+    if (!validProfileIds.has(idA) || !validProfileIds.has(idB)) return;
+    if (!isValidISODateString(entry.lastPlayedISO)) return;
+    const key = buildCoopPairKey(idA, idB);
+    const prev = merged[key];
+    if (!prev) {
+      merged[key] = {
+        pairKey: key,
+        playerIds: [idA, idB].sort() as [string, string],
+        streakDays: Math.max(0, Math.floor(entry.streakDays)),
+        lastPlayedISO: entry.lastPlayedISO.trim(),
+        matchesTogether: Math.max(0, Math.floor(entry.matchesTogether)),
+        bestCombinedScore: Math.max(0, Math.floor(entry.bestCombinedScore)),
+      };
+      return;
+    }
+    merged[key] = {
+      pairKey: key,
+      playerIds: prev.playerIds,
+      streakDays: Math.max(prev.streakDays, Math.max(0, Math.floor(entry.streakDays))),
+      lastPlayedISO:
+        pickNewestISO(prev.lastPlayedISO, entry.lastPlayedISO.trim()) ?? prev.lastPlayedISO,
+      matchesTogether: Math.max(prev.matchesTogether, Math.max(0, Math.floor(entry.matchesTogether))),
+      bestCombinedScore: Math.max(
+        prev.bestCombinedScore,
+        Math.max(0, Math.floor(entry.bestCombinedScore))
+      ),
+    };
+  };
+
+  if (existingStreaks) {
+    Object.values(existingStreaks).forEach(applyEntry);
+  }
+  if (incomingStreaks) {
+    Object.values(incomingStreaks).forEach(applyEntry);
+  }
+  return merged;
+}
+
 export function exportVaultJson(vault: SaveVault = memoryVault): string {
   return JSON.stringify(vault, null, 2);
 }
@@ -1443,10 +1668,14 @@ export function importVaultJson(
   const incomingVault = validated.value;
 
   if (mode === 'replace') {
+    const clonedProfiles = incomingVault.profiles.map(cloneProfile);
     commitVault({
       schemaVersion: 1,
       activeProfileId: incomingVault.activeProfileId,
-      profiles: incomingVault.profiles.map(cloneProfile),
+      profiles: clonedProfiles,
+      coopPairStreaks: cloneCoopPairStreaks(incomingVault.coopPairStreaks),
+      lastKidProfileId: resolveValidKidProfileId(incomingVault.lastKidProfileId, clonedProfiles),
+      restoreKidProfileOnStudyBreak: Boolean(incomingVault.restoreKidProfileOnStudyBreak),
       audioSettings: { ...incomingVault.audioSettings },
     });
     return {
@@ -1472,10 +1701,25 @@ export function importVaultJson(
   }
 
   const activeStillValid = mergedProfiles.some((p) => p.id === memoryVault.activeProfileId);
+  const mergedProfileIds = new Set(mergedProfiles.map((p) => p.id));
+  const mergedStreaks = mergeCoopPairStreaks(
+    memoryVault.coopPairStreaks,
+    incomingVault.coopPairStreaks,
+    mergedProfileIds
+  );
+  const mergedLastKidId =
+    resolveValidKidProfileId(memoryVault.lastKidProfileId, mergedProfiles) ??
+    resolveValidKidProfileId(incomingVault.lastKidProfileId, mergedProfiles);
+
   commitVault({
     schemaVersion: 1,
     activeProfileId: activeStillValid ? memoryVault.activeProfileId : mergedProfiles[0].id,
     profiles: mergedProfiles,
+    coopPairStreaks: mergedStreaks,
+    lastKidProfileId: mergedLastKidId,
+    restoreKidProfileOnStudyBreak: Boolean(
+      memoryVault.restoreKidProfileOnStudyBreak || incomingVault.restoreKidProfileOnStudyBreak
+    ),
     audioSettings: { ...memoryVault.audioSettings },
   });
 
@@ -1699,11 +1943,60 @@ function applyCoopOutcomeToProfile(
   };
 }
 
+function parseIsoCalendarDayUtcMs(iso: string): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso.trim());
+  if (!match) return null;
+  const utcMs = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return Number.isFinite(utcMs) ? utcMs : null;
+}
+
+function findRestoreKidProfile(vault: SaveVault): KidProfile | null {
+  if (vault.lastKidProfileId) {
+    const preferred = vault.profiles.find(
+      (p) => p.id === vault.lastKidProfileId && !canUseAdultMode(p)
+    );
+    if (preferred) return preferred;
+  }
+  return vault.profiles.find((p) => !canUseAdultMode(p)) ?? null;
+}
+
+function disarmAndRestorePriorKid(vault: SaveVault): {
+  nextVault: SaveVault;
+  kidProfile: KidProfile | null;
+  changed: boolean;
+} {
+  let profileChanged = false;
+  const disarmedProfiles = vault.profiles.map((p) => {
+    if (!p.adultModeActive && !isAdultLanguage(p.activeLanguage)) return p;
+    const disarmed = disarmProfileAdultMode(p);
+    if (disarmed !== p) profileChanged = true;
+    return disarmed;
+  });
+  const kidTarget = findRestoreKidProfile({ ...vault, profiles: disarmedProfiles });
+  const nextActiveId = kidTarget ? kidTarget.id : vault.activeProfileId;
+  const changed = profileChanged || nextActiveId !== vault.activeProfileId;
+  return {
+    nextVault: {
+      ...vault,
+      activeProfileId: nextActiveId,
+      profiles: disarmedProfiles,
+    },
+    kidProfile: kidTarget,
+    changed,
+  };
+}
+
 export const vaultActions = {
   switchProfile(profileId: string): void {
     const target = memoryVault.profiles.find((p) => p.id === profileId);
     if (!target) return;
     if (memoryVault.activeProfileId === profileId) return;
+
+    const prevActive = getActiveProfileSnapshot();
+    const nextLastKidProfileId =
+      prevActive && !canUseAdultMode(prevActive) && canUseAdultMode(target)
+        ? prevActive.id
+        : (memoryVault.lastKidProfileId ?? null);
 
     const targetIsAdultActive = canUseAdultMode(target) && Boolean(target.adultModeActive);
     const nextProfiles = targetIsAdultActive
@@ -1717,6 +2010,7 @@ export const vaultActions = {
     commitVault({
       ...memoryVault,
       activeProfileId: profileId,
+      lastKidProfileId: nextLastKidProfileId,
       profiles: nextProfiles,
     });
   },
@@ -1782,6 +2076,10 @@ export const vaultActions = {
           : active
             ? resolveLastBaseLanguage(active)
             : 'en';
+      const nextLastKidProfileId =
+        active && !canUseAdultMode(active)
+          ? active.id
+          : (memoryVault.lastKidProfileId ?? null);
       const existingAdult = memoryVault.profiles.find((p) => canUseAdultMode(p));
       if (existingAdult) {
         const nextTrack: AdultLanguageCode =
@@ -1803,12 +2101,13 @@ export const vaultActions = {
         commitVault({
           ...memoryVault,
           activeProfileId: updatedAdult.id,
+          lastKidProfileId: nextLastKidProfileId,
           profiles: nextProfiles,
         });
         return updatedAdult;
       }
 
-      const cleanName = options?.adultProfileName?.trim() || 'After-Hours';
+      const cleanName = options?.adultProfileName?.trim() || 'Parent';
       const id = generateUniqueProfileId(cleanName, memoryVault.profiles, 'adult');
       const created = makeFreshProfile({
         id,
@@ -1825,11 +2124,13 @@ export const vaultActions = {
       commitVault({
         ...memoryVault,
         activeProfileId: created.id,
+        lastKidProfileId: nextLastKidProfileId,
         profiles: [...memoryVault.profiles, created],
       });
       return created;
     }
 
+    const activeWasLastKid = memoryVault.lastKidProfileId === active.id;
     updateActiveProfile((profile) => {
       const lastBaseLanguage = resolveLastBaseLanguage(profile);
       const nextTrack: AdultLanguageCode =
@@ -1847,12 +2148,50 @@ export const vaultActions = {
       };
     });
 
+    if (activeWasLastKid) {
+      commitVault({
+        ...memoryVault,
+        lastKidProfileId: null,
+      });
+    }
+
     return getActiveProfileSnapshot()!;
   },
 
-  setAdultModeActive(active: boolean): void {
-    updateActiveProfile((profile) => {
-      if (!active) {
+  setRestoreKidProfileOnStudyBreak(enabled: boolean): void {
+    const nextEnabled = Boolean(enabled);
+    if (Boolean(memoryVault.restoreKidProfileOnStudyBreak) === nextEnabled) return;
+    commitVault({
+      ...memoryVault,
+      restoreKidProfileOnStudyBreak: nextEnabled,
+    });
+  },
+
+  returnToPriorKidProfile(): KidProfile | null {
+    const { nextVault, kidProfile, changed } = disarmAndRestorePriorKid(memoryVault);
+    if (changed) {
+      commitVault(nextVault);
+    }
+    return kidProfile;
+  },
+
+  setAdultModeActive(active: boolean, options?: { restoreKidProfile?: boolean }): void {
+    if (!active) {
+      const prevActive = getActiveProfileSnapshot();
+      const shouldRestoreKid = Boolean(
+        prevActive &&
+          (canUseAdultMode(prevActive) || prevActive.adultModeActive) &&
+          (options?.restoreKidProfile ?? memoryVault.restoreKidProfileOnStudyBreak)
+      );
+      if (shouldRestoreKid) {
+        const { nextVault, changed } = disarmAndRestorePriorKid(memoryVault);
+        if (changed) {
+          commitVault(nextVault);
+        }
+        return;
+      }
+
+      updateActiveProfile((profile) => {
         const fallbackBase = resolveLastBaseLanguage(profile);
         if (
           !profile.adultModeActive &&
@@ -1867,8 +2206,11 @@ export const vaultActions = {
           lastBaseLanguage: fallbackBase,
           activeLanguage: fallbackBase,
         };
-      }
+      });
+      return;
+    }
 
+    updateActiveProfile((profile) => {
       if (!canUseAdultMode(profile)) return profile;
       const lastBaseLanguage = resolveLastBaseLanguage(profile);
       const nextLanguage: LanguageCode = isAdultLanguage(profile.activeLanguage)
@@ -1893,10 +2235,22 @@ export const vaultActions = {
     const nextActiveId =
       memoryVault.activeProfileId === profileId ? remaining[0].id : memoryVault.activeProfileId;
 
+    const nextStreaks: Record<string, CoopPairStreakEntry> = {};
+    for (const [key, entry] of Object.entries(memoryVault.coopPairStreaks ?? {})) {
+      if (!entry.playerIds.includes(profileId)) {
+        nextStreaks[key] = entry;
+      }
+    }
+
+    const nextLastKidId =
+      memoryVault.lastKidProfileId === profileId ? null : (memoryVault.lastKidProfileId ?? null);
+
     commitVault({
       ...memoryVault,
       activeProfileId: nextActiveId,
       profiles: remaining,
+      coopPairStreaks: nextStreaks,
+      lastKidProfileId: nextLastKidId,
     });
     return true;
   },
@@ -2330,6 +2684,18 @@ export const vaultActions = {
     });
   },
 
+  getCoopPairStreak(idA: string, idB: string): CoopPairStreakEntry | null {
+    const cleanA = idA.trim();
+    const cleanB = idB.trim();
+    if (!cleanA || !cleanB || cleanA === cleanB) return null;
+    const entry = memoryVault.coopPairStreaks?.[buildCoopPairKey(cleanA, cleanB)];
+    if (!entry) return null;
+    return {
+      ...entry,
+      playerIds: [...entry.playerIds] as [string, string],
+    };
+  },
+
   recordCoopArcadeSession(params: CoopArcadeSessionParams): CoopArcadeSessionSummary | null {
     const cleanGameId = typeof params.gameId === 'string' ? params.gameId.trim() : '';
     if (!cleanGameId) return null;
@@ -2407,9 +2773,45 @@ export const vaultActions = {
       return profile;
     });
 
+    const pairKey = buildCoopPairKey(playerOne.id, playerTwo.id);
+    const sortedPlayerIds = [playerOne.id, playerTwo.id].sort() as [string, string];
+    const todayISO = new Date().toISOString().slice(0, 10);
+    const prevEntry = memoryVault.coopPairStreaks?.[pairKey];
+
+    let nextStreakDays = 1;
+    let nextLastPlayedISO = todayISO;
+    if (prevEntry) {
+      const todayUtcMs = parseIsoCalendarDayUtcMs(todayISO);
+      const prevUtcMs = parseIsoCalendarDayUtcMs(prevEntry.lastPlayedISO);
+      if (todayUtcMs !== null && prevUtcMs !== null) {
+        const diffDays = Math.round((todayUtcMs - prevUtcMs) / MS_PER_DAY);
+        if (diffDays <= 0) {
+          nextStreakDays = Math.max(1, prevEntry.streakDays);
+          nextLastPlayedISO = diffDays < 0 ? prevEntry.lastPlayedISO : todayISO;
+        } else if (diffDays === 1) {
+          nextStreakDays = prevEntry.streakDays + 1;
+        } else {
+          nextStreakDays = 1;
+        }
+      }
+    }
+
+    const nextPairEntry: CoopPairStreakEntry = {
+      pairKey,
+      playerIds: sortedPlayerIds,
+      streakDays: nextStreakDays,
+      lastPlayedISO: nextLastPlayedISO,
+      matchesTogether: (prevEntry?.matchesTogether ?? 0) + 1,
+      bestCombinedScore: Math.max(prevEntry?.bestCombinedScore ?? 0, combinedScore),
+    };
+
     commitVault({
       ...memoryVault,
       profiles: nextProfiles,
+      coopPairStreaks: {
+        ...(memoryVault.coopPairStreaks ?? {}),
+        [pairKey]: nextPairEntry,
+      },
     });
 
     return {
@@ -2418,6 +2820,10 @@ export const vaultActions = {
       playerOneGemsAwarded,
       playerTwoGemsAwarded,
       xpAwardedEach,
+      playerOneCreditedLanguage: playerOneTargetLanguage,
+      playerTwoCreditedLanguage: playerTwoTargetLanguage,
+      pairStreakDays: nextPairEntry.streakDays,
+      pairMatchesTogether: nextPairEntry.matchesTogether,
     };
   },
 
