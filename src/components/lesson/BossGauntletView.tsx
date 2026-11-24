@@ -420,20 +420,19 @@ export function BossGauntletView({
             Friendship Charge: {chargePct}%
           </div>
           <div
+            className="cozy-gauge-track"
             style={{
               marginTop: 4,
               height: 10,
               borderRadius: 999,
-              background: 'rgba(148, 163, 184, 0.28)',
               overflow: 'hidden',
             }}
           >
             <div
+              className="cozy-gauge-fill"
               style={{
                 width: `${chargePct}%`,
                 height: '100%',
-                background: 'linear-gradient(90deg, #10b981, #fbbf24)',
-                transition: 'width 260ms ease',
               }}
             />
           </div>
@@ -442,6 +441,7 @@ export function BossGauntletView({
 
       {/* Companion Prompt Speech Bubble */}
       <div
+        className="story-bubble is-left"
         style={{
           padding: compact ? '5px 8px' : '12px 14px',
           borderRadius: compact ? 13 : 16,
@@ -635,6 +635,7 @@ export function BossGauntletView({
       {/* Turn Choice, Word Bank, or Keyboard Free-Recall */}
       {currentTurn.mode === 'choice' ? (
         <div
+          className="cozy-choice-tray"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))',

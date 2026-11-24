@@ -359,6 +359,7 @@ export function ListenDecodeView({
         <div
           role="radiogroup"
           aria-label="Meaning choices"
+          className="cozy-choice-tray"
           style={{
             display: 'grid',
             gridTemplateColumns: (exercise.choices?.length ?? 0) > 2 ? 'repeat(auto-fit, minmax(180px, 1fr))' : '1fr',

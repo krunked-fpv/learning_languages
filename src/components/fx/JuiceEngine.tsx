@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useCompactViewport } from '../lesson/lessonHelpers';
 
 export interface PopToastItem {
@@ -8,13 +8,14 @@ export interface PopToastItem {
   tone: 'xp' | 'combo' | 'accent' | 'bonus';
 }
 
+// Hearth-gold motes: warm embers, gilt flecks and a few blossom petals.
 const CONFETTI_COLORS = [
-  '#FBBF24',
-  '#F43F5E',
-  '#2563EB',
-  '#10B981',
-  '#A855F7',
-  '#FB923C',
+  'var(--gild, #c99a3e)',
+  'var(--lantern-glow, #ffd48a)',
+  'var(--key-light, #ffe2a8)',
+  '#f2a65a',
+  '#e9b8a0',
+  '#f6d98a',
 ] as const;
 
 interface ParticleSpec {
@@ -59,8 +60,9 @@ export function ConfettiBurst({
   active: boolean;
   intensity?: 'medium' | 'grand';
 }) {
+  const reduce = useReducedMotion();
   if (!active) return null;
-  const particles = intensity === 'grand' ? GRAND_PARTICLES : MEDIUM_PARTICLES;
+  const particles = reduce ? [] : intensity === 'grand' ? GRAND_PARTICLES : MEDIUM_PARTICLES;
 
   return (
     <div
@@ -73,6 +75,12 @@ export function ConfettiBurst({
         zIndex: 85,
       }}
     >
+      <motion.div
+        className="hearth-bloom"
+        initial={{ opacity: 0, scale: 0.6 }}
+        animate={{ opacity: reduce ? [0, 0.7, 0] : [0, 0.85, 0], scale: reduce ? 1 : [0.7, 1.15, 1.3] }}
+        transition={{ duration: intensity === 'grand' ? 2.2 : 1.5, ease: 'easeOut' }}
+      />
       {particles.map((p) => (
         <motion.div
           key={p.id}
@@ -91,9 +99,9 @@ export function ConfettiBurst({
             opacity: [1, 1, 0],
           }}
           transition={{
-            duration: intensity === 'grand' ? 1.35 : 0.95,
-            delay: p.delay,
-            ease: 'easeOut',
+            duration: intensity === 'grand' ? 2.1 : 1.5,
+            delay: p.delay * 1.5,
+            ease: [0.22, 0.8, 0.36, 1],
           }}
           style={{
             position: 'absolute',
@@ -101,8 +109,9 @@ export function ConfettiBurst({
             top: '28%',
             width: p.size,
             height: p.isStar ? p.size : p.size * 0.65,
-            borderRadius: p.isStar ? 999 : 3,
+            borderRadius: p.isStar ? 999 : '60% 40% 60% 40%',
             background: p.color,
+            boxShadow: '0 0 8px 1px color-mix(in oklab, var(--lantern-glow, #ffd48a) 70%, transparent)',
             willChange: 'transform, opacity',
           }}
         />
@@ -115,10 +124,10 @@ const TOAST_TONE_STYLE: Record<
   PopToastItem['tone'],
   { bg: string; border: string; text: string }
 > = {
-  xp: { bg: '#EEF2FF', border: '#4F46E5', text: '#312E81' },
-  combo: { bg: '#FFF7ED', border: '#EA580C', text: '#9A3412' },
-  accent: { bg: '#FFFBEB', border: '#F59E0B', text: '#92400E' },
-  bonus: { bg: '#ECFDF5', border: '#10B981', text: '#065F46' },
+  xp: { bg: '#fbf1dc', border: '#b98a4a', text: '#4a3426' },
+  combo: { bg: '#ffe9c2', border: '#c9772e', text: '#6b2f12' },
+  accent: { bg: '#fff3cf', border: '#c99a3e', text: '#5c3a0e' },
+  bonus: { bg: '#e9f1d6', border: '#6f9a5a', text: '#2f4a22' },
 };
 
 export function FloatingPopToast({ items }: { items: readonly PopToastItem[] }) {
@@ -153,7 +162,7 @@ export function FloatingPopToast({ items }: { items: readonly PopToastItem[] }) 
               initial={{ opacity: 0, y: compact ? 6 : 14, scale: compact ? 0.92 : 0.78 }}
               animate={{ opacity: 1, y: compact ? 0 : -10, scale: compact ? 1 : 1.04 }}
               exit={{ opacity: 0, y: compact ? -10 : -28, scale: 0.9 }}
-              transition={{ type: 'spring', stiffness: 420, damping: 22 }}
+              transition={{ type: 'spring', stiffness: 220, damping: 24, mass: 1.1 }}
               style={{
                 padding: compact ? '3px 10px' : '6px 14px',
                 borderRadius: 999,
@@ -171,7 +180,7 @@ export function FloatingPopToast({ items }: { items: readonly PopToastItem[] }) 
                 maxWidth: '100%',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
-                boxShadow: '0 8px 20px rgba(15, 23, 42, 0.14)',
+                boxShadow: '2px 5px 14px color-mix(in oklab, #4a3426 28%, transparent), inset 1px 1px 0 rgba(255,255,255,0.6)',
                 whiteSpace: 'nowrap',
                 willChange: 'transform, opacity',
               }}

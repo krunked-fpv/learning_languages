@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { BookOpen, Compass, Gamepad2, ShoppingBag, Trophy } from 'lucide-react';
 import { playSfx } from '../../audio';
 import type { LanguageCode } from '../../types/contracts';
@@ -17,6 +17,10 @@ export function BottomNav({
   unlockedPhraseCount,
   onSelectTab,
 }: BottomNavProps) {
+  const reduceMotion = useReducedMotion();
+  const dockSpring = reduceMotion
+    ? { duration: 0 }
+    : { type: 'spring' as const, stiffness: 215, damping: 25, mass: 1.1 };
   const items: Array<{
     id: NavTabId;
     label: string;
@@ -54,13 +58,13 @@ export function BottomNav({
                   <motion.span
                     layoutId="console-dock-pill"
                     className="nav-dock-pill"
-                    transition={{ type: 'spring', stiffness: 460, damping: 32 }}
+                    transition={dockSpring}
                   />
                 ) : null}
                 <span className="nav-item-content">
                   <motion.span
-                    animate={isActive ? { y: -1, scale: 1.1 } : { y: 0, scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 420, damping: 24 }}
+                    animate={isActive && !reduceMotion ? { y: -1, scale: 1.08 } : { y: 0, scale: 1 }}
+                    transition={dockSpring}
                     style={{ display: 'inline-flex', alignItems: 'center' }}
                   >
                     <Icon size={19} />

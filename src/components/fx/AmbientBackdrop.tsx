@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import type { CosmeticId } from '../../types/contracts';
 
 type ThemeKey = CosmeticId | 'default';
@@ -47,16 +47,16 @@ function buildStars(theme: ThemeKey): StarSpec[] {
                         ? ['#ffffff', '#bae6fd', '#e0f2fe', '#cbd5e1']
                         : ['#ffffff', '#fde68a', '#bae6fd', '#fbcfe8'];
 
-  const count = DARK_THEMES.has(theme) ? 32 : 16;
+  const count = DARK_THEMES.has(theme) ? 28 : 14;
   const out: StarSpec[] = [];
   for (let i = 0; i < count; i++) {
     out.push({
       id: i,
       x: ((i * 37 + 11) % 96) + 2,
       y: ((i * 53 + 7) % 92) + 4,
-      size: DARK_THEMES.has(theme) ? (i % 4 === 0 ? 4 : 2.5) : 7 + (i % 3) * 3,
-      delay: (i % 7) * 0.45,
-      duration: 2.2 + (i % 5) * 0.7,
+      size: DARK_THEMES.has(theme) ? (i % 4 === 0 ? 4 : 2.5) : 5 + (i % 3) * 2.5,
+      delay: (i % 7) * 0.5,
+      duration: 3.6 + (i % 5) * 0.6,
       tint: palette[i % palette.length],
     });
   }
@@ -65,6 +65,7 @@ function buildStars(theme: ThemeKey): StarSpec[] {
 
 export function AmbientBackdrop({ theme = 'default' }: { theme?: ThemeKey }) {
   const isDark = DARK_THEMES.has(theme);
+  const reduceMotion = useReducedMotion();
   const stars = buildStars(theme);
 
   const nebulaGlowA =
@@ -159,22 +160,30 @@ export function AmbientBackdrop({ theme = 'default' }: { theme?: ThemeKey }) {
         }}
       />
 
-      {/* Twinkling Stars (Dark Themes) or Soft Floating Motes (Light Themes) */}
+      {/* Twinkling Stars (Dark Themes) or Soft Sunlit Dust Motes (Light Themes) */}
       {stars.map((s) => (
         <motion.div
           key={`${theme}-${s.id}`}
-          initial={{ opacity: isDark ? 0.3 : 0.2, scale: 0.85 }}
-          animate={{
-            opacity: isDark ? [0.25, 0.95, 0.3] : [0.2, 0.55, 0.2],
-            scale: isDark ? [0.85, 1.25, 0.85] : [0.9, 1.12, 0.9],
-            y: isDark ? 0 : [0, -10, 0],
-          }}
-          transition={{
-            duration: s.duration,
-            delay: s.delay,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
+          initial={{ opacity: isDark ? 0.35 : 0.28, scale: 0.92 }}
+          animate={
+            reduceMotion
+              ? { opacity: isDark ? 0.45 : 0.3, scale: 1, y: 0 }
+              : {
+                  opacity: isDark ? [0.28, 0.85, 0.32] : [0.2, 0.5, 0.2],
+                  scale: isDark ? [0.9, 1.15, 0.9] : [0.94, 1.08, 0.94],
+                  y: isDark ? 0 : [0, -3.5, 0],
+                }
+          }
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : {
+                  duration: s.duration,
+                  delay: s.delay,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                }
+          }
           style={{
             position: 'absolute',
             left: `${s.x}%`,
@@ -183,25 +192,27 @@ export function AmbientBackdrop({ theme = 'default' }: { theme?: ThemeKey }) {
             height: s.size,
             borderRadius: 999,
             background: s.tint,
-            boxShadow: isDark ? `0 0 ${s.size * 2}px ${s.tint}` : 'none',
-            willChange: 'transform, opacity',
+            boxShadow: isDark
+              ? `0 0 ${s.size * 2}px ${s.tint}`
+              : `0 0 ${s.size * 1.6}px var(--lantern-glow, #ffd48a)`,
+            willChange: reduceMotion ? undefined : 'transform, opacity',
           }}
         />
       ))}
 
       {/* Occasional Shooting Star on Dark Cosmic Themes */}
-      {isDark ? (
+      {isDark && !reduceMotion ? (
         <motion.div
           initial={{ x: '-15vw', y: '10vh', opacity: 0 }}
           animate={{
             x: ['-15vw', '115vw'],
             y: ['10vh', '38vh'],
-            opacity: [0, 0.9, 0.9, 0],
+            opacity: [0, 0.85, 0.85, 0],
           }}
           transition={{
-            duration: 2.1,
+            duration: 2.6,
             repeat: Infinity,
-            repeatDelay: 7.5,
+            repeatDelay: 8.5,
             ease: 'easeOut',
           }}
           style={{
@@ -211,7 +222,7 @@ export function AmbientBackdrop({ theme = 'default' }: { theme?: ThemeKey }) {
             width: 84,
             height: 2,
             borderRadius: 999,
-            background: 'linear-gradient(90deg, transparent, #38bdf8, #ffffff)',
+            background: 'linear-gradient(90deg, transparent, var(--lantern-glow, #ffd48a), #fff8e7)',
             transform: 'rotate(14deg)',
             willChange: 'transform, opacity',
           }}

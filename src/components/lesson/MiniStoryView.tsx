@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Volume2, Turtle, Eye, EyeOff, ArrowRight, Sparkles, Zap } from 'lucide-react';
 import { playSfx, speakPhrase } from '../../audio';
 import { LANGUAGE_META, type LanguageCode, type MiniStoryExercise } from '../../types/contracts';
@@ -29,6 +29,7 @@ export function MiniStoryView({
   onComplete,
   onHintUsed,
 }: MiniStoryViewProps) {
+  const reduceMotion = useReducedMotion();
   const [visibleCount, setVisibleCount] = useState(1);
   const [resolvedDecisionIdx, setResolvedDecisionIdx] = useState<number[]>([]);
   const [decisionNote, setDecisionNote] = useState<{
@@ -235,9 +236,10 @@ export function MiniStoryView({
           return (
             <motion.div
               key={bubble.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.22 }}
+              className={`story-bubble ${isRight ? 'is-right' : 'is-left'}`}
+              initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 200, damping: 24, mass: 1.15 }}
               style={{
                 alignSelf: isRight ? 'flex-end' : 'flex-start',
                 maxWidth: '90%',
@@ -410,7 +412,7 @@ export function MiniStoryView({
               <Sparkles size={16} />
               <span>Story Choice: {activeDecision.questionEnglish}</span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="cozy-choice-tray" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {activeDecision.options.map((opt) => {
                 const isDimmed = hint.dimmedUids.has(opt.id);
                 const isSpotlight = hint.spotlightZone === 'choice' && hint.spotlightUid === opt.id;

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   BookOpen,
   ChevronLeft,
@@ -43,6 +44,8 @@ import {
 export function PhrasebookVault() {
   const { activeProfile } = useVaultStore();
   const compact = useCompactViewport();
+  const reduceMotion = useReducedMotion();
+  const showOffGildId = `showoff-gild-${useId().replace(/:/g, '-')}`;
   const isAdultModeActive = Boolean(activeProfile.adultModeActive);
   const safeInitialLang: LanguageCode =
     !isAdultModeActive && isAdultLanguage(activeProfile.activeLanguage)
@@ -516,7 +519,7 @@ export function PhrasebookVault() {
                         return (
                           <div
                             key={card.id}
-                            className="tactile-card"
+                            className="tactile-card cozy-sticker-locked"
                             style={{
                               padding: 12,
                               background: 'var(--card-soft-bg)',
@@ -530,7 +533,7 @@ export function PhrasebookVault() {
                               minHeight: 165,
                             }}
                           >
-                            <div style={{ filter: 'grayscale(1)', opacity: 0.25 }}>
+                            <div className="cozy-sticker-silhouette">
                               <VocabIllustration
                                 illustrationKey={card.illustrationKey}
                                 language={effectiveViewLang}
@@ -550,7 +553,7 @@ export function PhrasebookVault() {
                       return (
                         <div
                           key={card.id}
-                          className="tactile-card"
+                          className="tactile-card cozy-sticker-card"
                           style={{
                             padding: 12,
                             display: 'flex',
@@ -627,7 +630,7 @@ export function PhrasebookVault() {
                           </div>
 
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                            <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                            <span className="cozy-sticker-mat" style={{ flexShrink: 0, display: 'inline-flex' }}>
                               <VocabIllustration
                                 illustrationKey={card.illustrationKey}
                                 language={effectiveViewLang}
@@ -770,9 +773,14 @@ export function PhrasebookVault() {
                 </div>
 
                 {/* Tactile Flip Card */}
-                <div
+                <motion.div
+                  key={`${activeFlashcard.id}-${cardFlipped ? 'back' : 'front'}`}
+                  initial={reduceMotion ? false : { opacity: 0.72, scale: 0.96, y: 4 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 210, damping: 24, mass: 1.1 }}
                   role="button"
                   tabIndex={0}
+                  className={`cozy-showoff-card ${cardFlipped ? 'is-flipped' : ''}`}
                   onClick={() => {
                     playSfx('flip_card');
                     setCardFlipped((f) => !f);
@@ -785,6 +793,7 @@ export function PhrasebookVault() {
                     }
                   }}
                   style={{
+                    position: 'relative',
                     cursor: 'pointer',
                     padding: compact ? 14 : 22,
                     borderRadius: 24,
@@ -793,7 +802,7 @@ export function PhrasebookVault() {
                     borderLeftWidth: 3,
                     borderBottomWidth: 6,
                     borderStyle: 'solid',
-                    borderColor: 'var(--lang-primary)',
+                    borderColor: 'var(--gild, var(--lang-primary))',
                     background: cardFlipped ? 'var(--tint-amber-bg)' : 'var(--card-soft-bg)',
                     display: 'flex',
                     flexDirection: 'column',
@@ -806,6 +815,32 @@ export function PhrasebookVault() {
                     minWidth: 0,
                   }}
                 >
+                  <svg
+                    aria-hidden="true"
+                    className="cozy-corner-ornament is-tl"
+                    width="28"
+                    height="28"
+                    viewBox="0 0 28 28"
+                    fill="none"
+                  >
+                    <defs>
+                      <linearGradient id={showOffGildId} x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stopColor="var(--gild, #c99a3e)" />
+                        <stop offset="100%" stopColor="var(--ink-soft, #8a6b52)" stopOpacity="0.45" />
+                      </linearGradient>
+                    </defs>
+                    <path d="M3 22V7a4 4 0 0 1 4-4h15" stroke={`url(#${showOffGildId})`} strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                  <svg
+                    aria-hidden="true"
+                    className="cozy-corner-ornament is-br"
+                    width="28"
+                    height="28"
+                    viewBox="0 0 28 28"
+                    fill="none"
+                  >
+                    <path d="M25 6v15a4 4 0 0 1-4 4H6" stroke={`url(#${showOffGildId})`} strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
                   {!cardFlipped ? (
                     <>
                       <VocabIllustration
@@ -887,7 +922,7 @@ export function PhrasebookVault() {
                       </div>
                     </>
                   )}
-                </div>
+                </motion.div>
 
                 <SayItNormallyButton
                   language={effectiveViewLang}

@@ -4,49 +4,61 @@
    ========================================================================== */
 
 :root {
+  /* Cozy art bible tokens - watercolor paper */
+  --ink-warm: #4a3426;
+  --ink-soft: #8a6b52;
+  --paper-base: #fbf1dc;
+  --paper-shade: #efe0c2;
+  --paper-grain-opacity: 0.22;
+  --key-light: #ffe2a8;
+  --ambient-fill: #b9b4e6;
+  --lantern-glow: #ffd48a;
+  --gild: #c99a3e;
+  --shadow-tint: color-mix(in oklab, #4a3426 22%, transparent);
+  --surface-material: watercolor;
   --font-display: 'Fredoka Variable', 'Fredoka', 'Nunito Variable', 'Nunito', 'Noto Sans Arabic', 'Noto Sans SC', 'Noto Sans JP', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'PingFang SC', 'Hiragino Kaku Gothic ProN', 'Microsoft YaHei', 'Yu Gothic', 'Meiryo', 'Geeza Pro', 'Kohinoor Devanagari', 'Kohinoor Bangla', 'Nirmala UI', 'Segoe UI', 'Tahoma', system-ui, -apple-system, sans-serif;
   --font-body: 'Nunito Variable', 'Nunito', 'Noto Sans Arabic', 'Noto Sans SC', 'Noto Sans JP', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'PingFang SC', 'Hiragino Kaku Gothic ProN', 'Microsoft YaHei', 'Yu Gothic', 'Meiryo', 'Geeza Pro', 'Kohinoor Devanagari', 'Kohinoor Bangla', 'Nirmala UI', 'Segoe UI', 'Tahoma', system-ui, -apple-system, sans-serif;
 
   /* 1. Default: Storybook Parchment */
-  --app-bg: linear-gradient(180deg, #fffdf7 0%, #fef6e4 55%, #f8efe0 100%);
-  --shell-bg: rgba(255, 255, 255, 0.88);
-  --shell-border: #cbd5e1;
-  --card-bg: rgba(255, 255, 255, 0.96);
-  --card-soft-bg: #f8fafc;
-  --card-border: #cbd5e1;
-  --tile-bg: #ffffff;
-  --tile-border: #cbd5e1;
-  --tile-selected-bg: #eef2ff;
-  --tile-selected-ink: #312e81;
-  --input-bg: #ffffff;
-  --modal-bg: #ffffff;
-  --text-main: #1e1b4b;
-  --text-muted: #475569;
-  --nav-bg: rgba(255, 255, 255, 0.92);
-  --nav-ink: #475569;
-  --nav-active-bg: #eef2ff;
+  --app-bg: linear-gradient(165deg, #fdf6e6 0%, #f7ebd2 52%, #efe0c0 100%);
+  --shell-bg: rgba(252, 245, 229, 0.92);
+  --shell-border: #cbb38b;
+  --card-bg: rgba(254, 249, 237, 0.96);
+  --card-soft-bg: #f5ebd4;
+  --card-border: #d0ba92;
+  --tile-bg: #fffbf0;
+  --tile-border: #ccb48c;
+  --tile-selected-bg: #f6e7c4;
+  --tile-selected-ink: #3e2816;
+  --input-bg: #fffcf3;
+  --modal-bg: #fdf7e8;
+  --text-main: #2d1f16;
+  --text-muted: #5d4635;
+  --nav-bg: rgba(251, 243, 224, 0.94);
+  --nav-ink: #5d4635;
+  --nav-active-bg: #f5e6c4;
   --nav-active-ink: var(--lang-primary);
   --nav-active-border: var(--lang-primary);
-  --arena-bg: linear-gradient(180deg, #fffdf7 0%, #f4f7ff 100%);
-  --footer-bg: rgba(255, 255, 255, 0.96);
-  --footer-correct-bg: #ecfdf5;
-  --footer-accent-bg: #fffbeb;
-  --footer-nudge-bg: #fff1f2;
-  --card-glow: 0 10px 26px rgba(15, 23, 42, 0.08);
+  --arena-bg: linear-gradient(165deg, #fdf6e6 0%, #f6ead0 58%, #ede0c4 100%);
+  --footer-bg: rgba(251, 243, 225, 0.96);
+  --footer-correct-bg: #eaf4e2;
+  --footer-accent-bg: #fcf0d2;
+  --footer-nudge-bg: #f9e8e4;
+  --card-glow: 0 10px 26px color-mix(in oklab, #4a3426 14%, transparent);
 
   /* Semantic Surface Tints */
-  --tint-amber-bg: #fffbeb;
-  --tint-amber-border: #fbbf24;
-  --tint-amber-ink: #92400e;
-  --tint-emerald-bg: #ecfdf5;
-  --tint-emerald-border: #34d399;
-  --tint-emerald-ink: #065f46;
-  --tint-indigo-bg: #eef2ff;
-  --tint-indigo-border: #818cf8;
-  --tint-indigo-ink: #312e81;
-  --tint-rose-bg: #fff1f2;
-  --tint-rose-border: #fda4af;
-  --tint-rose-ink: #9f1239;
+  --tint-amber-bg: #f8ecd0;
+  --tint-amber-border: #c99a3e;
+  --tint-amber-ink: #683c0d;
+  --tint-emerald-bg: #e6f0e2;
+  --tint-emerald-border: #689970;
+  --tint-emerald-ink: #1e4d32;
+  --tint-indigo-bg: #ece9f2;
+  --tint-indigo-border: #8a86af;
+  --tint-indigo-ink: #322f5e;
+  --tint-rose-bg: #f6e6e3;
+  --tint-rose-border: #c97f7d;
+  --tint-rose-ink: #7d252e;
 
   /* Active Language Dynamic Tokens (overridden inline by activeLanguage) */
   --lang-primary: #2563eb;
@@ -71,6 +83,18 @@
 
 /* 2. Cosmic Galaxy Nebula (Signature Dark Frosted Glass) */
 .app-root[data-theme='theme_cosmic_galaxy'] {
+  /* Cozy art bible tokens - velvet star-chart folio */
+  --ink-warm: #e6c47e;
+  --ink-soft: #b79a68;
+  --paper-base: #1d1840;
+  --paper-shade: #120f2c;
+  --paper-grain-opacity: 0.16;
+  --key-light: #ffd98a;
+  --ambient-fill: #7a6ad8;
+  --lantern-glow: #ffbe5c;
+  --gild: #e6c47e;
+  --shadow-tint: color-mix(in oklab, #06041a 22%, transparent);
+  --surface-material: velvet;
   --app-bg: radial-gradient(circle at 22% 14%, #2e1065 0%, #190b38 42%, #0b1d3d 75%, #050214 100%);
   --shell-bg: rgba(16, 11, 42, 0.84);
   --shell-border: #6366f1;
@@ -114,6 +138,18 @@
 
 /* 3. Arctic Aurora Borealis (Polar Midnight Dark Glass) */
 .app-root[data-theme='theme_aurora_borealis'] {
+  /* Cozy art bible tokens - carved woodblock + northern shimmer */
+  --ink-warm: #d7e8d0;
+  --ink-soft: #9dc3b4;
+  --paper-base: #10303a;
+  --paper-shade: #0a2029;
+  --paper-grain-opacity: 0.18;
+  --key-light: #d6f5e6;
+  --ambient-fill: #7ce0d2;
+  --lantern-glow: #9bf0d0;
+  --gild: #bfe8c8;
+  --shadow-tint: color-mix(in oklab, #041418 22%, transparent);
+  --surface-material: carved;
   --app-bg: radial-gradient(circle at 20% 18%, #0f4c5c 0%, #0b2938 45%, #161032 82%, #050c14 100%);
   --shell-bg: rgba(8, 28, 38, 0.85);
   --shell-border: #34d399;
@@ -157,6 +193,18 @@
 
 /* 4. Starlight Indigo (Midnight Indigo Glass) */
 .app-root[data-theme='theme_starlight_indigo'] {
+  /* Cozy art bible tokens - velvet star-chart folio */
+  --ink-warm: #e3c27c;
+  --ink-soft: #b49a6c;
+  --paper-base: #1f2352;
+  --paper-shade: #151839;
+  --paper-grain-opacity: 0.16;
+  --key-light: #ffe1a0;
+  --ambient-fill: #8a86e8;
+  --lantern-glow: #ffc874;
+  --gild: #e3c27c;
+  --shadow-tint: color-mix(in oklab, #080a22 22%, transparent);
+  --surface-material: velvet;
   --app-bg: radial-gradient(circle at 20% 10%, #3730a3 0%, #1e1b4b 58%, #0f172a 100%);
   --shell-bg: rgba(24, 21, 66, 0.88);
   --shell-border: #818cf8;
@@ -200,6 +248,18 @@
 
 /* 5. Solaris Gold & Velvet (Plush Amethyst Dark Glass) */
 .app-root[data-theme='theme_royal_velvet'] {
+  /* Cozy art bible tokens - crimson velvet folio, gold leaf */
+  --ink-warm: #e8c987;
+  --ink-soft: #bf9f6a;
+  --paper-base: #3b1530;
+  --paper-shade: #270c20;
+  --paper-grain-opacity: 0.18;
+  --key-light: #ffd68a;
+  --ambient-fill: #a07ae0;
+  --lantern-glow: #ffb35a;
+  --gild: #eac36d;
+  --shadow-tint: color-mix(in oklab, #12040e 22%, transparent);
+  --surface-material: crimson;
   --app-bg: radial-gradient(circle at 25% 12%, #4a1268 0%, #2b0940 52%, #14051f 100%);
   --shell-bg: rgba(36, 8, 54, 0.88);
   --shell-border: #f59e0b;
@@ -243,6 +303,18 @@
 
 /* 6. Sunset Plaza */
 .app-root[data-theme='theme_sunset_plaza'] {
+  /* Cozy art bible tokens - sun-baked linen */
+  --ink-warm: #5a3322;
+  --ink-soft: #92654a;
+  --paper-base: #fde9cf;
+  --paper-shade: #f3cfa6;
+  --paper-grain-opacity: 0.20;
+  --key-light: #ffd08a;
+  --ambient-fill: #c9a6e0;
+  --lantern-glow: #ffb870;
+  --gild: #c8802e;
+  --shadow-tint: color-mix(in oklab, #5a3322 22%, transparent);
+  --surface-material: sun-baked;
   --app-bg: linear-gradient(180deg, #fff7ed 0%, #ffedd5 55%, #fed7aa 100%);
   --shell-bg: rgba(255, 250, 244, 0.9);
   --shell-border: #fb923c;
@@ -268,6 +340,18 @@
 
 /* 7. Sakura Berry Sorbet */
 .app-root[data-theme='theme_candy_sakura'] {
+  /* Cozy art bible tokens - cherry-blossom washi */
+  --ink-warm: #5a3040;
+  --ink-soft: #98667a;
+  --paper-base: #fff0f2;
+  --paper-shade: #f8d8e0;
+  --paper-grain-opacity: 0.20;
+  --key-light: #ffe6c4;
+  --ambient-fill: #c7b2ec;
+  --lantern-glow: #ffc2a0;
+  --gild: #c98a5a;
+  --shadow-tint: color-mix(in oklab, #5a3040 22%, transparent);
+  --surface-material: cherry-blossom;
   --app-bg: linear-gradient(180deg, #fff1f2 0%, #ffe4e6 50%, #fce7f3 100%);
   --shell-bg: rgba(255, 248, 250, 0.9);
   --shell-border: #f472b6;
@@ -293,6 +377,18 @@
 
 /* 8. Capri Turquoise Lagoon */
 .app-root[data-theme='theme_ocean_lagoon'] {
+  /* Cozy art bible tokens - salt-washed watercolor paper */
+  --ink-warm: #2f4350;
+  --ink-soft: #5f808f;
+  --paper-base: #eefaf8;
+  --paper-shade: #cfeae6;
+  --paper-grain-opacity: 0.20;
+  --key-light: #fff0c4;
+  --ambient-fill: #a4b8ee;
+  --lantern-glow: #ffe0a0;
+  --gild: #b8943c;
+  --shadow-tint: color-mix(in oklab, #2f4350 22%, transparent);
+  --surface-material: salt-washed;
   --app-bg: linear-gradient(180deg, #ecfeff 0%, #cffafe 52%, #e0f2fe 100%);
   --shell-bg: rgba(245, 254, 255, 0.9);
   --shell-border: #06b6d4;
@@ -318,6 +414,18 @@
 
 /* 9. Alpine Meadow */
 .app-root[data-theme='theme_alpine_meadow'] {
+  /* Cozy art bible tokens - botanical wash paper */
+  --ink-warm: #3c3a22;
+  --ink-soft: #74724a;
+  --paper-base: #f3f6e2;
+  --paper-shade: #dfe8c4;
+  --paper-grain-opacity: 0.22;
+  --key-light: #fff0b4;
+  --ambient-fill: #b2b6e8;
+  --lantern-glow: #ffe08a;
+  --gild: #b0903a;
+  --shadow-tint: color-mix(in oklab, #3c3a22 22%, transparent);
+  --surface-material: botanical;
   --app-bg: linear-gradient(180deg, #f0fdf4 0%, #dcfce7 55%, #d1fae5 100%);
   --shell-bg: rgba(255, 255, 255, 0.9);
   --shell-border: #34d399;
@@ -343,6 +451,18 @@
 
 /* 10. Kyoto Matcha Sanctuary */
 .app-root[data-theme='theme_kyoto_matcha'] {
+  /* Cozy art bible tokens - matcha-tinted washi */
+  --ink-warm: #34402a;
+  --ink-soft: #66795a;
+  --paper-base: #eff3dc;
+  --paper-shade: #d9e4bb;
+  --paper-grain-opacity: 0.24;
+  --key-light: #fff0c0;
+  --ambient-fill: #b4b4e2;
+  --lantern-glow: #f2e29a;
+  --gild: #a8924a;
+  --shadow-tint: color-mix(in oklab, #34402a 22%, transparent);
+  --surface-material: matcha-tinted;
   --app-bg: linear-gradient(180deg, #f7fee7 0%, #ecfccb 54%, #dcfce7 100%);
   --shell-bg: rgba(252, 255, 245, 0.92);
   --shell-border: #65a30d;
@@ -368,6 +488,18 @@
 
 /* 11. Sahara Mirage Oasis */
 .app-root[data-theme='theme_sahara_mirage'] {
+  /* Cozy art bible tokens - sun-bleached linen */
+  --ink-warm: #583820;
+  --ink-soft: #94704c;
+  --paper-base: #fbecd0;
+  --paper-shade: #f0d4a0;
+  --paper-grain-opacity: 0.22;
+  --key-light: #ffdc94;
+  --ambient-fill: #c8aae0;
+  --lantern-glow: #ffc064;
+  --gild: #c08a30;
+  --shadow-tint: color-mix(in oklab, #583820 22%, transparent);
+  --surface-material: sun-bleached;
   --app-bg: linear-gradient(180deg, #fffbeb 0%, #fef3c7 52%, #fde68a 100%);
   --shell-bg: rgba(255, 252, 242, 0.92);
   --shell-border: #d97706;
@@ -393,6 +525,18 @@
 
 /* 12. Emerald Rainforest Canopy (Dark Frosted Glass) */
 .app-root[data-theme='theme_emerald_rainforest'] {
+  /* Cozy art bible tokens - deep botanical gouache */
+  --ink-warm: #e4e2b0;
+  --ink-soft: #a9b88a;
+  --paper-base: #14382a;
+  --paper-shade: #0c261c;
+  --paper-grain-opacity: 0.18;
+  --key-light: #f6f0b0;
+  --ambient-fill: #7ad8b4;
+  --lantern-glow: #ffe08a;
+  --gild: #d4c06a;
+  --shadow-tint: color-mix(in oklab, #03130c 22%, transparent);
+  --surface-material: deep;
   --app-bg: radial-gradient(circle at 22% 16%, #065f46 0%, #052e16 54%, #021c12 100%);
   --shell-bg: rgba(4, 39, 24, 0.88);
   --shell-border: #34d399;
@@ -436,6 +580,18 @@
 
 /* 13. Neon Night Market (Cyber Lantern Dark Glass) */
 .app-root[data-theme='theme_neon_night_market'] {
+  /* Cozy art bible tokens - rice-paper lanterns on lacquer */
+  --ink-warm: #ffd9a8;
+  --ink-soft: #cfa0b0;
+  --paper-base: #2a1030;
+  --paper-shade: #1a081f;
+  --paper-grain-opacity: 0.14;
+  --key-light: #ffb27a;
+  --ambient-fill: #7a8cff;
+  --lantern-glow: #ff8ab0;
+  --gild: #ffc86a;
+  --shadow-tint: color-mix(in oklab, #0c0310 22%, transparent);
+  --surface-material: rice-paper;
   --app-bg: radial-gradient(circle at 20% 12%, #3b0764 0%, #1e1b4b 48%, #090d1f 100%);
   --shell-bg: rgba(15, 23, 42, 0.88);
   --shell-border: #ec4899;
@@ -479,6 +635,18 @@
 
 /* 14. Nordic Fjord Frost */
 .app-root[data-theme='theme_nordic_fjord'] {
+  /* Cozy art bible tokens - carved Nordic woodblock */
+  --ink-warm: #24384a;
+  --ink-soft: #536e82;
+  --paper-base: #eef5f9;
+  --paper-shade: #d7e7f0;
+  --paper-grain-opacity: 0.20;
+  --key-light: #fff6d6;
+  --ambient-fill: #8ab8e8;
+  --lantern-glow: #ffd8a0;
+  --gild: #6d98ba;
+  --shadow-tint: color-mix(in oklab, #24384a 22%, transparent);
+  --surface-material: carved;
   --app-bg: linear-gradient(180deg, #f8fafc 0%, #e0f2fe 54%, #bae6fd 100%);
   --shell-bg: rgba(248, 252, 255, 0.92);
   --shell-border: #0284c7;
@@ -504,6 +672,18 @@
 
 /* 15. Laureate Imperial Gold (Grand C1+ Prestige Glass) */
 .app-root[data-theme='theme_laureate_imperial'] {
+  /* Cozy art bible tokens - imperial lacquer, gold leaf */
+  --ink-warm: #ecca82;
+  --ink-soft: #bea068;
+  --paper-base: #2e1a14;
+  --paper-shade: #1e100c;
+  --paper-grain-opacity: 0.18;
+  --key-light: #ffd88a;
+  --ambient-fill: #9a7ad8;
+  --lantern-glow: #ffb860;
+  --gild: #f0c868;
+  --shadow-tint: color-mix(in oklab, #0e0604 22%, transparent);
+  --surface-material: imperial;
   --app-bg: radial-gradient(circle at 25% 12%, #312e81 0%, #14183d 52%, #070a1c 100%);
   --shell-bg: rgba(13, 18, 46, 0.9);
   --shell-border: #f59e0b;

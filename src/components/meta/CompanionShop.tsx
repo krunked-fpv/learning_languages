@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   Check,
   Eye,
@@ -61,6 +61,7 @@ const SHOP_ACTION_COOLDOWN_MS = 350;
 export function CompanionShop() {
   const { activeProfile } = useVaultStore();
   const compact = useCompactViewport();
+  const daisGradId = `shop-dais-${useId().replace(/:/g, '-')}`;
   const [slotFilter, setSlotFilter] = useState<ShopCategory>('all');
   const [previewCompanion, setPreviewCompanion] = useState<CompanionId>('pip');
   const [previewItem, setPreviewItem] = useState<CosmeticItem | null>(null);
@@ -273,7 +274,7 @@ export function CompanionShop() {
       {/* Left Console Pedestal: Live Companion Wardrobe + Switcher + Streak Freeze Shield */}
       <div className="shop-pedestal-col">
         <div
-          className="tactile-card shop-wardrobe-card"
+          className="tactile-card shop-wardrobe-card cozy-pedestal-stage"
           style={{
             padding: compact ? '9px 10px' : 15,
             display: 'flex',
@@ -306,14 +307,35 @@ export function CompanionShop() {
 
           {compact ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', minWidth: 0 }}>
-              <div style={{ flex: '0 0 auto' }}>
+              <div className="cozy-pedestal-dais-wrap is-compact" style={{ flex: '0 0 auto' }}>
                 <MascotStage
                   companionId={previewCompanion}
                   pose={pose}
                   equippedCosmetics={previewCosmetics}
                   size={74}
-                  badgeText={previewItem ? `Trying: ${previewItem.name}` : 'Live Outfit'}
                 />
+                <svg
+                  aria-hidden="true"
+                  className="cozy-pedestal-dais is-compact"
+                  width="88"
+                  height="16"
+                  viewBox="0 0 164 26"
+                  fill="none"
+                >
+                  <defs>
+                    <linearGradient id={`${daisGradId}-m`} x1="16" y1="2" x2="148" y2="24" gradientUnits="userSpaceOnUse">
+                      <stop offset="0%" stopColor="var(--key-light, #ffe2a8)" stopOpacity="0.92" />
+                      <stop offset="50%" stopColor="var(--gild, #c99a3e)" stopOpacity="0.82" />
+                      <stop offset="100%" stopColor="var(--ink-warm, #4a3426)" stopOpacity="0.65" />
+                    </linearGradient>
+                  </defs>
+                  <ellipse cx="82" cy="18" rx="74" ry="7" fill="var(--shadow-tint, rgba(74,52,38,0.24))" />
+                  <ellipse cx="82" cy="12" rx="64" ry="7" fill={`url(#${daisGradId}-m)`} stroke="var(--ink-warm, #4a3426)" strokeOpacity="0.52" strokeWidth="1.8" />
+                  <ellipse cx="82" cy="10.2" rx="50" ry="3.8" fill="var(--paper-base, #fbf1dc)" fillOpacity="0.45" />
+                </svg>
+                <span className="cozy-pedestal-badge is-compact">
+                  {previewItem ? `Trying: ${previewItem.name}` : 'Live Outfit'}
+                </span>
               </div>
               <div
                 style={{
@@ -403,13 +425,36 @@ export function CompanionShop() {
                 })}
               </div>
 
-              <MascotStage
-                companionId={previewCompanion}
-                pose={pose}
-                equippedCosmetics={previewCosmetics}
-                size={142}
-                badgeText={previewItem ? `Trying: ${previewItem.name}` : 'Live Outfit'}
-              />
+              <div className="cozy-pedestal-dais-wrap">
+                <MascotStage
+                  companionId={previewCompanion}
+                  pose={pose}
+                  equippedCosmetics={previewCosmetics}
+                  size={142}
+                />
+                <svg
+                  aria-hidden="true"
+                  className="cozy-pedestal-dais"
+                  width="168"
+                  height="26"
+                  viewBox="0 0 168 26"
+                  fill="none"
+                >
+                  <defs>
+                    <linearGradient id={daisGradId} x1="16" y1="2" x2="152" y2="24" gradientUnits="userSpaceOnUse">
+                      <stop offset="0%" stopColor="var(--key-light, #ffe2a8)" stopOpacity="0.92" />
+                      <stop offset="50%" stopColor="var(--gild, #c99a3e)" stopOpacity="0.82" />
+                      <stop offset="100%" stopColor="var(--ink-warm, #4a3426)" stopOpacity="0.65" />
+                    </linearGradient>
+                  </defs>
+                  <ellipse cx="84" cy="18" rx="76" ry="7.5" fill="var(--shadow-tint, rgba(74,52,38,0.24))" />
+                  <ellipse cx="84" cy="12" rx="66" ry="7.2" fill={`url(#${daisGradId})`} stroke="var(--ink-warm, #4a3426)" strokeOpacity="0.52" strokeWidth="1.6" />
+                  <ellipse cx="84" cy="10.2" rx="52" ry="4" fill="var(--paper-base, #fbf1dc)" fillOpacity="0.45" />
+                </svg>
+                <span className="cozy-pedestal-badge">
+                  {previewItem ? `Trying: ${previewItem.name}` : 'Live Outfit'}
+                </span>
+              </div>
 
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
                 <button
@@ -599,7 +644,7 @@ export function CompanionShop() {
                     return (
                       <div
                         key={item.id}
-                        className="tactile-card"
+                        className={`tactile-card cozy-shop-item ${isEquipped ? 'is-equipped' : ''}`}
                         style={{
                           padding: 12,
                           display: 'flex',

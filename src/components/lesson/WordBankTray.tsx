@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { playSfx } from '../../audio';
 import type { HintTier, TextDirection } from '../../types/contracts';
 import { deterministicShuffle, joinWordBankTokens } from './lessonHelpers';
@@ -98,6 +98,7 @@ export function WordBankTray({
     onChangeSelected([...selectedTileUids, uid]);
   };
 
+  const reduceMotion = useReducedMotion();
   const removeTile = (uid: string) => {
     if (disabled) return;
     onTileInteract?.();
@@ -110,6 +111,7 @@ export function WordBankTray({
       {/* Answer Assembly Tray */}
       <div
         aria-label="Answer tray"
+        className="cozy-tray"
         dir={dir}
         data-dense={veryDense ? 'true' : 'false'}
         style={{
@@ -154,10 +156,15 @@ export function WordBankTray({
                   <motion.button
                     key={uid}
                     type="button"
-                    layout
-                    initial={{ scale: 0.88, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ type: 'spring', stiffness: 460, damping: 28 }}
+                    layout={!reduceMotion}
+                    initial={reduceMotion ? false : { scale: 0.9, y: 4, opacity: 0 }}
+                    animate={{ scale: 1, y: 0, opacity: 1 }}
+                    whileTap={reduceMotion || disabled ? undefined : { scale: 0.97, y: 2 }}
+                    transition={
+                      reduceMotion
+                        ? { duration: 0 }
+                        : { type: 'spring', stiffness: 220, damping: 24, mass: 1.1 }
+                    }
                     data-tile-uid={uid}
                     data-hint-misplaced={isMisplaced ? 'true' : undefined}
                     data-hint-spotlight={isTraySpotlight ? 'true' : undefined}

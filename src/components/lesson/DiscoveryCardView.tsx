@@ -1,3 +1,5 @@
+import { useId } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Volume2, Turtle, Sparkles, Zap } from 'lucide-react';
 import { VocabIllustration } from '../../art/VocabIllustration';
 import { playSfx, speakPhrase, useSpeechRuntimeState } from '../../audio';
@@ -31,6 +33,8 @@ export function DiscoveryCardView({
   onFluentPlay,
 }: DiscoveryCardViewProps) {
   const speechState = useSpeechRuntimeState();
+  const reduceMotion = useReducedMotion();
+  const cornerGradId = `disc-gild-${useId().replace(/:/g, '-')}`;
 
   if (!vocabCard) {
     return (
@@ -65,8 +69,12 @@ export function DiscoveryCardView({
   };
 
   return (
-    <div
-      className="tactile-card"
+    <motion.div
+      key={exercise.id}
+      initial={reduceMotion ? false : { opacity: 0, y: 10, scale: 0.985 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 205, damping: 24, mass: 1.15 }}
+      className="tactile-card cozy-discovery-card"
       style={{
         padding: compact ? '14px 14px' : '22px 24px',
         display: 'flex',
@@ -77,6 +85,35 @@ export function DiscoveryCardView({
         width: '100%',
       }}
     >
+      {/* Gilded Botanical Atlas Corner Flourishes */}
+      <svg
+        aria-hidden="true"
+        className="cozy-corner-ornament is-tl"
+        width="30"
+        height="30"
+        viewBox="0 0 30 30"
+        fill="none"
+      >
+        <defs>
+          <linearGradient id={cornerGradId} x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="var(--gild, #c99a3e)" />
+            <stop offset="100%" stopColor="var(--ink-soft, #8a6b52)" stopOpacity="0.45" />
+          </linearGradient>
+        </defs>
+        <path d="M3 24V7a4 4 0 0 1 4-4h17" stroke={`url(#${cornerGradId})`} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="8.5" cy="8.5" r="2.1" fill="var(--gild, #c99a3e)" opacity="0.7" />
+      </svg>
+      <svg
+        aria-hidden="true"
+        className="cozy-corner-ornament is-br"
+        width="30"
+        height="30"
+        viewBox="0 0 30 30"
+        fill="none"
+      >
+        <path d="M27 6v17a4 4 0 0 1-4 4H6" stroke={`url(#${cornerGradId})`} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="21.5" cy="21.5" r="2.1" fill="var(--gild, #c99a3e)" opacity="0.7" />
+      </svg>
       {/* Header Chips */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
         <span
@@ -110,6 +147,7 @@ export function DiscoveryCardView({
 
       {/* Main Illustration */}
       <div
+        className="cozy-specimen-mat"
         style={{
           padding: compact ? 6 : 10,
           borderRadius: 24,
@@ -235,6 +273,7 @@ export function DiscoveryCardView({
 
       {/* Example Sentence with Tap-to-Peek */}
       <div
+        className="cozy-example-strip"
         style={{
           width: '100%',
           padding: compact ? '8px 10px' : '10px 14px',
@@ -307,6 +346,6 @@ export function DiscoveryCardView({
           Tip: {exercise.promptHint}
         </div>
       ) : null}
-    </div>
+    </motion.div>
   );
 }

@@ -441,6 +441,7 @@ export function ContextClozeView({
       <div
         role="radiogroup"
         aria-label="Fill in the blank choices"
+        className="cozy-choice-tray"
         style={{
           display: 'grid',
           gridTemplateColumns:
