@@ -1817,7 +1817,16 @@ export function pickDistinctItems(
   return copy.slice(0, count);
 }
 
+/* Paper-theater craft: one static, cached grain tile (never animated). */
+export const ARCADE_PAPER_GRAIN =
+  "url(\"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.29 0 0 0 0 0.2 0 0 0 0 0.15 0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23g)' opacity='0.35'/%3E%3C/svg%3E\")";
+
 export const ARCADE_SHELL_STYLE = {
+  position: 'relative',
+  borderRadius: 24,
+  // Golden-Hour Fever: lamp-light pooling from the upper-left key light.
+  background:
+    'radial-gradient(120% 80% at 8% 0%, color-mix(in oklab, var(--lantern-glow, #f6c56a) 20%, transparent), transparent 62%), radial-gradient(90% 70% at 100% 100%, color-mix(in oklab, var(--ambient-fill, #8b7cc8) 12%, transparent), transparent 70%), ' + ARCADE_PAPER_GRAIN,
   height: '100%',
   maxHeight: '100%',
   minHeight: 0,
@@ -1831,16 +1840,18 @@ export const ARCADE_SHELL_STYLE = {
 } as const;
 
 export const CARD_SURFACE_STYLE = {
-  background: 'var(--card-bg, #ffffff)',
+  background:
+    'linear-gradient(135deg, color-mix(in oklab, var(--key-light, #fff3d6) 26%, transparent), transparent 46%), var(--card-bg, #ffffff)',
   color: 'var(--text-main, #1e1b4b)',
   borderTopWidth: 2,
   borderRightWidth: 2,
   borderLeftWidth: 2,
   borderBottomWidth: 4,
   borderStyle: 'solid',
-  borderColor: 'var(--card-border, #cbd5e1)',
+  borderColor: 'color-mix(in oklab, var(--card-border, #cbd5e1) 70%, var(--ink-warm, #4a3426))',
   borderRadius: 20,
-  boxShadow: 'var(--card-glow, 0 8px 22px rgba(15, 23, 42, 0.08))',
+  boxShadow:
+    '3px 5px 0 color-mix(in oklab, var(--ink-warm, #4a3426) 14%, transparent), 6px 12px 22px color-mix(in oklab, var(--ink-warm, #4a3426) 16%, transparent), inset 1px 1px 0 color-mix(in oklab, var(--key-light, #fff) 55%, transparent)',
 } as const;
 
 export const SOFT_BTN_STYLE = {

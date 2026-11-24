@@ -65,6 +65,7 @@ import {
   type ArcadeCoopSettledResult,
   type CoopArcadeTurnContextValue,
 } from './arcadeShared';
+import './arcadeCraft.css';
 import { CafeOrderRushArcade } from './CafeOrderRushArcade';
 import { ConstellationMemoryArcade } from './ConstellationMemoryArcade';
 import { MeteorBlasterArcade } from './MeteorBlasterArcade';
@@ -2032,8 +2033,11 @@ export function ArcadeHub({
           return (
             <div
               key={cab.id}
+              className="arcade-box"
+              data-cabinet={cab.id}
               style={{
                 ...CARD_SURFACE_STYLE,
+                ['--box-accent' as string]: cab.accentBorder,
                 borderColor: cab.accentBorder,
                 borderRadius: isNarrow ? 16 : 20,
                 padding: isNarrow ? '6px 7px' : isTightHeight ? 10 : 12,
@@ -2163,6 +2167,7 @@ export function ArcadeHub({
         {/* Cabinet #9: Secret Unlockable — Starlight Critter Choir */}
         {showSecretCabinet ? (
           <div
+            className="arcade-box arcade-box-secret"
             style={{
               ...CARD_SURFACE_STYLE,
               gridColumn: isWideDesktop ? '1 / -1' : 'span 1',
