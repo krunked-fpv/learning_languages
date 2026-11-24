@@ -49,7 +49,7 @@ const EDGE_PUNCTUATION_RE =
   /^[¡!¿?.,;:()[\]«»‹›"“”„。？！，、・「」『』（）【】《》〈〉؟،؛।॥…—–―～·]+|[¡!¿?.,;:()[\]«»‹›"“”„。？！，、・「」『』（）【】《》〈〉؟،؛।॥…—–―～·]+$/g;
 const INTERNAL_PUNCT_SPLIT_RE =
   /[¡!¿?.,;:()[\]«»‹›"“”„。？！，、・「」『』（）【】《》〈〉؟،؛।॥…—–―～·]+/;
-const APOSTROPHE_VARIANTS_RE = /[’‘\u02BC]/g;
+const APOSTROPHE_VARIANTS_RE = /[’‘\u02BC\u201B\u2032]/g;
 const CJK_CHAR_RE = /[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/;
 const ARABIC_DIACRITICS_RE = /[\u064B-\u065F\u0670\u0640]/g;
 const ARABIC_LETTER_RE = /[\u0621-\u063A\u0641-\u064A\u0671-\u06D3]/;
@@ -63,13 +63,13 @@ interface StemPrefixRule {
   grammarNote: string;
 }
 
-// Ordered longest-first so multi-character elisions match before single-letter ones.
+// Ordered longest-first so multi-character elisions match before shorter ones.
 const ELISION_PREFIX_RULES: readonly StemPrefixRule[] = [
   {
-    prefix: "jusqu'",
-    gloss: 'until / up to',
-    phoneticPrefix: 'zhoosk-',
-    grammarNote: 'Elided preposition/conjunction "jusque" ("jusqu\'") before a vowel or silent h.',
+    prefix: "qualcos'",
+    gloss: 'something',
+    phoneticPrefix: 'kwahl-kohz-',
+    grammarNote: 'Elided indefinite pronoun "qualcosa" ("qualcos\'") before a vowel.',
   },
   {
     prefix: "lorsqu'",
@@ -84,6 +84,24 @@ const ELISION_PREFIX_RULES: readonly StemPrefixRule[] = [
     grammarNote: 'Elided conjunction "puisque" ("puisqu\'") before a vowel.',
   },
   {
+    prefix: "quelqu'",
+    gloss: 'some',
+    phoneticPrefix: 'kehlk-',
+    grammarNote: 'Elided determiner/pronoun "quelque" ("quelqu\'") before a vowel.',
+  },
+  {
+    prefix: "presqu'",
+    gloss: 'almost',
+    phoneticPrefix: 'prehsk-',
+    grammarNote: 'Elided adverb "presque" ("presqu\'") before a vowel.',
+  },
+  {
+    prefix: "jusqu'",
+    gloss: 'until / up to',
+    phoneticPrefix: 'zhoosk-',
+    grammarNote: 'Elided preposition/conjunction "jusque" ("jusqu\'") before a vowel or silent h.',
+  },
+  {
     prefix: "quest'",
     gloss: 'this',
     phoneticPrefix: 'kwehst-',
@@ -94,6 +112,30 @@ const ELISION_PREFIX_RULES: readonly StemPrefixRule[] = [
     gloss: 'that',
     phoneticPrefix: 'kwehl-',
     grammarNote: 'Elided demonstrative "quello/quella" ("quell\'") before a vowel.',
+  },
+  {
+    prefix: "quant'",
+    gloss: 'how much / as much',
+    phoneticPrefix: 'kwahnt-',
+    grammarNote: 'Elided adjective/pronoun "quanto/quanta" ("quant\'") before a vowel.',
+  },
+  {
+    prefix: "grand'",
+    gloss: 'great / big',
+    phoneticPrefix: 'grahnd-',
+    grammarNote: 'Elided adjective "grande" ("grand\'") before a vowel.',
+  },
+  {
+    prefix: "pover'",
+    gloss: 'poor',
+    phoneticPrefix: 'poh-vehr-',
+    grammarNote: 'Elided adjective "povero/povera" ("pover\'") before a vowel.',
+  },
+  {
+    prefix: "nient'",
+    gloss: 'nothing',
+    phoneticPrefix: 'nyehnt-',
+    grammarNote: 'Elided pronoun "niente" ("nient\'") before a vowel.',
   },
   {
     prefix: "dell'",
@@ -126,10 +168,118 @@ const ELISION_PREFIX_RULES: readonly StemPrefixRule[] = [
     grammarNote: 'Elided articulated preposition "colla/collo" ("coll\'") before a vowel.',
   },
   {
+    prefix: "pell'",
+    gloss: 'for/through the',
+    phoneticPrefix: 'pehl-',
+    grammarNote: 'Elided articulated preposition "pella/pello" ("pell\'") before a vowel.',
+  },
+  {
+    prefix: "bell'",
+    gloss: 'lovely / handsome',
+    phoneticPrefix: 'behl-',
+    grammarNote: 'Elided adjective "bello/bella" ("bell\'") before a vowel.',
+  },
+  {
+    prefix: "anch'",
+    gloss: 'also / even',
+    phoneticPrefix: 'ahnk-',
+    grammarNote: 'Elided adverb/conjunction "anche" ("anch\'") before a vowel.',
+  },
+  {
+    prefix: "buon'",
+    gloss: 'good',
+    phoneticPrefix: 'bwohn-',
+    grammarNote: 'Elided adjective "buono/buona" ("buon\'") before a vowel.',
+  },
+  {
+    prefix: "sant'",
+    gloss: 'saint / holy',
+    phoneticPrefix: 'sahnt-',
+    grammarNote: 'Elided adjective/title "santo/santa" ("sant\'") before a vowel.',
+  },
+  {
+    prefix: "mezz'",
+    gloss: 'half',
+    phoneticPrefix: 'mehdz-',
+    grammarNote: 'Elided adjective "mezzo/mezza" ("mezz\'") before a vowel.',
+  },
+  {
+    prefix: "tant'",
+    gloss: 'so much',
+    phoneticPrefix: 'tahnt-',
+    grammarNote: 'Elided adjective/adverb "tanto/tanta" ("tant\'") before a vowel.',
+  },
+  {
+    prefix: "tutt'",
+    gloss: 'all / every',
+    phoneticPrefix: 'toot-',
+    grammarNote: 'Elided adjective/pronoun "tutto/tutta" ("tutt\'") before a vowel.',
+  },
+  {
+    prefix: "altr'",
+    gloss: 'other / another',
+    phoneticPrefix: 'ahltr-',
+    grammarNote: 'Elided adjective/pronoun "altro/altra" ("altr\'") before a vowel.',
+  },
+  {
+    prefix: "molt'",
+    gloss: 'much / many',
+    phoneticPrefix: 'mohlt-',
+    grammarNote: 'Elided adjective/adverb "molto/molta" ("molt\'") before a vowel.',
+  },
+  {
+    prefix: "senz'",
+    gloss: 'without',
+    phoneticPrefix: 'sehnts-',
+    grammarNote: 'Elided preposition "senza" ("senz\'") before a vowel.',
+  },
+  {
+    prefix: "sott'",
+    gloss: 'under',
+    phoneticPrefix: 'soht-',
+    grammarNote: 'Elided preposition "sotto" ("sott\'") before a vowel.',
+  },
+  {
     prefix: "all'",
     gloss: 'to/at the',
     phoneticPrefix: 'ahl-',
     grammarNote: 'Elided articulated preposition "alla/allo" ("all\'") before a vowel.',
+  },
+  {
+    prefix: "com'",
+    gloss: 'how / as',
+    phoneticPrefix: 'kohm-',
+    grammarNote: 'Elided adverb/conjunction "come" ("com\'") before a vowel.',
+  },
+  {
+    prefix: "dov'",
+    gloss: 'where',
+    phoneticPrefix: 'dohv-',
+    grammarNote: 'Elided adverb "dove" ("dov\'") before a vowel.',
+  },
+  {
+    prefix: "cos'",
+    gloss: 'what',
+    phoneticPrefix: 'kohz-',
+    grammarNote: 'Elided interrogative pronoun "cosa" ("cos\'") before a vowel.',
+  },
+  {
+    prefix: "poc'",
+    gloss: 'little',
+    phoneticPrefix: 'pohk-',
+    grammarNote: 'Elided adjective/adverb "poco/poca" ("poc\'") before a vowel.',
+  },
+  {
+    prefix: "gl'",
+    gloss: 'the (masc. pl.)',
+    phoneticPrefix: 'ly-',
+    grammarNote: 'Elided masculine plural article/pronoun "gli" ("gl\'") before a vowel.',
+  },
+  {
+    prefix: "ch'",
+    gloss: 'that / what',
+    phoneticPrefix: 'k-',
+    grammarNote: 'Elided conjunction/pronoun "che" ("ch\'") before a vowel.',
   },
   {
     prefix: "qu'",
@@ -190,6 +340,12 @@ const ELISION_PREFIX_RULES: readonly StemPrefixRule[] = [
     gloss: 'you / yourself',
     phoneticPrefix: 't-',
     grammarNote: 'Elided object/reflexive pronoun "te/ti" ("t\'") before a vowel or silent h.',
+  },
+  {
+    prefix: "v'",
+    gloss: 'there / you (pl.)',
+    phoneticPrefix: 'v-',
+    grammarNote: 'Elided pronoun/adverb "vi/ve" ("v\'") before a vowel.',
   },
 ];
 
@@ -363,14 +519,15 @@ function lookupElisionFallback(
   glossary?: GlossaryMap,
   overrides?: Record<string, GlossaryEntry>
 ): GlossaryEntry | undefined {
-  const cleanedLower = cleanedSurface.toLowerCase();
+  const normalizedSurface = cleanedSurface.replace(APOSTROPHE_VARIANTS_RE, "'");
+  const cleanedLower = normalizedSurface.toLowerCase();
   for (const rule of ELISION_PREFIX_RULES) {
     if (!cleanedLower.startsWith(rule.prefix)) continue;
-    const stem = cleanedSurface.slice(rule.prefix.length);
-    if (!stem || /^\s/.test(stem) || !normalizeLookupKey(stem)) continue;
+    const stem = normalizedSurface.slice(rule.prefix.length);
+    if (!stem || /^[\s']/.test(stem) || !normalizeLookupKey(stem)) continue;
     const stemEntry = lookupExactGlossaryEntry(stem, glossary, overrides);
     if (stemEntry) {
-      return synthesizeCliticEntry(cleanedSurface, rule, stemEntry, false);
+      return synthesizeCliticEntry(normalizedSurface, rule, stemEntry, false);
     }
   }
   return undefined;
