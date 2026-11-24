@@ -398,7 +398,79 @@ export function TrainSwitcherArcade({
             }}
           >
             <ArcadeStageDressing glowKey={score} combo={combo} tone="daylight" />
-            {/* Alpine Paper-Cut Scenery + 3 Curved Wooden/Brass Tracks SVG */}
+            {/* Storybook Hand-Inked Alpine Mountains & Pine Trees Backdrop */}
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 800 440"
+              preserveAspectRatio="xMidYMin slice"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                pointerEvents: 'none',
+              }}
+            >
+              {/* Soft sunlit sky horizon glow & distant lavender-mist ridge */}
+              <path
+                d="M0 175 Q 150 118 285 162 T 535 154 T 800 168 L 800 440 L 0 440 Z"
+                fill="#b8c9b4"
+                opacity="0.45"
+              />
+              {/* Left Snow-Capped Gouache Peak (warm sunlit left, cool-violet shadow right, warm sepia ink) */}
+              <g stroke="#4a3426" strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round">
+                <path d="M52 192 L176 48 L302 192 Z" fill="#dfd2bf" />
+                <path d="M176 48 L302 192 L192 192 Z" fill="#a69bb3" stroke="none" opacity="0.62" />
+                <path d="M176 48 L139 92 L160 86 L176 102 L193 86 L214 91 Z" fill="#fffdf7" />
+                <path d="M52 192 L176 48 L302 192" fill="none" />
+              </g>
+              {/* Right Snow-Capped Gouache Peak */}
+              <g stroke="#4a3426" strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round">
+                <path d="M498 192 L624 44 L748 192 Z" fill="#dfd2bf" />
+                <path d="M624 44 L748 192 L638 192 Z" fill="#a69bb3" stroke="none" opacity="0.62" />
+                <path d="M624 44 L587 88 L608 82 L624 98 L641 82 L662 88 Z" fill="#fffdf7" />
+                <path d="M498 192 L624 44 L748 192" fill="none" />
+              </g>
+              {/* Soft rolling alpine meadow foreground contour */}
+              <path
+                d="M0 190 Q 210 170 400 186 T 800 188 L 800 440 L 0 440 Z"
+                fill="#b8dfad"
+                opacity="0.58"
+              />
+              <path
+                d="M0 190 Q 210 170 400 186 T 800 188"
+                fill="none"
+                stroke="#4a3426"
+                strokeOpacity="0.28"
+                strokeWidth="1.8"
+              />
+              {/* Left Storybook Pine Cluster with Cast Shadows & Ink Outlines */}
+              <g>
+                <ellipse cx="144" cy="222" rx="22" ry="5" fill="#4a3426" opacity="0.18" />
+                <rect x="139" y="202" width="8" height="19" rx="2" fill="#7c4d2b" stroke="#4a3426" strokeWidth="1.8" />
+                <path d="M119 206 L143 174 L167 206 Z" fill="#4e8a5c" stroke="#4a3426" strokeWidth="2" strokeLinejoin="round" />
+                <path d="M124 187 L143 158 L162 187 Z" fill="#5da06b" stroke="#4a3426" strokeWidth="2" strokeLinejoin="round" />
+                <path d="M130 169 L143 145 L156 169 Z" fill="#71b57e" stroke="#4a3426" strokeWidth="2" strokeLinejoin="round" />
+                <ellipse cx="188" cy="218" rx="14" ry="3.5" fill="#4a3426" opacity="0.16" />
+                <rect x="184" y="204" width="6" height="14" rx="1.5" fill="#7c4d2b" stroke="#4a3426" strokeWidth="1.6" />
+                <path d="M170 206 L187 180 L204 206 Z" fill="#457d53" stroke="#4a3426" strokeWidth="1.8" strokeLinejoin="round" />
+                <path d="M175 190 L187 168 L199 190 Z" fill="#5e9f6c" stroke="#4a3426" strokeWidth="1.8" strokeLinejoin="round" />
+              </g>
+              {/* Right Storybook Pine Cluster */}
+              <g>
+                <ellipse cx="656" cy="224" rx="22" ry="5" fill="#4a3426" opacity="0.18" />
+                <rect x="651" y="204" width="8" height="19" rx="2" fill="#7c4d2b" stroke="#4a3426" strokeWidth="1.8" />
+                <path d="M631 208 L655 176 L679 208 Z" fill="#4e8a5c" stroke="#4a3426" strokeWidth="2" strokeLinejoin="round" />
+                <path d="M636 189 L655 160 L674 189 Z" fill="#5da06b" stroke="#4a3426" strokeWidth="2" strokeLinejoin="round" />
+                <path d="M642 171 L655 147 L668 171 Z" fill="#71b57e" stroke="#4a3426" strokeWidth="2" strokeLinejoin="round" />
+                <ellipse cx="612" cy="219" rx="14" ry="3.5" fill="#4a3426" opacity="0.16" />
+                <rect x="608" y="205" width="6" height="14" rx="1.5" fill="#7c4d2b" stroke="#4a3426" strokeWidth="1.6" />
+                <path d="M594 207 L611 181 L628 207 Z" fill="#457d53" stroke="#4a3426" strokeWidth="1.8" strokeLinejoin="round" />
+                <path d="M599 191 L611 169 L623 191 Z" fill="#5e9f6c" stroke="#4a3426" strokeWidth="1.8" strokeLinejoin="round" />
+              </g>
+            </svg>
+
+            {/* 3 Curved Wooden-Tie & Brass Tracks SVG */}
             <svg
               aria-hidden="true"
               viewBox="0 0 100 100"
@@ -411,20 +483,12 @@ export function TrainSwitcherArcade({
                 pointerEvents: 'none',
               }}
             >
-              {/* Layered Paper-Cut Alpine Peaks (key-lit left, violet-shaded right) */}
-              <polygon points="0,36 16,9 34,36" fill="#d8cfc2" opacity="0.62" />
-              <polygon points="16,9 34,36 18,36" fill="#9c93a8" opacity="0.34" />
-              <polygon points="66,36 84,8 100,36" fill="#d8cfc2" opacity="0.62" />
-              <polygon points="84,8 100,36 85,36" fill="#9c93a8" opacity="0.34" />
-              {/* Paper-Cut Pine Silhouettes */}
-              <polygon points="7,42 11,29 15,42" fill="#4f7a57" opacity="0.5" />
-              <polygon points="86,44 90,30 94,44" fill="#4f7a57" opacity="0.5" />
-
-              {/* Main Entry Rail */}
-              <line x1="50" y1="6" x2="50" y2="36" stroke="#4a3426" strokeWidth="4.4" strokeLinecap="round" />
+              {/* Wooden Sleeper Crossties + Main Entry Brass Rail */}
+              <line x1="50" y1="6" x2="50" y2="36" stroke="#6b4226" strokeWidth="6.4" strokeDasharray="1.6 2.1" />
+              <line x1="50" y1="6" x2="50" y2="36" stroke="#4a3426" strokeWidth="4.2" strokeLinecap="round" />
               <line x1="50" y1="6" x2="50" y2="36" stroke="#f6c56a" strokeWidth="1.5" />
 
-              {/* Branch Rails */}
+              {/* Branch Rails with Wooden Ties */}
               {TRACK_X.map((tx, idx) => {
                 const isSelected = selectedLane === idx;
                 const d = `M 50 36 C 50 54, ${tx} 54, ${tx} 75`;
@@ -433,14 +497,22 @@ export function TrainSwitcherArcade({
                     <path
                       d={d}
                       fill="none"
-                      stroke={isSelected ? '#6b3e1e' : '#6b6a66'}
-                      strokeWidth={isSelected ? '4.6' : '3.2'}
+                      stroke={isSelected ? '#7c4d2b' : '#7b6f63'}
+                      strokeOpacity={isSelected ? 0.8 : 0.45}
+                      strokeWidth={isSelected ? '6.6' : '5.2'}
+                      strokeDasharray="1.5 2.4"
+                    />
+                    <path
+                      d={d}
+                      fill="none"
+                      stroke={isSelected ? '#4a3426' : '#5e5a54'}
+                      strokeWidth={isSelected ? '4.4' : '3.1'}
                       strokeLinecap="round"
                     />
                     <path
                       d={d}
                       fill="none"
-                      stroke={isSelected ? '#fde047' : '#e2ddd4'}
+                      stroke={isSelected ? '#fde047' : '#e6dfd3'}
                       strokeWidth={isSelected ? '1.8' : '1.1'}
                       strokeDasharray={isSelected ? 'none' : '2 2'}
                     />
@@ -455,6 +527,7 @@ export function TrainSwitcherArcade({
 
             {/* Coupled Golden Carriages Counter */}
             <div
+              className="arcade-toast-ribbon"
               style={{
                 position: 'absolute',
                 top: 8,
@@ -462,9 +535,9 @@ export function TrainSwitcherArcade({
                 display: 'flex',
                 alignItems: 'center',
                 gap: 4,
-                padding: '3px 9px',
+                padding: '3px 10px',
                 borderRadius: 999,
-                background: 'rgba(15, 23, 42, 0.78)',
+                background: 'rgba(74, 52, 38, 0.9)',
                 color: '#fde047',
                 fontSize: '0.72rem',
                 fontWeight: 900,
@@ -476,15 +549,16 @@ export function TrainSwitcherArcade({
             </div>
 
             <div
+              className="arcade-toast-ribbon"
               style={{
                 position: 'absolute',
                 top: 8,
                 right: 10,
                 maxWidth: '58%',
-                padding: '3px 10px',
+                padding: '3px 11px',
                 borderRadius: 999,
-                background: 'rgba(15, 23, 42, 0.78)',
-                color: '#ffffff',
+                background: 'rgba(74, 52, 38, 0.9)',
+                color: '#fff8ea',
                 fontSize: '0.72rem',
                 fontWeight: 800,
                 whiteSpace: 'nowrap',

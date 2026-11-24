@@ -457,24 +457,43 @@ export function TowerStackArcade({
             }}
           >
             <ArcadeStageDressing glowKey={score} combo={combo} fever={perfectFlash} tone="warm" />
-            {/* Striped Patisserie Scalloped Awning Top */}
-            <div
+            {/* True Scalloped Cloth Patisserie Awning with Soft Cast Shadow */}
+            <svg
               aria-hidden="true"
-              className="arcade-awning-scallop"
+              viewBox="0 0 800 34"
+              preserveAspectRatio="none"
               style={{
-                height: 15,
-                background:
-                  'repeating-linear-gradient(90deg, #e1657e 0px, #e1657e 24px, #fffdf7 24px, #fffdf7 48px)',
-                opacity: 0.9,
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: isCompact ? 18 : 26,
+                pointerEvents: 'none',
+                zIndex: 5,
+                filter: 'drop-shadow(0 4px 4px rgba(74, 52, 38, 0.24))',
               }}
-            />
+            >
+              {Array.from({ length: 20 }, (_, i) => {
+                const x = i * 40;
+                const fill = i % 2 === 0 ? '#d86079' : '#fffaf0';
+                return (
+                  <path
+                    key={i}
+                    d={`M${x} 0 H${x + 40} V17 Q${x + 20} 34 ${x} 17 Z`}
+                    fill={fill}
+                    stroke="#4a3426"
+                    strokeWidth="1.4"
+                  />
+                );
+              })}
+            </svg>
 
             {/* Status Toast */}
             <div
               className="arcade-toast-ribbon"
               style={{
                 position: 'absolute',
-                top: 20,
+                top: isCompact ? 22 : 30,
                 left: '50%',
                 transform: 'translateX(-50%)',
                 maxWidth: 'calc(100% - 16px)',
@@ -494,7 +513,7 @@ export function TowerStackArcade({
               {toast}
             </div>
 
-            {/* Dual Brass Rails & Target Drop Crosshair */}
+            {/* Dual Brass Rails & Golden-Hour Spotlight Drop Cloche */}
             {SCOOP_RAIL_TOPS.map((railTop) => (
               <div
                 key={railTop}
@@ -509,7 +528,7 @@ export function TowerStackArcade({
                   background: 'linear-gradient(180deg, #f3cb74 0%, #b47320 100%)',
                   border: '1px solid rgba(74, 52, 38, 0.45)',
                   boxShadow: '0 2px 4px rgba(74, 52, 38, 0.2)',
-                  opacity: 0.72,
+                  opacity: 0.78,
                   pointerEvents: 'none',
                 }}
               />
@@ -518,18 +537,23 @@ export function TowerStackArcade({
               aria-hidden="true"
               style={{
                 position: 'absolute',
-                top: '14%',
-                bottom: '12%',
+                top: '16%',
+                bottom: '11%',
                 left: '50%',
-                width: isCompact ? 96 : 122,
+                width: isCompact ? 98 : 128,
                 transform: 'translateX(-50%)',
-                borderRadius: 20,
-                borderStyle: 'dashed',
+                borderRadius: '64px 64px 20px 20px',
+                borderStyle: 'solid',
                 borderWidth: 2,
-                borderColor: targetOverZone ? '#10b981' : 'rgba(217, 119, 6, 0.35)',
-                background: targetOverZone ? 'rgba(16, 185, 129, 0.14)' : 'transparent',
+                borderColor: targetOverZone ? 'rgba(16, 185, 129, 0.72)' : 'rgba(180, 115, 32, 0.42)',
+                background: targetOverZone
+                  ? 'linear-gradient(180deg, rgba(16, 185, 129, 0.22) 0%, rgba(254, 240, 138, 0.26) 60%, rgba(16, 185, 129, 0.08) 100%)'
+                  : 'linear-gradient(180deg, rgba(246, 197, 106, 0.24) 0%, rgba(255, 248, 224, 0.16) 60%, rgba(246, 197, 106, 0.04) 100%)',
+                boxShadow: targetOverZone
+                  ? 'inset 0 0 18px rgba(16, 185, 129, 0.26), 0 0 18px rgba(246, 197, 106, 0.35)'
+                  : 'inset 0 0 14px rgba(246, 197, 106, 0.2)',
                 pointerEvents: 'none',
-                transition: 'border-color 120ms ease, background-color 120ms ease',
+                transition: 'border-color 140ms ease, background 140ms ease, box-shadow 140ms ease',
               }}
             />
 
