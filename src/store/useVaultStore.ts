@@ -1134,8 +1134,13 @@ function validateCoopPairStreaks(
       };
     }
 
-    if (options?.sanitizeInvalidDates && (!validProfileIds.has(idA) || !validProfileIds.has(idB))) {
-      continue;
+    if (!validProfileIds.has(idA) || !validProfileIds.has(idB)) {
+      if (options?.sanitizeInvalidDates) continue;
+      const missingIds = [idA, idB].filter((id) => !validProfileIds.has(id));
+      return {
+        ok: false,
+        error: `coopPairStreaks["${key}"].playerIds references unknown profile ID(s): ${missingIds.join(', ')}.`,
+      };
     }
 
     result[canonicalKey] = {
