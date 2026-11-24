@@ -2,12 +2,46 @@
 
 ## Sprint 3 — Operation Aurora Pact (`PT-001`–`PT-125`)
 
-- **Sprint 3 Status:** `IN_EXECUTION` (`S3-001`–`S3-006` contracts locked; Wave 1 specialists deploying; `PT-001`–`PT-125` blitz pending Wave 2)
+- **Sprint 3 Status:** `PHASE_3_BUGS_TRIAGED` (`S3-001`–`S3-006` merged on `main @ 48d629d`; `npx tsc --noEmit` -> `0` errors; unfiltered `npx vitest run` -> `20 / 20` suites & `261 / 261` tests passing including `PT-001`–`PT-125`; live `http://127.0.0.1:4173/wanderling-subpath/` Chrome audits across `1440x900`, `768x1024`, `375x667` -> `0` console/page/HTTP errors, `0` outer overflow; `4` confirmed Wave 2 bugs `BUG-S3-001`–`BUG-S3-004` queued for Phase 4 fixes)
 - **Lead Quartermaster:** **Vera (`vera-s3`)** | **Scouts:** **Devon (`devon-s3`)**, **Mila (`mila-s3`)**
-- **Open Sprint 3 Bugs (`BUG-S3-###`):** `0` (awaiting Wave 2 blitz)
+- **Open Sprint 3 Bugs (`BUG-S3-###`):** `4` (`1` `P2`, `3` `P3`)
 
 | Bug ID | Playtest / Area | Severity | Owner | Status | Summary |
 | :--- | :--- | :---: | :--- | :---: | :--- |
+| `BUG-S3-001` | `PT-119` (`S3-001`, `S3-003`) | `P2` | `@leo-s3` | `OPEN` | Mid-Turn-1 live Kid-Safety Quarantine updates `coopMatch.p1Language` & flips cabinet badge to `Español`, but `turnKey` omits active turn language/`kidQuarantined` so stale Adult slang stays mounted in the cabinet |
+| `BUG-S3-002` | `PT-118` / `PT-119` (`S3-003`) | `P3` | `@julian-s3` | `OPEN` | `importVaultJson(..., 'replace')` commits orphaned `coopPairStreaks` for non-existent profile IDs because profile-ID validation is gated behind `options?.sanitizeInvalidDates` |
+| `BUG-S3-003` | `PT-121` (`S3-005`) | `P3` | `@julian-s3` / `@liam-s3` | `OPEN` | Apostrophe-exact Mandarin numeric Pinyin (`Ma3te4'ao4` vs `Mǎtèào`) falls back to `matchesAccentForgiving` with `highlightedChars: []`, rendering literal `()` in `LessonArena` Accent Spotlight |
+| `BUG-S3-004` | `PT-124` (`S3-006`) | `P3` | `@liam-s3` | `OPEN` | Selected Adult track card subtitle in `theme_emerald_rainforest` (`--text-muted: #a7f3d0` over `--tile-selected-bg: #047857`) measures `4.28:1` (`< 4.5:1` WCAG AA) |
+
+### Sprint 3 Canonical Bug Details (`BUG-S3-001`–`BUG-S3-004`)
+
+#### BUG-S3-001 — Mid-Turn-1 live Kid-Safety Quarantine leaves stale Adult slang active under `Español` badge
+- **Status:** `OPEN` | **Severity:** `P2` | **Owner:** `@leo-s3` | **Reporter:** `devon-s3` (verified by `vera-s3`)
+- **File / Line:** `src/components/arcade/ArcadeHub.tsx:1242-1246` (alongside `:500-525`)
+- **Repro Steps:** Arm 2P Co-Op with two active Adult profiles (`Parent[ebonics]` + `Auntie[suburban]`), launch `Gelato & Pastry Tower` (`Stack Gelato`), click `Start Stacking!` (`ebonics` slang renders). While `Parent` stays in Turn 1, disarm `Auntie`'s Adult Mode via `ProfileVaultModal` paste import (`adultModeActive: false`, `activeLanguage: 'es'`).
+- **Expected vs Actual:** Expected the active cabinet to immediately remount/re-deal with safe `'es'` deck items when `coopMatch.kidQuarantined` flips `true` and `coopMatch.p1Language` switches to `'es'`. Actual updates `TopHud` to `Family Co-Op Safe Atlas` and flips the cabinet badge to `Español`, but `turnKey` (`coop-${coopMatch.stage}-${cabinetMode}`) omits active turn language and `kidQuarantined`, leaving stale Adult slang active in component state.
+- **Suggested Fix:** Include `coopMatch.stage === 'playing_turn_1' ? coopMatch.p1Language : coopMatch.p2Language` and `coopMatch.kidQuarantined` in `turnKey` inside `renderCabinet` (and/or reset deck state when `language` changes in `arcadeShared`/cabinets).
+
+#### BUG-S3-002 — `importVaultJson(..., 'replace')` imports orphaned `coopPairStreaks` for non-existent profile IDs
+- **Status:** `OPEN` | **Severity:** `P3` | **Owner:** `@julian-s3` | **Reporter:** `devon-s3` (verified by `vera-s3`)
+- **File / Line:** `src/store/useVaultStore.ts:1137-1139`
+- **Repro Steps:** Call `importVaultJson(json, 'replace')` with a save file containing `coopPairStreaks["kid-ghost::kid-leo"]` where `"kid-ghost"` is absent from `profiles`.
+- **Expected vs Actual:** Expected strict `'replace'` import validation to reject (or prune, matching `'merge'` at `:1603`, `deleteProfile` at `:2240`, and storage hydration at `:1137`) orphaned pair streaks referencing missing profile IDs. Actual gates `!validProfileIds.has(idA) || !validProfileIds.has(idB)` behind `options?.sanitizeInvalidDates` (unset during `importVaultJson`), committing `"kid-ghost::kid-leo"` into `wanderling.vault.v1.coopPairStreaks`.
+- **Suggested Fix:** In `validateCoopPairStreaks`, reject orphaned pair-streak profile IDs when `!options?.sanitizeInvalidDates` (returning `{ ok: false, error: ... }`) while continuing to prune them when `options?.sanitizeInvalidDates` is `true`.
+
+#### BUG-S3-003 — Apostrophe-exact Mandarin numeric Pinyin (`Ma3te4'ao4`) triggers empty `()` Accent Spotlight
+- **Status:** `OPEN` | **Severity:** `P3` | **Owner:** `@julian-s3` / `@liam-s3` | **Reporter:** `mila-s3` (verified by `vera-s3`)
+- **File / Line:** `src/core/grader.ts:706-708, 894-938, 1802-1833`; `src/components/lesson/LessonArena.tsx:1430-1441`; `src/curriculum/zh.ts:1556`
+- **Repro Steps:** Open Mandarin `zh-u1-n3` (`zh-u1-n3-e7`: `"My name is Mateo."`, `acceptedSentences: ['Wǒ de míngzi jiào Mǎtèào.', 'Wo de mingzi jiao Mateao']`), switch to Free-Recall, enter `"Wo3 de5 ming2zi5 jiao4 Ma3te4'ao4"`, and click `Check`.
+- **Expected vs Actual:** Expected exact tone-marked Pinyin (`Mǎtè'ào` / `Mǎtèào`) to grade as `exactMatch: true` (or if falling back to `accentCoaching`, omit empty parentheses). Actual fails `matchesExact` due to the optional Pinyin syllable apostrophe `'`, falls back to `matchesAccentForgiving`, and builds `accentCoaching` with `highlightedChars: []`, rendering literal `Spell with accents: Wǒ de míngzi jiào Mǎtèào. () — Great answer! Keep an eye on the accent marks to make it letter-perfect.`.
+- **Suggested Fix:** Ignore optional Pinyin syllable apostrophes (`'`) in `'zh'` numeric-Pinyin exact matching when tone diacritics match identically, and omit `(${highlightedChars.join(', ')})` in `LessonArena.tsx:1439` when `highlightedChars.length === 0`.
+
+#### BUG-S3-004 — Selected Adult track card subtitle fails WCAG AA contrast (`4.28:1`) in `theme_emerald_rainforest`
+- **Status:** `OPEN` | **Severity:** `P3` | **Owner:** `@liam-s3` | **Reporter:** `mila-s3` (verified by `vera-s3`)
+- **File / Line:** `src/styles/theme.css:404-409`; `src/components/shell/ProfileVaultModal.tsx:1280-1298`; `src/components/shell/TopHud.tsx:372-396`
+- **Repro Steps:** Equip `theme_emerald_rainforest` (`Emerald Canopy Mist`), open `After-Hours Atlas 18+ Confirmation` modal (or Adult `TopHud` Language Popover) at `375x667`, and inspect the selected `AAVE -> Suburban` card subtitle.
+- **Expected vs Actual:** Expected `>= 4.5:1` contrast across all 15 palettes. Actual renders `--text-muted` (`#a7f3d0`) over `--tile-selected-bg` (`#047857`), measuring `4.28:1` (`< 4.5:1`), while the other 14 palettes pass (`>= 4.79:1`).
+- **Suggested Fix:** Deepen `--tile-selected-bg` in `theme_emerald_rainforest` (e.g., `#065f46`, raising `#a7f3d0` contrast to `5.65:1` and `#fef08a` to `6.22:1`) and/or render selected card subtitles with `--tile-selected-ink` / `#ecfdf5`.
 
 ---
 
