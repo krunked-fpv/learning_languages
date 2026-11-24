@@ -13,6 +13,7 @@ export interface FreeRecallScriptStripProps {
   drawerKey?: string;
   onOpenChange: (open: boolean) => void;
   onInsertChar: (ch: string) => void;
+  onApplyPinyinPreview?: (convertedText: string) => void;
 }
 
 /**
@@ -29,6 +30,7 @@ export function FreeRecallScriptStrip({
   drawerKey,
   onOpenChange,
   onInsertChar,
+  onApplyPinyinPreview,
 }: FreeRecallScriptStripProps) {
   const langMeta = LANGUAGE_META[language];
   const accentChars = useMemo(
@@ -43,6 +45,7 @@ export function FreeRecallScriptStrip({
   const hasManyAccents = accentChars.length > 14;
   const showArabicNote = language === 'ar' || language === 'arz';
   const pinyinPreview = getPinyinTonePreview(language, direction, typedText);
+  const isApplyPreviewDisabled = disabled || typedText.trim() === pinyinPreview;
   const isCompactRow = compact && !drawerOpen;
 
   return (
@@ -76,6 +79,11 @@ export function FreeRecallScriptStrip({
           dir="ltr"
           className="free-recall-note"
           style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: compact ? '3px 6px' : '4px 8px',
             padding: compact ? '2px 7px' : '4px 10px',
             borderRadius: 10,
             background: 'var(--tint-emerald-bg)',
@@ -88,7 +96,32 @@ export function FreeRecallScriptStrip({
             overflowWrap: 'break-word',
           }}
         >
-          Pinyin tones: <strong>{pinyinPreview}</strong>
+          <span style={{ minWidth: 0, overflowWrap: 'break-word' }}>
+            Pinyin tones: <strong>{pinyinPreview}</strong>
+          </span>{' '}
+          <button
+            type="button"
+            data-testid="pinyin-preview-apply-btn"
+            disabled={isApplyPreviewDisabled}
+            onClick={() => onApplyPinyinPreview?.(pinyinPreview)}
+            style={{
+              flexShrink: 0,
+              padding: compact ? '2px 8px' : '3px 10px',
+              borderRadius: 999,
+              background: isApplyPreviewDisabled ? 'var(--card-soft-bg)' : '#047857',
+              border: isApplyPreviewDisabled
+                ? '1px solid var(--card-border)'
+                : '1px solid var(--tint-emerald-border)',
+              color: isApplyPreviewDisabled ? 'var(--text-muted)' : '#ffffff',
+              fontSize: compact ? '0.68rem' : '0.72rem',
+              fontWeight: 900,
+              lineHeight: 1.25,
+              cursor: isApplyPreviewDisabled ? 'not-allowed' : 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Tap to apply
+          </button>
         </div>
       ) : null}
 

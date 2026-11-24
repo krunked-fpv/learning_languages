@@ -81,6 +81,7 @@ export function WordBankView({
     syncSelection,
     handleTextChange,
     insertCharAtCaret,
+    applyConvertedText,
   } = useFreeRecallInput();
 
   useEffect(() => {
@@ -197,6 +198,12 @@ export function WordBankView({
     if (locked) return;
     cancelHint();
     insertCharAtCaret(ch);
+  };
+
+  const applyPinyinPreview = (convertedText: string) => {
+    if (locked) return;
+    cancelHint();
+    applyConvertedText(convertedText);
   };
 
   return (
@@ -579,6 +586,7 @@ export function WordBankView({
             drawerOpen={drawerOpen}
             onOpenChange={setDrawerOpen}
             onInsertChar={insertAccentChar}
+            onApplyPinyinPreview={applyPinyinPreview}
           />
         </div>
       )}
