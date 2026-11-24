@@ -137,6 +137,46 @@ function canUseAdultMode(profile: Pick<KidProfile, 'id' | 'adultModeUnlocked'>):
   return !isDefaultKidProfileId(profile.id) && Boolean(profile.adultModeUnlocked);
 }
 
+function isLanguageCode(value: unknown): value is LanguageCode {
+  return typeof value === 'string' && VALID_ALL_LANGUAGES.has(value as LanguageCode);
+}
+
+function isProfileAdultActiveForCoop(
+  profile: Pick<KidProfile, 'id' | 'adultModeUnlocked' | 'adultModeActive'>
+): boolean {
+  return canUseAdultMode(profile) && Boolean(profile.adultModeActive);
+}
+
+function resolveCoopTargetLanguage(
+  player: KidProfile,
+  requestedLanguage: unknown,
+  isCoopQuarantined: boolean
+): LanguageCode {
+  const allowAdultTrack = !isCoopQuarantined && isProfileAdultActiveForCoop(player);
+  if (isLanguageCode(requestedLanguage)) {
+    if (!isAdultLanguage(requestedLanguage) || allowAdultTrack) {
+      return requestedLanguage;
+    }
+  }
+
+  if (allowAdultTrack && isLanguageCode(player.activeLanguage)) {
+    return player.activeLanguage;
+  }
+
+  if (!isAdultLanguage(player.activeLanguage) && VALID_BASE_LANGUAGES.has(player.activeLanguage)) {
+    return player.activeLanguage;
+  }
+
+  if (
+    typeof player.lastBaseLanguage === 'string' &&
+    VALID_BASE_LANGUAGES.has(player.lastBaseLanguage as BaseLanguageCode)
+  ) {
+    return player.lastBaseLanguage;
+  }
+
+  return defaultBaseLangForProfile(player.id);
+}
+
 function buildLanguageProgressMap(
   existing: Partial<Record<LanguageCode, LanguageProgressState>> | undefined,
   includeAdult: boolean,
@@ -322,18 +362,45 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string' && item.length > 0);
 }
 
+const ISO_DATE_PREFIX_RE = /^(\d{4})-(\d{2})-(\d{2})(?:[T ].*)?$/;
+
+/** Validates an ISO-8601 date or timestamp string against real calendar dates. */
+export function isValidISODateString(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  const match = ISO_DATE_PREFIX_RE.exec(trimmed);
+  if (!match) return false;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+
+  const checkDate = new Date(0);
+  checkDate.setUTCFullYear(year, month - 1, day);
+  if (
+    checkDate.getUTCFullYear() !== year ||
+    checkDate.getUTCMonth() !== month - 1 ||
+    checkDate.getUTCDate() !== day
+  ) {
+    return false;
+  }
+
+  return Number.isFinite(Date.parse(trimmed));
+}
+
 function cloneVocabMastery(
   mastery: Readonly<Record<string, VocabMasteryEntry>> | undefined
 ): Record<string, VocabMasteryEntry> {
   const cloned: Record<string, VocabMasteryEntry> = {};
   if (!mastery) return cloned;
   for (const [vocabId, entry] of Object.entries(mastery)) {
-    if (vocabId && entry) {
+    if (vocabId && entry && isValidISODateString(entry.lastReviewedISO)) {
       cloned[vocabId] = {
         strength: Number.isFinite(entry.strength)
           ? Math.min(5, Math.max(0, entry.strength))
           : 0,
-        lastReviewedISO: entry.lastReviewedISO,
+        lastReviewedISO: entry.lastReviewedISO.trim(),
         reviewCount: Number.isFinite(entry.reviewCount)
           ? Math.max(0, Math.floor(entry.reviewCount))
           : 0,
@@ -343,13 +410,13 @@ function cloneVocabMastery(
   return cloned;
 }
 
-function cloneLangProgress(lp: LanguageProgressState): LanguageProgressState {
+/** Clones a LanguageProgressState and strips invalid date metadata during hydration. */
+export function normalizeLanguageProgress(lp: LanguageProgressState): LanguageProgressState {
   const hintCounts = lp.hintAssistedCounts;
   const hasHintCounts = Boolean(hintCounts && Object.keys(hintCounts).length > 0);
-  const lastSrsISO =
-    typeof lp.lastSrsQuestCompletedISO === 'string' && lp.lastSrsQuestCompletedISO.trim()
-      ? lp.lastSrsQuestCompletedISO.trim()
-      : undefined;
+  const lastSrsISO = isValidISODateString(lp.lastSrsQuestCompletedISO)
+    ? lp.lastSrsQuestCompletedISO.trim()
+    : undefined;
   return {
     completedNodeIds: [...lp.completedNodeIds],
     nodeStars: { ...lp.nodeStars },
@@ -365,6 +432,10 @@ function cloneLangProgress(lp: LanguageProgressState): LanguageProgressState {
   };
 }
 
+function cloneLangProgress(lp: LanguageProgressState): LanguageProgressState {
+  return normalizeLanguageProgress(lp);
+}
+
 function cloneProfile(profile: KidProfile): KidProfile {
   const isDefaultKid = isDefaultKidProfileId(profile.id);
   const adultModeUnlocked = !isDefaultKid && Boolean(profile.adultModeUnlocked);
@@ -377,6 +448,9 @@ function cloneProfile(profile: KidProfile): KidProfile {
           VALID_BASE_LANGUAGES.has(profile.activeLanguage)
         ? profile.activeLanguage
         : lastBaseLanguage;
+  const lastPracticeISO = isValidISODateString(profile.lastPracticeISO)
+    ? profile.lastPracticeISO.trim()
+    : null;
 
   const languageProgress = buildLanguageProgressMap(
     profile.languageProgress,
@@ -390,6 +464,7 @@ function cloneProfile(profile: KidProfile): KidProfile {
     lastBaseLanguage,
     adultModeUnlocked,
     adultModeActive,
+    lastPracticeISO,
     heartElixirs: profile.heartElixirs ?? 0,
     xpBoosterCharges: profile.xpBoosterCharges ?? 0,
     unlockedAvatars: Array.from(
@@ -416,6 +491,10 @@ function cloneProfile(profile: KidProfile): KidProfile {
 }
 
 type ValidationResult<T> = { ok: true; value: T } | { ok: false; error: string };
+
+interface VaultValidationOptions {
+  sanitizeInvalidDates?: boolean;
+}
 
 function readOptionalNonNegNumber(
   raw: unknown,
@@ -540,7 +619,8 @@ function validateProfileStats(
 
 function validateLangProgress(
   raw: unknown,
-  label: string
+  label: string,
+  options?: VaultValidationOptions
 ): ValidationResult<LanguageProgressState> {
   if (!isPlainObject(raw)) {
     return { ok: false, error: `${label} must be an object.` };
@@ -622,19 +702,19 @@ function validateLangProgress(
           error: `${label}.vocabMastery["${vocabId}"].strength must be a non-negative number.`,
         };
       }
-      if (
-        typeof entryVal.lastReviewedISO !== 'string' ||
-        entryVal.lastReviewedISO.trim().length === 0
-      ) {
-        return {
-          ok: false,
-          error: `${label}.vocabMastery["${vocabId}"].lastReviewedISO must be a non-empty string.`,
-        };
-      }
       if (!isNonNegNumber(entryVal.reviewCount)) {
         return {
           ok: false,
           error: `${label}.vocabMastery["${vocabId}"].reviewCount must be a non-negative number.`,
+        };
+      }
+      if (!isValidISODateString(entryVal.lastReviewedISO)) {
+        if (options?.sanitizeInvalidDates) {
+          continue;
+        }
+        return {
+          ok: false,
+          error: `${label}.vocabMastery["${vocabId}"].lastReviewedISO must be a valid ISO date string.`,
         };
       }
       vocabMastery[cleanId] = {
@@ -648,11 +728,23 @@ function validateLangProgress(
   let lastSrsQuestCompletedISO: string | undefined;
   if (raw.lastSrsQuestCompletedISO !== undefined) {
     if (typeof raw.lastSrsQuestCompletedISO !== 'string') {
-      return { ok: false, error: `${label}.lastSrsQuestCompletedISO must be a string.` };
-    }
-    const trimmedSrsIso = raw.lastSrsQuestCompletedISO.trim();
-    if (trimmedSrsIso.length > 0) {
-      lastSrsQuestCompletedISO = trimmedSrsIso;
+      if (!options?.sanitizeInvalidDates) {
+        return { ok: false, error: `${label}.lastSrsQuestCompletedISO must be a string.` };
+      }
+    } else {
+      const trimmedSrsIso = raw.lastSrsQuestCompletedISO.trim();
+      if (trimmedSrsIso.length > 0) {
+        if (!isValidISODateString(trimmedSrsIso)) {
+          if (!options?.sanitizeInvalidDates) {
+            return {
+              ok: false,
+              error: `${label}.lastSrsQuestCompletedISO must be a valid ISO date string.`,
+            };
+          }
+        } else {
+          lastSrsQuestCompletedISO = trimmedSrsIso;
+        }
+      }
     }
   }
 
@@ -674,7 +766,11 @@ function validateLangProgress(
   };
 }
 
-function validateKidProfile(raw: unknown, index: number): ValidationResult<KidProfile> {
+function validateKidProfile(
+  raw: unknown,
+  index: number,
+  options?: VaultValidationOptions
+): ValidationResult<KidProfile> {
   const prefix = `profiles[${index}]`;
   if (!isPlainObject(raw)) {
     return { ok: false, error: `${prefix} must be an object.` };
@@ -754,11 +850,24 @@ function validateKidProfile(raw: unknown, index: number): ValidationResult<KidPr
   if (!streakDaysRes.ok) return streakDaysRes;
 
   let lastPracticeISO: string | null = null;
-  if (raw.lastPracticeISO !== undefined) {
-    if (raw.lastPracticeISO !== null && typeof raw.lastPracticeISO !== 'string') {
-      return { ok: false, error: `${prefix}.lastPracticeISO must be null or an ISO string.` };
+  if (raw.lastPracticeISO !== undefined && raw.lastPracticeISO !== null) {
+    if (typeof raw.lastPracticeISO !== 'string') {
+      if (!options?.sanitizeInvalidDates) {
+        return { ok: false, error: `${prefix}.lastPracticeISO must be null or an ISO string.` };
+      }
+    } else {
+      const trimmedPracticeIso = raw.lastPracticeISO.trim();
+      if (!isValidISODateString(trimmedPracticeIso)) {
+        if (!options?.sanitizeInvalidDates) {
+          return {
+            ok: false,
+            error: `${prefix}.lastPracticeISO must be null or a valid ISO date string.`,
+          };
+        }
+      } else {
+        lastPracticeISO = trimmedPracticeIso;
+      }
     }
-    lastPracticeISO = raw.lastPracticeISO;
   }
 
   const streakShieldsRes = readOptionalNonNegNumber(raw.streakShields, `${prefix}.streakShields`);
@@ -865,7 +974,7 @@ function validateKidProfile(raw: unknown, index: number): ValidationResult<KidPr
       validatedLangProgress[lang] = emptyLangProgress();
       continue;
     }
-    const res = validateLangProgress(rawEntry, `${prefix}.languageProgress.${lang}`);
+    const res = validateLangProgress(rawEntry, `${prefix}.languageProgress.${lang}`, options);
     if (!res.ok) return res;
     validatedLangProgress[lang] = res.value;
   }
@@ -938,7 +1047,8 @@ function validateKidProfile(raw: unknown, index: number): ValidationResult<KidPr
 }
 
 function validateVaultObject(
-  raw: unknown
+  raw: unknown,
+  options?: VaultValidationOptions
 ): { ok: true; value: SaveVault } | { ok: false; error: string } {
   if (!isPlainObject(raw)) {
     return { ok: false, error: 'Save data must be a JSON object.' };
@@ -959,7 +1069,7 @@ function validateVaultObject(
   const profiles: KidProfile[] = [];
   const seenIds = new Set<string>();
   for (let i = 0; i < raw.profiles.length; i++) {
-    const validatedProfile = validateKidProfile(raw.profiles[i], i);
+    const validatedProfile = validateKidProfile(raw.profiles[i], i, options);
     if (!validatedProfile.ok) return validatedProfile;
     if (seenIds.has(validatedProfile.value.id)) {
       return {
@@ -1044,7 +1154,7 @@ export function loadVaultFromStorage(): SaveVault {
     const raw = storage.getItem(STORAGE_KEY);
     if (!raw) return createDefaultVault();
     const parsed: unknown = JSON.parse(raw);
-    const validated = validateVaultObject(parsed);
+    const validated = validateVaultObject(parsed, { sanitizeInvalidDates: true });
     if (!validated.ok) return createDefaultVault();
     return validated.value;
   } catch {
@@ -1082,17 +1192,15 @@ function updateActiveProfile(updater: (profile: KidProfile) => KidProfile): void
   });
 }
 
-function pickNewestISO(a?: string, b?: string): string | undefined {
-  const ta = a?.trim();
-  const tb = b?.trim();
-  if (!ta) return tb || undefined;
-  if (!tb) return ta || undefined;
-  const ma = Date.parse(ta);
-  const mb = Date.parse(tb);
-  if (Number.isFinite(ma) && Number.isFinite(mb)) {
-    return mb > ma ? tb : ta;
-  }
-  return tb > ta ? tb : ta;
+/** Selects the newer valid ISO date string, ensuring valid dates always beat invalid ones. */
+export function pickNewestISO(a?: string, b?: string): string | undefined {
+  const validA = isValidISODateString(a) ? a.trim() : undefined;
+  const validB = isValidISODateString(b) ? b.trim() : undefined;
+  if (!validA) return validB;
+  if (!validB) return validA;
+  const ma = Date.parse(validA);
+  const mb = Date.parse(validB);
+  return mb > ma ? validB : validA;
 }
 
 function mergeVocabMastery(
@@ -1103,13 +1211,17 @@ function mergeVocabMastery(
   if (!b) return merged;
   for (const [vocabId, incoming] of Object.entries(b)) {
     if (!vocabId || !incoming) continue;
+    const incomingValidISO = isValidISODateString(incoming.lastReviewedISO)
+      ? incoming.lastReviewedISO.trim()
+      : undefined;
     const existing = merged[vocabId];
     if (!existing) {
+      if (!incomingValidISO) continue;
       merged[vocabId] = {
         strength: Number.isFinite(incoming.strength)
           ? Math.min(5, Math.max(0, incoming.strength))
           : 0,
-        lastReviewedISO: incoming.lastReviewedISO,
+        lastReviewedISO: incomingValidISO,
         reviewCount: Number.isFinite(incoming.reviewCount)
           ? Math.max(0, Math.floor(incoming.reviewCount))
           : 0,
@@ -1125,8 +1237,7 @@ function mergeVocabMastery(
     merged[vocabId] = {
       strength: Math.min(5, Math.max(existing.strength, incomingStrength)),
       lastReviewedISO:
-        pickNewestISO(existing.lastReviewedISO, incoming.lastReviewedISO) ??
-        existing.lastReviewedISO,
+        pickNewestISO(existing.lastReviewedISO, incomingValidISO) ?? existing.lastReviewedISO,
       reviewCount: Math.max(existing.reviewCount, incomingCount),
     };
   }
@@ -1201,7 +1312,8 @@ function mergeTwoProfiles(existing: KidProfile, incoming: KidProfile): KidProfil
       ? existing.leagueTier
       : incoming.leagueTier;
   const lastPracticeISO =
-    [existing.lastPracticeISO, incoming.lastPracticeISO].filter(Boolean).sort().pop() ?? null;
+    pickNewestISO(existing.lastPracticeISO ?? undefined, incoming.lastPracticeISO ?? undefined) ??
+    null;
 
   const mergedHighScores: Record<string, number> = { ...(existing.arcadeHighScores ?? {}) };
   for (const [gameId, score] of Object.entries(incoming.arcadeHighScores ?? {})) {
@@ -1541,16 +1653,18 @@ function applyCoopOutcomeToProfile(
     gemsAwarded: number;
     xpAwarded: number;
     isWinnerOrTie: boolean;
+    targetLanguage: LanguageCode;
   }
 ): KidProfile {
   const prevScores = profile.arcadeHighScores ?? {};
   const nextBest = Math.max(prevScores[params.gameId] ?? 0, params.score);
   const nextWeeklyXp = profile.weeklyXp + params.xpAwarded;
   const nextTotalXp = profile.totalXp + params.xpAwarded;
-  const targetLang: LanguageCode =
-    !isAdultLanguage(profile.activeLanguage) || canUseAdultMode(profile)
-      ? profile.activeLanguage
-      : resolveLastBaseLanguage(profile);
+  const targetLang = resolveCoopTargetLanguage(
+    profile,
+    params.targetLanguage,
+    !isProfileAdultActiveForCoop(profile)
+  );
   const langProg = profile.languageProgress[targetLang] ?? emptyLangProgress();
 
   const updated: KidProfile = {
@@ -2256,6 +2370,18 @@ export const vaultActions = {
 
     const p1Won = winnerProfileId === 'tie' || winnerProfileId === playerOne.id;
     const p2Won = winnerProfileId === 'tie' || winnerProfileId === playerTwo.id;
+    const isCoopQuarantined =
+      !isProfileAdultActiveForCoop(playerOne) || !isProfileAdultActiveForCoop(playerTwo);
+    const playerOneTargetLanguage = resolveCoopTargetLanguage(
+      playerOne,
+      params.playerOneLanguage,
+      isCoopQuarantined
+    );
+    const playerTwoTargetLanguage = resolveCoopTargetLanguage(
+      playerTwo,
+      params.playerTwoLanguage,
+      isCoopQuarantined
+    );
 
     const nextProfiles = memoryVault.profiles.map((profile) => {
       if (profile.id === playerOne.id) {
@@ -2265,6 +2391,7 @@ export const vaultActions = {
           gemsAwarded: playerOneGemsAwarded,
           xpAwarded: xpAwardedEach,
           isWinnerOrTie: p1Won,
+          targetLanguage: playerOneTargetLanguage,
         });
       }
       if (profile.id === playerTwo.id) {
@@ -2274,6 +2401,7 @@ export const vaultActions = {
           gemsAwarded: playerTwoGemsAwarded,
           xpAwarded: xpAwardedEach,
           isWinnerOrTie: p2Won,
+          targetLanguage: playerTwoTargetLanguage,
         });
       }
       return profile;
