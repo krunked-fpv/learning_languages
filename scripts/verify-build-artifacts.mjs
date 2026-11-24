@@ -487,11 +487,73 @@ function verifyPngIcons() {
     if (ihdrWidth > 0 && ihdrHeight > 0) {
       try {
         const inflated = inflateSync(Buffer.concat(idatChunks));
-        const expectedBytes = ihdrHeight * (1 + ihdrWidth * 4);
+        const stride = ihdrWidth * 4;
+        const expectedBytes = ihdrHeight * (1 + stride);
         if (inflated.length !== expectedBytes) {
           fail(
             `dist/icons/${fileName} inflated IDAT byte length ${inflated.length} does not match expected ${expectedBytes}.`
           );
+        } else {
+          // Unfilter PNG scanlines (filter types 0..4) and verify non-blank RGBA artwork
+          const prevRow = Buffer.alloc(stride);
+          const curRow = Buffer.alloc(stride);
+          let opaqueCount = 0;
+          let minLuma = 255;
+          let maxLuma = 0;
+          let filterInvalid = false;
+
+          for (let y = 0; y < ihdrHeight; y += 1) {
+            const rowOff = y * (1 + stride);
+            const filterType = inflated[rowOff];
+            if (filterType > 4) {
+              fail(`dist/icons/${fileName} has invalid PNG filter type ${filterType} at row ${y}.`);
+              filterInvalid = true;
+              break;
+            }
+            for (let i = 0; i < stride; i += 1) {
+              const rawByte = inflated[rowOff + 1 + i];
+              const a = i >= 4 ? curRow[i - 4] : 0;
+              const b = y > 0 ? prevRow[i] : 0;
+              const c = y > 0 && i >= 4 ? prevRow[i - 4] : 0;
+              let val = rawByte;
+              if (filterType === 1) {
+                val = (rawByte + a) & 0xff;
+              } else if (filterType === 2) {
+                val = (rawByte + b) & 0xff;
+              } else if (filterType === 3) {
+                val = (rawByte + ((a + b) >>> 1)) & 0xff;
+              } else if (filterType === 4) {
+                const p = a + b - c;
+                const pa = Math.abs(p - a);
+                const pb = Math.abs(p - b);
+                const pc = Math.abs(p - c);
+                const pr = pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+                val = (rawByte + pr) & 0xff;
+              }
+              curRow[i] = val;
+            }
+            for (let x = 0; x < ihdrWidth; x += 1) {
+              const pIdx = x * 4;
+              const alpha = curRow[pIdx + 3];
+              if (alpha > 200) {
+                opaqueCount += 1;
+                const luma = (curRow[pIdx] * 77 + curRow[pIdx + 1] * 150 + curRow[pIdx + 2] * 29) >> 8;
+                if (luma < minLuma) minLuma = luma;
+                if (luma > maxLuma) maxLuma = luma;
+              }
+            }
+            curRow.copy(prevRow);
+          }
+
+          if (!filterInvalid) {
+            const totalPixels = ihdrWidth * ihdrHeight;
+            if (opaqueCount < totalPixels * 0.5) {
+              fail(`dist/icons/${fileName} appears blank/mostly transparent (${opaqueCount}/${totalPixels} opaque pixels).`);
+            }
+            if (maxLuma - minLuma < 24) {
+              fail(`dist/icons/${fileName} appears flat/monochrome (luma range ${minLuma}..${maxLuma}).`);
+            }
+          }
         }
       } catch (err) {
         fail(`dist/icons/${fileName} failed IDAT zlib inflation: ${err.message}`);
