@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { App } from '../../src/App';
 import { stopSpeech } from '../../src/audio';
 import { ArcadeHub } from '../../src/components/arcade/ArcadeHub';
 import { StarlightBridgeArcade } from '../../src/components/arcade/StarlightBridgeArcade';
@@ -13,11 +14,18 @@ import { WordBankTray, buildWordBankPool } from '../../src/components/lesson/Wor
 import { WordBankView } from '../../src/components/lesson/WordBankView';
 import {
   buildFreeRecallPlaceholder,
+  getPinyinTonePreview,
   resolveFreeRecallTextAlign,
 } from '../../src/components/lesson/useFreeRecallInput';
 import { CompanionShop } from '../../src/components/meta/CompanionShop';
+import { ProfileVaultModal } from '../../src/components/shell/ProfileVaultModal';
 import { gradeAnswer } from '../../src/core';
-import { getArcadeLexicon, getCourse, getCourseGlossary } from '../../src/curriculum';
+import {
+  COURSES,
+  getArcadeLexicon,
+  getCourse,
+  getCourseGlossary,
+} from '../../src/curriculum';
 import { lookupGlossaryEntry } from '../../src/curriculum/helpers';
 import {
   STORAGE_KEY,
@@ -28,6 +36,8 @@ import {
 } from '../../src/store/useVaultStore';
 import {
   LANGUAGE_META,
+  VISIBLE_BASE_LANGUAGES,
+  type BaseLanguageCode,
   type BossGauntletExercise,
   type LanguageCode,
   type MapNode,
@@ -1308,5 +1318,527 @@ describe('Sprint 3 Bug Board Targeted Regression Gates (BUG-S3-001..BUG-S3-004)'
         ).toBeGreaterThanOrEqual(4.5);
       }
     }
+  });
+});
+
+function getProfileCardButton(container: HTMLElement, profileName: string): HTMLButtonElement {
+  return within(container).getByRole('button', {
+    name: new RegExp(`\\b${profileName}\\b.*\\d+\\s*XP`, 'i'),
+  }) as HTMLButtonElement;
+}
+
+function buildOfflineBaseLoaderPayload(
+  failingLanguages: Partial<Record<BaseLanguageCode, () => Promise<unknown>>>
+) {
+  return {
+    EAGER_BASE_COURSES: {
+      es: { course: COURSES.es, glossary: getCourseGlossary('es') },
+    },
+    BASE_COURSE_LOADERS: {
+      ...Object.fromEntries(
+        VISIBLE_BASE_LANGUAGES.map((lang) => [
+          lang,
+          async () => ({ course: COURSES[lang], glossary: getCourseGlossary(lang) }),
+        ])
+      ),
+      ...failingLanguages,
+    },
+  };
+}
+
+describe('Sprint 4 Bug Board Targeted Regression Gates (BUG-S4-001..BUG-S4-006)', () => {
+  const originalInnerWidth = window.innerWidth;
+  const originalInnerHeight = window.innerHeight;
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    vaultActions.resetVaultToDefaults();
+    stopSpeech();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 1);
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    stopSpeech();
+    cleanup();
+    vi.restoreAllMocks();
+    vi.doUnmock('../../src/curriculum/baseCoursesLoader');
+    vi.doUnmock('../../src/curriculum/baseCoursesLoader.test');
+    setViewportSize(originalInnerWidth, originalInnerHeight);
+  });
+
+  it('[BUG-S4-001] gates masked Adult profile switching and replace/merge JSON imports behind Parent Controls (18+) during Quarantined Co-Op without breaking kid switches or disarmed imports', async () => {
+    vaultActions.setActiveLanguage('fr');
+    const dad = vaultActions.unlockAdultMode({
+      adultProfileName: 'Dad',
+      initialTrack: 'ebonics',
+    });
+    expect(dad.adultModeActive).toBe(true);
+    const armedVault = JSON.parse(exportVaultJson()) as { activeProfileId: string };
+    armedVault.activeProfileId = 'kid-leo';
+    expect(importVaultJson(JSON.stringify(armedVault), 'replace').ok).toBe(true);
+
+    const switchSpy = vi.spyOn(vaultActions, 'switchProfile');
+    const { unmount } = render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Arcade' }));
+    fireEvent.click(screen.getByTestId('arcade-coop-toggle'));
+    await waitFor(() => {
+      expect(screen.getByTestId('tophud-coop-safe-atlas-badge')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Switch kid profile \(Leo\)/i }));
+    const dialog = screen.getByRole('dialog', { name: 'Explorer Profiles and Save Vault' });
+    expect(within(dialog).getByTestId('profile-modal-coop-safe-mask')).toBeInTheDocument();
+    expect(dialog.textContent ?? '').not.toMatch(/After-Hours|AAVE|Suburban/i);
+
+    // 1. Clicking masked adultModeActive: true Explorer card is blocked and opens Parent Gate with kid-safe feedback
+    const dadCardBtn = getProfileCardButton(dialog, 'Dad');
+    fireEvent.click(dadCardBtn);
+
+    expect(switchSpy).not.toHaveBeenCalled();
+    expect(loadVaultFromStorage().activeProfileId).toBe('kid-leo');
+    expect(screen.getByTestId('tophud-coop-safe-atlas-badge')).toBeInTheDocument();
+    expect(within(dialog).getByTestId('profile-modal-parent-gate')).toBeInTheDocument();
+    expect(within(dialog).getByRole('status')).toHaveTextContent(
+      /Confirm Parent Controls \(18\+\) before switching into this profile during Family Co-Op\./i
+    );
+    expect(dialog.textContent ?? '').not.toMatch(/After-Hours|AAVE|Suburban/i);
+
+    // Dismiss Parent Gate and verify switching between kid profiles still works cleanly
+    fireEvent.click(within(within(dialog).getByTestId('profile-modal-parent-gate')).getByRole('button', { name: 'Cancel' }));
+    expect(within(dialog).queryByTestId('profile-modal-parent-gate')).not.toBeInTheDocument();
+    fireEvent.click(getProfileCardButton(dialog, 'Maya'));
+    expect(switchSpy).toHaveBeenCalledWith('kid-maya');
+    expect(loadVaultFromStorage().activeProfileId).toBe('kid-maya');
+    expect(screen.getByTestId('tophud-coop-safe-atlas-badge')).toBeInTheDocument();
+    expect(within(dialog).getByTestId('profile-modal-coop-safe-mask')).toBeInTheDocument();
+
+    // 2. Replace JSON import targeting adultModeActive: true active profile is blocked without mutating vault
+    const baselineVault = JSON.parse(exportVaultJson()) as {
+      activeProfileId: string;
+      profiles: Array<{
+        id: string;
+        gems?: number;
+        adultModeUnlocked?: boolean;
+        adultModeActive?: boolean;
+        activeLanguage: string;
+      }>;
+    };
+    const replaceAdultPayload = JSON.stringify({
+      ...baselineVault,
+      activeProfileId: dad.id,
+      profiles: baselineVault.profiles.map((p) =>
+        p.id === dad.id
+          ? { ...p, adultModeUnlocked: true, adultModeActive: true, activeLanguage: 'ebonics' }
+          : p
+      ),
+    });
+    const mergeElevatePayload = JSON.stringify({
+      ...baselineVault,
+      profiles: baselineVault.profiles.map((p) =>
+        p.id === 'kid-maya'
+          ? { ...p, adultModeUnlocked: true, adultModeActive: true, activeLanguage: 'ebonics' }
+          : p
+      ),
+    });
+    const disarmedReplacePayload = JSON.stringify({
+      ...baselineVault,
+      activeProfileId: 'kid-maya',
+      profiles: baselineVault.profiles.map((p) => {
+        if (p.id === 'kid-maya') return { ...p, gems: 777, adultModeActive: false };
+        if (p.id === dad.id) return { ...p, adultModeActive: false, activeLanguage: 'fr' };
+        return p;
+      }),
+    });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Paste JSON' }));
+    const pasteBox = within(dialog).getByLabelText('Paste save JSON');
+    const importBtn = within(dialog).getByRole('button', { name: 'Import Pasted JSON' });
+
+    fireEvent.click(within(dialog).getByLabelText('Replace'));
+    fireEvent.change(pasteBox, { target: { value: replaceAdultPayload } });
+    fireEvent.click(importBtn);
+    expect(within(dialog).getByTestId('profile-modal-parent-gate')).toBeInTheDocument();
+    expect(within(dialog).getByRole('status')).toHaveTextContent(
+      /Confirm Parent Controls \(18\+\) before replacing with this active explorer during Family Co-Op\./i
+    );
+    expect(within(dialog).getByRole('status').textContent ?? '').not.toMatch(/After-Hours|AAVE|Suburban/i);
+    expect(within(dialog).getByTestId('profile-modal-parent-gate').textContent ?? '').not.toMatch(
+      /After-Hours|AAVE|Suburban/i
+    );
+    expect(getProfileCardButton(dialog, 'Dad').textContent ?? '').not.toMatch(/After-Hours|AAVE|Suburban/i);
+    expect(loadVaultFromStorage().activeProfileId).toBe('kid-maya');
+
+    // 3. Merge JSON import elevating active profile to adultModeActive: true is blocked without mutating vault
+    fireEvent.click(within(dialog).getByLabelText('Merge'));
+    fireEvent.change(pasteBox, { target: { value: mergeElevatePayload } });
+    fireEvent.click(importBtn);
+    expect(within(dialog).getByTestId('profile-modal-parent-gate')).toBeInTheDocument();
+    expect(within(dialog).getByRole('status')).toHaveTextContent(
+      /Confirm Parent Controls \(18\+\) before merging this active explorer during Family Co-Op\./i
+    );
+    expect(within(dialog).getByRole('status').textContent ?? '').not.toMatch(/After-Hours|AAVE|Suburban/i);
+    expect(within(dialog).getByTestId('profile-modal-parent-gate').textContent ?? '').not.toMatch(
+      /After-Hours|AAVE|Suburban/i
+    );
+    expect(getProfileCardButton(dialog, 'Dad').textContent ?? '').not.toMatch(/After-Hours|AAVE|Suburban/i);
+    expect(
+      loadVaultFromStorage().profiles.find((p) => p.id === 'kid-maya')?.adultModeActive
+    ).toBeFalsy();
+
+    // 4. Disarmed (adultModeActive: false) replace import succeeds cleanly while masked
+    fireEvent.click(within(dialog).getByLabelText('Replace'));
+    fireEvent.change(pasteBox, { target: { value: disarmedReplacePayload } });
+    fireEvent.click(importBtn);
+    expect(within(dialog).getByRole('status')).toHaveTextContent(/Imported .* explorer profile/i);
+    expect(loadVaultFromStorage().profiles.find((p) => p.id === 'kid-maya')?.gems).toBe(777);
+    expect(loadVaultFromStorage().profiles.find((p) => p.id === dad.id)?.adultModeActive).toBe(false);
+
+    // Confirm the open Parent Gate -> unlocks both importing AND switching
+    fireEvent.click(within(dialog).getByTestId('profile-modal-confirm-parent-btn'));
+    expect(within(dialog).queryByTestId('profile-modal-coop-safe-mask')).not.toBeInTheDocument();
+
+    // Unlocked Parent can now merge/replace-import adultModeActive: true AND switch directly into an adult profile
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Paste JSON' }));
+    fireEvent.click(within(dialog).getByLabelText('Replace'));
+    fireEvent.change(within(dialog).getByLabelText('Paste save JSON'), {
+      target: { value: replaceAdultPayload },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Import Pasted JSON' }));
+    expect(loadVaultFromStorage().activeProfileId).toBe(dad.id);
+    unmount();
+    cleanup();
+
+    // Also verify confirming profile-modal-confirm-parent-btn unlocks clicking the masked Adult card directly
+    vaultActions.resetVaultToDefaults();
+    vaultActions.setActiveLanguage('fr');
+    const dadTwo = vaultActions.unlockAdultMode({
+      adultProfileName: 'Dad',
+      initialTrack: 'ebonics',
+    });
+    const armedVaultTwo = JSON.parse(exportVaultJson()) as { activeProfileId: string };
+    armedVaultTwo.activeProfileId = 'kid-leo';
+    expect(importVaultJson(JSON.stringify(armedVaultTwo), 'replace').ok).toBe(true);
+    const { unmount: unmountModal } = render(
+      <ProfileVaultModal onClose={vi.fn()} coopSafeMask={{ active: true, safeLanguage: 'es' }} />
+    );
+    const modalEl = screen.getByRole('dialog', { name: 'Explorer Profiles and Save Vault' });
+    fireEvent.click(getProfileCardButton(modalEl, 'Dad'));
+    expect(loadVaultFromStorage().activeProfileId).toBe('kid-leo');
+    fireEvent.click(screen.getByTestId('profile-modal-confirm-parent-btn'));
+    fireEvent.click(getProfileCardButton(modalEl, 'Dad'));
+    expect(loadVaultFromStorage().activeProfileId).toBe(dadTwo.id);
+    unmountModal();
+  });
+
+  it('[BUG-S4-002] allows solo navigation into ArcadeHub with cabinet-mini-offline-deck-pill when base language fails offline while Map and Phrasebook still show base-track-loading-card', async () => {
+    for (const lang of ['ja', 'ru'] as const) {
+      vi.resetModules();
+      const offlinePayload = buildOfflineBaseLoaderPayload({
+        [lang]: vi.fn(async () => {
+          throw new Error(`503 Offline ${lang}`);
+        }),
+      });
+      vi.doMock('../../src/curriculum/baseCoursesLoader', () => offlinePayload);
+      vi.doMock('../../src/curriculum/baseCoursesLoader.test', () => offlinePayload);
+
+      const { App: LazyApp } = await import('../../src/App');
+      const { vaultActions: lazyVault } = await import('../../src/store/useVaultStore');
+
+      window.localStorage.clear();
+      lazyVault.resetVaultToDefaults();
+      lazyVault.setActiveLanguage(lang);
+
+      const { unmount } = render(<LazyApp />);
+
+      // 1. Map tab preserves BaseTrackLoadingCard (PT-101 intact)
+      expect(await screen.findByTestId('base-track-loading-card')).toBeInTheDocument();
+
+      // 2. Phrasebook tab preserves BaseTrackLoadingCard (PT-101 intact)
+      fireEvent.click(screen.getByRole('button', { name: 'Phrasebook' }));
+      expect(screen.getByTestId('base-track-loading-card')).toBeInTheDocument();
+
+      // 3. Arcade tab opens ArcadeHub (NOT BaseTrackLoadingCard) and surfaces Mini Offline Deck pill in cabinet ready screen
+      fireEvent.click(screen.getByRole('button', { name: 'Arcade' }));
+      expect(screen.queryByTestId('base-track-loading-card')).not.toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'Wanderling Arcade Hub' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Play Sky-Catcher' }));
+      const pill = await screen.findByTestId('cabinet-mini-offline-deck-pill');
+      expect(pill).toHaveTextContent('Mini Offline Deck · 8 Starter Cards');
+
+      unmount();
+      cleanup();
+      vi.doUnmock('../../src/curriculum/baseCoursesLoader');
+      vi.doUnmock('../../src/curriculum/baseCoursesLoader.test');
+      vi.resetModules();
+    }
+  });
+
+  it('[BUG-S4-003] renders cabinet-mini-offline-deck-pill on StarlightSecretGame ready screen when offline course load fails and hides it once loaded', async () => {
+    vi.resetModules();
+    let jaOnline = false;
+    const offlinePayload = buildOfflineBaseLoaderPayload({
+      ja: vi.fn(async () => {
+        if (!jaOnline) {
+          throw new Error('503 Offline Japanese');
+        }
+        return { course: COURSES.ja, glossary: getCourseGlossary('ja') };
+      }),
+    });
+    vi.doMock('../../src/curriculum/baseCoursesLoader', () => offlinePayload);
+    vi.doMock('../../src/curriculum/baseCoursesLoader.test', () => offlinePayload);
+
+    const baseReg = await import('../../src/curriculum/baseRegistry');
+    const { ArcadeHub: LazyArcadeHub } = await import('../../src/components/arcade/ArcadeHub');
+    const { vaultActions: lazyVault } = await import('../../src/store/useVaultStore');
+
+    window.localStorage.clear();
+    lazyVault.resetVaultToDefaults();
+    lazyVault.setActiveLanguage('ja');
+    // Unlock Secret Cabinet #9
+    expect(lazyVault.unlockSecretArcade()).toBe(true);
+
+    let unmount = () => {};
+    await act(async () => {
+      const rendered = render(
+        <LazyArcadeHub initialMode="starlight_choir" onExitToMap={vi.fn()} />
+      );
+      unmount = rendered.unmount;
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole('region', { name: 'Starlight Critter Choir' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Start Critter Choir!/i })
+    ).toBeInTheDocument();
+    const pill = await screen.findByTestId('cabinet-mini-offline-deck-pill');
+    expect(pill).toHaveTextContent('Mini Offline Deck · 8 Starter Cards');
+
+    // Reconnect online and load 'ja' -> pill disappears
+    jaOnline = true;
+    await act(async () => {
+      await baseReg.ensureBaseCourseLoaded('ja');
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId('cabinet-mini-offline-deck-pill')).not.toBeInTheDocument();
+    });
+    expect(
+      screen.getByRole('button', { name: /Start Critter Choir!/i })
+    ).toBeInTheDocument();
+
+    unmount();
+  });
+
+  it('[BUG-S4-004] keeps 375x667 Co-Op Hub gridAutoRows minmax(118px, auto) and unclipped Constellation Memory Twins heading with and without CoopOfflineRecoveryGuard', async () => {
+    setViewportSize(375, 667);
+
+    // 1. Offline partner ('ja') + Pair Streak at 375x667
+    vi.resetModules();
+    const offlinePayload = buildOfflineBaseLoaderPayload({
+      ja: vi.fn(async () => {
+        throw new Error('503 Offline Japanese');
+      }),
+    });
+    vi.doMock('../../src/curriculum/baseCoursesLoader', () => offlinePayload);
+    vi.doMock('../../src/curriculum/baseCoursesLoader.test', () => offlinePayload);
+
+    const { ArcadeHub: LazyArcadeHub } = await import('../../src/components/arcade/ArcadeHub');
+    const { vaultActions: lazyVault } = await import('../../src/store/useVaultStore');
+
+    window.localStorage.clear();
+    lazyVault.resetVaultToDefaults();
+    lazyVault.setActiveLanguage('es');
+    const kaito = lazyVault.createProfile({
+      name: 'Kaito',
+      avatarId: 'benni_tinker',
+      bannerColor: '#0EA5E9',
+      activeLanguage: 'ja',
+    });
+    lazyVault.recordCoopArcadeSession({
+      gameId: 'tower_stack',
+      playerOneId: 'kid-leo',
+      playerOneScore: 100,
+      playerTwoId: kaito.id,
+      playerTwoScore: 120,
+      bonusGems: 4,
+      xpEarned: 15,
+    });
+    lazyVault.switchProfile('kid-leo');
+
+    const { unmount: unmountOffline } = render(
+      <LazyArcadeHub initialMode="hub" onExitToMap={vi.fn()} />
+    );
+    fireEvent.click(screen.getByTestId('arcade-coop-toggle'));
+    fireEvent.change(screen.getByTestId('coop-p1-select'), { target: { value: 'kid-leo' } });
+    fireEvent.change(screen.getByTestId('coop-p2-select'), { target: { value: kaito.id } });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('coop-mini-offline-deck-badge')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('coop-pair-streak-badge')).toBeInTheDocument();
+
+    const memoryHeading = screen.getByRole('heading', { name: 'Constellation Memory Twins' });
+    expect(memoryHeading.style.lineHeight).toBe('1.18');
+    expect(memoryHeading.style.paddingBottom).toBe('1px');
+    const grid = memoryHeading.closest('.console-scroll-pane') as HTMLElement | null;
+    expect(grid).not.toBeNull();
+    expect(grid!.style.gridAutoRows).toBe('minmax(118px, auto)');
+    expect(grid!.style.overflowY).toBe('auto');
+    expect(screen.getByRole('button', { name: 'Chart Stars' })).toBeInTheDocument();
+
+    unmountOffline();
+    cleanup();
+    vi.doUnmock('../../src/curriculum/baseCoursesLoader');
+    vi.doUnmock('../../src/curriculum/baseCoursesLoader.test');
+    vi.resetModules();
+
+    // 2. Without offline guard (both partners on eager 'es' + Pair Streak at 375x667)
+    window.localStorage.clear();
+    vaultActions.resetVaultToDefaults();
+    vaultActions.recordCoopArcadeSession({
+      gameId: 'tower_stack',
+      playerOneId: 'kid-leo',
+      playerOneScore: 110,
+      playerTwoId: 'kid-maya',
+      playerTwoScore: 130,
+      bonusGems: 4,
+      xpEarned: 15,
+    });
+    const { unmount: unmountClean } = render(
+      <ArcadeHub initialMode="hub" onExitToMap={vi.fn()} />
+    );
+    fireEvent.click(screen.getByTestId('arcade-coop-toggle'));
+    expect(screen.queryByTestId('coop-mini-offline-deck-badge')).not.toBeInTheDocument();
+    expect(screen.getByTestId('coop-pair-streak-badge')).toBeInTheDocument();
+    for (const cta of ['Play Sky-Catcher', 'Launch Blaster', 'Stack Gelato', 'Chart Stars']) {
+      expect(screen.getByRole('button', { name: cta })).toBeInTheDocument();
+    }
+    expect(screen.getByText('Page 1 / 3')).toBeInTheDocument();
+    unmountClean();
+  });
+
+  it('[BUG-S4-005] retains live getPinyinTonePreview across partial trailing consonants, rejects non-Pinyin codes, and continues cleanly after Tap to apply in WordBankView', () => {
+    // 1. Partial trailing consonant retention
+    expect(getPinyinTonePreview('zh', 'to_foreign', 'ni3h')).toBe('nǐh');
+    expect(getPinyinTonePreview('zh', 'to_foreign', 'wo3de5m')).toBe('wǒdem');
+    expect(getPinyinTonePreview('zh', 'to_foreign', 'ni3hao3h')).toBe('nǐhǎoh');
+    expect(getPinyinTonePreview('zh', 'to_foreign', 'wan3a')).toBe('wǎna');
+
+    // 2. Non-Pinyin codes & other languages/directions return null
+    expect(getPinyinTonePreview('zh', 'to_foreign', 'v1')).toBeNull();
+    expect(getPinyinTonePreview('zh', 'to_foreign', 'b2b')).toBeNull();
+    expect(getPinyinTonePreview('zh', 'to_foreign', '2026')).toBeNull();
+    expect(getPinyinTonePreview('zh', 'to_english', 'ni3h')).toBeNull();
+    expect(getPinyinTonePreview('es', 'to_foreign', 'ni3h')).toBeNull();
+
+    // 3. WordBankView seamless Tap to apply ("ni3h" -> "nǐh", then typing "ao3" -> "nǐhǎo")
+    const zhWb = findToForeignWordBank('zh');
+    const zhWbCustom: WordBankExercise = {
+      ...zhWb,
+      expectedSentence: '你好',
+      acceptedSentences: ['你好', 'Nǐ hǎo!'],
+    };
+    const { unmount } = render(
+      <WordBankView
+        exercise={zhWbCustom}
+        language="zh"
+        compact={true}
+        locked={false}
+        onTurtlePlay={vi.fn()}
+        onDraftChange={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Keyboard Free-Recall|Type Instead/i }));
+    const input = screen.getByLabelText('Type your translation') as HTMLInputElement;
+
+    fireEvent.change(input, { target: { value: 'ni3h' } });
+    const previewOne = screen.getByTestId('pinyin-tone-number-preview');
+    expect(previewOne).toHaveTextContent('Pinyin tones: nǐh');
+    fireEvent.click(within(previewOne).getByTestId('pinyin-preview-apply-btn'));
+    expect(input.value).toBe('nǐh');
+    expect(document.activeElement).toBe(input);
+    expect(input.selectionStart).toBe(3);
+    expect(screen.queryByTestId('pinyin-tone-number-preview')).not.toBeInTheDocument();
+
+    // Continue typing "ao3" immediately after applying partial preview
+    fireEvent.change(input, { target: { value: `${input.value}ao3` } });
+    const previewTwo = screen.getByTestId('pinyin-tone-number-preview');
+    expect(previewTwo).toHaveTextContent('Pinyin tones: nǐhǎo');
+    fireEvent.click(within(previewTwo).getByTestId('pinyin-preview-apply-btn'));
+    expect(input.value).toBe('nǐhǎo');
+    unmount();
+  });
+
+  it('[BUG-S4-006] hides BossGauntletView introLine with hud-hide-xs on <640px and sets marginLeft: auto on Send Reply! and Next Turn in compact mode', () => {
+    const themeCss = readFileSync(resolve(ROOT_DIR, 'src/styles/theme.css'), 'utf8');
+    expect(themeCss).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.hud-hide-xs\s*\{\s*display:\s*none;/);
+
+    const zhCourse = getCourse('zh');
+    const bossNode = zhCourse.units[0].nodes.find((n) => n.id === 'zh-u1-n7');
+    expect(bossNode).toBeDefined();
+    const fullBossEx = bossNode!.exercises.find(
+      (ex): ex is BossGauntletExercise => ex.type === 'boss_gauntlet'
+    )!;
+    const turn2OnlyBoss: BossGauntletExercise = {
+      ...fullBossEx,
+      turns: [
+        { ...fullBossEx.turns[1], allowFreeRecall: true },
+        fullBossEx.turns[2],
+      ],
+    };
+
+    // 1. Compact (<640px) viewport at 375x667 with Hint + multi-line tone coaching + Tap to apply active
+    setViewportSize(375, 667);
+    const { unmount: unmountCompact } = render(
+      <BossGauntletView
+        exercise={turn2OnlyBoss}
+        language="zh"
+        compact={true}
+        onTurtlePlay={vi.fn()}
+        onTurnResult={vi.fn()}
+        onComplete={vi.fn()}
+      />
+    );
+
+    const introEl = screen.getByText(turn2OnlyBoss.introLine);
+    expect(introEl).toHaveClass('hud-hide-xs');
+
+    const sendBtnCompact = screen.getByRole('button', { name: 'Send Reply!' }) as HTMLButtonElement;
+    expect(sendBtnCompact.style.marginLeft).toBe('auto');
+
+    fireEvent.click(screen.getByRole('button', { name: /Keyboard Free-Recall|Type Instead/i }));
+    fireEvent.click(screen.getByTestId('starlight-hint-btn'));
+    const bossInput = screen.getByLabelText('Type your boss reply') as HTMLInputElement;
+    fireEvent.change(bossInput, { target: { value: 'wo3de5ming2zi5jiao4Pi2pu4' } });
+
+    expect(screen.getByTestId('free-recall-tone-coaching')).toBeInTheDocument();
+    expect(screen.getByTestId('pinyin-preview-apply-btn')).toBeInTheDocument();
+    expect(sendBtnCompact.style.marginLeft).toBe('auto');
+
+    fireEvent.click(sendBtnCompact);
+    const nextBtnCompact = screen.getByRole('button', { name: 'Next Turn' }) as HTMLButtonElement;
+    expect(nextBtnCompact.style.marginLeft).toBe('auto');
+    unmountCompact();
+    cleanup();
+
+    // 2. Non-compact desktop (1440x900) leaves marginLeft unset
+    setViewportSize(1440, 900);
+    const { unmount: unmountDesktop } = render(
+      <BossGauntletView
+        exercise={turn2OnlyBoss}
+        language="zh"
+        compact={false}
+        onTurtlePlay={vi.fn()}
+        onTurnResult={vi.fn()}
+        onComplete={vi.fn()}
+      />
+    );
+    const sendBtnDesktop = screen.getByRole('button', { name: 'Send Reply!' }) as HTMLButtonElement;
+    expect(sendBtnDesktop.style.marginLeft).toBe('');
+    unmountDesktop();
   });
 });
