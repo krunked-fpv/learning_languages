@@ -365,7 +365,7 @@ function CoopOfflineRecoveryGuard({
       style={{
         width: '100%',
         maxWidth: 560,
-        padding: isCompact ? '5px 8px' : '7px 11px',
+        padding: isCompact ? '4px 7px' : '7px 11px',
         borderRadius: 12,
         background: 'var(--tint-amber-bg, #fffbeb)',
         border: '1.5px solid var(--tint-amber-border, #f59e0b)',
@@ -373,7 +373,7 @@ function CoopOfflineRecoveryGuard({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: isCompact ? 6 : 10,
+        gap: isCompact ? 5 : 10,
         flexWrap: 'wrap',
         textAlign: 'left',
       }}
@@ -381,17 +381,45 @@ function CoopOfflineRecoveryGuard({
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          flex: '1 1 170px',
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+          gap: isCompact ? 3 : 4,
+          flex: '1 1 190px',
           minWidth: 0,
-          fontSize: isCompact ? '0.67rem' : '0.76rem',
-          fontWeight: 800,
-          lineHeight: 1.28,
         }}
       >
-        <WifiOff size={isCompact ? 14 : 15} style={{ flexShrink: 0 }} />
-        <span>{message}</span>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            minWidth: 0,
+            fontSize: isCompact ? '0.67rem' : '0.76rem',
+            fontWeight: 800,
+            lineHeight: 1.26,
+          }}
+        >
+          <WifiOff size={isCompact ? 14 : 15} style={{ flexShrink: 0 }} />
+          <span>{message}</span>
+        </div>
+        <span
+          data-testid="coop-mini-offline-deck-badge"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: isCompact ? '1px 6px' : '2px 8px',
+            borderRadius: 999,
+            background: 'var(--tile-bg, #ffffff)',
+            border: '1.5px solid var(--tint-amber-border, #f59e0b)',
+            color: 'var(--tint-amber-ink, #92400e)',
+            fontFamily: 'var(--font-display)',
+            fontSize: isCompact ? '0.62rem' : '0.7rem',
+            fontWeight: 900,
+            lineHeight: 1.24,
+          }}
+        >
+          Mini Offline Deck (8 Starter Cards)
+        </span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <button
@@ -787,6 +815,10 @@ export function ArcadeHub({
 
   if (coopMatch?.stage === 'handoff') {
     const cabinetTitle = getCabinetTitle(coopMatch.gameId);
+    const isHandoffP2OfflineMiniDeck =
+      !isAdultLanguage(coopMatch.p2Language) &&
+      Boolean(handoffP2LoadState.error) &&
+      !handoffP2LoadState.loaded;
     return (
       <section
         ref={containerRef}
@@ -922,9 +954,7 @@ export function ArcadeHub({
             {coopMatch.p2.name} to combine scores in the Family Co-Op Finale!
           </p>
 
-          {!isAdultLanguage(coopMatch.p2Language) &&
-          handoffP2LoadState.error &&
-          !handoffP2LoadState.loaded ? (
+          {isHandoffP2OfflineMiniDeck ? (
             <CoopOfflineRecoveryGuard
               message={`${coopMatch.p2.name}'s ${LANGUAGE_META[coopMatch.p2Language].name} pack isn't cached offline yet. Retry loading or use the Safe Español Deck for this turn.`}
               retrying={handoffP2LoadState.loading}
@@ -969,7 +999,11 @@ export function ArcadeHub({
               }}
             >
               <Play size={17} />
-              <span>Start {coopMatch.p2.name}&apos;s Turn!</span>
+              <span>
+                {isHandoffP2OfflineMiniDeck
+                  ? `Start ${coopMatch.p2.name}'s Turn (Mini Offline Deck)!`
+                  : `Start ${coopMatch.p2.name}'s Turn!`}
+              </span>
             </button>
 
             <button
@@ -1380,7 +1414,7 @@ export function ArcadeHub({
 
   const showSecretCabinet = !isNarrow || page === 2;
   const isSecretCardLayout = isNarrow || !isWideDesktop;
-  const emblemSize = isNarrow ? 34 : isWideDesktop ? (isTightHeight ? 38 : 42) : 40;
+  const emblemSize = isNarrow ? 30 : isWideDesktop ? (isTightHeight ? 38 : 42) : 40;
 
   return (
     <section
@@ -1395,7 +1429,7 @@ export function ArcadeHub({
         margin: '0 auto',
         display: 'flex',
         flexDirection: 'column',
-        gap: isCompact ? 6 : 8,
+        gap: isCompact ? 4 : 8,
         overflow: 'hidden',
       }}
     >
@@ -1404,11 +1438,11 @@ export function ArcadeHub({
         style={{
           ...CARD_SURFACE_STYLE,
           flexShrink: 0,
-          padding: isCompact ? '7px 10px' : '8px 14px',
+          padding: isCompact ? '5px 8px' : '8px 14px',
           display: 'flex',
           flexDirection: 'column',
-          gap: isCompact ? 6 : 7,
-          borderRadius: 18,
+          gap: isCompact ? 4 : 7,
+          borderRadius: isCompact ? 15 : 18,
         }}
       >
         <div
@@ -1416,16 +1450,16 @@ export function ArcadeHub({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 8,
+            gap: isCompact ? 4 : 8,
             flexWrap: 'wrap',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: '1 1 180px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isCompact ? 6 : 8, minWidth: 0, flex: '1 1 180px' }}>
             <div
               style={{
-                width: isCompact ? 32 : 38,
-                height: isCompact ? 32 : 38,
-                borderRadius: 12,
+                width: isCompact ? 28 : 38,
+                height: isCompact ? 28 : 38,
+                borderRadius: isCompact ? 10 : 12,
                 background: 'var(--card-soft-bg, #eff6ff)',
                 borderTopWidth: 2,
                 borderRightWidth: 2,
@@ -1440,15 +1474,15 @@ export function ArcadeHub({
                 flexShrink: 0,
               }}
             >
-              <Gamepad2 size={isCompact ? 17 : 20} />
+              <Gamepad2 size={isCompact ? 15 : 20} />
             </div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: isCompact ? 4 : 6, flexWrap: 'wrap' }}>
                 <h1
                   style={{
                     margin: 0,
                     fontFamily: 'var(--font-display)',
-                    fontSize: isCompact ? '0.98rem' : '1.16rem',
+                    fontSize: isCompact ? '0.92rem' : '1.16rem',
                     fontWeight: 900,
                     color: 'var(--text-main, #1e1b4b)',
                     lineHeight: 1.15,
@@ -1549,7 +1583,7 @@ export function ArcadeHub({
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isCompact ? 4 : 6, flexWrap: 'wrap' }}>
             {!isNarrow ? (
               <div
                 role="group"
@@ -1628,8 +1662,8 @@ export function ArcadeHub({
                         borderBottomWidth: 3,
                         borderStyle: 'solid',
                       }),
-                  padding: isCompact ? '3px 7px' : '4px 10px',
-                  fontSize: isCompact ? '0.68rem' : '0.75rem',
+                  padding: isCompact ? '2px 6px' : '4px 10px',
+                  fontSize: isCompact ? '0.66rem' : '0.75rem',
                   fontFamily: 'var(--font-display)',
                   fontWeight: 900,
                   borderRadius: 999,
@@ -1646,7 +1680,7 @@ export function ArcadeHub({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4,
-                padding: isCompact ? '3px 7px' : '4px 9px',
+                padding: isCompact ? '2px 6px' : '4px 9px',
                 borderRadius: 999,
                 background: '#fffbeb',
                 borderTopWidth: 2,
@@ -1657,7 +1691,7 @@ export function ArcadeHub({
                 borderColor: '#f59e0b',
                 color: '#b45309',
                 fontFamily: 'var(--font-display)',
-                fontSize: isCompact ? '0.7rem' : '0.76rem',
+                fontSize: isCompact ? '0.67rem' : '0.76rem',
                 fontWeight: 900,
               }}
             >
@@ -1670,9 +1704,9 @@ export function ArcadeHub({
               className="tactile-btn"
               style={{
                 ...SOFT_BTN_STYLE,
-                padding: isCompact ? '4px 8px' : '6px 12px',
-                fontSize: isCompact ? '0.72rem' : '0.82rem',
-                borderRadius: 12,
+                padding: isCompact ? '3px 7px' : '6px 12px',
+                fontSize: isCompact ? '0.69rem' : '0.82rem',
+                borderRadius: isCompact ? 10 : 12,
               }}
               onClick={onExitToMap}
             >
@@ -1725,9 +1759,9 @@ export function ArcadeHub({
                     ? 'minmax(0, 1fr) auto minmax(0, 1fr)'
                     : 'auto auto auto 1fr',
                   alignItems: 'center',
-                  gap: isCompact ? 5 : 8,
-                  padding: isCompact ? '4px 7px' : '5px 10px',
-                  borderRadius: 12,
+                  gap: isCompact ? 4 : 8,
+                  padding: isCompact ? '3px 6px' : '5px 10px',
+                  borderRadius: isCompact ? 10 : 12,
                   background: 'var(--tint-indigo-bg, #eef2ff)',
                   border: '1.5px solid var(--tint-indigo-border, #818cf8)',
                 }}
@@ -1738,7 +1772,7 @@ export function ArcadeHub({
                     alignItems: 'center',
                     gap: 4,
                     minWidth: 0,
-                    fontSize: isCompact ? '0.66rem' : '0.74rem',
+                    fontSize: isCompact ? '0.64rem' : '0.74rem',
                     fontWeight: 900,
                     color: 'var(--tint-indigo-ink, #312e81)',
                   }}
@@ -1752,13 +1786,13 @@ export function ArcadeHub({
                     style={{
                       minWidth: 0,
                       width: isNarrow ? '100%' : 'auto',
-                      padding: isCompact ? '2px 4px' : '3px 8px',
+                      padding: isCompact ? '1px 4px' : '3px 8px',
                       borderRadius: 8,
                       border: '1.5px solid var(--card-border, #cbd5e1)',
                       background: 'var(--input-bg, #ffffff)',
                       color: 'var(--text-main, #1e1b4b)',
                       fontFamily: 'var(--font-display)',
-                      fontSize: isCompact ? '0.7rem' : '0.78rem',
+                      fontSize: isCompact ? '0.68rem' : '0.78rem',
                       fontWeight: 800,
                     }}
                   >
@@ -1773,7 +1807,7 @@ export function ArcadeHub({
                 <span
                   style={{
                     fontFamily: 'var(--font-display)',
-                    fontSize: isCompact ? '0.66rem' : '0.74rem',
+                    fontSize: isCompact ? '0.64rem' : '0.74rem',
                     fontWeight: 900,
                     color: 'var(--tint-indigo-ink, #312e81)',
                     textAlign: 'center',
@@ -1788,7 +1822,7 @@ export function ArcadeHub({
                     alignItems: 'center',
                     gap: 4,
                     minWidth: 0,
-                    fontSize: isCompact ? '0.66rem' : '0.74rem',
+                    fontSize: isCompact ? '0.64rem' : '0.74rem',
                     fontWeight: 900,
                     color: 'var(--tint-indigo-ink, #312e81)',
                   }}
@@ -1802,13 +1836,13 @@ export function ArcadeHub({
                     style={{
                       minWidth: 0,
                       width: isNarrow ? '100%' : 'auto',
-                      padding: isCompact ? '2px 4px' : '3px 8px',
+                      padding: isCompact ? '1px 4px' : '3px 8px',
                       borderRadius: 8,
                       border: '1.5px solid var(--card-border, #cbd5e1)',
                       background: 'var(--input-bg, #ffffff)',
                       color: 'var(--text-main, #1e1b4b)',
                       fontFamily: 'var(--font-display)',
-                      fontSize: isCompact ? '0.7rem' : '0.78rem',
+                      fontSize: isCompact ? '0.68rem' : '0.78rem',
                       fontWeight: 800,
                     }}
                   >
@@ -1838,7 +1872,7 @@ export function ArcadeHub({
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: 4,
-                          padding: isCompact ? '2px 7px' : '3px 9px',
+                          padding: isCompact ? '1px 6px' : '3px 9px',
                           borderRadius: 999,
                           background: 'var(--tint-amber-bg, #fffbeb)',
                           border: '1.5px solid var(--tint-amber-border, #fbbf24)',
@@ -1846,6 +1880,7 @@ export function ArcadeHub({
                           fontFamily: 'var(--font-display)',
                           fontSize: isCompact ? '0.64rem' : '0.72rem',
                           fontWeight: 900,
+                          lineHeight: 1.2,
                           whiteSpace: 'nowrap',
                         }}
                       >
@@ -1919,7 +1954,7 @@ export function ArcadeHub({
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-              gap: 5,
+              gap: 4,
             }}
           >
             {ARCADE_TIER_LIST.map((tierId) => {
@@ -1935,8 +1970,8 @@ export function ArcadeHub({
                     setArcadeTier(tierId);
                   }}
                   style={{
-                    padding: '4px 4px',
-                    borderRadius: 10,
+                    padding: '3px 4px',
+                    borderRadius: 9,
                     borderTopWidth: 1.5,
                     borderRightWidth: 1.5,
                     borderLeftWidth: 1.5,
@@ -1946,7 +1981,7 @@ export function ArcadeHub({
                     background: active ? meta.bgColor : 'var(--card-soft-bg, #f8fafc)',
                     color: active ? meta.textColor : 'var(--text-muted, #475569)',
                     fontFamily: 'var(--font-display)',
-                    fontSize: '0.66rem',
+                    fontSize: '0.64rem',
                     fontWeight: 900,
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
@@ -1986,8 +2021,8 @@ export function ArcadeHub({
               ? 'minmax(0, 1fr) minmax(0, 1fr) auto'
               : 'repeat(3, minmax(0, 1fr))',
           gridAutoRows:
-            isNarrow && effectiveCoopEnabled && page !== 2 ? 'minmax(138px, auto)' : undefined,
-          gap: isCompact ? 7 : 9,
+            isNarrow && effectiveCoopEnabled && page !== 2 ? 'minmax(112px, 1fr)' : undefined,
+          gap: isCompact ? 5 : 9,
           overflowY: isNarrow && effectiveCoopEnabled ? 'auto' : 'hidden',
           overflowX: 'hidden',
         }}
@@ -2000,7 +2035,8 @@ export function ArcadeHub({
               style={{
                 ...CARD_SURFACE_STYLE,
                 borderColor: cab.accentBorder,
-                padding: isNarrow ? 9 : isTightHeight ? 10 : 12,
+                borderRadius: isNarrow ? 16 : 20,
+                padding: isNarrow ? 7 : isTightHeight ? 10 : 12,
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
@@ -2015,7 +2051,7 @@ export function ArcadeHub({
                   display: 'flex',
                   alignItems: 'flex-start',
                   justifyContent: 'space-between',
-                  gap: 6,
+                  gap: isNarrow ? 4 : 6,
                 }}
               >
                 <div style={{ flexShrink: 0 }}>{cab.emblem(emblemSize)}</div>
@@ -2024,17 +2060,17 @@ export function ArcadeHub({
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'flex-end',
-                    gap: 3,
+                    gap: isNarrow ? 2 : 3,
                     minWidth: 0,
                   }}
                 >
                   <span
                     style={{
-                      padding: '1px 6px',
+                      padding: isNarrow ? '1px 5px' : '1px 6px',
                       borderRadius: 999,
                       background: 'var(--card-soft-bg, #f1f5f9)',
                       color: 'var(--text-muted, #475569)',
-                      fontSize: '0.62rem',
+                      fontSize: isNarrow ? '0.58rem' : '0.62rem',
                       fontWeight: 900,
                       textTransform: 'uppercase',
                       letterSpacing: '0.03em',
@@ -2044,7 +2080,7 @@ export function ArcadeHub({
                   </span>
                   <span
                     style={{
-                      padding: '1px 7px',
+                      padding: isNarrow ? '1px 6px' : '1px 7px',
                       borderRadius: 999,
                       background: '#fffbeb',
                       borderTopWidth: 1,
@@ -2055,7 +2091,7 @@ export function ArcadeHub({
                       borderColor: '#f59e0b',
                       color: '#b45309',
                       fontFamily: 'var(--font-display)',
-                      fontSize: '0.66rem',
+                      fontSize: isNarrow ? '0.62rem' : '0.66rem',
                       fontWeight: 900,
                       whiteSpace: 'nowrap',
                     }}
@@ -2071,10 +2107,10 @@ export function ArcadeHub({
                   style={{
                     margin: 0,
                     fontFamily: 'var(--font-display)',
-                    fontSize: isNarrow ? '0.84rem' : isTightHeight ? '0.92rem' : '0.98rem',
+                    fontSize: isNarrow ? '0.78rem' : isTightHeight ? '0.92rem' : '0.98rem',
                     fontWeight: 900,
                     color: 'var(--text-main, #1e1b4b)',
-                    lineHeight: 1.15,
+                    lineHeight: isNarrow ? 1.12 : 1.15,
                     display: '-webkit-box',
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: 'vertical',
@@ -2108,15 +2144,15 @@ export function ArcadeHub({
                 className={`tactile-btn ${cab.btnClass}`}
                 style={{
                   width: '100%',
-                  marginTop: isNarrow ? 2 : 0,
-                  padding: isNarrow ? '5px 7px' : isTightHeight ? '6px 10px' : '7px 12px',
-                  fontSize: isNarrow ? '0.72rem' : '0.82rem',
-                  borderRadius: 12,
+                  marginTop: 0,
+                  padding: isNarrow ? '4px 7px' : isTightHeight ? '6px 10px' : '7px 12px',
+                  fontSize: isNarrow ? '0.7rem' : '0.82rem',
+                  borderRadius: isNarrow ? 10 : 12,
                   flexShrink: 0,
                 }}
                 onClick={() => launchCabinet(cab.id)}
               >
-                <Play size={13} />
+                <Play size={isNarrow ? 12 : 13} />
                 <span>{cab.cta}</span>
               </button>
             </div>
@@ -2352,8 +2388,8 @@ export function ArcadeHub({
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: 8,
-            padding: '4px 8px',
-            borderRadius: 16,
+            padding: isCompact ? '3px 7px' : '4px 8px',
+            borderRadius: isCompact ? 14 : 16,
             background: 'var(--card-bg, #ffffff)',
             borderTopWidth: 2,
             borderRightWidth: 2,
@@ -2374,9 +2410,9 @@ export function ArcadeHub({
             }}
             style={{
               ...SOFT_BTN_STYLE,
-              padding: '4px 10px',
-              fontSize: '0.75rem',
-              borderRadius: 12,
+              padding: isCompact ? '3px 8px' : '4px 10px',
+              fontSize: isCompact ? '0.72rem' : '0.75rem',
+              borderRadius: isCompact ? 10 : 12,
             }}
           >
             <ChevronLeft size={14} />
@@ -2387,7 +2423,7 @@ export function ArcadeHub({
             style={{
               fontFamily: 'var(--font-display)',
               fontWeight: 900,
-              fontSize: '0.78rem',
+              fontSize: isCompact ? '0.74rem' : '0.78rem',
               color: 'var(--text-main, #1e1b4b)',
             }}
           >
@@ -2405,9 +2441,9 @@ export function ArcadeHub({
             }}
             style={{
               ...SOFT_BTN_STYLE,
-              padding: '4px 10px',
-              fontSize: '0.75rem',
-              borderRadius: 12,
+              padding: isCompact ? '3px 8px' : '4px 10px',
+              fontSize: isCompact ? '0.72rem' : '0.75rem',
+              borderRadius: isCompact ? 10 : 12,
             }}
           >
             <span>Next</span>

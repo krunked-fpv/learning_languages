@@ -10,7 +10,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
-import { Gem, Heart, MessageSquareQuote, Play, RotateCcw, Sparkles, Star, Volume2, X } from 'lucide-react';
+import { Gem, Heart, MessageSquareQuote, Play, RotateCcw, Sparkles, Star, Volume2, WifiOff, X } from 'lucide-react';
 import { AvatarBadge } from '../../art/AvatarBadge';
 import { playSfx, speakPhrase } from '../../audio';
 import * as core from '../../core';
@@ -2590,6 +2590,7 @@ export function ArcadeReadyCard({
   startLabel,
   bestScore,
   arcadeTier,
+  language,
   isCompact,
   emblem,
   buttonClass = 'tactile-btn-primary',
@@ -2602,13 +2603,28 @@ export function ArcadeReadyCard({
   startLabel: string;
   bestScore: number;
   arcadeTier?: ArcadeProficiencyTier;
+  language?: LanguageCode;
   isCompact: boolean;
   emblem?: ReactNode;
   buttonClass?: string;
   onStart: () => void;
 }) {
-  const effectiveProfile = useArcadeEffectiveProfile();
+  const { activeProfile } = useVaultStore();
   const coopTurn = useArcadeCoopTurn();
+  const effectiveProfile = coopTurn?.playerProfile ?? activeProfile;
+  const kidQuarantined = isCoopTurnQuarantined(coopTurn);
+  const effectiveLanguage =
+    language ??
+    resolveEffectiveArcadeLanguage(effectiveProfile, {
+      languageOverride: coopTurn?.languageOverride,
+      fallbackProfile: activeProfile,
+      kidQuarantined,
+    });
+  const langLoadState = useArcadeLanguageLoadState(effectiveLanguage);
+  const showMiniOfflineDeckPill =
+    !isAdultLanguage(effectiveLanguage) &&
+    Boolean(langLoadState.error) &&
+    !langLoadState.loaded;
   const tierMeta = arcadeTier ? ARCADE_TIER_META[arcadeTier] : null;
 
   return (
@@ -2617,12 +2633,12 @@ export function ArcadeReadyCard({
         ...CARD_SURFACE_STYLE,
         flex: 1,
         minHeight: 0,
-        padding: isCompact ? 14 : 22,
+        padding: isCompact ? '10px 12px' : 22,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: isCompact ? 8 : 12,
+        gap: isCompact ? 6 : 12,
         textAlign: 'center',
         overflowY: 'auto',
       }}
@@ -2634,7 +2650,7 @@ export function ArcadeReadyCard({
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
-            padding: isCompact ? '3px 10px' : '4px 12px',
+            padding: isCompact ? '2px 9px' : '4px 12px',
             borderRadius: 999,
             background: 'var(--tint-indigo-bg, #eef2ff)',
             borderTopWidth: 2,
@@ -2645,23 +2661,23 @@ export function ArcadeReadyCard({
             borderColor: coopTurn.playerProfile.bannerColor || '#6366f1',
             color: 'var(--tint-indigo-ink, #312e81)',
             fontFamily: 'var(--font-display)',
-            fontSize: isCompact ? '0.74rem' : '0.84rem',
+            fontSize: isCompact ? '0.72rem' : '0.84rem',
             fontWeight: 900,
           }}
         >
-          <AvatarBadge avatarId={coopTurn.playerProfile.avatarId} size={isCompact ? 18 : 22} />
+          <AvatarBadge avatarId={coopTurn.playerProfile.avatarId} size={isCompact ? 16 : 22} />
           <span>
             Co-Op Turn {coopTurn.turnNumber} of 2 · {coopTurn.playerProfile.name}&apos;s Turn!
           </span>
         </div>
       ) : null}
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: isCompact ? 8 : 12 }}>
         <MascotStage
           companionId={companionId}
           pose="happy"
           equippedCosmetics={companionId === 'pip' ? effectiveProfile.equippedCosmetics : undefined}
-          size={isCompact ? 92 : 124}
+          size={isCompact ? 76 : 124}
           badgeText={badgeText}
         />
         {emblem ? <div style={{ flexShrink: 0 }}>{emblem}</div> : null}
@@ -2671,9 +2687,10 @@ export function ArcadeReadyCard({
         style={{
           margin: 0,
           fontFamily: 'var(--font-display)',
-          fontSize: isCompact ? '1.15rem' : '1.4rem',
+          fontSize: isCompact ? '1.06rem' : '1.4rem',
           fontWeight: 900,
           color: 'var(--text-main, #1e1b4b)',
+          lineHeight: 1.15,
         }}
       >
         {title}
@@ -2683,19 +2700,27 @@ export function ArcadeReadyCard({
         style={{
           margin: 0,
           maxWidth: 480,
-          fontSize: isCompact ? '0.82rem' : '0.92rem',
+          fontSize: isCompact ? '0.78rem' : '0.92rem',
           fontWeight: 700,
           color: 'var(--text-muted, #475569)',
-          lineHeight: 1.38,
+          lineHeight: isCompact ? 1.3 : 1.38,
         }}
       >
         {description}
       </p>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: isCompact ? 5 : 8,
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+        }}
+      >
         <span
           style={{
-            padding: '4px 10px',
+            padding: isCompact ? '2px 8px' : '4px 10px',
             borderRadius: 999,
             background: '#fffbeb',
             borderTopWidth: 2,
@@ -2705,7 +2730,7 @@ export function ArcadeReadyCard({
             borderStyle: 'solid',
             borderColor: '#f59e0b',
             color: '#b45309',
-            fontSize: '0.78rem',
+            fontSize: isCompact ? '0.7rem' : '0.78rem',
             fontWeight: 900,
             fontFamily: 'var(--font-display)',
           }}
@@ -2715,7 +2740,7 @@ export function ArcadeReadyCard({
         {tierMeta ? (
           <span
             style={{
-              padding: '4px 10px',
+              padding: isCompact ? '2px 8px' : '4px 10px',
               borderRadius: 999,
               background: tierMeta.bgColor,
               borderTopWidth: 2,
@@ -2725,12 +2750,38 @@ export function ArcadeReadyCard({
               borderStyle: 'solid',
               borderColor: tierMeta.borderColor,
               color: tierMeta.textColor,
-              fontSize: '0.78rem',
+              fontSize: isCompact ? '0.7rem' : '0.78rem',
               fontWeight: 900,
               fontFamily: 'var(--font-display)',
             }}
           >
             {tierMeta.label} ({tierMeta.cefrLabel}) · {tierMeta.paceLabel} Pace · {tierMeta.rewardLabel} Rewards
+          </span>
+        ) : null}
+        {showMiniOfflineDeckPill ? (
+          <span
+            data-testid="cabinet-mini-offline-deck-pill"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              padding: isCompact ? '2px 8px' : '4px 10px',
+              borderRadius: 999,
+              background: 'var(--tint-amber-bg, #fffbeb)',
+              borderTopWidth: 2,
+              borderRightWidth: 2,
+              borderLeftWidth: 2,
+              borderBottomWidth: 3,
+              borderStyle: 'solid',
+              borderColor: 'var(--tint-amber-border, #f59e0b)',
+              color: 'var(--tint-amber-ink, #92400e)',
+              fontSize: isCompact ? '0.68rem' : '0.78rem',
+              fontWeight: 900,
+              fontFamily: 'var(--font-display)',
+            }}
+          >
+            <WifiOff size={isCompact ? 11 : 13} aria-hidden="true" />
+            <span>Mini Offline Deck · 8 Starter Cards</span>
           </span>
         ) : null}
       </div>
