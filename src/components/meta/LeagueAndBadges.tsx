@@ -177,6 +177,7 @@ export function LeagueAndBadges() {
                   return (
                     <div
                       key={entry.id}
+                      className={`cozy-podium-plinth is-rank-${entry.rank}`}
                       style={{
                         display: 'flex',
                         flexDirection: 'column',
@@ -302,15 +303,16 @@ export function LeagueAndBadges() {
                   return (
                     <div
                       key={badge.id}
+                      className={`cozy-medallion-card ${unlocked ? 'is-unlocked' : 'is-locked'}`}
                       style={{
                         padding: 12,
-                        borderRadius: 16,
+                        borderRadius: 18,
                         borderTopWidth: 2,
                         borderRightWidth: 2,
                         borderLeftWidth: 2,
                         borderBottomWidth: 4,
                         borderStyle: 'solid',
-                        borderColor: unlocked ? 'var(--tint-amber-border)' : 'var(--card-border)',
+                        borderColor: unlocked ? 'var(--gild, var(--tint-amber-border))' : 'var(--card-border)',
                         background: unlocked ? 'var(--tint-amber-bg)' : 'var(--card-soft-bg)',
                         display: 'flex',
                         flexDirection: 'column',
@@ -318,7 +320,10 @@ export function LeagueAndBadges() {
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ filter: unlocked ? 'none' : 'grayscale(1)', opacity: unlocked ? 1 : 0.45 }}>
+                        <div
+                          className={`cozy-medallion-bezel ${unlocked ? 'is-unlocked' : 'is-locked'}`}
+                          style={{ filter: unlocked ? 'none' : 'sepia(0.45) grayscale(0.55)', opacity: unlocked ? 1 : 0.58 }}
+                        >
                           <VocabIllustration illustrationKey={badge.iconKey} size={46} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -354,12 +359,12 @@ export function LeagueAndBadges() {
                             {clamped} / {progress.target}
                           </span>
                         </div>
-                        <div style={{ height: 7, borderRadius: 999, background: 'rgba(148, 163, 184, 0.25)', overflow: 'hidden' }}>
+                        <div className="cozy-gauge-track" style={{ height: 8, borderRadius: 999, overflow: 'hidden' }}>
                           <div
+                            className="cozy-gauge-fill"
                             style={{
                               width: `${unlocked ? 100 : pct}%`,
                               height: '100%',
-                              background: unlocked ? '#10b981' : '#6366f1',
                             }}
                           />
                         </div>

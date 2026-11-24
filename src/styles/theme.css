@@ -4,7 +4,7 @@
    ========================================================================== */
 
 :root {
-  /* Cozy art bible tokens � watercolor paper */
+  /* Cozy art bible tokens - watercolor paper */
   --ink-warm: #4a3426;
   --ink-soft: #8a6b52;
   --paper-base: #fbf1dc;
@@ -20,31 +20,31 @@
   --font-body: 'Nunito Variable', 'Nunito', 'Noto Sans Arabic', 'Noto Sans SC', 'Noto Sans JP', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'PingFang SC', 'Hiragino Kaku Gothic ProN', 'Microsoft YaHei', 'Yu Gothic', 'Meiryo', 'Geeza Pro', 'Kohinoor Devanagari', 'Kohinoor Bangla', 'Nirmala UI', 'Segoe UI', 'Tahoma', system-ui, -apple-system, sans-serif;
 
   /* 1. Default: Storybook Parchment */
-  --app-bg: linear-gradient(180deg, #fffdf7 0%, #fef6e4 55%, #f8efe0 100%);
-  --shell-bg: rgba(255, 255, 255, 0.88);
-  --shell-border: #cbd5e1;
-  --card-bg: rgba(255, 255, 255, 0.96);
-  --card-soft-bg: #f8fafc;
-  --card-border: #cbd5e1;
-  --tile-bg: #ffffff;
-  --tile-border: #cbd5e1;
-  --tile-selected-bg: #eef2ff;
-  --tile-selected-ink: #312e81;
-  --input-bg: #ffffff;
-  --modal-bg: #ffffff;
-  --text-main: #1e1b4b;
-  --text-muted: #475569;
-  --nav-bg: rgba(255, 255, 255, 0.92);
-  --nav-ink: #475569;
-  --nav-active-bg: #eef2ff;
+  --app-bg: linear-gradient(165deg, #fdf6e6 0%, #f7ebd2 52%, #efe0c0 100%);
+  --shell-bg: rgba(252, 245, 229, 0.92);
+  --shell-border: #cbb38b;
+  --card-bg: rgba(254, 249, 237, 0.96);
+  --card-soft-bg: #f5ebd4;
+  --card-border: #d0ba92;
+  --tile-bg: #fffbf0;
+  --tile-border: #ccb48c;
+  --tile-selected-bg: #f6e7c4;
+  --tile-selected-ink: #3e2816;
+  --input-bg: #fffcf3;
+  --modal-bg: #fdf7e8;
+  --text-main: #2d1f16;
+  --text-muted: #5d4635;
+  --nav-bg: rgba(251, 243, 224, 0.94);
+  --nav-ink: #5d4635;
+  --nav-active-bg: #f5e6c4;
   --nav-active-ink: var(--lang-primary);
   --nav-active-border: var(--lang-primary);
-  --arena-bg: linear-gradient(180deg, #fffdf7 0%, #f4f7ff 100%);
-  --footer-bg: rgba(255, 255, 255, 0.96);
-  --footer-correct-bg: #ecfdf5;
-  --footer-accent-bg: #fffbeb;
-  --footer-nudge-bg: #fff1f2;
-  --card-glow: 0 10px 26px rgba(15, 23, 42, 0.08);
+  --arena-bg: linear-gradient(165deg, #fdf6e6 0%, #f6ead0 58%, #ede0c4 100%);
+  --footer-bg: rgba(251, 243, 225, 0.96);
+  --footer-correct-bg: #eaf4e2;
+  --footer-accent-bg: #fcf0d2;
+  --footer-nudge-bg: #f9e8e4;
+  --card-glow: 0 10px 26px color-mix(in oklab, #4a3426 14%, transparent);
 
   /* Semantic Surface Tints */
   --tint-amber-bg: #fffbeb;
@@ -83,7 +83,7 @@
 
 /* 2. Cosmic Galaxy Nebula (Signature Dark Frosted Glass) */
 .app-root[data-theme='theme_cosmic_galaxy'] {
-  /* Cozy art bible tokens � velvet star-chart folio */
+  /* Cozy art bible tokens - velvet star-chart folio */
   --ink-warm: #e6c47e;
   --ink-soft: #b79a68;
   --paper-base: #1d1840;
@@ -138,7 +138,7 @@
 
 /* 3. Arctic Aurora Borealis (Polar Midnight Dark Glass) */
 .app-root[data-theme='theme_aurora_borealis'] {
-  /* Cozy art bible tokens � carved woodblock + northern shimmer */
+  /* Cozy art bible tokens - carved woodblock + northern shimmer */
   --ink-warm: #d7e8d0;
   --ink-soft: #9dc3b4;
   --paper-base: #10303a;
@@ -193,7 +193,7 @@
 
 /* 4. Starlight Indigo (Midnight Indigo Glass) */
 .app-root[data-theme='theme_starlight_indigo'] {
-  /* Cozy art bible tokens � velvet star-chart folio */
+  /* Cozy art bible tokens - velvet star-chart folio */
   --ink-warm: #e3c27c;
   --ink-soft: #b49a6c;
   --paper-base: #1f2352;
@@ -248,7 +248,7 @@
 
 /* 5. Solaris Gold & Velvet (Plush Amethyst Dark Glass) */
 .app-root[data-theme='theme_royal_velvet'] {
-  /* Cozy art bible tokens � crimson velvet folio, gold leaf */
+  /* Cozy art bible tokens - crimson velvet folio, gold leaf */
   --ink-warm: #e8c987;
   --ink-soft: #bf9f6a;
   --paper-base: #3b1530;
@@ -303,7 +303,7 @@
 
 /* 6. Sunset Plaza */
 .app-root[data-theme='theme_sunset_plaza'] {
-  /* Cozy art bible tokens � sun-baked linen */
+  /* Cozy art bible tokens - sun-baked linen */
   --ink-warm: #5a3322;
   --ink-soft: #92654a;
   --paper-base: #fde9cf;
@@ -340,7 +340,7 @@
 
 /* 7. Sakura Berry Sorbet */
 .app-root[data-theme='theme_candy_sakura'] {
-  /* Cozy art bible tokens � cherry-blossom washi */
+  /* Cozy art bible tokens - cherry-blossom washi */
   --ink-warm: #5a3040;
   --ink-soft: #98667a;
   --paper-base: #fff0f2;
@@ -377,7 +377,7 @@
 
 /* 8. Capri Turquoise Lagoon */
 .app-root[data-theme='theme_ocean_lagoon'] {
-  /* Cozy art bible tokens � salt-washed watercolor paper */
+  /* Cozy art bible tokens - salt-washed watercolor paper */
   --ink-warm: #2f4350;
   --ink-soft: #5f808f;
   --paper-base: #eefaf8;
@@ -414,7 +414,7 @@
 
 /* 9. Alpine Meadow */
 .app-root[data-theme='theme_alpine_meadow'] {
-  /* Cozy art bible tokens � botanical wash paper */
+  /* Cozy art bible tokens - botanical wash paper */
   --ink-warm: #3c3a22;
   --ink-soft: #74724a;
   --paper-base: #f3f6e2;
@@ -451,7 +451,7 @@
 
 /* 10. Kyoto Matcha Sanctuary */
 .app-root[data-theme='theme_kyoto_matcha'] {
-  /* Cozy art bible tokens � matcha-tinted washi */
+  /* Cozy art bible tokens - matcha-tinted washi */
   --ink-warm: #34402a;
   --ink-soft: #66795a;
   --paper-base: #eff3dc;
@@ -488,7 +488,7 @@
 
 /* 11. Sahara Mirage Oasis */
 .app-root[data-theme='theme_sahara_mirage'] {
-  /* Cozy art bible tokens � sun-bleached linen */
+  /* Cozy art bible tokens - sun-bleached linen */
   --ink-warm: #583820;
   --ink-soft: #94704c;
   --paper-base: #fbecd0;
@@ -525,7 +525,7 @@
 
 /* 12. Emerald Rainforest Canopy (Dark Frosted Glass) */
 .app-root[data-theme='theme_emerald_rainforest'] {
-  /* Cozy art bible tokens � deep botanical gouache */
+  /* Cozy art bible tokens - deep botanical gouache */
   --ink-warm: #e4e2b0;
   --ink-soft: #a9b88a;
   --paper-base: #14382a;
@@ -580,7 +580,7 @@
 
 /* 13. Neon Night Market (Cyber Lantern Dark Glass) */
 .app-root[data-theme='theme_neon_night_market'] {
-  /* Cozy art bible tokens � rice-paper lanterns on lacquer */
+  /* Cozy art bible tokens - rice-paper lanterns on lacquer */
   --ink-warm: #ffd9a8;
   --ink-soft: #cfa0b0;
   --paper-base: #2a1030;
@@ -635,17 +635,17 @@
 
 /* 14. Nordic Fjord Frost */
 .app-root[data-theme='theme_nordic_fjord'] {
-  /* Cozy art bible tokens � carved Nordic woodblock */
-  --ink-warm: #dbe6ee;
-  --ink-soft: #9ab0c2;
-  --paper-base: #1c3040;
-  --paper-shade: #122230;
-  --paper-grain-opacity: 0.18;
-  --key-light: #f0f4d8;
+  /* Cozy art bible tokens - carved Nordic woodblock */
+  --ink-warm: #24384a;
+  --ink-soft: #536e82;
+  --paper-base: #eef5f9;
+  --paper-shade: #d7e7f0;
+  --paper-grain-opacity: 0.20;
+  --key-light: #fff6d6;
   --ambient-fill: #8ab8e8;
   --lantern-glow: #ffd8a0;
-  --gild: #cfd8e0;
-  --shadow-tint: color-mix(in oklab, #050f18 22%, transparent);
+  --gild: #6d98ba;
+  --shadow-tint: color-mix(in oklab, #24384a 22%, transparent);
   --surface-material: carved;
   --app-bg: linear-gradient(180deg, #f8fafc 0%, #e0f2fe 54%, #bae6fd 100%);
   --shell-bg: rgba(248, 252, 255, 0.92);
@@ -672,7 +672,7 @@
 
 /* 15. Laureate Imperial Gold (Grand C1+ Prestige Glass) */
 .app-root[data-theme='theme_laureate_imperial'] {
-  /* Cozy art bible tokens � imperial lacquer, gold leaf */
+  /* Cozy art bible tokens - imperial lacquer, gold leaf */
   --ink-warm: #ecca82;
   --ink-soft: #bea068;
   --paper-base: #2e1a14;

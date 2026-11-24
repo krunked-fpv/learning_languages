@@ -1,0 +1,670 @@
+/* ==========================================================================
+   COZY ASMR STORYBOOK - material layer (Liam)
+   Heirloom hand-illustrated atlas by a sunlit window or reading lamp.
+   Loaded AFTER theme.css; paints materials (paper/velvet/lacquer, grain,
+   warm ink contours, upper-left lamplight, weighted springs) while keeping
+   all layout geometry and 100dvh / 375x667 fits untouched.
+   Key light upper-left (~10 o'clock), tinted shadows down-right, never black.
+   ========================================================================== */
+
+:root,
+.app-root,
+.app-root[data-theme] {
+  /* Static cached paper grain SVG (never animated, rasterised once) */
+  --cozy-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='g' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' seed='7' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.45  0 0 0 0 0.34  0 0 0 0 0.24  0 0 0 0.85 0'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>");
+  --cozy-spring: cubic-bezier(0.34, 1.24, 0.52, 1);
+  --cozy-settle: cubic-bezier(0.22, 0.9, 0.3, 1);
+  --cozy-ink: var(--ink-warm, #4a3426);
+  --cozy-ink-soft: var(--ink-soft, #8a6b52);
+  --cozy-shadow: var(--shadow-tint, color-mix(in oklab, #4a3426 22%, transparent));
+  --cozy-hi: color-mix(in oklab, var(--key-light, #ffe2a8) 54%, transparent);
+  --cozy-hi-soft: color-mix(in oklab, var(--key-light, #ffe2a8) 20%, transparent);
+  --cozy-lamp: color-mix(in oklab, var(--lantern-glow, #ffd48a) 38%, transparent);
+  --cozy-paper-card: color-mix(in oklab, var(--paper-base, #fbf1dc) 74%, var(--card-bg));
+  --cozy-paper-soft: color-mix(in oklab, var(--paper-shade, #efe0c2) 48%, var(--card-soft-bg));
+}
+
+/* Dark Candlelit & Specialty themes: keep rich velvet/lacquer depth + subtle gold specular */
+.app-root[data-theme='theme_cosmic_galaxy'],
+.app-root[data-theme='theme_starlight_indigo'],
+.app-root[data-theme='theme_royal_velvet'],
+.app-root[data-theme='theme_laureate_imperial'],
+.app-root[data-theme='theme_aurora_borealis'],
+.app-root[data-theme='theme_emerald_rainforest'],
+.app-root[data-theme='theme_neon_night_market'] {
+  --cozy-hi: color-mix(in oklab, var(--key-light, #ffd98a) 16%, transparent);
+  --cozy-hi-soft: color-mix(in oklab, var(--key-light, #ffd98a) 7%, transparent);
+  --cozy-lamp: color-mix(in oklab, var(--lantern-glow, #ffbe5c) 26%, transparent);
+  --cozy-paper-card: color-mix(in oklab, var(--paper-base, #1f2352) 68%, var(--card-bg));
+  --cozy-paper-soft: color-mix(in oklab, var(--paper-shade, #151839) 62%, var(--card-soft-bg));
+}
+
+/* ---- Room lighting: upper-left lamp wash + lower-right ambient fill ---- */
+.app-root::before,
+.lesson-arena-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background:
+    radial-gradient(115% 88% at 10% 2%, var(--cozy-lamp) 0%, transparent 56%),
+    radial-gradient(92% 82% at 98% 98%, color-mix(in oklab, var(--ambient-fill, #b9b4e6) 24%, transparent) 0%, transparent 60%),
+    radial-gradient(140% 120% at 50% 50%, transparent 58%, var(--cozy-shadow) 142%);
+}
+
+.app-root::after,
+.lesson-arena-shell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background-image: var(--cozy-grain);
+  background-size: 180px 180px;
+  opacity: var(--paper-grain-opacity, 0.2);
+  mix-blend-mode: soft-light;
+}
+
+/* Soothing hearth-gold tabletop warmth as combo climbs */
+.lesson-arena-shell[data-combo-tier='warm']::before {
+  background:
+    radial-gradient(120% 94% at 12% 4%, color-mix(in oklab, var(--lantern-glow, #ffd48a) 50%, transparent) 0%, transparent 60%),
+    radial-gradient(85% 75% at 50% 45%, color-mix(in oklab, var(--gild, #c99a3e) 12%, transparent) 0%, transparent 65%),
+    radial-gradient(92% 82% at 98% 98%, color-mix(in oklab, var(--ambient-fill, #b9b4e6) 22%, transparent) 0%, transparent 60%);
+}
+
+.lesson-arena-shell.is-on-fire::before {
+  background:
+    radial-gradient(125% 98% at 14% 4%, color-mix(in oklab, var(--lantern-glow, #ffd48a) 62%, transparent) 0%, transparent 62%),
+    radial-gradient(95% 85% at 50% 42%, color-mix(in oklab, var(--gild, #c99a3e) 18%, transparent) 0%, transparent 68%),
+    radial-gradient(92% 82% at 98% 98%, color-mix(in oklab, var(--ambient-fill, #b9b4e6) 20%, transparent) 0%, transparent 60%);
+}
+
+/* ---- Crafted cards: paper stock / velvet folio / lacquered wood -------- */
+.tactile-card {
+  position: relative;
+  background-color: var(--cozy-paper-card);
+  border-color: color-mix(in oklab, var(--cozy-ink) 42%, var(--card-border));
+  border-radius: 24px;
+  background-image:
+    linear-gradient(142deg, var(--cozy-hi) 0%, var(--cozy-hi-soft) 28%, transparent 56%),
+    linear-gradient(0deg, color-mix(in oklab, var(--paper-shade, #efe0c2) 30%, transparent), transparent 44%);
+  box-shadow:
+    inset 1.5px 1.5px 0 var(--cozy-hi),
+    inset -1px -2px 0 color-mix(in oklab, var(--cozy-ink) 10%, transparent),
+    3px 6px 0 -2px color-mix(in oklab, var(--cozy-ink) 13%, transparent),
+    6px 14px 22px -6px var(--cozy-shadow);
+  outline: 1.5px dashed color-mix(in oklab, var(--cozy-ink-soft) 44%, transparent);
+  outline-offset: -7px;
+}
+
+/* Dark Candlelit & Specialty folio gilding */
+.app-root[data-theme='theme_cosmic_galaxy'] .tactile-card,
+.app-root[data-theme='theme_starlight_indigo'] .tactile-card,
+.app-root[data-theme='theme_royal_velvet'] .tactile-card,
+.app-root[data-theme='theme_laureate_imperial'] .tactile-card,
+.app-root[data-theme='theme_aurora_borealis'] .tactile-card,
+.app-root[data-theme='theme_emerald_rainforest'] .tactile-card,
+.app-root[data-theme='theme_neon_night_market'] .tactile-card {
+  border-color: color-mix(in oklab, var(--gild, #e6c47e) 58%, var(--card-border));
+  outline-color: color-mix(in oklab, var(--gild, #e6c47e) 34%, transparent);
+  box-shadow:
+    inset 1.5px 1.5px 0 color-mix(in oklab, var(--key-light, #ffd98a) 26%, transparent),
+    inset -1px -2px 0 rgba(4, 3, 12, 0.42),
+    4px 10px 24px -6px rgba(4, 3, 14, 0.62),
+    0 0 22px -10px color-mix(in oklab, var(--lantern-glow, #ffbe5c) 36%, transparent);
+}
+
+/* ---- Crafted buttons: enamel & carved wood pieces with weighted press -- */
+.tactile-btn,
+.hud-pill,
+.nav-item-btn,
+.gender-pill {
+  transition:
+    transform 320ms var(--cozy-spring),
+    box-shadow 260ms var(--cozy-settle),
+    filter 220ms ease;
+}
+
+.tactile-btn {
+  border-color: color-mix(in oklab, var(--cozy-ink) 38%, var(--card-border));
+  background-image: linear-gradient(
+    158deg,
+    var(--cozy-hi-soft) 0%,
+    transparent 48%,
+    color-mix(in oklab, var(--cozy-ink) 8%, transparent) 100%
+  );
+  box-shadow:
+    inset 1.5px 1.5px 0 var(--cozy-hi),
+    inset -1px -1.5px 0 color-mix(in oklab, var(--cozy-ink) 14%, transparent),
+    2px 5px 9px -2px var(--cozy-shadow);
+}
+
+.tactile-btn-soft {
+  background-color: var(--cozy-paper-soft);
+}
+
+.tactile-btn:hover:not(:disabled) {
+  filter: none;
+  transform: translateY(-1.5px);
+  box-shadow:
+    inset 1.5px 1.5px 0 color-mix(in oklab, var(--key-light, #ffe2a8) 54%, transparent),
+    inset -1px -1.5px 0 color-mix(in oklab, var(--cozy-ink) 14%, transparent),
+    3px 8px 14px -3px var(--cozy-shadow),
+    0 0 16px -5px var(--cozy-lamp);
+}
+
+.tactile-btn:active:not(:disabled) {
+  transform: translateY(2px) scale(0.97);
+  transition-duration: 90ms;
+  box-shadow:
+    inset 2px 2px 4px color-mix(in oklab, var(--cozy-ink) 22%, transparent),
+    1px 1px 3px -1px var(--cozy-shadow);
+}
+
+.tactile-btn-primary,
+.tactile-btn-success,
+.tactile-btn-amber,
+.tactile-btn-indigo,
+.tactile-btn-rose {
+  border-color: color-mix(in oklab, var(--cozy-ink) 42%, var(--lang-bevel, var(--card-border)));
+  box-shadow:
+    inset 1.5px 1.5px 0 rgba(255, 250, 232, 0.38),
+    inset -1px -1.5px 0 rgba(42, 24, 12, 0.2),
+    2px 5px 10px -2px var(--cozy-shadow);
+}
+
+/* ---- Hero 3: Discovery specimen card & corner brass flourishes --------- */
+.cozy-discovery-card {
+  overflow: hidden;
+}
+
+.cozy-corner-ornament {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.85;
+}
+
+.cozy-corner-ornament.is-tl {
+  top: 7px;
+  left: 7px;
+}
+
+.cozy-corner-ornament.is-br {
+  bottom: 7px;
+  right: 7px;
+}
+
+.cozy-specimen-mat {
+  position: relative;
+  background:
+    radial-gradient(circle at 28% 22%, var(--cozy-hi) 0%, transparent 65%),
+    var(--cozy-paper-soft) !important;
+  border-color: color-mix(in oklab, var(--gild, #c99a3e) 50%, var(--card-border)) !important;
+  box-shadow:
+    inset 2px 3px 7px -2px color-mix(in oklab, var(--cozy-ink) 22%, transparent),
+    inset -1.5px -1.5px 0 var(--cozy-hi),
+    2px 4px 10px -4px var(--cozy-shadow);
+}
+
+.cozy-example-strip {
+  background:
+    linear-gradient(160deg, var(--cozy-hi-soft), transparent 60%),
+    var(--cozy-paper-soft) !important;
+  border-color: color-mix(in oklab, var(--cozy-ink) 28%, var(--card-border)) !important;
+  box-shadow:
+    inset 1.5px 1.5px 0 var(--cozy-hi-soft),
+    inset 0 -1px 0 color-mix(in oklab, var(--cozy-ink) 8%, transparent);
+}
+
+/* ---- Hero 3: Word-bank wooden/ceramic tiles & recessed felt tray ------- */
+.tactile-tile {
+  position: relative;
+  background-color: color-mix(in oklab, var(--paper-base, #fbf1dc) 62%, var(--tile-bg));
+  border-color: color-mix(in oklab, var(--cozy-ink) 38%, var(--tile-border));
+  background-image:
+    linear-gradient(155deg, var(--cozy-hi) 0%, var(--cozy-hi-soft) 32%, transparent 56%),
+    var(--cozy-grain);
+  background-size: auto, 120px 120px;
+  background-blend-mode: normal, soft-light;
+  box-shadow:
+    inset 1.5px 1.5px 0 var(--cozy-hi),
+    inset -1px -1.5px 0 color-mix(in oklab, var(--cozy-ink) 14%, transparent),
+    2px 4px 0 -1px color-mix(in oklab, var(--cozy-ink) 18%, transparent),
+    3px 8px 10px -3px var(--cozy-shadow);
+  transition:
+    transform 340ms var(--cozy-spring),
+    box-shadow 260ms var(--cozy-settle),
+    background-color 220ms ease;
+}
+
+.tactile-tile:hover:not(:disabled):not(.is-ghost):not(.is-selected) {
+  transform: translateY(-2px) rotate(-0.5deg);
+}
+
+.tactile-tile:active:not(:disabled) {
+  transform: translateY(2px) scale(0.97);
+  transition-duration: 85ms;
+  box-shadow:
+    inset 2px 2px 3px color-mix(in oklab, var(--cozy-ink) 22%, transparent),
+    1px 1px 2px -1px var(--cozy-shadow);
+}
+
+.tactile-tile.is-selected {
+  box-shadow:
+    inset 1.5px 1.5px 0 var(--cozy-hi),
+    inset -1px -1.5px 0 color-mix(in oklab, var(--cozy-ink) 14%, transparent),
+    1px 2px 0 -1px color-mix(in oklab, var(--cozy-ink) 20%, transparent),
+    0 0 0 2px color-mix(in oklab, var(--gild, #c99a3e) 58%, transparent),
+    2px 5px 8px -3px var(--cozy-shadow);
+}
+
+.tactile-tile.is-ghost {
+  background-image: none;
+  box-shadow:
+    inset 2px 3px 5px color-mix(in oklab, var(--cozy-ink) 24%, transparent),
+    inset -1px -1px 0 var(--cozy-hi-soft);
+  border-style: dashed;
+}
+
+/* Recessed tabletop felt tray */
+.cozy-tray {
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--cozy-ink) 14%, transparent), transparent 55%),
+    var(--cozy-paper-soft) !important;
+  border: 2px solid color-mix(in oklab, var(--cozy-ink) 32%, var(--card-border)) !important;
+  box-shadow:
+    inset 3px 5px 10px -2px color-mix(in oklab, var(--cozy-ink) 28%, transparent),
+    inset -2px -2px 0 var(--cozy-hi-soft),
+    0 1.5px 0 var(--cozy-hi);
+}
+
+/* ---- Hero 3: Tap-to-peek folded ribbon bookmark note ------------------- */
+.tap-hint-token-btn {
+  border-bottom: 2px dotted var(--gild, var(--lang-primary));
+  transition: background-color 200ms ease, transform 300ms var(--cozy-spring);
+}
+
+.tap-hint-token-btn:hover,
+.tap-hint-token-btn.is-open {
+  background-image: linear-gradient(180deg, transparent 58%, color-mix(in oklab, var(--gild, #c99a3e) 36%, transparent) 58%);
+}
+
+.tap-hint-popover,
+.cozy-bookmark-note {
+  background-color: var(--cozy-paper-card);
+  border-color: color-mix(in oklab, var(--gild, #c99a3e) 56%, var(--cozy-ink-soft));
+  border-radius: 14px 14px 18px 14px;
+  background-image:
+    linear-gradient(145deg, var(--cozy-hi), transparent 52%),
+    repeating-linear-gradient(
+      180deg,
+      transparent 0px,
+      transparent 23px,
+      color-mix(in oklab, var(--cozy-ink-soft) 11%, transparent) 24px
+    );
+  box-shadow:
+    inset 1.5px 1.5px 0 var(--cozy-hi),
+    4px 10px 0 -3px color-mix(in oklab, var(--cozy-ink) 14%, transparent),
+    6px 16px 24px -6px var(--cozy-shadow);
+  animation: cozyNoteUnfold 340ms var(--cozy-spring) both;
+  transform-origin: 20% 0;
+}
+
+.tap-hint-popover::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: 14px;
+  width: 14px;
+  height: 22px;
+  background: linear-gradient(180deg, var(--gild, #c99a3e), color-mix(in oklab, var(--gild, #c99a3e) 76%, var(--cozy-ink)));
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 74%, 0 100%);
+  opacity: 0.95;
+  filter: drop-shadow(1px 2px 1px var(--cozy-shadow));
+}
+
+@keyframes cozyNoteUnfold {
+  from { opacity: 0; transform: translateY(-6px) scale(0.95); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---- Hero 3: Comic mini-story hand-lettered speech craft --------------- */
+.story-bubble {
+  position: relative;
+  border-color: color-mix(in oklab, var(--cozy-ink) 38%, var(--card-border)) !important;
+  background-image: linear-gradient(148deg, var(--cozy-hi), transparent 55%);
+  box-shadow:
+    inset 1.5px 1.5px 0 var(--cozy-hi),
+    3px 5px 0 -2px color-mix(in oklab, var(--cozy-ink) 13%, transparent),
+    4px 10px 14px -5px var(--cozy-shadow);
+}
+
+.story-bubble.is-left {
+  border-radius: 20px 20px 20px 6px !important;
+}
+
+.story-bubble.is-right {
+  border-radius: 20px 20px 6px 20px !important;
+}
+
+/* ---- Hero 3 & 4: Brass-rimmed glass vial gauges ------------------------ */
+.cozy-gauge-track {
+  position: relative;
+  background: color-mix(in oklab, var(--cozy-ink) 16%, transparent);
+  box-shadow:
+    inset 1.5px 2.5px 4px color-mix(in oklab, var(--cozy-ink) 32%, transparent),
+    0 1px 0 var(--cozy-hi);
+  border: 1.5px solid color-mix(in oklab, var(--gild, #c99a3e) 46%, var(--cozy-ink));
+}
+
+.cozy-gauge-fill {
+  position: relative;
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45), transparent 50%),
+    linear-gradient(90deg, #6fa062, var(--gild, #d9a441) 68%, var(--lantern-glow, #ffd48a));
+  transition: width 760ms var(--cozy-settle);
+  box-shadow: 0 0 10px 1px var(--cozy-lamp);
+  border-radius: 999px;
+}
+
+.cozy-gauge-fill::after {
+  content: '';
+  position: absolute;
+  right: 1px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: var(--key-light, #ffe2a8);
+  box-shadow: 0 0 7px 2px var(--lantern-glow, #ffd48a);
+}
+
+/* ---- Lesson header progress ribbon + hearth bloom ---------------------- */
+.lesson-progress-track {
+  background: color-mix(in oklab, var(--cozy-ink) 15%, transparent);
+  box-shadow: inset 1px 2px 3px color-mix(in oklab, var(--cozy-ink) 26%, transparent);
+  border-color: color-mix(in oklab, var(--cozy-ink) 34%, var(--card-border));
+}
+
+.lesson-progress-fill {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.36), transparent 52%),
+    linear-gradient(90deg, var(--lang-primary), var(--gild, var(--lang-secondary)));
+  background-color: transparent;
+  transition: width 680ms var(--cozy-settle);
+}
+
+.hearth-bloom {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  width: 90vmin;
+  height: 90vmin;
+  margin: -45vmin 0 0 -45vmin;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in oklab, var(--lantern-glow, #ffd48a) 54%, transparent) 0%,
+    color-mix(in oklab, var(--gild, #c99a3e) 18%, transparent) 38%,
+    transparent 68%
+  );
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.lesson-arena-footer {
+  box-shadow: 0 -8px 22px -10px var(--cozy-shadow), inset 0 1.5px 0 var(--cozy-hi);
+}
+
+/* ---- Hero 4: Shell (TopHud rail, popovers & bound-book BottomNav) ------ */
+.top-hud-inner,
+.responsive-nav {
+  border-color: color-mix(in oklab, var(--cozy-ink) 40%, var(--shell-border));
+  background-image: linear-gradient(148deg, var(--cozy-hi), transparent 52%);
+  box-shadow:
+    inset 1.5px 1.5px 0 var(--cozy-hi),
+    inset -1px -2px 0 color-mix(in oklab, var(--cozy-ink) 10%, transparent),
+    3px 8px 18px -6px var(--cozy-shadow);
+}
+
+.hud-popover {
+  background-color: var(--cozy-paper-card);
+  border-color: color-mix(in oklab, var(--cozy-ink) 40%, var(--card-border));
+  background-image: linear-gradient(148deg, var(--cozy-hi-soft), transparent 46%);
+  box-shadow:
+    inset 1.5px 1.5px 0 var(--cozy-hi),
+    6px 14px 28px -8px var(--cozy-shadow);
+}
+
+.hud-pill {
+  border-color: color-mix(in oklab, var(--cozy-ink) 34%, var(--card-border));
+  background-image: linear-gradient(160deg, var(--cozy-hi-soft), transparent 55%);
+  box-shadow: inset 1.5px 1.5px 0 var(--cozy-hi), 2px 4px 6px -2px var(--cozy-shadow);
+}
+
+.hud-pill:hover {
+  filter: none;
+  transform: translateY(-1px);
+}
+
+.hud-pill:active {
+  transform: translateY(2px) scale(0.97);
+}
+
+.nav-dock-pill {
+  border-color: var(--gild, var(--nav-active-border));
+  background-image: linear-gradient(160deg, var(--cozy-hi), transparent 60%);
+  box-shadow:
+    inset 1.5px 1.5px 0 var(--cozy-hi),
+    0 0 14px -3px var(--cozy-lamp),
+    2px 4px 7px -2px var(--cozy-shadow);
+}
+
+.nav-item-btn.is-active .nav-item-content {
+  animation: cozyNavBob 4.8s ease-in-out infinite;
+}
+
+@keyframes cozyNavBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.5px); }
+}
+
+.modal-card {
+  background-color: var(--cozy-paper-card);
+  border-radius: 26px;
+  background-image: linear-gradient(150deg, var(--cozy-hi), transparent 45%);
+  box-shadow:
+    inset 2px 2px 0 var(--cozy-hi),
+    6px 14px 0 -4px color-mix(in oklab, var(--cozy-ink) 14%, transparent),
+    10px 26px 40px -10px var(--cozy-shadow);
+}
+
+/* ---- Hero 4: Phrasebook sticker-book & Family Show-Off postcard -------- */
+.cozy-sticker-card {
+  transition: transform 320ms var(--cozy-spring), box-shadow 260ms var(--cozy-settle);
+}
+
+.cozy-sticker-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 1.5px 1.5px 0 var(--cozy-hi),
+    4px 9px 0 -2px color-mix(in oklab, var(--cozy-ink) 14%, transparent),
+    8px 18px 24px -6px var(--cozy-shadow);
+}
+
+.cozy-sticker-mat {
+  padding: 4px;
+  border-radius: 16px;
+  background: var(--cozy-paper-soft);
+  border: 1.5px solid color-mix(in oklab, var(--gild, #c99a3e) 48%, var(--card-border));
+  box-shadow:
+    inset 1.5px 2px 4px color-mix(in oklab, var(--cozy-ink) 18%, transparent),
+    0 1px 0 var(--cozy-hi);
+}
+
+.cozy-sticker-locked {
+  outline: none;
+  background-image: linear-gradient(180deg, color-mix(in oklab, var(--cozy-ink) 8%, transparent), transparent 60%);
+  box-shadow:
+    inset 2px 3px 8px -2px color-mix(in oklab, var(--cozy-ink) 20%, transparent),
+    inset -1px -1px 0 var(--cozy-hi-soft);
+}
+
+.cozy-sticker-silhouette {
+  filter: sepia(0.55) grayscale(0.75);
+  opacity: 0.34;
+}
+
+.cozy-showoff-card {
+  background-image:
+    radial-gradient(circle at 22% 16%, var(--cozy-hi) 0%, transparent 58%),
+    linear-gradient(0deg, color-mix(in oklab, var(--paper-shade, #efe0c2) 34%, transparent), transparent 46%);
+  box-shadow:
+    inset 2px 2px 0 var(--cozy-hi),
+    4px 10px 22px -6px var(--cozy-shadow),
+    0 0 24px -8px var(--cozy-lamp);
+}
+
+/* ---- Hero 4: Companion Shop illuminated curio pedestal ----------------- */
+.shop-pedestal-col {
+  position: relative;
+}
+
+.shop-pedestal-col::before {
+  content: '';
+  position: absolute;
+  inset: 8% 6% 4%;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 35%, var(--cozy-lamp), transparent 68%);
+}
+
+.shop-pedestal-col > * {
+  position: relative;
+  z-index: 1;
+}
+
+.cozy-pedestal-stage {
+  background-image:
+    radial-gradient(ellipse 85% 60% at 50% 24%, color-mix(in oklab, var(--lantern-glow, #ffd48a) 34%, transparent) 0%, transparent 72%),
+    linear-gradient(148deg, var(--cozy-hi) 0%, transparent 48%),
+    linear-gradient(0deg, color-mix(in oklab, var(--paper-shade, #efe0c2) 34%, transparent), transparent 40%);
+}
+
+.cozy-pedestal-dais-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: -2px;
+}
+
+.cozy-pedestal-dais {
+  display: block;
+  margin-top: 2px;
+  pointer-events: none;
+}
+
+.cozy-shop-item {
+  transition: transform 300ms var(--cozy-spring), box-shadow 260ms var(--cozy-settle);
+}
+
+.cozy-shop-item:hover {
+  transform: translateY(-1.5px);
+}
+
+/* ---- Hero 4: Leagues podium plinths & struck enamel medallions --------- */
+.leagues-pane-card {
+  border-radius: 24px;
+}
+
+.cozy-podium-plinth {
+  background-image: linear-gradient(155deg, var(--cozy-hi), transparent 58%);
+  box-shadow:
+    inset 1.5px 1.5px 0 var(--cozy-hi),
+    3px 6px 12px -4px var(--cozy-shadow);
+}
+
+.cozy-podium-plinth.is-rank-1 {
+  box-shadow:
+    inset 1.5px 1.5px 0 var(--cozy-hi),
+    0 0 20px -4px var(--cozy-lamp),
+    3px 8px 14px -4px var(--cozy-shadow);
+}
+
+.cozy-medallion-card {
+  background-image: linear-gradient(150deg, var(--cozy-hi-soft), transparent 58%);
+  box-shadow:
+    inset 1.5px 1.5px 0 var(--cozy-hi-soft),
+    2px 5px 10px -4px var(--cozy-shadow);
+  transition: transform 300ms var(--cozy-spring), box-shadow 260ms var(--cozy-settle);
+}
+
+.cozy-medallion-card.is-unlocked {
+  box-shadow:
+    inset 1.5px 1.5px 0 var(--cozy-hi),
+    0 0 18px -6px var(--cozy-lamp),
+    3px 6px 12px -4px var(--cozy-shadow);
+}
+
+.cozy-medallion-card:hover {
+  transform: translateY(-1.5px);
+}
+
+.cozy-medallion-bezel {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background:
+    radial-gradient(circle at 30% 25%, var(--cozy-hi), transparent 65%),
+    var(--cozy-paper-card);
+  border: 2px solid color-mix(in oklab, var(--cozy-ink) 32%, var(--card-border));
+  box-shadow:
+    inset 2px 2px 5px color-mix(in oklab, var(--cozy-ink) 22%, transparent),
+    1px 2px 4px -1px var(--cozy-shadow);
+}
+
+.cozy-medallion-bezel.is-unlocked {
+  border-color: var(--gild, #c99a3e);
+  box-shadow:
+    inset 1.5px 1.5px 0 var(--cozy-hi),
+    0 0 0 2px color-mix(in oklab, var(--gild, #c99a3e) 32%, transparent),
+    0 0 12px -2px var(--cozy-lamp);
+}
+
+/* ---- Reduced motion: still lamps, zero idle loops, instant settles ----- */
+@media (prefers-reduced-motion: reduce) {
+  .nav-item-btn.is-active .nav-item-content,
+  .tap-hint-popover,
+  .cozy-bookmark-note {
+    animation: none;
+  }
+
+  .tactile-btn,
+  .tactile-tile,
+  .hud-pill,
+  .cozy-gauge-fill,
+  .lesson-progress-fill,
+  .cozy-sticker-card,
+  .cozy-shop-item,
+  .cozy-medallion-card {
+    transition-duration: 1ms;
+  }
+
+  .tactile-btn:hover:not(:disabled),
+  .tactile-tile:hover:not(:disabled),
+  .cozy-sticker-card:hover,
+  .cozy-shop-item:hover,
+  .cozy-medallion-card:hover {
+    transform: none;
+  }
+}

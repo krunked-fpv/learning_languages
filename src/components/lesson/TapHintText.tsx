@@ -90,7 +90,7 @@ export function TapHintText({
       role="dialog"
       dir="ltr"
       aria-label={`Word hint for ${activeToken.surface}`}
-      className="tap-hint-popover"
+      className="tap-hint-popover cozy-bookmark-note"
       style={{
         top: `${coords.top}px`,
         left: `${coords.left}px`,

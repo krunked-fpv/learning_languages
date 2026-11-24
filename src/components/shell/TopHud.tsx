@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   ArrowLeft,
   ArrowLeftRight,
@@ -62,6 +62,7 @@ export function TopHud({
   coopSafeMask,
 }: TopHudProps) {
   const { vault, activeProfile } = useVaultStore();
+  const reduceMotion = useReducedMotion();
   const [openPopover, setOpenPopover] = useState<OpenPopover>(null);
   const [popoverCoords, setPopoverCoords] = useState({ top: 56, left: 16, width: 256 });
   const [compassTaps, setCompassTaps] = useState(0);
@@ -749,9 +750,9 @@ export function TopHud({
           >
             <motion.span
               key={compassAnimKey}
-              initial={compassAnimKey > 0 ? { rotate: -18, scale: 1.22 } : false}
+              initial={compassAnimKey > 0 && !reduceMotion ? { rotate: -16, scale: 1.16 } : false}
               animate={{ rotate: 0, scale: 1 }}
-              transition={{ type: 'spring', stiffness: 460, damping: 14 }}
+              transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 210, damping: 23, mass: 1.1 }}
               style={{ display: 'inline-flex', alignItems: 'center' }}
             >
               <Compass size={16} />

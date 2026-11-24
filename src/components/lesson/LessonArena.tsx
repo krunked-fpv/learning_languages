@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   Flame,
   Gem,
@@ -103,6 +103,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
   const { vault, activeProfile, activeProgress } = useVaultStore();
   const compact = useCompactViewport();
   const langDir = LANGUAGE_META[language].dir;
+  const reduceMotion = useReducedMotion();
   const activeUnit = getUnitById(language, node.unitId);
   const nodeTier = resolveNodeProficiencyTier(node, activeUnit);
   const tierMeta = PROFICIENCY_TIER_META[nodeTier];
@@ -701,6 +702,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
   return (
     <div
       className={`lesson-arena-shell ${comboCount >= 5 ? 'is-on-fire' : ''}`}
+      data-combo-tier={comboCount >= 5 ? 'hearth' : comboCount >= 3 ? 'warm' : 'calm'}
       role="region"
       aria-label={`Lesson: ${node.title}`}
       onPointerMove={(e) => setPointerTarget({ x: e.clientX, y: e.clientY })}
@@ -972,10 +974,10 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
           {/* Lesson Victory Summary */}
           {!inRecoveryArcade && !isChestNode && lessonWon ? (
             <motion.div
-              initial={{ opacity: 0, scale: 0.94 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ type: 'spring', stiffness: 360, damping: 26 }}
-              className="tactile-card"
+              initial={reduceMotion ? false : { opacity: 0, scale: 0.95, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 210, damping: 24, mass: 1.15 }}
+              className="tactile-card cozy-victory-card"
               style={{
                 padding: compact ? 14 : 24,
                 display: 'flex',
@@ -1017,8 +1019,8 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
                   return (
                     <motion.div
                       key={idx}
-                      animate={popped ? { scale: [0.5, 1.3, 1] } : { scale: 0.9 }}
-                      transition={{ type: 'spring', stiffness: 460, damping: 18 }}
+                      animate={popped && !reduceMotion ? { scale: [0.65, 1.2, 1] } : { scale: popped ? 1 : 0.9 }}
+                      transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 220, damping: 22, mass: 1.1 }}
                     >
                       <Star
                         size={compact ? 26 : 32}
