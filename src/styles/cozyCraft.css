@@ -169,10 +169,47 @@
 .tactile-btn-indigo,
 .tactile-btn-rose {
   border-color: color-mix(in oklab, var(--cozy-ink) 42%, var(--lang-bevel, var(--card-border)));
+  background-image: linear-gradient(
+    158deg,
+    rgba(255, 248, 224, 0.24) 0%,
+    transparent 46%,
+    rgba(42, 24, 12, 0.14) 100%
+  );
   box-shadow:
-    inset 1.5px 1.5px 0 rgba(255, 250, 232, 0.38),
-    inset -1px -1.5px 0 rgba(42, 24, 12, 0.2),
+    inset 1.5px 1.5px 0 rgba(255, 248, 224, 0.34),
+    inset -1px -1.5px 0 rgba(42, 24, 12, 0.22),
     2px 5px 10px -2px var(--cozy-shadow);
+}
+
+/* Heirloom gouache/enamel button tones (all WCAG AA >= 6.0:1) */
+.tactile-btn-amber:not(:disabled) {
+  background-color: #e4a12b;
+  border-color: #8a5614;
+  color: #2b1808;
+}
+
+.tactile-btn-indigo:not(:disabled) {
+  background-color: #414885;
+  border-color: #292e5c;
+  color: #fdf8ee;
+}
+
+.tactile-btn-success:not(:disabled) {
+  background-color: #1f6c50;
+  border-color: #134835;
+  color: #fdfaf2;
+}
+
+.tactile-btn-rose:not(:disabled) {
+  background-color: #a62d43;
+  border-color: #6d1b2a;
+  color: #fdfaf2;
+}
+
+.tactile-btn-primary:not(:disabled) {
+  background-color: color-mix(in oklab, var(--lang-btn-bg, var(--lang-primary)) 84%, #5c3a22);
+  border-color: color-mix(in oklab, var(--lang-bevel, #1e40af) 72%, #3d2412);
+  color: #fffdf7;
 }
 
 /* ---- Hero 3: Discovery specimen card & corner brass flourishes --------- */
@@ -270,15 +307,52 @@
 }
 
 /* Recessed tabletop felt tray */
-.cozy-tray {
+.cozy-tray,
+.cozy-choice-tray {
   background:
-    linear-gradient(180deg, color-mix(in oklab, var(--cozy-ink) 14%, transparent), transparent 55%),
+    linear-gradient(180deg, color-mix(in oklab, var(--cozy-ink) 12%, transparent), transparent 56%),
     var(--cozy-paper-soft) !important;
-  border: 2px solid color-mix(in oklab, var(--cozy-ink) 32%, var(--card-border)) !important;
+  border: 2px solid color-mix(in oklab, var(--cozy-ink) 30%, var(--card-border)) !important;
   box-shadow:
-    inset 3px 5px 10px -2px color-mix(in oklab, var(--cozy-ink) 28%, transparent),
+    inset 3px 5px 10px -2px color-mix(in oklab, var(--cozy-ink) 26%, transparent),
     inset -2px -2px 0 var(--cozy-hi-soft),
     0 1.5px 0 var(--cozy-hi);
+}
+
+.cozy-choice-tray {
+  padding: 10px;
+  border-radius: 18px;
+}
+
+.cozy-choice-tray .starlight-choice-tile {
+  background-color: color-mix(in oklab, var(--paper-base, #fbf1dc) 68%, var(--tile-bg)) !important;
+  border-color: color-mix(in oklab, var(--cozy-ink) 36%, var(--tile-border)) !important;
+  background-image:
+    linear-gradient(155deg, var(--cozy-hi) 0%, var(--cozy-hi-soft) 32%, transparent 56%),
+    var(--cozy-grain);
+  background-size: auto, 120px 120px;
+  background-blend-mode: normal, soft-light;
+  box-shadow:
+    inset 1.5px 1.5px 0 var(--cozy-hi),
+    inset -1px -1.5px 0 color-mix(in oklab, var(--cozy-ink) 14%, transparent),
+    2px 4px 0 -1px color-mix(in oklab, var(--cozy-ink) 18%, transparent),
+    3px 7px 10px -3px var(--cozy-shadow);
+}
+
+.cozy-choice-tray .starlight-choice-tile[aria-checked='true'] {
+  background-color: var(--tile-selected-bg) !important;
+  border-color: var(--gild, var(--lang-primary)) !important;
+  box-shadow:
+    inset 1.5px 1.5px 0 var(--cozy-hi),
+    0 0 0 2px color-mix(in oklab, var(--gild, #c99a3e) 54%, transparent),
+    2px 5px 10px -3px var(--cozy-shadow);
+}
+
+/* Soft right-edge scroll fade for horizontal chip rails (Phrasebook, Shop, Leagues) */
+.console-scroll-pane-x {
+  padding-right: 26px;
+  -webkit-mask-image: linear-gradient(to right, #000 0%, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 0%, #000 calc(100% - 28px), transparent 100%);
 }
 
 /* ---- Hero 3: Tap-to-peek folded ribbon bookmark note ------------------- */
@@ -560,13 +634,89 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: -2px;
+  gap: 0;
+}
+
+.cozy-pedestal-dais-wrap > [data-companion] {
+  position: relative;
+  z-index: 2;
 }
 
 .cozy-pedestal-dais {
   display: block;
-  margin-top: 2px;
+  position: relative;
+  z-index: 1;
+  margin-top: -14px;
   pointer-events: none;
+}
+
+.cozy-pedestal-dais.is-compact {
+  margin-top: -9px;
+}
+
+.cozy-pedestal-badge {
+  margin-top: 5px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: linear-gradient(160deg, var(--cozy-hi), transparent 60%), var(--tint-amber-bg);
+  border: 1.5px solid var(--gild, var(--tint-amber-border));
+  color: var(--tint-amber-ink);
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  font-weight: 900;
+  line-height: 1.25;
+  box-shadow: inset 1px 1px 0 var(--cozy-hi), 1px 3px 6px -2px var(--cozy-shadow);
+  max-width: 100%;
+  text-align: center;
+}
+
+.cozy-pedestal-badge.is-compact {
+  margin-top: 3px;
+  padding: 2px 8px;
+  font-size: 0.66rem;
+}
+
+/* Dark-theme MascotStage spotlight halo fix: replace harsh white r=88 cutout with soft amber lantern pool */
+.app-root[data-theme='theme_cosmic_galaxy'] [data-companion] > svg > circle[r='88'],
+.app-root[data-theme='theme_starlight_indigo'] [data-companion] > svg > circle[r='88'],
+.app-root[data-theme='theme_royal_velvet'] [data-companion] > svg > circle[r='88'],
+.app-root[data-theme='theme_laureate_imperial'] [data-companion] > svg > circle[r='88'],
+.app-root[data-theme='theme_aurora_borealis'] [data-companion] > svg > circle[r='88'],
+.app-root[data-theme='theme_emerald_rainforest'] [data-companion] > svg > circle[r='88'],
+.app-root[data-theme='theme_neon_night_market'] [data-companion] > svg > circle[r='88'] {
+  opacity: 0;
+}
+
+.app-root[data-theme='theme_cosmic_galaxy'] [data-companion] > svg,
+.app-root[data-theme='theme_starlight_indigo'] [data-companion] > svg,
+.app-root[data-theme='theme_royal_velvet'] [data-companion] > svg,
+.app-root[data-theme='theme_laureate_imperial'] [data-companion] > svg,
+.app-root[data-theme='theme_aurora_borealis'] [data-companion] > svg,
+.app-root[data-theme='theme_emerald_rainforest'] [data-companion] > svg,
+.app-root[data-theme='theme_neon_night_market'] [data-companion] > svg {
+  position: relative;
+  z-index: 1;
+}
+
+.app-root[data-theme='theme_cosmic_galaxy'] [data-companion]::before,
+.app-root[data-theme='theme_starlight_indigo'] [data-companion]::before,
+.app-root[data-theme='theme_royal_velvet'] [data-companion]::before,
+.app-root[data-theme='theme_laureate_imperial'] [data-companion]::before,
+.app-root[data-theme='theme_aurora_borealis'] [data-companion]::before,
+.app-root[data-theme='theme_emerald_rainforest'] [data-companion]::before,
+.app-root[data-theme='theme_neon_night_market'] [data-companion]::before {
+  content: '';
+  position: absolute;
+  inset: -34%;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in oklab, var(--lantern-glow, #ffd48a) 22%, transparent) 0%,
+    color-mix(in oklab, var(--gild, #e6c47e) 7%, transparent) 32%,
+    transparent 60%
+  );
 }
 
 .cozy-shop-item {

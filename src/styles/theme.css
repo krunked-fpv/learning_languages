@@ -47,18 +47,18 @@
   --card-glow: 0 10px 26px color-mix(in oklab, #4a3426 14%, transparent);
 
   /* Semantic Surface Tints */
-  --tint-amber-bg: #fffbeb;
-  --tint-amber-border: #fbbf24;
-  --tint-amber-ink: #92400e;
-  --tint-emerald-bg: #ecfdf5;
-  --tint-emerald-border: #34d399;
-  --tint-emerald-ink: #065f46;
-  --tint-indigo-bg: #eef2ff;
-  --tint-indigo-border: #818cf8;
-  --tint-indigo-ink: #312e81;
-  --tint-rose-bg: #fff1f2;
-  --tint-rose-border: #fda4af;
-  --tint-rose-ink: #9f1239;
+  --tint-amber-bg: #f8ecd0;
+  --tint-amber-border: #c99a3e;
+  --tint-amber-ink: #683c0d;
+  --tint-emerald-bg: #e6f0e2;
+  --tint-emerald-border: #689970;
+  --tint-emerald-ink: #1e4d32;
+  --tint-indigo-bg: #ece9f2;
+  --tint-indigo-border: #8a86af;
+  --tint-indigo-ink: #322f5e;
+  --tint-rose-bg: #f6e6e3;
+  --tint-rose-border: #c97f7d;
+  --tint-rose-ink: #7d252e;
 
   /* Active Language Dynamic Tokens (overridden inline by activeLanguage) */
   --lang-primary: #2563eb;

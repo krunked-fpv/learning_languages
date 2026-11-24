@@ -635,6 +635,7 @@ export function BossGauntletView({
       {/* Turn Choice, Word Bank, or Keyboard Free-Recall */}
       {currentTurn.mode === 'choice' ? (
         <div
+          className="cozy-choice-tray"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))',

@@ -412,7 +412,7 @@ export function MiniStoryView({
               <Sparkles size={16} />
               <span>Story Choice: {activeDecision.questionEnglish}</span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="cozy-choice-tray" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {activeDecision.options.map((opt) => {
                 const isDimmed = hint.dimmedUids.has(opt.id);
                 const isSpotlight = hint.spotlightZone === 'choice' && hint.spotlightUid === opt.id;
