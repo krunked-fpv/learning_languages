@@ -82,3 +82,39 @@ Contributors: **Mila (`mila-playtester`)**, **Devon (`devon-chaos`)**, Coordinat
 - **Specialists Needed:** `julian-architect`, `leo-arcade`, `mateo-illustrator`
 - **Effort / Risk:** `L` / `M`
 - **Recommended Priority:** `P3`
+
+---
+
+## Sprint 3 Backlog Proposals (`S3-001`–`S3-006`)
+
+Curated from Sprint 2 Wave 2 playtesting (`vera-s2`, `devon-s2`, `mila-s2`):
+
+### S3-001 — Safe Atlas Masking in `TopHud` During Kid-Quarantined 2P Co-Op
+- **Triggered By:** Co-Op quarantine audit (`devon-s2` #64)
+- **Proposal:** Mask/replace any Adult `TopHud` language badge (`TopHud.tsx:160-164, 657-689`) with `"Family Co-Op Safe Atlas"` whenever Kid-Quarantined 2P Co-Op is active so adult track names never appear above a kid-safe board.
+- **Specialists Needed:** `@liam-s2`, `@leo-s2` | **Priority:** `P2`
+
+### S3-002 — Pre-Warm Co-Op Base Language Chunks on Handoff + Family Pair Streaks
+- **Triggered By:** `BUG-S2-001` lazy-chunk audit (`devon-s2` #64)
+- **Proposal:** Pre-warm both P1 & P2 base language chunks when Co-Op starts (with offline Retry guard on Handoff) and celebrate recurring Family Co-Op pair streaks.
+- **Specialists Needed:** `@leo-s2`, `@julian-s2` | **Priority:** `P2`
+
+### S3-003 — Strict Vault Date Validation, Co-Op Language Attribution & Partner Delete Guard
+- **Triggered By:** `BUG-S2-002`, `BUG-S2-003`, `BUG-S2-004` (`devon-s2` #64)
+- **Proposal:** Validate ISO dates strictly (`Number.isFinite(Date.parse(...))`) in `validateVault`, cancel stale `coopMatch` if either partner is deleted/edited mid-match, and attribute Co-Op XP to the turn's played safe language.
+- **Specialists Needed:** `@julian-s2`, `@leo-s2` | **Priority:** `P2`
+
+### S3-004 — Unified Compact Script Strip for `<640px` Mobile Free-Recall
+- **Triggered By:** `BUG-S2-009` (`mila-s2` #65)
+- **Proposal:** Consolidate `helperAccents` and `VirtualScriptDrawer` into a single compact expandable script strip on `<640px` viewports to eliminate duplicate Pinyin/Arabic keys and triple-nested scrollbars.
+- **Specialists Needed:** `@liam-s2`, `@mateo-s2` | **Priority:** `P3`
+
+### S3-005 — Pinyin Tone-Number Input (`ni3 hao3`) & Arabic Hamza/Ayn Optionality Note
+- **Triggered By:** Multi-script typing UX sweep (`mila-s2` #65)
+- **Proposal:** Accept numeric tone notation (`ni3 hao3` -> `nǐ hǎo`) in Free-Recall Pinyin mode and show a one-line optionality hint for Arabic hamza/ayn keys on QWERTY keyboards.
+- **Specialists Needed:** `@julian-s2`, `@clara-s2` | **Priority:** `P3`
+
+### S3-006 — Friendly Default Adult Profile Naming & 1-Tap Profile Restore on `Study Break`
+- **Triggered By:** After-Hours UX sweep (`mila-s2` #65)
+- **Proposal:** Default secondary Adult profile name to `"Parent"` (instead of `"After-Hours"`) and optionally restore the prior kid profile on `Study Break` so `"After-Hours"` does not linger in `TopHud`.
+- **Specialists Needed:** `@julian-s2`, `@liam-s2` | **Priority:** `P3`

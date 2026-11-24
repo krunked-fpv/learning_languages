@@ -183,8 +183,14 @@ describe('Challenge 3-speech: Zero-Stall Speech Fallback, Watchdog & ListenDecod
     expect(getSpeechRuntimeState().fallbackActive).toBe(true);
   });
 
-  it('recovers via 4500ms watchdog when a native utterance hangs (neither onend nor onerror fires)', async () => {
+  it('recovers via 4500ms watchdog with non-blocking marimba cadence rescue when a native utterance hangs (neither onend nor onerror fires)', async () => {
     vi.useFakeTimers();
+    const { createdMock, oscTypes } = createMockAudioContext();
+    Object.defineProperty(window, 'AudioContext', {
+      configurable: true,
+      writable: true,
+      value: createdMock,
+    });
     const { FakeUtterance, created } = createFakeUtteranceCtor();
     Object.defineProperty(globalThis, 'SpeechSynthesisUtterance', {
       configurable: true,
@@ -218,6 +224,7 @@ describe('Challenge 3-speech: Zero-Stall Speech Fallback, Watchdog & ListenDecod
     });
 
     expect(hasNativeVoice('es')).toBe(true);
+    const rescueBefore = getSpeechRuntimeState().watchdogRescueCount ?? 0;
 
     let resolved = false;
     const speakPromise = speakPhrase({
@@ -235,13 +242,27 @@ describe('Challenge 3-speech: Zero-Stall Speech Fallback, Watchdog & ListenDecod
     expect(getSpeechRuntimeState().isSpeaking).toBe(true);
     expect(resolved).toBe(false);
 
-    // Advance past 4500ms watchdog timeout
+    // Advance past 4500ms watchdog timeout: triggers non-blocking marimba rescue & SpeechOutcome v2
     await vi.advanceTimersByTimeAsync(4600);
     const outcome = await speakPromise;
     expect(resolved).toBe(true);
-    expect(outcome.usedNativeVoice).toBe(true);
+    expect(outcome).toEqual({
+      usedNativeVoice: false,
+      fallbackActive: true,
+      localeUsed: 'es-MX',
+      watchdogTriggered: true,
+    });
     expect(cancelSpy).toHaveBeenCalled();
     expect(getSpeechRuntimeState().isSpeaking).toBe(false);
+    expect(getSpeechRuntimeState().fallbackActive).toBe(true);
+    expect(getSpeechRuntimeState().watchdogTriggered).toBe(true);
+    expect(getSpeechRuntimeState().watchdogRescueCount ?? 0).toBeGreaterThanOrEqual(1);
+    expect(getSpeechRuntimeState().watchdogRescueCount).toBe(rescueBefore + 1);
+    expect(oscTypes.length).toBeGreaterThan(0);
+    for (const wave of oscTypes) {
+      expect(['sine', 'triangle']).toContain(wave);
+    }
+    stopSpeech();
   });
 
   it('falls back to phonetic cadence when utterance.onerror fires', async () => {

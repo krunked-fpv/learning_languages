@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { execSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import vm from 'node:vm';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -53,8 +54,11 @@ interface SimulatedSwHarness {
   dispatchFetch: (request: Request) => Promise<Response | undefined>;
 }
 
-function loadServiceWorkerHarness(originBase = 'http://127.0.0.1:4173/wanderling-subpath/'): SimulatedSwHarness {
-  const swSource = readFileSync(resolve(ROOT_DIR, 'public/sw.js'), 'utf8');
+function loadServiceWorkerHarness(
+  originBase = 'http://127.0.0.1:4173/wanderling-subpath/',
+  swRelPath = 'public/sw.js'
+): SimulatedSwHarness {
+  const swSource = readFileSync(resolve(ROOT_DIR, swRelPath), 'utf8');
   const listeners = new Map<string, Array<(event: unknown) => void>>();
   const cacheStore = new Map<string, Map<string, Response>>();
   const skipWaiting = vi.fn().mockResolvedValue(undefined);
@@ -555,6 +559,7 @@ describe('Cohort E [PT-089..PT-100]: Chaos, Save Vault, Audio Watchdog, PWA Offl
       autoComplete: 'hang',
     });
 
+    const rescueBefore = getSpeechRuntimeState().watchdogRescueCount ?? 0;
     let settled = false;
     const p1 = speakPhrase({
       text: '¡Hola!',
@@ -572,9 +577,19 @@ describe('Cohort E [PT-089..PT-100]: Chaos, Save Vault, Audio Watchdog, PWA Offl
     await vi.advanceTimersByTimeAsync(4600);
     const out1 = await p1;
     expect(settled).toBe(true);
-    expect(out1.usedNativeVoice).toBe(true);
+    expect(out1).toEqual({
+      usedNativeVoice: false,
+      fallbackActive: true,
+      localeUsed: 'es-MX',
+      watchdogTriggered: true,
+    });
     expect(cancelSpy).toHaveBeenCalled();
     expect(getSpeechRuntimeState().isSpeaking).toBe(false);
+    expect(getSpeechRuntimeState().fallbackActive).toBe(true);
+    expect(getSpeechRuntimeState().watchdogTriggered).toBe(true);
+    expect(getSpeechRuntimeState().watchdogRescueCount ?? 0).toBeGreaterThanOrEqual(1);
+    expect(getSpeechRuntimeState().watchdogRescueCount).toBe(rescueBefore + 1);
+    stopSpeech();
 
     // Case B: onerror falls back to marimba cadence cleanly
     installMockSpeechSynthesis({
@@ -632,18 +647,19 @@ describe('Cohort E [PT-089..PT-100]: Chaos, Save Vault, Audio Watchdog, PWA Offl
     expect(getSpeechRuntimeState().isSpeaking).toBe(false);
   });
 
-  it('[PT-098] ./sw.js precaches all core assets on install and purges stale caches on activate', async () => {
+  it('[PT-098] ./sw.js precaches all core & manifest assets in wanderling-cache-v8 and purges stale caches on activate', async () => {
     const sw = loadServiceWorkerHarness('http://127.0.0.1:4173/wanderling-subpath/');
-    // Pre-populate stale caches
+    // Pre-populate stale caches (including v7)
     sw.cacheStore.set('wanderling-cache-v1', new Map());
     sw.cacheStore.set('wanderling-cache-v6', new Map());
+    sw.cacheStore.set('wanderling-cache-v7', new Map());
 
     await sw.dispatchInstall();
     expect(sw.skipWaiting).toHaveBeenCalledTimes(1);
 
-    const activeCache = sw.cacheStore.get('wanderling-cache-v7');
+    const activeCache = sw.cacheStore.get('wanderling-cache-v8');
     expect(activeCache).toBeDefined();
-    for (const relUrl of [
+    const coreRelUrls = [
       './',
       './index.html',
       './manifest.json',
@@ -652,7 +668,8 @@ describe('Cohort E [PT-089..PT-100]: Chaos, Save Vault, Audio Watchdog, PWA Offl
       './icons/icon-maskable-192.png',
       './icons/icon-maskable-512.png',
       './icons/apple-touch-icon.png',
-    ]) {
+    ];
+    for (const relUrl of coreRelUrls) {
       const fullHref = new URL(relUrl, 'http://127.0.0.1:4173/wanderling-subpath/').href;
       expect(activeCache!.has(fullHref), `Missing precache entry ${fullHref}`).toBe(true);
     }
@@ -661,7 +678,51 @@ describe('Cohort E [PT-089..PT-100]: Chaos, Save Vault, Audio Watchdog, PWA Offl
     expect(sw.clientsClaim).toHaveBeenCalledTimes(1);
     expect(sw.cacheStore.has('wanderling-cache-v1')).toBe(false);
     expect(sw.cacheStore.has('wanderling-cache-v6')).toBe(false);
-    expect(sw.cacheStore.has('wanderling-cache-v7')).toBe(true);
+    expect(sw.cacheStore.has('wanderling-cache-v7')).toBe(false);
+    expect(sw.cacheStore.has('wanderling-cache-v8')).toBe(true);
+
+    // S2-003: dist/sw-precache-manifest.json & injected dist/sw.js precache full built chunks in v8
+    const manifestPath = resolve(ROOT_DIR, 'dist/sw-precache-manifest.json');
+    const distSwPath = resolve(ROOT_DIR, 'dist/sw.js');
+    if (!existsSync(manifestPath) || !existsSync(distSwPath)) {
+      const nodeBinDir = dirname(process.execPath);
+      const pathSep = process.platform === 'win32' ? ';' : ':';
+      execSync('npm run build', {
+        cwd: ROOT_DIR,
+        stdio: 'pipe',
+        env: {
+          ...process.env,
+          NODE_ENV: 'production',
+          PATH: `${nodeBinDir}${pathSep}${process.env.PATH ?? ''}`,
+        },
+      });
+    }
+    expect(existsSync(manifestPath)).toBe(true);
+    expect(existsSync(distSwPath)).toBe(true);
+    const precacheManifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      cacheVersion: string;
+      assets: string[];
+    };
+    expect(precacheManifest.cacheVersion).toBe('wanderling-cache-v8');
+    expect(new Set(precacheManifest.assets).size).toBe(precacheManifest.assets.length);
+    for (const relUrl of coreRelUrls) {
+      expect(precacheManifest.assets).toContain(relUrl);
+    }
+    expect(precacheManifest.assets.some((a) => /^\.\/assets\/course-es-/.test(a))).toBe(true);
+    expect(precacheManifest.assets.some((a) => /^\.\/assets\/course-ja-/.test(a))).toBe(true);
+
+    const distSw = loadServiceWorkerHarness('http://127.0.0.1:4173/wanderling-subpath/', 'dist/sw.js');
+    distSw.cacheStore.set('wanderling-cache-v7', new Map());
+    await distSw.dispatchInstall();
+    const distV8Cache = distSw.cacheStore.get('wanderling-cache-v8');
+    expect(distV8Cache).toBeDefined();
+    for (const relUrl of precacheManifest.assets) {
+      const fullHref = new URL(relUrl, 'http://127.0.0.1:4173/wanderling-subpath/').href;
+      expect(distV8Cache!.has(fullHref), `dist/sw.js missing manifest entry ${relUrl}`).toBe(true);
+    }
+    await distSw.dispatchActivate();
+    expect(distSw.cacheStore.has('wanderling-cache-v7')).toBe(false);
+    expect(distSw.cacheStore.has('wanderling-cache-v8')).toBe(true);
 
     // BUG-017: Root metadata must match 16-language Wanderling 2.0 scope
     const pkg = JSON.parse(readFileSync(resolve(ROOT_DIR, 'package.json'), 'utf8')) as {
