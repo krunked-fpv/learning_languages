@@ -25,7 +25,7 @@ const CJK_INTER_SPACE_REGEX =
   /(?<=[\u3005\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF])\s+(?=[\u3005\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF])/g;
 const ARABIC_HARAKAT_REGEX = /[\u064B-\u065F\u0670]/g;
 const SPECIAL_ACCENT_CHAR_REGEX =
-  /[\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u024F\u02BE\u02BF\u1E00-\u1EFF\u0451\u0401\u064B-\u065F\u0670\u0901\u093C\u0981\u09BCأإآٱىة]/;
+  /[\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u024F\u02BE\u02BF\u1E00-\u1EFF\u0451\u0401\u064B-\u065F\u0670\u0901\u093C\u0958-\u095F\u0981\u09BC\u09DC\u09DD\u09DFأإآٱىة]/;
 const AFTER_HOURS_CASUAL_PUNCT_REGEX = /[~*•·\\/|_+]/g;
 
 // Valid base Mandarin Pinyin syllables (without tone marks; ü normalized from v / u:).
@@ -591,12 +591,35 @@ function normalizeGermanMixed(input: string): string {
   );
 }
 
-function matchesExact(submittedRaw: string, candidateRaw: string): boolean {
+/**
+ * Strips optional Mandarin Pinyin syllable-divider apostrophes strictly between
+ * Pinyin letters (e.g. "Mǎtè'ào" -> "Mǎtèào", "Wǎn'ān" -> "Wǎnān").
+ */
+function stripPinyinSyllableApostrophes(text: string): string {
+  return text.replace(
+    /(?<=[a-z\u00C0-\u024F\u1E00-\u1EFF])'(?=[a-z\u00C0-\u024F\u1E00-\u1EFF])/g,
+    ''
+  );
+}
+
+function matchesExact(
+  submittedRaw: string,
+  candidateRaw: string,
+  language?: LanguageCode
+): boolean {
   const normSub = normalizeAnswer(submittedRaw);
   const normCand = normalizeAnswer(candidateRaw);
   if (!normSub || !normCand) return normSub === normCand && normCand.length > 0;
   if (normSub === normCand) return true;
-  return stripSentencePunctuation(normSub) === stripSentencePunctuation(normCand);
+  const cleanSub = stripSentencePunctuation(normSub);
+  const cleanCand = stripSentencePunctuation(normCand);
+  if (cleanSub === cleanCand) return true;
+  if (language === 'zh') {
+    return (
+      stripPinyinSyllableApostrophes(cleanSub) === stripPinyinSyllableApostrophes(cleanCand)
+    );
+  }
+  return false;
 }
 
 function matchesAccentForgiving(
@@ -704,7 +727,7 @@ function buildFriendlyAccentTip(
     return `Almost exact! Remember this spelling uses plain letters instead of ${list}.`;
   }
   if (chars.length === 0) {
-    return 'Great answer! Keep an eye on the accent marks to make it letter-perfect.';
+    return 'Great answer! Watch the spacing and punctuation to make it letter-perfect.';
   }
 
   const tips: string[] = [];
@@ -796,13 +819,28 @@ function buildFriendlyAccentTip(
     }
   }
 
+  if (takeMatchingChars(chars, handled, (c) => c === "'").length > 0) {
+    tips.push(
+      language === 'zh' || language === 'ja'
+        ? "Watch for the syllable apostrophe (') — it keeps adjacent syllables distinct."
+        : "Watch for the apostrophe (') in standard romanized spelling."
+    );
+  }
+  if (takeMatchingChars(chars, handled, (c) => c === '-').length > 0) {
+    tips.push("Watch for the hyphen (-) — it links prefixes or compound syllables cleanly.");
+  }
+
   const remaining = chars.filter((c) => !handled.has(c));
   if (remaining.length > 0) {
     if (remaining.some((c) => /[\u02BE\u02BF]/.test(c))) {
       tips.push(
         'Watch the glottal/ʿayn transliteration marks (ʾ / ʿ) in precise Arabic romanization.'
       );
-    } else if (remaining.some((c) => /[\u0901\u093C\u0981\u09BC]/.test(c))) {
+    } else if (
+      remaining.some((c) =>
+        /[\u0901\u093C\u0958-\u095F\u0981\u09BC\u09DC\u09DD\u09DF]/.test(c)
+      )
+    ) {
       tips.push(
         `Notice the nasal chandrabindu or nukta dot (${remaining.join(', ')}) — it refines the consonant or vowel resonance.`
       );
@@ -895,7 +933,7 @@ function buildAccentCoaching(
   expectedCandidate: string,
   submittedRaw: string,
   language: LanguageCode
-): AccentCoaching {
+): AccentCoaching | undefined {
   if (isAdultLanguage(language)) {
     return buildAfterHoursCoaching(expectedCandidate, submittedRaw, language);
   }
@@ -927,6 +965,26 @@ function buildAccentCoaching(
       highlightedChars = extras;
       extraOnly = true;
     }
+  }
+
+  if (
+    highlightedChars.length === 0 &&
+    (language === 'ar' || language === 'arz' || language === 'zh' || language === 'ja')
+  ) {
+    const candApostropheCount = (normCand.match(/'/g) ?? []).length;
+    const subApostropheCount = (normSub.match(/'/g) ?? []).length;
+    if (candApostropheCount > subApostropheCount) {
+      highlightedChars.push("'");
+    }
+    const candHyphenCount = (normCand.match(/-/g) ?? []).length;
+    const subHyphenCount = (normSub.match(/-/g) ?? []).length;
+    if (candHyphenCount > subHyphenCount) {
+      highlightedChars.push('-');
+    }
+  }
+
+  if (highlightedChars.length === 0) {
+    return undefined;
   }
 
   return {
@@ -1787,7 +1845,7 @@ export function gradeAnswer(req: GradeRequest): GradeResult {
   );
 
   for (const candidate of candidates) {
-    if (matchesExact(req.submitted, candidate)) {
+    if (matchesExact(req.submitted, candidate, req.language)) {
       return {
         isCorrect: true,
         exactMatch: true,
@@ -1802,7 +1860,7 @@ export function gradeAnswer(req: GradeRequest): GradeResult {
   if (req.language === 'zh' && hasNumericPinyinSyllable(req.submitted)) {
     const converted = convertNumericPinyin(req.submitted);
     for (const candidate of candidates) {
-      if (matchesExact(converted, candidate)) {
+      if (matchesExact(converted, candidate, req.language)) {
         return {
           isCorrect: true,
           exactMatch: true,
@@ -1819,13 +1877,14 @@ export function gradeAnswer(req: GradeRequest): GradeResult {
     ];
     for (const candidate of prioritizedCandidates) {
       if (matchesAccentForgiving(converted, candidate, req.language)) {
+        const accentCoaching = buildAccentCoaching(candidate, converted, 'zh');
         return {
           isCorrect: true,
-          exactMatch: false,
+          exactMatch: !accentCoaching,
           normalizedSubmitted,
           normalizedExpected,
           heartPenalty: 0,
-          accentCoaching: buildAccentCoaching(candidate, converted, 'zh'),
+          ...(accentCoaching ? { accentCoaching } : {}),
           ...(articleCoaching ? { articleCoaching } : {}),
         };
       }
@@ -1834,13 +1893,14 @@ export function gradeAnswer(req: GradeRequest): GradeResult {
 
   for (const candidate of candidates) {
     if (matchesAccentForgiving(req.submitted, candidate, req.language)) {
+      const accentCoaching = buildAccentCoaching(candidate, req.submitted, req.language);
       return {
         isCorrect: true,
-        exactMatch: false,
+        exactMatch: !accentCoaching,
         normalizedSubmitted,
         normalizedExpected,
         heartPenalty: 0,
-        accentCoaching: buildAccentCoaching(candidate, req.submitted, req.language),
+        ...(accentCoaching ? { accentCoaching } : {}),
         ...(articleCoaching ? { articleCoaching } : {}),
       };
     }
