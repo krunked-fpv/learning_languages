@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Eye, EyeOff, Grid, Keyboard, Sparkles, Turtle, Volume2, Zap } from 'lucide-react';
 import { playSfx, speakPhrase } from '../../audio';
 import { computeFreeRecallHintedBonus } from '../../core';
@@ -6,6 +6,7 @@ import {
   FREE_RECALL_BONUS_GEMS,
   FREE_RECALL_BONUS_XP,
   LANGUAGE_META,
+  isAdultLanguage,
   type HintTier,
   type LanguageCode,
   type ProficiencyTier,
@@ -19,6 +20,12 @@ import { StarlightHintButton } from './StarlightHintButton';
 import { VirtualScriptDrawer } from './VirtualScriptDrawer';
 import { WordBankTray, buildWordBankPool, getAssembledText } from './WordBankTray';
 import { REGISTER_TAG_META } from './lessonHelpers';
+import {
+  buildFreeRecallPlaceholder,
+  resolveFreeRecallInputDirection,
+  resolveFreeRecallTextAlign,
+  useFreeRecallInput,
+} from './useFreeRecallInput';
 import { useHintEngine } from './useHintEngine';
 
 export interface ExerciseDraftPayload {
@@ -64,16 +71,24 @@ export function WordBankView({
 }: WordBankViewProps) {
   const [inputMode, setInputMode] = useState<'tiles' | 'type'>('tiles');
   const [selectedTileUids, setSelectedTileUids] = useState<string[]>([]);
-  const [typedText, setTypedText] = useState('');
   const [peekPhonetics, setPeekPhonetics] = useState(false);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const {
+    typedText,
+    drawerOpen,
+    setDrawerOpen,
+    inputRef,
+    resetFreeRecallInput,
+    syncSelection,
+    handleTextChange,
+    insertCharAtCaret,
+  } = useFreeRecallInput();
 
   useEffect(() => {
     setInputMode('tiles');
     setSelectedTileUids([]);
-    setTypedText('');
+    resetFreeRecallInput();
     setPeekPhonetics(false);
-  }, [exercise.id]);
+  }, [exercise.id, language, resetFreeRecallInput]);
 
   const disableFreeRecall = language === 'en' && exercise.direction === 'to_english';
   const effectiveInputMode = disableFreeRecall ? 'tiles' : inputMode;
@@ -173,38 +188,26 @@ export function WordBankView({
   const highlightFreeRecall =
     !disableFreeRecall &&
     (Boolean(exercise.allowFreeRecall) || proficiencyTier === 'B2' || proficiencyTier === 'C1_C2');
-  const isNonLatinCourse = ['zh', 'ja', 'hi', 'bn', 'ar', 'arz', 'ru'].includes(language);
   const registerBadge = exercise.registerTag ? REGISTER_TAG_META[exercise.registerTag] : null;
 
   const freeRecallBonus = computeFreeRecallHintedBonus(hint.hintTier);
+  const inputDir = resolveFreeRecallInputDirection(answerDir, typedText);
+  const inputTextAlign = resolveFreeRecallTextAlign(answerDir, typedText);
 
   const insertAccentChar = (ch: string) => {
     if (locked) return;
     cancelHint();
-    playSfx('tile_tap');
-    const el = inputRef.current;
-    if (!el) {
-      setTypedText((prev) => prev + ch);
-      return;
-    }
-    const start = el.selectionStart ?? typedText.length;
-    const end = el.selectionEnd ?? typedText.length;
-    const next = typedText.slice(0, start) + ch + typedText.slice(end);
-    setTypedText(next);
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(start + ch.length, start + ch.length);
-    });
+    insertCharAtCaret(ch);
   };
 
   return (
     <div
       className="tactile-card"
       style={{
-        padding: compact ? '10px 12px' : '18px 22px',
+        padding: compact ? '8px 10px' : '18px 22px',
         display: 'flex',
         flexDirection: 'column',
-        gap: compact ? 8 : 13,
+        gap: compact ? 6 : 13,
         width: '100%',
       }}
     >
@@ -294,6 +297,7 @@ export function WordBankView({
               onClick={() => {
                 cancelHint({ clearAssists: true });
                 playSfx('button_click');
+                setDrawerOpen(false);
                 setInputMode((m) => (m === 'tiles' ? 'type' : 'tiles'));
               }}
             >
@@ -329,14 +333,14 @@ export function WordBankView({
       {/* Prompt Sentence Card */}
       <div
         style={{
-          padding: compact ? '9px 11px' : '14px 16px',
-          borderRadius: 18,
+          padding: compact ? '7px 10px' : '14px 16px',
+          borderRadius: compact ? 15 : 18,
           background: 'var(--card-soft-bg)',
           border: '2px solid var(--card-border)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: 10,
+          gap: compact ? 6 : 10,
           flexWrap: 'wrap',
         }}
       >
@@ -344,7 +348,7 @@ export function WordBankView({
           <div
             dir={promptDir}
             style={{
-              fontSize: compact ? '1.05rem' : '1.3rem',
+              fontSize: compact ? '1rem' : '1.3rem',
               fontWeight: 900,
               color: 'var(--text-main)',
               lineHeight: promptDir === 'rtl' ? 1.5 : 1.3,
@@ -388,18 +392,20 @@ export function WordBankView({
               Tap any dotted word to peek!
             </div>
           ) : null}
-          <div style={{ marginTop: 6 }}>
-            <SayItNormallyButton
-              language={language}
-              dialectAText={exercise.direction === 'to_english' ? exercise.promptText : undefined}
-              dialectBText={exercise.direction === 'to_foreign' ? exercise.promptText : undefined}
-              explicitPlain={exercise.plainEnglish}
-              nuanceNote={exercise.nuanceNote}
-              avoidTerms={locked ? undefined : exercise.targetTokens}
-              resetKey={exercise.id}
-              size="sm"
-            />
-          </div>
+          {isAdultLanguage(language) ? (
+            <div style={{ marginTop: compact ? 4 : 6 }}>
+              <SayItNormallyButton
+                language={language}
+                dialectAText={exercise.direction === 'to_english' ? exercise.promptText : undefined}
+                dialectBText={exercise.direction === 'to_foreign' ? exercise.promptText : undefined}
+                explicitPlain={exercise.plainEnglish}
+                nuanceNote={exercise.nuanceNote}
+                avoidTerms={locked ? undefined : exercise.targetTokens}
+                resetKey={exercise.id}
+                size="sm"
+              />
+            </div>
+          ) : null}
         </div>
 
         {speakPromptText ? (
@@ -482,7 +488,7 @@ export function WordBankView({
           onChangeSelected={setSelectedTileUids}
         />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? 5 : 8 }}>
           <div
             style={{
               display: 'flex',
@@ -490,12 +496,12 @@ export function WordBankView({
               justifyContent: 'space-between',
               gap: 6,
               flexWrap: 'wrap',
-              padding: '4px 10px',
+              padding: compact ? '3px 8px' : '4px 10px',
               borderRadius: 12,
               background: 'var(--tint-amber-bg)',
               border: '1.5px solid var(--tint-amber-border)',
               color: 'var(--tint-amber-ink)',
-              fontSize: '0.76rem',
+              fontSize: compact ? '0.72rem' : '0.76rem',
               fontWeight: 900,
             }}
           >
@@ -521,39 +527,34 @@ export function WordBankView({
           <input
             ref={inputRef}
             type="text"
-            dir={
-              answerDir === 'rtl' && /[A-Za-z]/.test(typedText) && !/[\u0600-\u06FF]/.test(typedText)
-                ? 'ltr'
-                : answerDir
-            }
+            className="free-recall-input"
+            dir={inputDir}
             value={typedText}
             disabled={locked}
             onChange={(e) => {
               cancelHint();
-              setTypedText(e.target.value);
+              handleTextChange(e);
             }}
+            onSelect={syncSelection}
+            onKeyUp={syncSelection}
+            onClick={syncSelection}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && submittedValue && !locked) {
                 e.preventDefault();
                 onSubmitShortcut?.();
               }
             }}
-            placeholder={
-              exercise.direction === 'to_foreign'
-                ? language === 'en'
-                  ? 'Type the English phrase...'
-                  : langMeta.isAdultOnly
-                    ? `Type in ${langMeta.dialectA ?? langMeta.name}...`
-                    : isNonLatinCourse
-                      ? `Type in ${langMeta.name} or romanized`
-                      : `Type in ${langMeta.name} (accents optional, or tap keys below!)`
-                : `Type in ${langMeta.translationLanguageLabel ?? 'English'}...`
-            }
+            placeholder={buildFreeRecallPlaceholder({
+              language,
+              direction: exercise.direction,
+              compact,
+              variant: 'word_bank',
+            })}
             aria-label="Type your translation"
             style={{
               width: '100%',
-              padding: compact ? '10px 12px' : '13px 16px',
-              borderRadius: 16,
+              padding: compact ? '8px 10px' : '13px 16px',
+              borderRadius: compact ? 14 : 16,
               borderTopWidth: 2,
               borderRightWidth: 2,
               borderLeftWidth: 2,
@@ -563,6 +564,7 @@ export function WordBankView({
               fontSize: '1rem',
               fontWeight: 800,
               lineHeight: answerDir === 'rtl' ? 1.5 : 1.25,
+              textAlign: inputTextAlign,
               color: 'var(--text-main)',
               background: 'var(--input-bg)',
               outline: 'none',
@@ -571,41 +573,53 @@ export function WordBankView({
 
           {exercise.direction === 'to_foreign' ? (
             <>
-              <div
-                aria-label="Accent character bar"
-                dir={langMeta.dir}
-                className="console-scroll-pane"
-                style={{
-                  maxHeight: compact ? 84 : 112,
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: hasManyAccents ? 5 : 6,
-                  justifyContent: 'center',
-                  padding: '2px 2px',
-                }}
-              >
-                {langMeta.helperAccents.map((ch) => (
-                  <button
-                    key={ch}
-                    type="button"
-                    className="tactile-tile"
-                    style={{
-                      padding: hasManyAccents ? '4px 8px' : '5px 11px',
-                      fontSize: hasManyAccents ? '0.88rem' : '0.95rem',
-                      minWidth: hasManyAccents ? 30 : 36,
-                      lineHeight: langMeta.dir === 'rtl' ? 1.5 : 1.25,
-                    }}
-                    disabled={locked}
-                    onClick={() => insertAccentChar(ch)}
-                  >
-                    {ch}
-                  </button>
-                ))}
-              </div>
+              {!drawerOpen ? (
+                <div
+                  aria-label="Accent character bar"
+                  dir={langMeta.dir}
+                  className="console-scroll-pane"
+                  style={{
+                    maxHeight: compact ? 74 : 112,
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: compact ? 4 : hasManyAccents ? 5 : 6,
+                    justifyContent: 'center',
+                    padding: '2px 2px',
+                  }}
+                >
+                  {langMeta.helperAccents.map((ch) => (
+                    <button
+                      key={ch}
+                      type="button"
+                      className="tactile-tile"
+                      style={{
+                        padding: compact
+                          ? '3px 7px'
+                          : hasManyAccents
+                            ? '4px 8px'
+                            : '5px 11px',
+                        fontSize: compact
+                          ? '0.84rem'
+                          : hasManyAccents
+                            ? '0.88rem'
+                            : '0.95rem',
+                        minWidth: compact ? 28 : hasManyAccents ? 30 : 36,
+                        lineHeight: langMeta.dir === 'rtl' ? 1.5 : 1.25,
+                      }}
+                      disabled={locked}
+                      onClick={() => insertAccentChar(ch)}
+                    >
+                      {ch}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <VirtualScriptDrawer
                 language={language}
                 compact={compact}
                 disabled={locked}
+                open={drawerOpen}
+                onOpenChange={setDrawerOpen}
                 onInsertChar={insertAccentChar}
               />
             </>
