@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
   Crown,
+  Flame,
   Gamepad2,
   Gem,
   Lock,
@@ -13,6 +14,7 @@ import {
   Star,
   Trophy,
   Users,
+  WifiOff,
 } from 'lucide-react';
 import { AvatarBadge } from '../../art/AvatarBadge';
 import { FlagIcon } from '../../art/FlagIcon';
@@ -21,9 +23,11 @@ import { getCourse } from '../../curriculum';
 import { useVaultStore, vaultActions } from '../../store/useVaultStore';
 import {
   LANGUAGE_META,
+  isAdultLanguage,
   type ArcadeProficiencyTier,
   type CoopArcadeSessionParams,
   type CoopArcadeSessionSummary,
+  type CoopSafeAtlasMask,
   type KidProfile,
   type LanguageCode,
   type LanguageMeta,
@@ -54,8 +58,10 @@ import {
   resolveArcadePlainEnglish,
   resolveEffectiveArcadeLanguage,
   resolveSafeBaseLanguage,
+  retryArcadeLanguageLoad,
   useArcadeContainerMetrics,
   useArcadeDeck,
+  useArcadeLanguageLoadState,
   type ArcadeCoopSettledResult,
   type CoopArcadeTurnContextValue,
 } from './arcadeShared';
@@ -84,6 +90,7 @@ export type ArcadeGameMode =
 export interface ArcadeHubProps {
   initialMode?: ArcadeGameMode;
   onExitToMap: () => void;
+  onCoopSafeMaskChange?: (mask: CoopSafeAtlasMask) => void;
 }
 
 interface CabinetSpec {
@@ -225,7 +232,119 @@ function getCabinetTitle(gameId: Exclude<ArcadeGameMode, 'hub'>): string {
   return STANDARD_CABINETS.find((c) => c.id === gameId)?.title ?? 'Expedition Arcade';
 }
 
-export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) {
+function buildCoopPairKey(idA: string, idB: string): string {
+  return [idA.trim(), idB.trim()].sort().join('::');
+}
+
+function hasPartnerMetadataChanged(prev: KidProfile, next: KidProfile): boolean {
+  return (
+    prev.name !== next.name ||
+    prev.avatarId !== next.avatarId ||
+    prev.bannerColor !== next.bannerColor ||
+    prev.activeLanguage !== next.activeLanguage ||
+    prev.lastBaseLanguage !== next.lastBaseLanguage ||
+    Boolean(prev.adultModeUnlocked) !== Boolean(next.adultModeUnlocked) ||
+    Boolean(prev.adultModeActive) !== Boolean(next.adultModeActive)
+  );
+}
+
+function hasPartnerLanguageConfigChanged(prev: KidProfile, next: KidProfile): boolean {
+  return (
+    prev.activeLanguage !== next.activeLanguage ||
+    prev.lastBaseLanguage !== next.lastBaseLanguage ||
+    Boolean(prev.adultModeUnlocked) !== Boolean(next.adultModeUnlocked) ||
+    Boolean(prev.adultModeActive) !== Boolean(next.adultModeActive)
+  );
+}
+
+function CoopOfflineRecoveryGuard({
+  message,
+  retrying,
+  isCompact,
+  onRetry,
+  onFallbackEs,
+}: {
+  message: string;
+  retrying: boolean;
+  isCompact: boolean;
+  onRetry: () => void;
+  onFallbackEs: () => void;
+}) {
+  return (
+    <div
+      data-testid="coop-handoff-offline-guard"
+      role="status"
+      aria-live="polite"
+      style={{
+        width: '100%',
+        maxWidth: 560,
+        padding: isCompact ? '5px 8px' : '7px 11px',
+        borderRadius: 12,
+        background: 'var(--tint-amber-bg, #fffbeb)',
+        border: '1.5px solid var(--tint-amber-border, #f59e0b)',
+        color: 'var(--tint-amber-ink, #92400e)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: isCompact ? 6 : 10,
+        flexWrap: 'wrap',
+        textAlign: 'left',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          flex: '1 1 170px',
+          minWidth: 0,
+          fontSize: isCompact ? '0.67rem' : '0.76rem',
+          fontWeight: 800,
+          lineHeight: 1.28,
+        }}
+      >
+        <WifiOff size={isCompact ? 14 : 15} style={{ flexShrink: 0 }} />
+        <span>{message}</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          data-testid="coop-handoff-retry-btn"
+          className="tactile-btn tactile-btn-indigo"
+          disabled={retrying}
+          onClick={onRetry}
+          style={{
+            padding: isCompact ? '3px 8px' : '5px 10px',
+            fontSize: isCompact ? '0.67rem' : '0.75rem',
+            borderRadius: 10,
+          }}
+        >
+          <RotateCcw size={12} />
+          <span>Retry Loading</span>
+        </button>
+        <button
+          type="button"
+          data-testid="coop-handoff-fallback-es-btn"
+          className="tactile-btn tactile-btn-soft"
+          onClick={onFallbackEs}
+          style={{
+            padding: isCompact ? '3px 8px' : '5px 10px',
+            fontSize: isCompact ? '0.67rem' : '0.75rem',
+            borderRadius: 10,
+          }}
+        >
+          Use Safe Español Deck
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function ArcadeHub({
+  initialMode = 'hub',
+  onExitToMap,
+  onCoopSafeMaskChange,
+}: ArcadeHubProps) {
   const { vault, activeProfile } = useVaultStore();
   const [arcadeTier, setArcadeTier] = useState<ArcadeProficiencyTier>('sprout');
   const [coopEnabled, setCoopEnabled] = useState(false);
@@ -233,10 +352,14 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
   const [playerTwoId, setPlayerTwoId] = useState<string>(
     () => vault.profiles.find((p) => p.id !== activeProfile.id)?.id ?? activeProfile.id
   );
+  const [coopEsFallbackFor, setCoopEsFallbackFor] = useState<Partial<Record<string, LanguageCode>>>({});
   const [coopMatch, setCoopMatch] = useState<CoopMatchState | null>(null);
   const [mode, setMode] = useState<ArcadeGameMode>(initialMode);
   const [page, setPage] = useState<0 | 1 | 2>(0);
   const [plainOpen, setPlainOpen] = useState(false);
+
+  const onCoopSafeMaskChangeRef = useRef(onCoopSafeMaskChange);
+  onCoopSafeMaskChangeRef.current = onCoopSafeMaskChange;
 
   const hasMultipleProfiles = vault.profiles.length >= 2;
   const { p1, p2 } = useMemo(() => {
@@ -257,6 +380,31 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
   const isCoopKidQuarantined =
     effectiveCoopEnabled && (!isAdultProfileActive(p1) || !isAdultProfileActive(p2));
 
+  const coopSafeMaskActive = Boolean(
+    (effectiveCoopEnabled && isCoopKidQuarantined) ||
+      (coopMatch && coopMatch.stage !== 'summary' && coopMatch.kidQuarantined)
+  );
+  const coopSafeMaskLanguage = resolveSafeBaseLanguage(
+    coopMatch && coopMatch.stage !== 'summary' ? coopMatch.p1 : p1,
+    activeProfile
+  );
+
+  useEffect(() => {
+    onCoopSafeMaskChangeRef.current?.({
+      active: coopSafeMaskActive,
+      safeLanguage: coopSafeMaskLanguage,
+    });
+  }, [coopSafeMaskActive, coopSafeMaskLanguage]);
+
+  useEffect(() => {
+    return () => {
+      onCoopSafeMaskChangeRef.current?.({
+        active: false,
+        safeLanguage: 'es',
+      });
+    };
+  }, []);
+
   const resolveTurnLanguage = (
     player: KidProfile | undefined,
     quarantined: boolean
@@ -275,12 +423,24 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
       if (distinctPartner) {
         setPlayerTwoId(distinctPartner.id);
       }
+      setCoopEsFallbackFor((prev) => (Object.keys(prev).length > 0 ? {} : prev));
     }
   }, [coopEnabled, activeProfile.id, vault.profiles]);
 
-  const p1HubLanguage = resolveTurnLanguage(p1, isCoopKidQuarantined);
-  const p2HubLanguage =
+  const rawP1HubLanguage = resolveTurnLanguage(p1, isCoopKidQuarantined);
+  const rawP2HubLanguage =
     effectiveCoopEnabled && p2 ? resolveTurnLanguage(p2, isCoopKidQuarantined) : null;
+  const p1HubLanguage: LanguageCode =
+    effectiveCoopEnabled && coopEsFallbackFor[p1.id] === rawP1HubLanguage
+      ? 'es'
+      : rawP1HubLanguage;
+  const p2HubLanguage: LanguageCode | null =
+    effectiveCoopEnabled && p2 && rawP2HubLanguage
+      ? coopEsFallbackFor[p2.id] === rawP2HubLanguage
+        ? 'es'
+        : rawP2HubLanguage
+      : null;
+
   const hubDeckOverride = useMemo(
     () =>
       effectiveCoopEnabled
@@ -293,36 +453,76 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
     [effectiveCoopEnabled, p1, p1HubLanguage, isCoopKidQuarantined]
   );
 
-  // Pre-hydrate P2's effective language whenever Co-Op is armed so Turn 2 starts hydrated
+  // Pre-warm BOTH P1 and P2 effective languages whenever Co-Op is armed or partners change
   useEffect(() => {
-    if (effectiveCoopEnabled && p2 && p2HubLanguage) {
+    if (!effectiveCoopEnabled || !p2) return;
+    ensureArcadeLanguageLoaded(p1HubLanguage, !isCoopKidQuarantined);
+    if (p2HubLanguage) {
       ensureArcadeLanguageLoaded(p2HubLanguage, !isCoopKidQuarantined);
     }
-  }, [effectiveCoopEnabled, p2, p2HubLanguage, isCoopKidQuarantined]);
+  }, [effectiveCoopEnabled, p1HubLanguage, p2, p2HubLanguage, isCoopKidQuarantined]);
 
-  // Abort ghost Co-Op sessions cleanly if a partner profile is deleted mid-Handoff/Turn,
-  // and enforce Kid-Safety Quarantine immediately if either profile exits Adult Mode mid-match.
+  const p1HubLoadState = useArcadeLanguageLoadState(effectiveCoopEnabled ? p1HubLanguage : null);
+  const p2HubLoadState = useArcadeLanguageLoadState(
+    effectiveCoopEnabled && p2HubLanguage ? p2HubLanguage : null
+  );
+  const handoffP2LoadState = useArcadeLanguageLoadState(
+    coopMatch?.stage === 'handoff' ? coopMatch.p2Language : null
+  );
+
+  // Abort ghost Co-Op sessions cleanly if a partner is deleted/merged into self,
+  // sync live partner metadata & upcoming turn languages on vault edit/import, and
+  // enforce Kid-Safety Quarantine immediately (never un-quarantining mid-flight).
   useEffect(() => {
     if (!coopMatch) return;
     const liveP1 = vault.profiles.find((prof) => prof.id === coopMatch.p1.id);
     const liveP2 = vault.profiles.find((prof) => prof.id === coopMatch.p2.id);
-    if (!liveP1 || !liveP2) {
+    if (!liveP1 || !liveP2 || liveP1.id === liveP2.id) {
       setCoopMatch(null);
       setMode('hub');
       return;
     }
     if (coopMatch.stage === 'summary') return;
+
     const mustQuarantine = !isAdultProfileActive(liveP1) || !isAdultProfileActive(liveP2);
-    if (mustQuarantine && !coopMatch.kidQuarantined) {
-      setCoopMatch({
-        ...coopMatch,
-        p1: liveP1,
-        p2: liveP2,
-        kidQuarantined: true,
-        p1Language: resolveSafeBaseLanguage(liveP1, activeProfile),
-        p2Language: resolveSafeBaseLanguage(liveP2, activeProfile),
-      });
+    const newlyQuarantined = mustQuarantine && !coopMatch.kidQuarantined;
+    const nextQuarantined = coopMatch.kidQuarantined || mustQuarantine;
+    const p1Changed = hasPartnerMetadataChanged(coopMatch.p1, liveP1);
+    const p2Changed = hasPartnerMetadataChanged(coopMatch.p2, liveP2);
+
+    if (!p1Changed && !p2Changed && !newlyQuarantined) {
+      return;
     }
+
+    const p1LangChanged = hasPartnerLanguageConfigChanged(coopMatch.p1, liveP1);
+    const p2LangChanged = hasPartnerLanguageConfigChanged(coopMatch.p2, liveP2);
+
+    const nextP1Language: LanguageCode =
+      coopMatch.stage === 'playing_turn_1' && (newlyQuarantined || p1LangChanged)
+        ? resolveEffectiveArcadeLanguage(liveP1, {
+            fallbackProfile: activeProfile,
+            kidQuarantined: nextQuarantined,
+          })
+        : newlyQuarantined && isAdultLanguage(coopMatch.p1Language)
+          ? resolveSafeBaseLanguage(liveP1, activeProfile)
+          : coopMatch.p1Language;
+
+    const nextP2Language: LanguageCode =
+      newlyQuarantined || p2LangChanged
+        ? resolveEffectiveArcadeLanguage(liveP2, {
+            fallbackProfile: activeProfile,
+            kidQuarantined: nextQuarantined,
+          })
+        : coopMatch.p2Language;
+
+    setCoopMatch({
+      ...coopMatch,
+      p1: liveP1,
+      p2: liveP2,
+      kidQuarantined: nextQuarantined,
+      p1Language: nextP1Language,
+      p2Language: nextP2Language,
+    });
   }, [coopMatch, vault.profiles, activeProfile]);
 
   useEffect(() => {
@@ -392,8 +592,8 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
       playSfx('whoosh_transition');
     }
     if (effectiveCoopEnabled && p2) {
-      const p1Language = resolveTurnLanguage(p1, isCoopKidQuarantined);
-      const p2Language = resolveTurnLanguage(p2, isCoopKidQuarantined);
+      const p1Language = p1HubLanguage;
+      const p2Language = p2HubLanguage ?? resolveTurnLanguage(p2, isCoopKidQuarantined);
       ensureArcadeLanguageLoaded(p1Language, !isCoopKidQuarantined);
       ensureArcadeLanguageLoaded(p2Language, !isCoopKidQuarantined);
       setCoopMatch({
@@ -462,12 +662,30 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
       const p1Won = coopMatch.p1Result.score > result.score;
       const p2Won = result.score > coopMatch.p1Result.score;
       const isTieScore = !p1Won && !p2Won;
-      const sessionSummary: CoopArcadeSessionSummary = persisted ?? {
+      const baseSummary: CoopArcadeSessionSummary = persisted ?? {
         winnerProfileId: p1Won ? coopMatch.p1.id : p2Won ? coopMatch.p2.id : 'tie',
         combinedScore: coopMatch.p1Result.score + result.score,
         playerOneGemsAwarded: coopBonusGems + (isTieScore ? 3 : p1Won ? 5 : 0),
         playerTwoGemsAwarded: coopBonusGems + (isTieScore ? 3 : p2Won ? 5 : 0),
         xpAwardedEach: coopXpEarned,
+      };
+      const pairKey = buildCoopPairKey(coopMatch.p1.id, coopMatch.p2.id);
+      const priorPair = vault.coopPairStreaks?.[pairKey];
+      const safeP1Lang =
+        coopMatch.kidQuarantined && isAdultLanguage(coopMatch.p1Language)
+          ? resolveSafeBaseLanguage(coopMatch.p1, activeProfile)
+          : coopMatch.p1Language;
+      const safeP2Lang =
+        coopMatch.kidQuarantined && isAdultLanguage(coopMatch.p2Language)
+          ? resolveSafeBaseLanguage(coopMatch.p2, activeProfile)
+          : coopMatch.p2Language;
+      const sessionSummary: CoopArcadeSessionSummary = {
+        ...baseSummary,
+        playerOneCreditedLanguage: baseSummary.playerOneCreditedLanguage ?? safeP1Lang,
+        playerTwoCreditedLanguage: baseSummary.playerTwoCreditedLanguage ?? safeP2Lang,
+        pairStreakDays: baseSummary.pairStreakDays ?? Math.max(1, priorPair?.streakDays ?? 1),
+        pairMatchesTogether:
+          baseSummary.pairMatchesTogether ?? (priorPair?.matchesTogether ?? 0) + 1,
       };
 
       setCoopMatch({
@@ -625,6 +843,31 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
             {coopMatch.p2.name} to combine scores in the Family Co-Op Finale!
           </p>
 
+          {!isAdultLanguage(coopMatch.p2Language) &&
+          handoffP2LoadState.error &&
+          !handoffP2LoadState.loaded ? (
+            <CoopOfflineRecoveryGuard
+              message={`${coopMatch.p2.name}'s ${LANGUAGE_META[coopMatch.p2Language].name} pack isn't cached offline yet. Retry loading or use the Safe Español Deck for this turn.`}
+              retrying={handoffP2LoadState.loading}
+              isCompact={isCompact}
+              onRetry={() => {
+                playSfx('button_click');
+                void retryArcadeLanguageLoad(coopMatch.p2Language, !coopMatch.kidQuarantined);
+              }}
+              onFallbackEs={() => {
+                playSfx('whoosh_transition');
+                setCoopMatch((prev) =>
+                  prev && prev.stage === 'handoff'
+                    ? {
+                        ...prev,
+                        p2Language: 'es',
+                      }
+                    : prev
+                );
+              }}
+            />
+          ) : null}
+
           <div
             style={{
               display: 'flex',
@@ -674,6 +917,25 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
       sessionSummary.winnerProfileId === mp1.id ? mp1.name : mp2.name;
     const p1HasCrown = isTie || sessionSummary.winnerProfileId === mp1.id;
     const p2HasCrown = isTie || sessionSummary.winnerProfileId === mp2.id;
+    const pairKey = buildCoopPairKey(mp1.id, mp2.id);
+    const livePairEntry = vault.coopPairStreaks?.[pairKey];
+    const finaleStreakDays = Math.max(
+      1,
+      sessionSummary.pairStreakDays ?? livePairEntry?.streakDays ?? 1
+    );
+    const finaleMatchesTogether = Math.max(
+      1,
+      sessionSummary.pairMatchesTogether ?? livePairEntry?.matchesTogether ?? 1
+    );
+    const quarantinedPair = !isAdultProfileActive(mp1) || !isAdultProfileActive(mp2);
+    const p1CreditedLang =
+      sessionSummary.playerOneCreditedLanguage ??
+      resolveTurnLanguage(mp1, quarantinedPair);
+    const p2CreditedLang =
+      sessionSummary.playerTwoCreditedLanguage ??
+      resolveTurnLanguage(mp2, quarantinedPair);
+    const p1CreditedMeta = LANGUAGE_META[p1CreditedLang];
+    const p2CreditedMeta = LANGUAGE_META[p2CreditedLang];
 
     return (
       <section
@@ -697,12 +959,12 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
             ...CARD_SURFACE_STYLE,
             flex: 1,
             minHeight: 0,
-            padding: isCompact ? 12 : 22,
+            padding: isCompact ? 10 : 20,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: isCompact ? 8 : 12,
+            gap: isCompact ? 6 : 11,
             textAlign: 'center',
             overflowY: 'auto',
           }}
@@ -731,7 +993,7 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
             style={{
               margin: 0,
               fontFamily: 'var(--font-display)',
-              fontSize: isCompact ? '1.18rem' : '1.48rem',
+              fontSize: isCompact ? '1.14rem' : '1.46rem',
               fontWeight: 900,
               color: 'var(--text-main, #1e1b4b)',
               lineHeight: 1.12,
@@ -741,17 +1003,46 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
           </h2>
 
           <div
-            className="hud-pill hud-pill-static"
             style={{
-              background: 'var(--tint-indigo-bg, #eef2ff)',
-              borderColor: 'var(--tint-indigo-border, #818cf8)',
-              color: 'var(--tint-indigo-ink, #312e81)',
-              padding: isCompact ? '4px 12px' : '6px 16px',
-              fontSize: isCompact ? '0.82rem' : '0.94rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: isCompact ? 6 : 10,
+              flexWrap: 'wrap',
+              maxWidth: '100%',
             }}
           >
-            <Trophy size={15} />
-            <span>Combined Team Score: {sessionSummary.combinedScore}</span>
+            <div
+              className="hud-pill hud-pill-static"
+              style={{
+                background: 'var(--tint-indigo-bg, #eef2ff)',
+                borderColor: 'var(--tint-indigo-border, #818cf8)',
+                color: 'var(--tint-indigo-ink, #312e81)',
+                padding: isCompact ? '4px 10px' : '6px 14px',
+                fontSize: isCompact ? '0.76rem' : '0.9rem',
+              }}
+            >
+              <Trophy size={14} />
+              <span>Combined Team Score: {sessionSummary.combinedScore}</span>
+            </div>
+
+            <div
+              data-testid="coop-finale-pair-streak"
+              className="hud-pill hud-pill-static"
+              style={{
+                background: 'var(--tint-amber-bg, #fffbeb)',
+                borderColor: 'var(--tint-amber-border, #fbbf24)',
+                color: 'var(--tint-amber-ink, #92400e)',
+                padding: isCompact ? '4px 10px' : '6px 14px',
+                fontSize: isCompact ? '0.74rem' : '0.86rem',
+              }}
+            >
+              <Flame size={14} />
+              <span>
+                Pair Streak: {finaleStreakDays} {finaleStreakDays === 1 ? 'day' : 'days'} •{' '}
+                {finaleMatchesTogether} {finaleMatchesTogether === 1 ? 'match' : 'matches'}
+              </span>
+            </div>
           </div>
 
           <div
@@ -782,7 +1073,7 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
               <div
                 key={entry.profile.id}
                 style={{
-                  padding: isCompact ? '9px 8px' : '12px 14px',
+                  padding: isCompact ? '8px 8px' : '12px 14px',
                   borderRadius: 16,
                   background: 'var(--card-soft-bg, #f8fafc)',
                   borderTopWidth: 2,
@@ -796,14 +1087,14 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  gap: isCompact ? 4 : 6,
+                  gap: isCompact ? 3 : 6,
                   minWidth: 0,
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <AvatarBadge
                     avatarId={entry.profile.avatarId}
-                    size={isCompact ? 28 : 38}
+                    size={isCompact ? 26 : 38}
                   />
                   {entry.hasCrown ? (
                     <Crown size={isCompact ? 15 : 18} color="#f59e0b" fill="#fde047" />
@@ -812,7 +1103,7 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                 <div
                   style={{
                     fontFamily: 'var(--font-display)',
-                    fontSize: isCompact ? '0.82rem' : '0.96rem',
+                    fontSize: isCompact ? '0.8rem' : '0.96rem',
                     fontWeight: 900,
                     color: 'var(--text-main, #1e1b4b)',
                     maxWidth: '100%',
@@ -826,7 +1117,7 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                 <div
                   style={{
                     fontFamily: 'var(--font-display)',
-                    fontSize: isCompact ? '1.05rem' : '1.26rem',
+                    fontSize: isCompact ? '1rem' : '1.26rem',
                     fontWeight: 900,
                     color: 'var(--lang-primary, #2563eb)',
                   }}
@@ -840,7 +1131,7 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                     justifyContent: 'center',
                     gap: 6,
                     flexWrap: 'wrap',
-                    fontSize: isCompact ? '0.68rem' : '0.76rem',
+                    fontSize: isCompact ? '0.67rem' : '0.76rem',
                     fontWeight: 800,
                     color: 'var(--text-muted, #475569)',
                   }}
@@ -854,6 +1145,41 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
                 </div>
               </div>
             ))}
+          </div>
+
+          <div
+            data-testid="coop-finale-credited-languages"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: isCompact ? 6 : 10,
+              flexWrap: 'wrap',
+              padding: isCompact ? '4px 10px' : '5px 14px',
+              borderRadius: 12,
+              background: 'var(--card-soft-bg, #f8fafc)',
+              border: '1.5px solid var(--card-border, #cbd5e1)',
+              color: 'var(--text-main, #1e1b4b)',
+              fontSize: isCompact ? '0.69rem' : '0.78rem',
+              fontWeight: 800,
+              maxWidth: '100%',
+            }}
+          >
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <FlagIcon language={p1CreditedLang} size={isCompact ? 14 : 16} />
+              <span>
+                {mp1.name}: {p1CreditedMeta.name}
+              </span>
+            </span>
+            <span aria-hidden="true" style={{ color: 'var(--text-muted, #475569)' }}>
+              •
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <FlagIcon language={p2CreditedLang} size={isCompact ? 14 : 16} />
+              <span>
+                {mp2.name}: {p2CreditedMeta.name}
+              </span>
+            </span>
           </div>
 
           <div
@@ -1276,125 +1602,227 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
           </div>
         </div>
 
-        {effectiveCoopEnabled && p2 ? (
-          <div
-            data-testid="arcade-coop-roster-bar"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: isNarrow
-                ? 'minmax(0, 1fr) auto minmax(0, 1fr)'
-                : 'auto auto auto 1fr',
-              alignItems: 'center',
-              gap: isCompact ? 5 : 8,
-              padding: isCompact ? '4px 7px' : '5px 10px',
-              borderRadius: 12,
-              background: 'var(--tint-indigo-bg, #eef2ff)',
-              border: '1.5px solid var(--tint-indigo-border, #818cf8)',
-            }}
-          >
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                minWidth: 0,
-                fontSize: isCompact ? '0.66rem' : '0.74rem',
-                fontWeight: 900,
-                color: 'var(--tint-indigo-ink, #312e81)',
-              }}
-            >
-              <span style={{ flexShrink: 0 }}>P1</span>
-              <select
-                data-testid="coop-p1-select"
-                aria-label="Player 1 profile"
-                value={p1.id}
-                onChange={(e) => handleSelectP1(e.target.value)}
+        {effectiveCoopEnabled && p2 ? (() => {
+          const hubPairKey = buildCoopPairKey(p1.id, p2.id);
+          const hubPairStreak = vault.coopPairStreaks?.[hubPairKey];
+          const failedHubPartners: Array<{
+            profile: KidProfile;
+            language: LanguageCode;
+            loading: boolean;
+          }> = [];
+          if (!isAdultLanguage(p1HubLanguage) && p1HubLoadState.error && !p1HubLoadState.loaded) {
+            failedHubPartners.push({
+              profile: p1,
+              language: p1HubLanguage,
+              loading: p1HubLoadState.loading,
+            });
+          }
+          if (
+            p2HubLanguage &&
+            !isAdultLanguage(p2HubLanguage) &&
+            p2HubLoadState.error &&
+            !p2HubLoadState.loaded
+          ) {
+            failedHubPartners.push({
+              profile: p2,
+              language: p2HubLanguage,
+              loading: p2HubLoadState.loading,
+            });
+          }
+          const offlineMessage =
+            failedHubPartners.length === 1
+              ? `${failedHubPartners[0].profile.name}'s ${LANGUAGE_META[failedHubPartners[0].language].name} pack isn't cached offline yet. Retry or use the Safe Español Deck.`
+              : failedHubPartners.length > 1
+                ? `${failedHubPartners[0].profile.name} (${LANGUAGE_META[failedHubPartners[0].language].name}) & ${failedHubPartners[1].profile.name} (${LANGUAGE_META[failedHubPartners[1].language].name}) packs aren't cached offline yet.`
+                : '';
+
+          return (
+            <>
+              <div
+                data-testid="arcade-coop-roster-bar"
                 style={{
-                  minWidth: 0,
-                  width: isNarrow ? '100%' : 'auto',
-                  padding: isCompact ? '2px 4px' : '3px 8px',
-                  borderRadius: 8,
-                  border: '1.5px solid var(--card-border, #cbd5e1)',
-                  background: 'var(--input-bg, #ffffff)',
-                  color: 'var(--text-main, #1e1b4b)',
-                  fontFamily: 'var(--font-display)',
-                  fontSize: isCompact ? '0.7rem' : '0.78rem',
-                  fontWeight: 800,
+                  display: 'grid',
+                  gridTemplateColumns: isNarrow
+                    ? 'minmax(0, 1fr) auto minmax(0, 1fr)'
+                    : 'auto auto auto 1fr',
+                  alignItems: 'center',
+                  gap: isCompact ? 5 : 8,
+                  padding: isCompact ? '4px 7px' : '5px 10px',
+                  borderRadius: 12,
+                  background: 'var(--tint-indigo-bg, #eef2ff)',
+                  border: '1.5px solid var(--tint-indigo-border, #818cf8)',
                 }}
               >
-                {vault.profiles.map((prof) => (
-                  <option key={prof.id} value={prof.id}>
-                    {prof.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    minWidth: 0,
+                    fontSize: isCompact ? '0.66rem' : '0.74rem',
+                    fontWeight: 900,
+                    color: 'var(--tint-indigo-ink, #312e81)',
+                  }}
+                >
+                  <span style={{ flexShrink: 0 }}>P1</span>
+                  <select
+                    data-testid="coop-p1-select"
+                    aria-label="Player 1 profile"
+                    value={p1.id}
+                    onChange={(e) => handleSelectP1(e.target.value)}
+                    style={{
+                      minWidth: 0,
+                      width: isNarrow ? '100%' : 'auto',
+                      padding: isCompact ? '2px 4px' : '3px 8px',
+                      borderRadius: 8,
+                      border: '1.5px solid var(--card-border, #cbd5e1)',
+                      background: 'var(--input-bg, #ffffff)',
+                      color: 'var(--text-main, #1e1b4b)',
+                      fontFamily: 'var(--font-display)',
+                      fontSize: isCompact ? '0.7rem' : '0.78rem',
+                      fontWeight: 800,
+                    }}
+                  >
+                    {vault.profiles.map((prof) => (
+                      <option key={prof.id} value={prof.id}>
+                        {prof.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-            <span
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: isCompact ? '0.66rem' : '0.74rem',
-                fontWeight: 900,
-                color: 'var(--tint-indigo-ink, #312e81)',
-                textAlign: 'center',
-              }}
-            >
-              vs
-            </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: isCompact ? '0.66rem' : '0.74rem',
+                    fontWeight: 900,
+                    color: 'var(--tint-indigo-ink, #312e81)',
+                    textAlign: 'center',
+                  }}
+                >
+                  vs
+                </span>
 
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                minWidth: 0,
-                fontSize: isCompact ? '0.66rem' : '0.74rem',
-                fontWeight: 900,
-                color: 'var(--tint-indigo-ink, #312e81)',
-              }}
-            >
-              <span style={{ flexShrink: 0 }}>P2</span>
-              <select
-                data-testid="coop-p2-select"
-                aria-label="Player 2 profile"
-                value={p2.id}
-                onChange={(e) => handleSelectP2(e.target.value)}
-                style={{
-                  minWidth: 0,
-                  width: isNarrow ? '100%' : 'auto',
-                  padding: isCompact ? '2px 4px' : '3px 8px',
-                  borderRadius: 8,
-                  border: '1.5px solid var(--card-border, #cbd5e1)',
-                  background: 'var(--input-bg, #ffffff)',
-                  color: 'var(--text-main, #1e1b4b)',
-                  fontFamily: 'var(--font-display)',
-                  fontSize: isCompact ? '0.7rem' : '0.78rem',
-                  fontWeight: 800,
-                }}
-              >
-                {vault.profiles.map((prof) => (
-                  <option key={prof.id} value={prof.id}>
-                    {prof.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    minWidth: 0,
+                    fontSize: isCompact ? '0.66rem' : '0.74rem',
+                    fontWeight: 900,
+                    color: 'var(--tint-indigo-ink, #312e81)',
+                  }}
+                >
+                  <span style={{ flexShrink: 0 }}>P2</span>
+                  <select
+                    data-testid="coop-p2-select"
+                    aria-label="Player 2 profile"
+                    value={p2.id}
+                    onChange={(e) => handleSelectP2(e.target.value)}
+                    style={{
+                      minWidth: 0,
+                      width: isNarrow ? '100%' : 'auto',
+                      padding: isCompact ? '2px 4px' : '3px 8px',
+                      borderRadius: 8,
+                      border: '1.5px solid var(--card-border, #cbd5e1)',
+                      background: 'var(--input-bg, #ffffff)',
+                      color: 'var(--text-main, #1e1b4b)',
+                      fontFamily: 'var(--font-display)',
+                      fontSize: isCompact ? '0.7rem' : '0.78rem',
+                      fontWeight: 800,
+                    }}
+                  >
+                    {vault.profiles.map((prof) => (
+                      <option key={prof.id} value={prof.id}>
+                        {prof.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-            {!isNarrow ? (
-              <span
-                style={{
-                  fontSize: '0.71rem',
-                  fontWeight: 800,
-                  color: 'var(--tint-indigo-ink, #312e81)',
-                  justifySelf: 'end',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Pass-and-play • Pick any cabinet!
-              </span>
-            ) : null}
-          </div>
-        ) : null}
+                {!isNarrow || (hubPairStreak && hubPairStreak.streakDays >= 1) ? (
+                  <div
+                    style={{
+                      gridColumn: isNarrow ? '1 / -1' : undefined,
+                      justifySelf: isNarrow ? 'start' : 'end',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    {hubPairStreak && hubPairStreak.streakDays >= 1 ? (
+                      <span
+                        data-testid="coop-pair-streak-badge"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: isCompact ? '2px 7px' : '3px 9px',
+                          borderRadius: 999,
+                          background: 'var(--tint-amber-bg, #fffbeb)',
+                          border: '1.5px solid var(--tint-amber-border, #fbbf24)',
+                          color: 'var(--tint-amber-ink, #92400e)',
+                          fontFamily: 'var(--font-display)',
+                          fontSize: isCompact ? '0.64rem' : '0.72rem',
+                          fontWeight: 900,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <Flame size={isCompact ? 11 : 12} />
+                        <span>
+                          Pair Streak: {hubPairStreak.streakDays}{' '}
+                          {hubPairStreak.streakDays === 1 ? 'day' : 'days'}
+                        </span>
+                      </span>
+                    ) : null}
+                    {!isNarrow ? (
+                      <span
+                        style={{
+                          fontSize: '0.71rem',
+                          fontWeight: 800,
+                          color: 'var(--tint-indigo-ink, #312e81)',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Pass-and-play • Pick any cabinet!
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+
+              {failedHubPartners.length > 0 ? (
+                <CoopOfflineRecoveryGuard
+                  message={offlineMessage}
+                  retrying={failedHubPartners.some((entry) => entry.loading)}
+                  isCompact={isCompact}
+                  onRetry={() => {
+                    playSfx('button_click');
+                    const seenLangs = new Set<LanguageCode>();
+                    for (const entry of failedHubPartners) {
+                      if (!seenLangs.has(entry.language)) {
+                        seenLangs.add(entry.language);
+                        void retryArcadeLanguageLoad(entry.language, !isCoopKidQuarantined);
+                      }
+                    }
+                  }}
+                  onFallbackEs={() => {
+                    playSfx('whoosh_transition');
+                    setCoopEsFallbackFor((prev) => {
+                      const next = { ...prev };
+                      for (const entry of failedHubPartners) {
+                        next[entry.profile.id] = entry.language;
+                      }
+                      return next;
+                    });
+                  }}
+                />
+              ) : null}
+            </>
+          );
+        })() : null}
 
         {hubPlainResult ? (
           <ArcadePlainEnglishCallout
@@ -1457,6 +1885,7 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
 
       {/* 9-Cabinet Console Grid */}
       <div
+        className={isNarrow && effectiveCoopEnabled ? 'console-scroll-pane' : undefined}
         style={{
           flex: 1,
           minHeight: 0,
@@ -1471,12 +1900,17 @@ export function ArcadeHub({ initialMode = 'hub', onExitToMap }: ArcadeHubProps) 
           gridTemplateRows: isNarrow
             ? page === 2
               ? 'minmax(0, 1fr)'
-              : 'repeat(2, minmax(0, 1fr))'
+              : effectiveCoopEnabled
+                ? undefined
+                : 'repeat(2, minmax(0, 1fr))'
             : isWideDesktop
               ? 'minmax(0, 1fr) minmax(0, 1fr) auto'
               : 'repeat(3, minmax(0, 1fr))',
+          gridAutoRows:
+            isNarrow && effectiveCoopEnabled && page !== 2 ? 'minmax(138px, auto)' : undefined,
           gap: isCompact ? 7 : 9,
-          overflow: 'hidden',
+          overflowY: isNarrow && effectiveCoopEnabled ? 'auto' : 'hidden',
+          overflowX: 'hidden',
         }}
       >
         {visibleStandard.map((cab) => {
