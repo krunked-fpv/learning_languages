@@ -1154,6 +1154,7 @@ describe('After-Hours Atlas: Adult Mode Easter Egg, Kid Quarantine & Bidirection
     });
 
     vi.useFakeTimers();
+    const rescueBefore = getSpeechRuntimeState().watchdogRescueCount ?? 0;
     const hungPromise = speakPhrase({
       text: 'No cap, that track slaps.',
       language: 'ebonics',
@@ -1162,9 +1163,19 @@ describe('After-Hours Atlas: Adult Mode Easter Egg, Kid Quarantine & Bidirection
     expect(getSpeechRuntimeState().isSpeaking).toBe(true);
     await vi.advanceTimersByTimeAsync(4500);
     const watchdogOutcome = await hungPromise;
-    expect(watchdogOutcome).toEqual({ usedNativeVoice: true, fallbackActive: false, localeUsed: 'en-US' });
+    expect(watchdogOutcome).toEqual({
+      usedNativeVoice: false,
+      fallbackActive: true,
+      localeUsed: 'en-US',
+      watchdogTriggered: true,
+    });
     expect(cancelSpy).toHaveBeenCalled();
     expect(getSpeechRuntimeState().isSpeaking).toBe(false);
+    expect(getSpeechRuntimeState().fallbackActive).toBe(true);
+    expect(getSpeechRuntimeState().watchdogTriggered).toBe(true);
+    expect(getSpeechRuntimeState().watchdogRescueCount ?? 0).toBeGreaterThanOrEqual(1);
+    expect(getSpeechRuntimeState().watchdogRescueCount).toBe(rescueBefore + 1);
+    stopSpeech();
 
     // No voices -> phonetic marimba cadence fallback with warm sine/triangle waves
     Object.defineProperty(window, 'speechSynthesis', {
