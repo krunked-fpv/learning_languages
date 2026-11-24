@@ -1288,7 +1288,7 @@ describe('Cohort H [PT-126..PT-135]: Sprint 4 Features (Operation Celestial Summ
     }
   });
 
-  it('[PT-135] enforces subpath ./ build, <= 500 KiB offline chunks, wanderling-cache-v8, and zero Unicode country flag emojis across Sprint 4 files', () => {
+  it('[PT-135] enforces subpath ./ build, <= 500 KiB offline chunks, wanderling-cache-v9, and zero Unicode country flag emojis across Sprint 4 files', () => {
     const viteCfg = readFileSync(resolve(ROOT_DIR, 'vite.config.ts'), 'utf8');
     expect(viteCfg).toContain("base: './'");
 
@@ -1311,11 +1311,11 @@ describe('Cohort H [PT-126..PT-135]: Sprint 4 Features (Operation Celestial Summ
     const manifest = JSON.parse(
       readFileSync(resolve(DIST_DIR, 'sw-precache-manifest.json'), 'utf8')
     ) as { cacheVersion: string; assets: string[] };
-    expect(manifest.cacheVersion).toBe('wanderling-cache-v8');
+    expect(manifest.cacheVersion).toBe('wanderling-cache-v9');
     expect(manifest.assets.length).toBeGreaterThan(10);
 
     const swSrc = readFileSync(resolve(ROOT_DIR, 'public/sw.js'), 'utf8');
-    expect(swSrc).toContain("const CACHE_VERSION = 'wanderling-cache-v8'");
+    expect(swSrc).toContain("const CACHE_VERSION = 'wanderling-cache-v9'");
 
     const filesToScan = [
       ...walkFilesRecursive(resolve(ROOT_DIR, 'src')),

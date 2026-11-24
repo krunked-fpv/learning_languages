@@ -1354,7 +1354,7 @@ describe('Cohort G [PT-116..PT-125]: Sprint 3 Features (Operation Aurora Pact)',
     expect(errSpy).not.toHaveBeenCalled();
   });
 
-  it('[PT-125] survives Sprint 3 chaos transitions (Co-Op sync/delete, numeric Pinyin + drawer, Study Break toggle), PWA <= 500 KiB & wanderling-cache-v8, and zero Unicode flag emojis', async () => {
+  it('[PT-125] survives Sprint 3 chaos transitions (Co-Op sync/delete, numeric Pinyin + drawer, Study Break toggle), PWA <= 500 KiB & wanderling-cache-v9, and zero Unicode flag emojis', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const unhandled: unknown[] = [];
     const onUnhandled = (reason: unknown) => unhandled.push(reason);
@@ -1422,7 +1422,7 @@ describe('Cohort G [PT-116..PT-125]: Sprint 3 Features (Operation Aurora Pact)',
       unmountZh();
       cleanup();
 
-      // 4. PWA bundle chunk budget <= 500 KiB, wanderling-cache-v8, & zero Unicode flag emojis
+      // 4. PWA bundle chunk budget <= 500 KiB, wanderling-cache-v9, & zero Unicode flag emojis
       ensureBuiltDist();
       const assetsDir = resolve(DIST_DIR, 'assets');
       const oversized: string[] = [];
@@ -1438,10 +1438,10 @@ describe('Cohort G [PT-116..PT-125]: Sprint 3 Features (Operation Aurora Pact)',
       const manifest = JSON.parse(
         readFileSync(resolve(DIST_DIR, 'sw-precache-manifest.json'), 'utf8')
       ) as { cacheVersion: string; assets: string[] };
-      expect(manifest.cacheVersion).toBe('wanderling-cache-v8');
+      expect(manifest.cacheVersion).toBe('wanderling-cache-v9');
 
       const swSrc = readFileSync(resolve(ROOT_DIR, 'public/sw.js'), 'utf8');
-      expect(swSrc).toContain("const CACHE_VERSION = 'wanderling-cache-v8'");
+      expect(swSrc).toContain("const CACHE_VERSION = 'wanderling-cache-v9'");
 
       const filesToScan = [
         ...walkFilesRecursive(resolve(ROOT_DIR, 'src')),

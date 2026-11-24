@@ -647,17 +647,18 @@ describe('Cohort E [PT-089..PT-100]: Chaos, Save Vault, Audio Watchdog, PWA Offl
     expect(getSpeechRuntimeState().isSpeaking).toBe(false);
   });
 
-  it('[PT-098] ./sw.js precaches all core & manifest assets in wanderling-cache-v8 and purges stale caches on activate', async () => {
+  it('[PT-098] ./sw.js precaches all core & manifest assets in wanderling-cache-v9 and purges stale caches on activate', async () => {
     const sw = loadServiceWorkerHarness('http://127.0.0.1:4173/wanderling-subpath/');
-    // Pre-populate stale caches (including v7)
+    // Pre-populate stale caches (including v7 & v8)
     sw.cacheStore.set('wanderling-cache-v1', new Map());
     sw.cacheStore.set('wanderling-cache-v6', new Map());
     sw.cacheStore.set('wanderling-cache-v7', new Map());
+    sw.cacheStore.set('wanderling-cache-v8', new Map());
 
     await sw.dispatchInstall();
     expect(sw.skipWaiting).toHaveBeenCalledTimes(1);
 
-    const activeCache = sw.cacheStore.get('wanderling-cache-v8');
+    const activeCache = sw.cacheStore.get('wanderling-cache-v9');
     expect(activeCache).toBeDefined();
     const coreRelUrls = [
       './',
@@ -679,9 +680,10 @@ describe('Cohort E [PT-089..PT-100]: Chaos, Save Vault, Audio Watchdog, PWA Offl
     expect(sw.cacheStore.has('wanderling-cache-v1')).toBe(false);
     expect(sw.cacheStore.has('wanderling-cache-v6')).toBe(false);
     expect(sw.cacheStore.has('wanderling-cache-v7')).toBe(false);
-    expect(sw.cacheStore.has('wanderling-cache-v8')).toBe(true);
+    expect(sw.cacheStore.has('wanderling-cache-v8')).toBe(false);
+    expect(sw.cacheStore.has('wanderling-cache-v9')).toBe(true);
 
-    // S2-003: dist/sw-precache-manifest.json & injected dist/sw.js precache full built chunks in v8
+    // S2-003: dist/sw-precache-manifest.json & injected dist/sw.js precache full built chunks in v9
     const manifestPath = resolve(ROOT_DIR, 'dist/sw-precache-manifest.json');
     const distSwPath = resolve(ROOT_DIR, 'dist/sw.js');
     if (!existsSync(manifestPath) || !existsSync(distSwPath)) {
@@ -703,7 +705,7 @@ describe('Cohort E [PT-089..PT-100]: Chaos, Save Vault, Audio Watchdog, PWA Offl
       cacheVersion: string;
       assets: string[];
     };
-    expect(precacheManifest.cacheVersion).toBe('wanderling-cache-v8');
+    expect(precacheManifest.cacheVersion).toBe('wanderling-cache-v9');
     expect(new Set(precacheManifest.assets).size).toBe(precacheManifest.assets.length);
     for (const relUrl of coreRelUrls) {
       expect(precacheManifest.assets).toContain(relUrl);
@@ -712,17 +714,17 @@ describe('Cohort E [PT-089..PT-100]: Chaos, Save Vault, Audio Watchdog, PWA Offl
     expect(precacheManifest.assets.some((a) => /^\.\/assets\/course-ja-/.test(a))).toBe(true);
 
     const distSw = loadServiceWorkerHarness('http://127.0.0.1:4173/wanderling-subpath/', 'dist/sw.js');
-    distSw.cacheStore.set('wanderling-cache-v7', new Map());
+    distSw.cacheStore.set('wanderling-cache-v8', new Map());
     await distSw.dispatchInstall();
-    const distV8Cache = distSw.cacheStore.get('wanderling-cache-v8');
-    expect(distV8Cache).toBeDefined();
+    const distActiveCache = distSw.cacheStore.get('wanderling-cache-v9');
+    expect(distActiveCache).toBeDefined();
     for (const relUrl of precacheManifest.assets) {
       const fullHref = new URL(relUrl, 'http://127.0.0.1:4173/wanderling-subpath/').href;
-      expect(distV8Cache!.has(fullHref), `dist/sw.js missing manifest entry ${relUrl}`).toBe(true);
+      expect(distActiveCache!.has(fullHref), `dist/sw.js missing manifest entry ${relUrl}`).toBe(true);
     }
     await distSw.dispatchActivate();
-    expect(distSw.cacheStore.has('wanderling-cache-v7')).toBe(false);
-    expect(distSw.cacheStore.has('wanderling-cache-v8')).toBe(true);
+    expect(distSw.cacheStore.has('wanderling-cache-v8')).toBe(false);
+    expect(distSw.cacheStore.has('wanderling-cache-v9')).toBe(true);
 
     // BUG-017: Root metadata must match 16-language Wanderling 2.0 scope
     const pkg = JSON.parse(readFileSync(resolve(ROOT_DIR, 'package.json'), 'utf8')) as {

@@ -488,14 +488,14 @@ describe('Cohort F [PT-101..PT-115]: Sprint 2 Features (Operation Starlight Hori
     }
   });
 
-  it('[PT-102] (S2-003) verifies wanderling-cache-v8, dist/sw-precache-manifest.json runtime coverage, and ProfileVaultModal Offline Atlas Pack CTA', async () => {
+  it('[PT-102] (S2-003) verifies wanderling-cache-v9, dist/sw-precache-manifest.json runtime coverage, and ProfileVaultModal Offline Atlas Pack CTA', async () => {
     ensureBuiltDist();
     const manifestPath = resolve(DIST_DIR, 'sw-precache-manifest.json');
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
       cacheVersion: string;
       assets: string[];
     };
-    expect(manifest.cacheVersion).toBe('wanderling-cache-v8');
+    expect(manifest.cacheVersion).toBe('wanderling-cache-v9');
     expect(new Set(manifest.assets).size).toBe(manifest.assets.length);
 
     // Every built .js/.mjs/.css/.woff2 asset in dist/assets must be covered in sw-precache-manifest.json
@@ -507,13 +507,13 @@ describe('Cohort F [PT-101..PT-115]: Sprint 2 Features (Operation Starlight Hori
       expect(manifest.assets, `Missing built chunk ${rel} in sw-precache-manifest.json`).toContain(rel);
     }
 
-    // Simulated SW v8 install + activate + offline cached chunk fetch
+    // Simulated SW v9 install + activate + offline cached chunk fetch
     const sw = loadDistSwHarness('http://127.0.0.1:4173/wanderling-subpath/');
-    sw.cacheStore.set('wanderling-cache-v7', new Map());
+    sw.cacheStore.set('wanderling-cache-v8', new Map());
     await sw.dispatchInstall();
     await sw.dispatchActivate();
-    expect(sw.cacheStore.has('wanderling-cache-v7')).toBe(false);
-    expect(sw.cacheStore.has('wanderling-cache-v8')).toBe(true);
+    expect(sw.cacheStore.has('wanderling-cache-v8')).toBe(false);
+    expect(sw.cacheStore.has('wanderling-cache-v9')).toBe(true);
 
     const lazyCourseAsset = builtFiles.find((f) => /^\.\/assets\/course-ja-/.test(f))!;
     sw.fetchMock.mockRejectedValue(new Error('Network offline'));
@@ -1598,7 +1598,7 @@ describe('Cohort F [PT-101..PT-115]: Sprint 2 Features (Operation Starlight Hori
       cacheVersion: string;
       assets: string[];
     };
-    expect(manifest.cacheVersion).toBe('wanderling-cache-v8');
+    expect(manifest.cacheVersion).toBe('wanderling-cache-v9');
     for (const asset of manifest.assets) {
       expect(asset.startsWith('./')).toBe(true);
       expect(asset).not.toMatch(/^https?:\/\//i);
