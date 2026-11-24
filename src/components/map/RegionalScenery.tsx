@@ -593,9 +593,9 @@ function AdultCulturalDiorama({
           <path d="M16 14V5C16 3 18 2 20 2H42C44 2 46 3 46 5V14" fill="none" stroke="#FACC15" strokeWidth="3.2" />
           <rect x="4" y="12" width="54" height="34" rx="6" fill="#1E1B4B" stroke="#F59E0B" strokeWidth="2" />
           <rect x="9" y="16" width="44" height="5.5" rx="2" fill="#FDE047" />
-          <circle cx="16" cy="32" r="8.5" fill="#0F172A" stroke="#FBBF24" strokeWidth="2" />
+          <circle cx="16" cy="32" r="8.5" fill="#2B2129" stroke="#FBBF24" strokeWidth="2" />
           <circle cx="16" cy="32" r="3" fill="#F59E0B" />
-          <circle cx="46" cy="32" r="8.5" fill="#0F172A" stroke="#FBBF24" strokeWidth="2" />
+          <circle cx="46" cy="32" r="8.5" fill="#2B2129" stroke="#FBBF24" strokeWidth="2" />
           <circle cx="46" cy="32" r="3" fill="#F59E0B" />
           <rect x="26" y="25" width="10" height="13" rx="2" fill="#7C3AED" stroke="#FEF08A" strokeWidth="1.2" />
           {/* Floating notes */}
@@ -613,7 +613,7 @@ function AdultCulturalDiorama({
           {/* Grill tripod legs & wheel */}
           <line x1="22" y1="68" x2="14" y2="96" stroke={INK} strokeWidth="3.5" strokeLinecap="round" />
           <line x1="78" y1="68" x2="86" y2="96" stroke={INK} strokeWidth="3.5" strokeLinecap="round" />
-          <circle cx="14" cy="95" r="5" fill="#0F172A" stroke="#FACC15" strokeWidth="1.4" />
+          <circle cx="14" cy="95" r="5" fill="#2B2129" stroke="#FACC15" strokeWidth="1.4" />
           {/* Barrel drum & open lid */}
           <path d="M12 44C14 26 86 26 88 44Z" fill="#334155" stroke={INK} strokeWidth="2" />
           <rect x="10" y="44" width="80" height="30" rx="11" fill="#1E293B" stroke={INK} strokeWidth="2" />
@@ -745,7 +745,7 @@ function AdultCulturalDiorama({
       A2: { top: '#CCFBF1', mid: '#F0FDFA', bottom: '#FDE68A' },
       B1: { top: '#99F6E4', mid: '#FDE68A', bottom: '#FDBA74' },
       B2: { top: '#0F766E', mid: '#1E3A8A', bottom: '#F59E0B' },
-      C1_C2: { top: '#0F172A', mid: '#115E59', bottom: '#78350F' },
+      C1_C2: { top: '#2B2129', mid: '#115E59', bottom: '#78350F' },
     }[tier];
 
     return (
@@ -931,8 +931,8 @@ function AdultCulturalDiorama({
               {[22, 34, 46, 58, 70, 82].map((cx) => (
                 <rect key={cx} x={cx} y="18" width="6" height="6" fill="#FFFFFF" />
               ))}
-              <circle cx="24" cy="36" r="9" fill="#0F172A" stroke="#E2E8F0" strokeWidth="1.8" />
-              <circle cx="88" cy="36" r="9" fill="#0F172A" stroke="#E2E8F0" strokeWidth="1.8" />
+              <circle cx="24" cy="36" r="9" fill="#2B2129" stroke="#E2E8F0" strokeWidth="1.8" />
+              <circle cx="88" cy="36" r="9" fill="#2B2129" stroke="#E2E8F0" strokeWidth="1.8" />
             </g>
           </g>
         </g>
@@ -1005,7 +1005,7 @@ function AdultCulturalDiorama({
             <circle cx="56" cy="44" r="21" fill="none" stroke="#F0ABFC" strokeWidth="5" />
             <circle cx="56" cy="44" r="21" fill="none" stroke="#FFFFFF" strokeWidth="1.8" />
             {/* Giant Glowing For-You Phone */}
-            <rect x="92" y="34" width="46" height="84" rx="8" fill="#0F172A" stroke="#22D3EE" strokeWidth="2.4" />
+            <rect x="92" y="34" width="46" height="84" rx="8" fill="#2B2129" stroke="#22D3EE" strokeWidth="2.4" />
             <rect x="98" y="42" width="34" height="66" rx="4" fill="#3B0764" />
             <polygon points="116,56 107,74 114,74 110,90 124,70 117,70" fill="#E879F9" />
           </g>
@@ -1090,7 +1090,7 @@ function AdultCulturalDiorama({
     A2: { top: '#BEF264', mid: '#ECFCCB', bottom: '#C7D2FE' },
     B1: { top: '#A3E635', mid: '#FDE68A', bottom: '#818CF8' },
     B2: { top: '#365314', mid: '#312E81', bottom: '#4338CA' },
-    C1_C2: { top: '#1A2E05', mid: '#1E1B4B', bottom: '#0F172A' },
+    C1_C2: { top: '#1A2E05', mid: '#1E1B4B', bottom: '#2B2129' },
   }[tier];
 
   return (
@@ -1162,7 +1162,7 @@ function AdultCulturalDiorama({
           <rect x="34" y="34" width="96" height="86" rx="5" fill="#312E81" stroke={INK} strokeWidth="2" />
           <polygon points="24,36 82,6 140,36" fill="#4338CA" stroke={INK} strokeWidth="2" strokeLinejoin="round" />
           {/* Glowing Cyan Rangefinder Reticle Window */}
-          <circle cx="82" cy="70" r="20" fill="#0F172A" stroke="#38BDF8" strokeWidth="2.2" />
+          <circle cx="82" cy="70" r="20" fill="#2B2129" stroke="#38BDF8" strokeWidth="2.2" />
           <circle cx="82" cy="70" r="11" stroke="#38BDF8" strokeWidth="1.4" strokeDasharray="4 3" />
           <line x1="82" y1="48" x2="82" y2="92" stroke="#38BDF8" strokeWidth="1.5" />
           <line x1="60" y1="70" x2="104" y2="70" stroke="#38BDF8" strokeWidth="1.5" />
@@ -1170,8 +1170,8 @@ function AdultCulturalDiorama({
           {/* Tactical Riding Lawn-Mower */}
           <rect x="4" y="102" width="52" height="24" rx="6" fill="#4D7C0F" stroke={INK} strokeWidth="2" />
           <rect x="14" y="88" width="22" height="14" rx="4" fill="#1E293B" stroke={INK} strokeWidth="1.8" />
-          <circle cx="14" cy="126" r="9" fill="#0F172A" stroke="#E2E8F0" strokeWidth="1.8" />
-          <circle cx="48" cy="127" r="7" fill="#0F172A" stroke="#E2E8F0" strokeWidth="1.6" />
+          <circle cx="14" cy="126" r="9" fill="#2B2129" stroke="#E2E8F0" strokeWidth="1.8" />
+          <circle cx="48" cy="127" r="7" fill="#2B2129" stroke="#E2E8F0" strokeWidth="1.6" />
         </g>
       </g>
     </DioramaSvg>
@@ -1318,20 +1318,21 @@ export function RegionalScenery({
           />
         ))}
 
-        {/* Festive Papel Picado Banners across top */}
-        <path d="M0 20Q150 48 300 20T600 22" fill="none" stroke="#7A4128" strokeWidth="1.6" opacity="0.6" />
-        {[34, 82, 130, 178, 422, 470, 518, 566].map((x, idx) => {
+        {/* Festive Papel Picado Banners positioned in desktop & mobile safe sky band */}
+        <path d="M0 54Q150 76 300 54T600 54" fill="none" stroke="#7A4128" strokeWidth="1.5" opacity="0.62" />
+        {[42, 86, 130, 470, 514, 558].map((x, idx) => {
           const colors = ['#D94A5A', '#F2B63D', '#3296B5', '#429B6B'];
+          const yTop = idx === 1 || idx === 4 ? 61 : idx === 2 || idx === 3 ? 64 : 58;
           return (
-            <g key={x} opacity="0.84">
+            <g key={x} opacity="0.86">
               <path
-                d={`M${x - 15} 24L${x + 15} 24L${x + 12} 49L${x + 6} 45L${x} 51L${x - 6} 45L${x - 12} 49Z`}
+                d={`M${x - 13} ${yTop}L${x + 13} ${yTop}L${x + 10.5} ${yTop + 20}L${x + 5} ${yTop + 16.5}L${x} ${yTop + 21.5}L${x - 5} ${yTop + 16.5}L${x - 10.5} ${yTop + 20}Z`}
                 fill={colors[idx % colors.length]}
                 stroke={INK}
-                strokeWidth="1.1"
+                strokeWidth="1.05"
                 strokeLinejoin="round"
               />
-              <circle cx={x} cy="36" r="2.6" fill="#FFF7E6" opacity="0.8" />
+              <circle cx={x} cy={yTop + 9.5} r="2.2" fill="#FFF7E6" opacity="0.82" />
             </g>
           );
         })}

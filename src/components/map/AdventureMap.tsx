@@ -609,11 +609,11 @@ export function AdventureMap({
                 gap: 4,
                 padding: isCompactWidth ? '3px 7px' : '4px 10px',
                 borderRadius: 999,
-                backgroundColor: '#FEF3C7',
+                backgroundColor: 'var(--tint-amber-bg, #FEF3C7)',
                 borderStyle: 'solid',
                 borderWidth: '1.5px',
-                borderColor: '#F59E0B',
-                color: '#92400E',
+                borderColor: 'var(--tint-amber-border, #F59E0B)',
+                color: 'var(--tint-amber-ink, #92400E)',
                 fontWeight: 800,
                 fontSize: isCompactWidth ? 11 : 12,
                 whiteSpace: 'nowrap',
@@ -628,11 +628,11 @@ export function AdventureMap({
                 alignItems: 'center',
                 padding: isCompactWidth ? '3px 7px' : '4px 10px',
                 borderRadius: 999,
-                backgroundColor: '#EFF6FF',
+                backgroundColor: 'var(--tint-indigo-bg, #EFF6FF)',
                 borderStyle: 'solid',
                 borderWidth: '1.5px',
-                borderColor: '#60A5FA',
-                color: '#1D4ED8',
+                borderColor: 'var(--tint-indigo-border, #60A5FA)',
+                color: 'var(--tint-indigo-ink, #1D4ED8)',
                 fontWeight: 800,
                 fontSize: isCompactWidth ? 11 : 12,
                 whiteSpace: 'nowrap',
@@ -801,6 +801,13 @@ export function AdventureMap({
             overflowX: 'auto',
             scrollbarWidth: 'none',
             paddingBottom: 1,
+            paddingRight: isCompactWidth ? 14 : 0,
+            maskImage: isCompactWidth
+              ? 'linear-gradient(to right, #000 0%, #000 calc(100% - 22px), transparent 100%)'
+              : undefined,
+            WebkitMaskImage: isCompactWidth
+              ? 'linear-gradient(to right, #000 0%, #000 calc(100% - 22px), transparent 100%)'
+              : undefined,
           }}
         >
           {PROFICIENCY_TIERS.map((tier) => {
@@ -939,6 +946,11 @@ export function AdventureMap({
               overflowX: 'auto',
               scrollbarWidth: 'none',
               paddingBottom: 2,
+              paddingRight: 16,
+              maskImage:
+                'linear-gradient(to right, #000 0%, #000 calc(100% - 24px), transparent 100%)',
+              WebkitMaskImage:
+                'linear-gradient(to right, #000 0%, #000 calc(100% - 24px), transparent 100%)',
             }}
           >
             {sortedUnits.map((unit, idx) => {
@@ -1272,7 +1284,8 @@ export function AdventureMap({
                       <path
                         d={seg.d}
                         fill="none"
-                        stroke="rgba(15, 23, 42, 0.18)"
+                        stroke="var(--shadow-tint, rgba(74, 52, 38, 0.22))"
+                        transform="translate(0.5 1.2)"
                         strokeWidth={isCompactWidth ? '12' : '15'}
                         strokeLinecap="round"
                         vectorEffect="non-scaling-stroke"
@@ -1280,16 +1293,20 @@ export function AdventureMap({
                       <path
                         d={seg.d}
                         fill="none"
-                        stroke={isTrailLit ? 'var(--gild, #f3dca0)' : 'var(--paper-base, #fbf3e2)'}
-                        strokeWidth={isCompactWidth ? '8' : '10'}
+                        stroke={
+                          isTrailLit
+                            ? 'var(--lantern-glow, #ffd48a)'
+                            : 'color-mix(in oklab, var(--paper-base, #fbf1dc) 84%, var(--gild, #c99a3e) 16%)'
+                        }
+                        strokeWidth={isCompactWidth ? '8.5' : '10.5'}
                         strokeLinecap="round"
                         vectorEffect="non-scaling-stroke"
                       />
                       <path
                         d={seg.d}
                         fill="none"
-                        stroke={isTrailLit ? palette.primary : 'var(--ink-soft, #8b7360)'}
-                        strokeWidth={isCompactWidth ? '3' : '3.8'}
+                        stroke={isTrailLit ? palette.primary : 'var(--gild, #c99a3e)'}
+                        strokeWidth={isCompactWidth ? '3' : '3.6'}
                         strokeDasharray={isTrailLit ? 'none' : '7 7'}
                         strokeLinecap="round"
                         vectorEffect="non-scaling-stroke"
@@ -1481,26 +1498,38 @@ export function AdventureMap({
                         width: buttonSize,
                         height: buttonSize,
                         borderRadius: '50%',
-                        backgroundColor: state === 'locked' ? '#E8DEC9' : buttonBg,
+                        backgroundColor: state === 'locked' ? 'var(--paper-shade, #efe0c2)' : buttonBg,
                         backgroundImage:
                           state === 'locked'
-                            ? 'radial-gradient(circle at 30% 24%, rgba(255, 252, 244, 0.72), transparent 60%)'
+                            ? 'radial-gradient(circle at 30% 24%, rgba(255, 250, 232, 0.34), transparent 62%)'
                             : 'radial-gradient(circle at 30% 24%, rgba(255, 252, 240, 0.44), transparent 58%)',
                         borderStyle: 'solid',
                         borderWidth: isCompactWidth ? '2px 2px 4.5px 2px' : '2.5px 2.5px 5.5px 2.5px',
-                        borderTopColor: state === 'locked' ? '#B8A890' : '#4a3426',
-                        borderRightColor: state === 'locked' ? '#B8A890' : '#4a3426',
-                        borderLeftColor: state === 'locked' ? '#B8A890' : '#4a3426',
-                        borderBottomColor: state === 'locked' ? '#8C7A64' : buttonBevel,
+                        borderTopColor:
+                          state === 'locked'
+                            ? 'color-mix(in oklab, var(--gild, #c99a3e) 62%, var(--ink-warm, #4a3426) 30%)'
+                            : '#4a3426',
+                        borderRightColor:
+                          state === 'locked'
+                            ? 'color-mix(in oklab, var(--gild, #c99a3e) 62%, var(--ink-warm, #4a3426) 30%)'
+                            : '#4a3426',
+                        borderLeftColor:
+                          state === 'locked'
+                            ? 'color-mix(in oklab, var(--gild, #c99a3e) 62%, var(--ink-warm, #4a3426) 30%)'
+                            : '#4a3426',
+                        borderBottomColor:
+                          state === 'locked'
+                            ? 'color-mix(in oklab, var(--ink-warm, #4a3426) 44%, var(--paper-shade, #efe0c2))'
+                            : buttonBevel,
                         boxShadow: isActive
                           ? `2px 7px 18px color-mix(in oklab, ${palette.primary} 38%, rgba(74, 52, 38, 0.26)), 0 0 0 2px color-mix(in oklab, var(--gild, #c99a3e) 60%, transparent)`
-                          : '2px 5px 12px rgba(74, 52, 38, 0.2)',
+                          : '2px 5px 12px var(--shadow-tint, rgba(74, 52, 38, 0.22))',
                         cursor: state === 'locked' ? 'not-allowed' : 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         padding: 0,
-                        opacity: state === 'locked' ? 0.9 : 1,
+                        opacity: state === 'locked' ? 0.94 : 1,
                       }}
                     >
                       <div style={{ transform: isCompactWidth ? 'scale(0.84)' : 'scale(0.95)', display: 'flex' }}>
@@ -1512,12 +1541,12 @@ export function AdventureMap({
                             position: 'absolute',
                             right: -4,
                             bottom: -4,
-                            backgroundColor: '#FBF3E2',
+                            backgroundColor: 'var(--paper-base, #fbf1dc)',
                             borderRadius: '50%',
                             padding: 2,
                             borderStyle: 'solid',
                             borderWidth: 1.5,
-                            borderColor: '#8A6B52',
+                            borderColor: 'var(--gild, #c99a3e)',
                             display: 'inline-flex',
                           }}
                         >

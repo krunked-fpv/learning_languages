@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import type { MapNodeType } from '../../types/contracts';
 
-const INK = '#4a3426';
+const ACTIVE_INK = '#4a3426';
 
 export function MapNodeIcon({
   nodeType,
@@ -12,6 +12,9 @@ export function MapNodeIcon({
 }) {
   const uid = useId().replace(/:/g, '');
   const muted = state === 'locked';
+  // Locked icons sit on --paper-shade (cream in daylight, velvet in dark themes),
+  // so --ink-warm gives sepia ink in daylight and antique gold in dark themes!
+  const INK = muted ? 'var(--ink-warm, #4a3426)' : ACTIVE_INK;
 
   if (nodeType === 'chest') {
     return (
@@ -262,12 +265,21 @@ export function PadlockBadge() {
     <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
       <path
         d="M6.5 9V6.8C6.5 4.8 8 3.5 10 3.5C12 3.5 13.5 4.8 13.5 6.8V9"
-        stroke="#6E5A49"
+        stroke="var(--ink-soft, #6E5A49)"
         strokeWidth="2.1"
         strokeLinecap="round"
       />
-      <rect x="4.5" y="9" width="11" height="8" rx="2.5" fill="#C9B79C" stroke="#4a3426" strokeWidth="1.5" />
-      <circle cx="10" cy="12.6" r="1.15" fill="#4a3426" />
+      <rect
+        x="4.5"
+        y="9"
+        width="11"
+        height="8"
+        rx="2.5"
+        fill="color-mix(in oklab, var(--gild, #c99a3e) 55%, var(--paper-base, #fbf1dc))"
+        stroke="var(--ink-warm, #4a3426)"
+        strokeWidth="1.5"
+      />
+      <circle cx="10" cy="12.6" r="1.15" fill="var(--ink-warm, #4a3426)" />
     </svg>
   );
 }
@@ -275,6 +287,7 @@ export function PadlockBadge() {
 /** Faceted starlight gem emblem for the Spaced-Repetition Memory Quest CTA. */
 export function StarlightGemIcon({ size = 16 }: { size?: number }) {
   const uid = useId().replace(/:/g, '');
+  const INK = ACTIVE_INK;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <defs>
