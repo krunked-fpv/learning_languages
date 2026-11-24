@@ -1437,8 +1437,10 @@ export interface CoopArcadeSessionParams {
   gameId: string;
   playerOneId: string;
   playerOneScore: number;
+  playerOneLanguage?: LanguageCode;
   playerTwoId: string;
   playerTwoScore: number;
+  playerTwoLanguage?: LanguageCode;
   bonusGems: number;
   xpEarned: number;
 }
