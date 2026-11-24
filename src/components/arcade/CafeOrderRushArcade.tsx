@@ -33,6 +33,7 @@ import {
   useArcadeCoopTurn,
   useArcadeDeck,
   useArcadeEffectiveProfile,
+  ArcadeStageDressing,
 } from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 45;
@@ -540,50 +541,51 @@ export function CafeOrderRushArcade({
               borderLeftWidth: 3,
               borderBottomWidth: 5,
               borderStyle: 'solid',
-              borderColor: '#f97316',
-              background: 'linear-gradient(180deg, #fff7ed 0%, #ffedd5 55%, #fde68a 100%)',
+              borderColor: '#b45309',
+              background:
+                'radial-gradient(85% 65% at 12% 8%, rgba(255, 248, 226, 0.85), transparent 60%), linear-gradient(180deg, #fff8ed 0%, #fcebd1 56%, #f5d8a8 100%)',
               display: 'flex',
               flexDirection: 'column',
               gap: isCompact ? 8 : 12,
               overflow: 'hidden',
               userSelect: 'none',
+              boxShadow: 'inset 0 2px 12px rgba(74, 52, 38, 0.14)',
             }}
           >
-            {/* Striped Bistro Awning */}
+            <ArcadeStageDressing glowKey={score} combo={combo} tone="warm" />
+            {/* Scalloped Bistro Linen Awning */}
             <div
               aria-hidden="true"
+              className="arcade-awning-scallop"
               style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: isCompact ? 10 : 14,
+                height: isCompact ? 11 : 15,
                 background:
-                  'repeating-linear-gradient(90deg, #ea580c 0px, #ea580c 22px, #ffffff 22px, #ffffff 44px)',
-                opacity: 0.85,
-                pointerEvents: 'none',
+                  'repeating-linear-gradient(90deg, #d95d24 0px, #d95d24 22px, #fffdf7 22px, #fffdf7 44px)',
+                opacity: 0.92,
               }}
             />
 
             {/* Customer Order Counter Card */}
             <div
               style={{
+                position: 'relative',
+                zIndex: 4,
                 marginTop: isCompact ? 8 : 12,
                 flexShrink: 0,
                 padding: isCompact ? '8px 10px' : '12px 16px',
                 borderRadius: 18,
-                background: 'rgba(255, 255, 255, 0.94)',
+                background: 'linear-gradient(145deg, #fffdf8 0%, #fff7ea 100%)',
                 borderTopWidth: 2,
                 borderRightWidth: 2,
                 borderLeftWidth: 2,
                 borderBottomWidth: 4,
                 borderStyle: 'solid',
-                borderColor: '#fdba74',
+                borderColor: '#c9884f',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 gap: isCompact ? 8 : 14,
-                boxShadow: '0 8px 18px rgba(154, 52, 18, 0.12)',
+                boxShadow: '2px 5px 0 rgba(74, 52, 38, 0.16), 0 8px 18px rgba(124, 67, 33, 0.14)',
               }}
             >
               {/* Active Companion with Live 60fps Patience Ring */}
@@ -878,26 +880,27 @@ export function CafeOrderRushArcade({
                     dir="ltr"
                     data-hint-dimmed={isDimmed ? 'true' : undefined}
                     data-hint-spotlight={isSpotlight ? 'true' : undefined}
-                    className={`tactile-btn starlight-choice-tile ${
+                    className={`tactile-btn arcade-toy-tile starlight-choice-tile ${
                       isDimmed ? 'is-starlight-dimmed' : ''
                     } ${isSpotlight ? 'is-starlight-spotlight' : ''}`}
                     onClick={() => handleServePlatter(platterIdx)}
                     style={{
                       position: 'relative',
+                      zIndex: 4,
                       width: '100%',
                       height: '100%',
                       minWidth: 0,
                       minHeight: 0,
                       padding: isCompact ? '15px 6px 5px' : '12px 14px',
                       borderRadius: 20,
-                      background: '#ffffff',
+                      background: '#fffdf8',
                       borderTopWidth: 2.5,
                       borderRightWidth: 2.5,
                       borderLeftWidth: 2.5,
                       borderBottomWidth: 5,
                       borderStyle: 'solid',
                       borderColor: isSpotlight ? '#a78bfa' : accent.border,
-                      color: '#1e1b4b',
+                      color: '#3a2618',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',

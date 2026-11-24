@@ -22,6 +22,7 @@ import {
   useArcadeContainerMetrics,
   useArcadeCoopReport,
   useArcadeDeck,
+  ArcadeStageDressing,
 } from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 45;
@@ -388,13 +389,16 @@ export function TrainSwitcherArcade({
               borderLeftWidth: 3,
               borderBottomWidth: 5,
               borderStyle: 'solid',
-              borderColor: '#10b981',
-              background: 'linear-gradient(180deg, #dcfce7 0%, #a7f3d0 55%, #6ee7b7 100%)',
+              borderColor: '#5b7a53',
+              background:
+                'radial-gradient(80% 55% at 12% 8%, rgba(255, 248, 224, 0.72), transparent 58%), linear-gradient(180deg, #e7f3de 0%, #c6e5bd 52%, #98cf98 100%)',
               overflow: 'hidden',
               userSelect: 'none',
+              boxShadow: 'inset 0 2px 14px rgba(74, 52, 38, 0.16)',
             }}
           >
-            {/* Alpine Scenery + 3 Curved Tracks SVG */}
+            <ArcadeStageDressing glowKey={score} combo={combo} tone="daylight" />
+            {/* Alpine Paper-Cut Scenery + 3 Curved Wooden/Brass Tracks SVG */}
             <svg
               aria-hidden="true"
               viewBox="0 0 100 100"
@@ -407,13 +411,18 @@ export function TrainSwitcherArcade({
                 pointerEvents: 'none',
               }}
             >
-              {/* Distant Alpine Peaks */}
-              <polygon points="0,35 16,10 34,35" fill="#cbd5e1" opacity="0.45" />
-              <polygon points="66,35 84,8 100,35" fill="#cbd5e1" opacity="0.45" />
+              {/* Layered Paper-Cut Alpine Peaks (key-lit left, violet-shaded right) */}
+              <polygon points="0,36 16,9 34,36" fill="#d8cfc2" opacity="0.62" />
+              <polygon points="16,9 34,36 18,36" fill="#9c93a8" opacity="0.34" />
+              <polygon points="66,36 84,8 100,36" fill="#d8cfc2" opacity="0.62" />
+              <polygon points="84,8 100,36 85,36" fill="#9c93a8" opacity="0.34" />
+              {/* Paper-Cut Pine Silhouettes */}
+              <polygon points="7,42 11,29 15,42" fill="#4f7a57" opacity="0.5" />
+              <polygon points="86,44 90,30 94,44" fill="#4f7a57" opacity="0.5" />
 
               {/* Main Entry Rail */}
-              <line x1="50" y1="6" x2="50" y2="36" stroke="#78350f" strokeWidth="4" />
-              <line x1="50" y1="6" x2="50" y2="36" stroke="#fde047" strokeWidth="1.4" />
+              <line x1="50" y1="6" x2="50" y2="36" stroke="#4a3426" strokeWidth="4.4" strokeLinecap="round" />
+              <line x1="50" y1="6" x2="50" y2="36" stroke="#f6c56a" strokeWidth="1.5" />
 
               {/* Branch Rails */}
               {TRACK_X.map((tx, idx) => {
@@ -424,14 +433,14 @@ export function TrainSwitcherArcade({
                     <path
                       d={d}
                       fill="none"
-                      stroke={isSelected ? '#92400e' : '#64748b'}
-                      strokeWidth={isSelected ? '4.5' : '3.2'}
+                      stroke={isSelected ? '#6b3e1e' : '#6b6a66'}
+                      strokeWidth={isSelected ? '4.6' : '3.2'}
                       strokeLinecap="round"
                     />
                     <path
                       d={d}
                       fill="none"
-                      stroke={isSelected ? '#fde047' : '#cbd5e1'}
+                      stroke={isSelected ? '#fde047' : '#e2ddd4'}
                       strokeWidth={isSelected ? '1.8' : '1.1'}
                       strokeDasharray={isSelected ? 'none' : '2 2'}
                     />
@@ -439,8 +448,9 @@ export function TrainSwitcherArcade({
                 );
               })}
 
-              {/* Junction Switch Lever Ring */}
-              <circle cx="50" cy="36" r="4.2" fill="#f59e0b" stroke="#78350f" strokeWidth="1.4" />
+              {/* Brass Junction Switch Lever Ring with Cast Shadow */}
+              <circle cx="50.8" cy="37" r="4.3" fill="#4a3426" fillOpacity="0.22" />
+              <circle cx="50" cy="36" r="4.2" fill="#f59e0b" stroke="#4a3426" strokeWidth="1.4" />
             </svg>
 
             {/* Coupled Golden Carriages Counter */}
@@ -512,12 +522,14 @@ export function TrainSwitcherArcade({
                 zIndex: 7,
               }}
             >
-              <svg width={isCompact ? 46 : 56} height={isCompact ? 42 : 50} viewBox="0 0 60 54" aria-label="Alpine Express train">
-                <rect x="10" y="10" width="40" height="32" rx="10" fill="#d97706" stroke="#78350f" strokeWidth="3" />
-                <rect x="17" y="15" width="26" height="14" rx="5" fill="#fef3c7" stroke="#92400e" strokeWidth="2" />
-                <circle cx="30" cy="36" r="5" fill="#fde047" stroke="#78350f" strokeWidth="2" />
-                <circle cx="16" cy="43" r="4.5" fill="#1e293b" />
-                <circle cx="44" cy="43" r="4.5" fill="#1e293b" />
+              <svg width={isCompact ? 48 : 58} height={isCompact ? 44 : 52} viewBox="0 0 60 56" aria-label="Alpine Express train">
+                <ellipse cx="32" cy="49" rx="20" ry="4" fill="#4a3426" fillOpacity="0.24" />
+                <rect x="10" y="10" width="40" height="32" rx="10" fill="#d97706" stroke="#4a3426" strokeWidth="2.8" />
+                <path d="M16 14H44" stroke="#fef3c7" strokeWidth="2" strokeLinecap="round" opacity="0.65" />
+                <rect x="17" y="16" width="26" height="13" rx="5" fill="#fef3c7" stroke="#6b3e1e" strokeWidth="1.8" />
+                <circle cx="30" cy="36" r="5" fill="#fde047" stroke="#4a3426" strokeWidth="1.8" />
+                <circle cx="16" cy="43" r="4.5" fill="#4a3426" stroke="#f6c56a" strokeWidth="1.5" />
+                <circle cx="44" cy="43" r="4.5" fill="#4a3426" stroke="#f6c56a" strokeWidth="1.5" />
               </svg>
             </div>
 
@@ -542,18 +554,19 @@ export function TrainSwitcherArcade({
                     key={`${item.id}-${lane}`}
                     type="button"
                     dir="ltr"
+                    className="arcade-toy-tile"
                     onClick={() => selectTrack(lane)}
                     style={{
                       padding: isCompact ? '4px 4px' : '8px 10px',
                       borderRadius: 16,
-                      background: isSelected ? '#fef3c7' : '#ffffff',
+                      background: isSelected ? '#fef3c7' : '#fffdf8',
                       borderTopWidth: 2.5,
                       borderRightWidth: 2.5,
                       borderLeftWidth: 2.5,
                       borderBottomWidth: 5,
                       borderStyle: 'solid',
-                      borderColor: isSelected ? '#d97706' : '#059669',
-                      color: '#1e1b4b',
+                      borderColor: isSelected ? '#b45309' : '#3d7a5b',
+                      color: '#3a2618',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',

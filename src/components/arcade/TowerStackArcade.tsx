@@ -23,6 +23,7 @@ import {
   useArcadeContainerMetrics,
   useArcadeCoopReport,
   useArcadeDeck,
+  ArcadeStageDressing,
 } from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 45;
@@ -446,40 +447,41 @@ export function TowerStackArcade({
               borderLeftWidth: 3,
               borderBottomWidth: 5,
               borderStyle: 'solid',
-              borderColor: perfectFlash ? '#f59e0b' : '#f472b6',
-              background: 'linear-gradient(180deg, #fff1f2 0%, #fef3c7 58%, #fde68a 100%)',
+              borderColor: perfectFlash ? '#d97706' : '#c96f88',
+              background:
+                'radial-gradient(85% 60% at 14% 8%, rgba(255, 250, 238, 0.85), transparent 62%), linear-gradient(180deg, #fff5f5 0%, #fef1d2 56%, #f6d99a 100%)',
               overflow: 'hidden',
               userSelect: 'none',
               cursor: 'pointer',
+              boxShadow: 'inset 0 2px 14px rgba(74, 52, 38, 0.14)',
             }}
           >
-            {/* Striped Patisserie Awning Top */}
+            <ArcadeStageDressing glowKey={score} combo={combo} fever={perfectFlash} tone="warm" />
+            {/* Striped Patisserie Scalloped Awning Top */}
             <div
               aria-hidden="true"
+              className="arcade-awning-scallop"
               style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 14,
+                height: 15,
                 background:
-                  'repeating-linear-gradient(90deg, #fb7185 0px, #fb7185 24px, #ffffff 24px, #ffffff 48px)',
-                opacity: 0.78,
+                  'repeating-linear-gradient(90deg, #e1657e 0px, #e1657e 24px, #fffdf7 24px, #fffdf7 48px)',
+                opacity: 0.9,
               }}
             />
 
             {/* Status Toast */}
             <div
+              className="arcade-toast-ribbon"
               style={{
                 position: 'absolute',
-                top: 18,
+                top: 20,
                 left: '50%',
                 transform: 'translateX(-50%)',
                 maxWidth: 'calc(100% - 16px)',
-                padding: '3px 12px',
+                padding: '3px 13px',
                 borderRadius: 999,
-                background: perfectFlash ? '#b45309' : 'rgba(30, 27, 75, 0.82)',
-                color: perfectFlash ? '#fef08a' : '#ffffff',
+                background: perfectFlash ? '#9a4f0a' : 'rgba(74, 52, 38, 0.9)',
+                color: perfectFlash ? '#fef08a' : '#fff8ea',
                 fontSize: '0.75rem',
                 fontWeight: 800,
                 whiteSpace: 'nowrap',
@@ -502,10 +504,12 @@ export function TowerStackArcade({
                   top: `${railTop}%`,
                   left: '8%',
                   right: '8%',
-                  height: 5,
+                  height: 6,
                   borderRadius: 999,
-                  background: '#d97706',
-                  opacity: 0.4,
+                  background: 'linear-gradient(180deg, #f3cb74 0%, #b47320 100%)',
+                  border: '1px solid rgba(74, 52, 38, 0.45)',
+                  boxShadow: '0 2px 4px rgba(74, 52, 38, 0.2)',
+                  opacity: 0.72,
                   pointerEvents: 'none',
                 }}
               />
@@ -607,16 +611,18 @@ export function TowerStackArcade({
                 zIndex: 4,
               }}
             >
-              {/* Waffle Cone Base */}
-              <svg width={isCompact ? 62 : 76} height={isCompact ? 48 : 58} viewBox="0 0 80 62" aria-hidden="true">
+              {/* Waffle Cone Base with warm cast shadow */}
+              <svg width={isCompact ? 64 : 78} height={isCompact ? 50 : 60} viewBox="0 0 80 66" aria-hidden="true">
+                <ellipse cx="42" cy="60" rx="18" ry="4" fill="#4a3426" fillOpacity="0.22" />
                 <polygon
                   points="14,6 66,6 40,58"
                   fill="#f59e0b"
-                  stroke="#92400E"
-                  strokeWidth="3.5"
+                  stroke="#4a3426"
+                  strokeWidth="3.2"
                   strokeLinejoin="round"
                 />
-                <path d="M24 14L46 42M56 14L34 42" stroke="#b45309" strokeWidth="2" strokeLinecap="round" />
+                <path d="M24 14L46 42M56 14L34 42" stroke="#92400e" strokeWidth="2" strokeLinecap="round" />
+                <path d="M20 10H34" stroke="#fef3c7" strokeWidth="2" strokeLinecap="round" opacity="0.7" />
               </svg>
 
               {/* Stacked Treat Scoops */}

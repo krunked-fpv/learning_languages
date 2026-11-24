@@ -10,6 +10,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
+import './arcadeCraft.css';
 import { Gem, Heart, MessageSquareQuote, Play, RotateCcw, Sparkles, Star, Volume2, WifiOff, X } from 'lucide-react';
 import { AvatarBadge } from '../../art/AvatarBadge';
 import { playSfx, speakPhrase } from '../../audio';
@@ -1821,6 +1822,74 @@ export function pickDistinctItems(
 export const ARCADE_PAPER_GRAIN =
   "url(\"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.29 0 0 0 0 0.2 0 0 0 0 0.15 0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23g)' opacity='0.35'/%3E%3C/svg%3E\")";
 
+/**
+ * Paper-theater proscenium dressing laid inside a cabinet's playfield:
+ * delicate gilded corner filigree, soft upper-left key-light & warm footlights,
+ * a Golden-Hour sunburst pulse whenever `glowKey` (score) increases, and a
+ * persistent cozy Golden-Hour Fever amber aura + drifting lantern motes when
+ * `combo >= 2` or `fever` is active.
+ * Decorative only: aria-hidden, pointer-events none, transform/opacity motion,
+ * gated by prefers-reduced-motion in CSS.
+ */
+export function ArcadeStageDressing({
+  glowKey = 0,
+  combo = 0,
+  fever = false,
+  tone = 'warm',
+}: {
+  glowKey?: number;
+  combo?: number;
+  fever?: boolean;
+  tone?: 'daylight' | 'celestial' | 'warm';
+}) {
+  const prev = useRef(glowKey);
+  const [pulse, setPulse] = useState(0);
+  useEffect(() => {
+    if (glowKey > prev.current) setPulse((n) => n + 1);
+    prev.current = glowKey;
+  }, [glowKey]);
+
+  const isCelestial = tone === 'celestial';
+  const goldenHourActive = fever || combo >= 2;
+  const cornerStroke = isCelestial ? '#e6c273' : '#7c4d2b';
+
+  return (
+    <div
+      aria-hidden="true"
+      className={`arcade-stage-dressing ${isCelestial ? 'is-celestial' : ''}`}
+      data-golden-hour={goldenHourActive ? 'true' : undefined}
+    >
+      {/* Delicate gilded paper-theater corner brackets (strictly on the perimeter) */}
+      <svg
+        className="arcade-stage-filigree"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        fill="none"
+      >
+        <path
+          d="M 1.5 9 V 2.2 Q 2.2 1.5 9 1.5 M 91 1.5 H 97.8 Q 98.5 2.2 98.5 9 M 1.5 91 V 97.8 Q 2.2 98.5 9 98.5 M 98.5 91 V 97.8 Q 97.8 98.5 91 98.5"
+          stroke={cornerStroke}
+          strokeOpacity={isCelestial ? 0.55 : 0.34}
+          strokeWidth="0.65"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      <span className="arcade-stage-footlight" />
+      {goldenHourActive ? (
+        <>
+          <span className="arcade-stage-fever-aura" />
+          <span className="arcade-stage-mote arcade-stage-mote-1" />
+          <span className="arcade-stage-mote arcade-stage-mote-2" />
+          <span className="arcade-stage-mote arcade-stage-mote-3" />
+          <span className="arcade-stage-mote arcade-stage-mote-4" />
+        </>
+      ) : null}
+      {pulse > 0 ? <span key={pulse} className="arcade-stage-glow" /> : null}
+    </div>
+  );
+}
+
 export const ARCADE_SHELL_STYLE = {
   position: 'relative',
   borderRadius: 24,
@@ -1855,14 +1924,16 @@ export const CARD_SURFACE_STYLE = {
 } as const;
 
 export const SOFT_BTN_STYLE = {
-  background: 'var(--card-soft-bg, #f1f5f9)',
-  color: 'var(--text-main, #1e1b4b)',
+  background:
+    'linear-gradient(180deg, color-mix(in oklab, var(--key-light, #fff8e7) 35%, var(--card-soft-bg, #f4ede0)), var(--card-soft-bg, #f1ebe0))',
+  color: 'var(--text-main, #3a2618)',
   borderTopWidth: 2,
   borderRightWidth: 2,
   borderLeftWidth: 2,
   borderBottomWidth: 4,
   borderStyle: 'solid',
-  borderColor: 'var(--card-border, #cbd5e1)',
+  borderColor: 'color-mix(in oklab, var(--card-border, #cbd5e1) 66%, var(--ink-warm, #4a3426))',
+  boxShadow: '0 2px 6px color-mix(in oklab, var(--shadow-tint, #4a3426) 14%, transparent)',
 } as const;
 
 export interface ArcadeHeaderBarProps {
@@ -1893,8 +1964,10 @@ export function ArcadeHeaderBar({
   onExit,
 }: ArcadeHeaderBarProps) {
   const tierMeta = arcadeTier ? ARCADE_TIER_META[arcadeTier] : null;
+  const isGoldenCombo = combo >= 2;
   return (
     <div
+      className="arcade-hub-marquee"
       style={{
         ...CARD_SURFACE_STYLE,
         flexShrink: 0,
@@ -1913,17 +1986,19 @@ export function ArcadeHeaderBar({
             width: isCompact ? 32 : 38,
             height: isCompact ? 32 : 38,
             borderRadius: 12,
-            background: 'var(--card-soft-bg, #f8fafc)',
+            background:
+              'linear-gradient(145deg, color-mix(in oklab, var(--key-light, #fff8e7) 55%, var(--card-soft-bg, #f8f2e6)), var(--card-soft-bg, #f3ead8))',
             borderTopWidth: 1.5,
             borderRightWidth: 1.5,
             borderLeftWidth: 1.5,
             borderBottomWidth: 3,
             borderStyle: 'solid',
-            borderColor: 'var(--card-border, #cbd5e1)',
+            borderColor: 'color-mix(in oklab, var(--gild, #d4a44a) 55%, var(--ink-warm, #4a3426))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
+            boxShadow: 'inset 0 1px 0 rgba(255, 252, 240, 0.75)',
           }}
         >
           {icon}
@@ -2018,20 +2093,25 @@ export function ArcadeHeaderBar({
             gap: 4,
             padding: isCompact ? '3px 8px' : '4px 10px',
             borderRadius: 999,
-            background: '#fffbeb',
+            background: isGoldenCombo
+              ? 'linear-gradient(180deg, #fef08a 0%, #fde68a 100%)'
+              : 'linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%)',
             borderTopWidth: 2,
             borderRightWidth: 2,
             borderLeftWidth: 2,
             borderBottomWidth: 3,
             borderStyle: 'solid',
-            borderColor: '#f59e0b',
-            color: '#b45309',
+            borderColor: isGoldenCombo ? '#d97706' : '#d99b26',
+            color: '#7c3f0c',
             fontWeight: 900,
             fontSize: isCompact ? '0.76rem' : '0.82rem',
             fontFamily: 'var(--font-display)',
+            boxShadow: isGoldenCombo
+              ? '0 0 12px rgba(246, 197, 106, 0.7)'
+              : '0 2px 4px color-mix(in oklab, var(--ink-warm, #4a3426) 14%, transparent)',
           }}
         >
-          <Star size={13} fill="#f59e0b" /> {score}
+          <Star size={13} fill="#d97706" color="#92400e" /> {score}
           {combo >= 2 ? ` (${combo}x)` : ''}
         </span>
 
@@ -2684,6 +2764,7 @@ export function ArcadeReadyCard({
 
   return (
     <div
+      className="arcade-playbill-card"
       style={{
         ...CARD_SURFACE_STYLE,
         flex: 1,
@@ -2727,7 +2808,10 @@ export function ArcadeReadyCard({
         </div>
       ) : null}
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: isCompact ? 8 : 12 }}>
+      <div
+        className="arcade-pedestal-stage"
+        style={{ gap: isCompact ? 8 : 14 }}
+      >
         <MascotStage
           companionId={companionId}
           pose="happy"
@@ -2735,7 +2819,7 @@ export function ArcadeReadyCard({
           size={isCompact ? 76 : 124}
           badgeText={badgeText}
         />
-        {emblem ? <div style={{ flexShrink: 0 }}>{emblem}</div> : null}
+        {emblem ? <div className="arcade-emblem-window">{emblem}</div> : null}
       </div>
 
       <h2
@@ -2872,6 +2956,7 @@ export function ArcadeSummaryCard({
 
   return (
     <div
+      className="arcade-playbill-card"
       style={{
         ...CARD_SURFACE_STYLE,
         flex: 1,
@@ -2887,15 +2972,17 @@ export function ArcadeSummaryCard({
       }}
     >
       <ConfettiBurst active intensity="grand" />
-      {mascotSlot ?? (
-        <MascotStage
-          companionId={companionId}
-          pose="victory_dance"
-          equippedCosmetics={companionId === 'pip' ? effectiveProfile.equippedCosmetics : undefined}
-          size={isCompact ? 92 : 124}
-          badgeText={badgeText}
-        />
-      )}
+      <div className="arcade-pedestal-stage">
+        {mascotSlot ?? (
+          <MascotStage
+            companionId={companionId}
+            pose="victory_dance"
+            equippedCosmetics={companionId === 'pip' ? effectiveProfile.equippedCosmetics : undefined}
+            size={isCompact ? 92 : 124}
+            badgeText={badgeText}
+          />
+        )}
+      </div>
 
       <h2
         style={{

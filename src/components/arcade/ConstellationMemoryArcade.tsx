@@ -29,6 +29,7 @@ import {
   useArcadeCoopTurn,
   useArcadeDeck,
   useArcadeEffectiveProfile,
+  ArcadeStageDressing,
 } from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 60;
@@ -510,11 +511,14 @@ export function ConstellationMemoryArcade({
               borderLeftWidth: 3,
               borderBottomWidth: 5,
               borderStyle: 'solid',
-              borderColor: '#818cf8',
-              background: 'radial-gradient(circle at 50% 35%, #2e1065 0%, #1e1b4b 58%, #090d26 100%)',
+              borderColor: '#d9b46a',
+              background:
+                'radial-gradient(ellipse at 20% 12%, rgba(246, 197, 106, 0.16), transparent 46%), radial-gradient(circle at 50% 35%, #37246e 0%, #211a52 58%, #151238 100%)',
               overflow: 'hidden',
+              boxShadow: 'inset 0 2px 18px rgba(10, 8, 28, 0.45)',
             }}
           >
+            <ArcadeStageDressing glowKey={score} combo={combo} tone="celestial" />
             {/* Glowing SVG Constellation Lines Overlay */}
             <svg
               aria-hidden="true"
@@ -529,6 +533,7 @@ export function ConstellationMemoryArcade({
                 zIndex: 1,
               }}
             >
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#d9b46a" strokeOpacity="0.14" strokeWidth="0.4" strokeDasharray="1.8 2.4" />
               {constellationLinks.map((link) => {
                 const a = centerCoords(link.aIdx);
                 const b = centerCoords(link.bIdx);
@@ -539,13 +544,13 @@ export function ConstellationMemoryArcade({
                       y1={a.y}
                       x2={b.x}
                       y2={b.y}
-                      stroke="#38bdf8"
+                      stroke="#f6c56a"
                       strokeWidth="1.4"
-                      strokeOpacity="0.65"
+                      strokeOpacity="0.72"
                       strokeDasharray="2 1.5"
                     />
-                    <circle cx={a.x} cy={a.y} r="1.8" fill="#fde047" />
-                    <circle cx={b.x} cy={b.y} r="1.8" fill="#fde047" />
+                    <circle cx={a.x} cy={a.y} r="1.9" fill="#fef08a" />
+                    <circle cx={b.x} cy={b.y} r="1.9" fill="#fef08a" />
                   </g>
                 );
               })}
@@ -611,18 +616,18 @@ export function ConstellationMemoryArcade({
                       borderBottomWidth: 4,
                       borderStyle: 'solid',
                       borderColor: isMatched
-                        ? '#38bdf8'
+                        ? '#f6c56a'
                         : isPairPulsing
                           ? '#67e8f9'
                           : revealed
-                            ? '#f59e0b'
-                            : '#818cf8',
+                            ? '#d99b26'
+                            : '#b9934c',
                       background: isMatched
-                        ? 'linear-gradient(180deg, #ecfeff 0%, #cffafe 100%)'
+                        ? 'linear-gradient(160deg, #fffbeb 0%, #fef3c7 100%)'
                         : revealed
-                          ? '#ffffff'
-                          : 'linear-gradient(165deg, #4338ca 0%, #312e81 100%)',
-                      color: revealed ? '#1e1b4b' : '#fde047',
+                          ? 'linear-gradient(160deg, #fffdf8 0%, #f8f0df 100%)'
+                          : 'linear-gradient(160deg, #3c2f7a 0%, #241c54 100%)',
+                      color: revealed ? '#3a2618' : '#fde047',
                       opacity: isDimmed ? 0.42 : 1,
                       display: 'flex',
                       flexDirection: 'column',

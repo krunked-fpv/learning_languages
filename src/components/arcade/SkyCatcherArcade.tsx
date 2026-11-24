@@ -23,6 +23,7 @@ import {
   useArcadeCoopReport,
   useArcadeDeck,
   useArcadeEffectiveProfile,
+  ArcadeStageDressing,
 } from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 45;
@@ -464,28 +465,34 @@ export function SkyCatcherArcade({
               borderLeftWidth: 3,
               borderBottomWidth: 5,
               borderStyle: 'solid',
-              borderColor: '#60a5fa',
-              background: 'linear-gradient(180deg, #1d4ed8 0%, #38bdf8 52%, #bae6fd 100%)',
+              borderColor: '#5c7fa6',
+              background:
+                'radial-gradient(65% 50% at 15% 12%, rgba(254, 240, 178, 0.42), transparent 58%), linear-gradient(180deg, #3c78b8 0%, #7cc4e8 54%, #f4e6c6 100%)',
               overflow: 'hidden',
               touchAction: 'none',
               userSelect: 'none',
+              boxShadow: 'inset 0 2px 14px rgba(74, 52, 38, 0.16)',
             }}
           >
+            <ArcadeStageDressing glowKey={score} combo={combo} tone="daylight" />
             <svg
               aria-hidden="true"
-              viewBox="0 0 800 180"
+              viewBox="0 0 800 220"
+              preserveAspectRatio="none"
               style={{
                 position: 'absolute',
                 inset: 0,
                 width: '100%',
                 height: '100%',
-                opacity: 0.28,
                 pointerEvents: 'none',
               }}
             >
-              <ellipse cx="130" cy="48" rx="70" ry="24" fill="#ffffff" />
-              <ellipse cx="640" cy="70" rx="85" ry="28" fill="#ffffff" />
-              <circle cx="715" cy="45" r="24" fill="#fde047" />
+              {/* Warm sunlit gouache clouds & paper-cut distant meadow */}
+              <circle cx="115" cy="46" r="28" fill="#fef3a7" opacity="0.58" />
+              <ellipse cx="185" cy="58" rx="76" ry="22" fill="#fffdf6" opacity="0.55" />
+              <ellipse cx="625" cy="64" rx="92" ry="24" fill="#fffdf6" opacity="0.5" />
+              <path d="M0 184 Q 180 144 390 174 T 800 164 L 800 220 L 0 220 Z" fill="#82b889" opacity="0.45" />
+              <path d="M0 198 Q 240 168 510 192 T 800 184 L 800 220 L 0 220 Z" fill="#5b9367" opacity="0.5" />
             </svg>
 
             {entities.map((ent) =>
@@ -500,15 +507,16 @@ export function SkyCatcherArcade({
                     transform: 'translate(-50%, -50%)',
                     willChange: 'left, top',
                     padding: isCompact ? '4px 7px' : '5px 10px',
-                    borderRadius: 14,
-                    background: '#ffffff',
+                    borderRadius: 15,
+                    background: 'linear-gradient(155deg, #fffdf4 0%, #fef3c7 100%)',
                     borderTopWidth: 2,
                     borderRightWidth: 2,
                     borderLeftWidth: 2,
                     borderBottomWidth: 4,
                     borderStyle: 'solid',
-                    borderColor: '#f59e0b',
-                    boxShadow: '0 8px 18px rgba(30, 27, 75, 0.22)',
+                    borderColor: '#b45309',
+                    boxShadow:
+                      '2px 4px 0 rgba(74, 52, 38, 0.2), 0 0 14px rgba(251, 191, 36, 0.42)',
                     display: 'flex',
                     flexDirection:
                       isCompact && ent.item.foreign.length > 16 ? 'column' : 'row',
@@ -594,22 +602,24 @@ export function SkyCatcherArcade({
 
             {toast ? (
               <div
+                className="arcade-toast-ribbon"
                 style={{
                   position: 'absolute',
                   top: 8,
                   left: '50%',
                   transform: 'translateX(-50%)',
                   maxWidth: 'calc(100% - 16px)',
-                  padding: '3px 11px',
+                  padding: '3px 12px',
                   borderRadius: 999,
-                  background: 'rgba(15, 23, 42, 0.78)',
-                  color: '#ffffff',
+                  background: 'rgba(74, 52, 38, 0.88)',
+                  color: '#fff8ea',
                   fontSize: '0.76rem',
                   fontWeight: 800,
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   pointerEvents: 'none',
+                  zIndex: 6,
                 }}
               >
                 {toast}

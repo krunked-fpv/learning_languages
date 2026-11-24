@@ -33,6 +33,7 @@ import {
   useArcadeCoopTurn,
   useArcadeDeck,
   useArcadeEffectiveProfile,
+  ArcadeStageDressing,
 } from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 45;
@@ -822,16 +823,19 @@ export function StarlightBridgeArcade({
               borderLeftWidth: 3,
               borderBottomWidth: isCompact ? 4 : 5,
               borderStyle: 'solid',
-              borderColor: waitingAtGap ? '#fbbf24' : '#38bdf8',
-              background: 'radial-gradient(circle at 50% 25%, #312e81 0%, #1e1b4b 56%, #090d26 100%)',
+              borderColor: waitingAtGap ? '#e6b850' : '#b89652',
+              background:
+                'radial-gradient(ellipse at 18% 12%, rgba(246, 197, 106, 0.18), transparent 45%), radial-gradient(circle at 50% 25%, #372c7a 0%, #221c56 56%, #141236 100%)',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
               gap: isCompact ? 4 : 10,
               overflow: 'hidden',
               userSelect: 'none',
+              boxShadow: 'inset 0 2px 18px rgba(10, 8, 28, 0.45)',
             }}
           >
+            <ArcadeStageDressing glowKey={score} combo={combo} fever={plankLocked} tone="celestial" />
             {/* Cloze Challenge Card at Top of Sky Stage */}
             <div
               style={{
@@ -844,17 +848,17 @@ export function StarlightBridgeArcade({
                 overscrollBehavior: isCompact ? 'contain' : undefined,
                 padding: isCompact ? '5px 8px' : '10px 16px',
                 borderRadius: isCompact ? 15 : 18,
-                background: 'rgba(255, 255, 255, 0.95)',
+                background: 'linear-gradient(155deg, #fffdf8 0%, #f9f2e4 100%)',
                 borderTopWidth: 2,
                 borderRightWidth: 2,
                 borderLeftWidth: 2,
                 borderBottomWidth: isCompact ? 3 : 4,
                 borderStyle: 'solid',
-                borderColor: plankLocked ? '#10b981' : '#818cf8',
+                borderColor: plankLocked ? '#10b981' : '#c9a65d',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: isCompact ? 3 : 6,
-                boxShadow: '0 8px 22px rgba(2, 6, 23, 0.35)',
+                boxShadow: '2px 5px 0 rgba(16, 12, 42, 0.32), 0 8px 20px rgba(10, 8, 28, 0.34)',
               }}
             >
               {isCompact ? (
@@ -955,13 +959,17 @@ export function StarlightBridgeArcade({
                 <circle cx="82" cy="11" r="0.9" fill="#fde047" />
                 <circle cx="64" cy="16" r="0.7" fill="#ffffff" />
 
-                {/* Left Sky Island */}
-                <polygon points="0,33 41,33 36,49 0,49" fill="#4338ca" />
-                <rect x="0" y="29" width="42" height="6" rx="2" fill="#10b981" />
+                {/* Left Sky Island (gouache faceted paper-cut cliff) */}
+                <polygon points="0,33 41,33 36,49 0,49" fill="#4c3f99" />
+                <polygon points="22,33 41,33 36,49 18,49" fill="#352a75" opacity="0.55" />
+                <rect x="0" y="29" width="42" height="6" rx="2" fill="#22a87a" />
+                <line x1="1" y1="30.2" x2="39" y2="30.2" stroke="#a7f3d0" strokeWidth="0.8" opacity="0.65" />
 
                 {/* Right Sky Island */}
-                <polygon points="65,33 100,33 100,49 70,49" fill="#4338ca" />
-                <rect x="64" y="29" width="36" height="6" rx="2" fill="#10b981" />
+                <polygon points="65,33 100,33 100,49 70,49" fill="#4c3f99" />
+                <polygon points="82,33 100,33 100,49 85,49" fill="#352a75" opacity="0.55" />
+                <rect x="64" y="29" width="36" height="6" rx="2" fill="#22a87a" />
+                <line x1="66" y1="30.2" x2="99" y2="30.2" stroke="#a7f3d0" strokeWidth="0.8" opacity="0.65" />
 
                 {/* Bridge Gap */}
                 {plankLocked ? (
@@ -1084,7 +1092,7 @@ export function StarlightBridgeArcade({
                     disabled={plankLocked}
                     data-hint-dimmed={isDimmed ? 'true' : undefined}
                     data-hint-spotlight={isSpotlight ? 'true' : undefined}
-                    className={`tactile-btn starlight-choice-tile ${
+                    className={`tactile-btn arcade-toy-tile starlight-choice-tile ${
                       isDimmed ? 'is-starlight-dimmed' : ''
                     } ${isSpotlight ? 'is-starlight-spotlight' : ''}`}
                     onClick={() => handleSelectPlank(idx)}
@@ -1097,7 +1105,7 @@ export function StarlightBridgeArcade({
                         ? '#d1fae5'
                         : isWrong
                           ? '#ffe4e6'
-                          : '#ffffff',
+                          : '#fffdf8',
                       borderTopWidth: isCompact ? 2 : 2.5,
                       borderRightWidth: isCompact ? 2 : 2.5,
                       borderLeftWidth: isCompact ? 2 : 2.5,

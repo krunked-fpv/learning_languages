@@ -23,6 +23,7 @@ import {
   useArcadeCoopReport,
   useArcadeDeck,
   useArcadeEffectiveProfile,
+  ArcadeStageDressing,
 } from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 45;
@@ -540,7 +541,7 @@ export function MeteorBlasterArcade({
             }
           />
 
-          {/* Space Cockpit Viewport */}
+          {/* Celestial Star-Chart Cockpit Viewport */}
           <div
             style={{
               position: 'relative',
@@ -553,13 +554,16 @@ export function MeteorBlasterArcade({
               borderLeftWidth: 3,
               borderBottomWidth: 5,
               borderStyle: 'solid',
-              borderColor: '#818cf8',
-              background: 'radial-gradient(circle at 50% 20%, #1e1b4b 0%, #090d26 68%, #020617 100%)',
+              borderColor: '#d9b46a',
+              background:
+                'radial-gradient(ellipse at 24% 12%, rgba(246, 197, 106, 0.16), transparent 46%), radial-gradient(circle at 50% 24%, #352b76 0%, #1d1a4b 58%, #131130 100%)',
               overflow: 'hidden',
               userSelect: 'none',
+              boxShadow: 'inset 0 2px 18px rgba(10, 8, 28, 0.45)',
             }}
           >
-            {/* Starfield & 3 Lane Guides */}
+            <ArcadeStageDressing glowKey={score} combo={combo} tone="celestial" />
+            {/* Gilded Star-Chart & 3 Lane Guides */}
             <svg
               aria-hidden="true"
               viewBox="0 0 100 100"
@@ -572,16 +576,21 @@ export function MeteorBlasterArcade({
                 pointerEvents: 'none',
               }}
             >
+              <circle cx="50" cy="48" r="34" fill="none" stroke="#d9b46a" strokeOpacity="0.14" strokeWidth="0.4" strokeDasharray="1.8 2.4" />
+              <circle cx="14" cy="18" r="0.6" fill="#fef08a" opacity="0.7" />
+              <circle cx="86" cy="22" r="0.7" fill="#fde68a" opacity="0.65" />
+              <circle cx="32" cy="64" r="0.5" fill="#bae6fd" opacity="0.55" />
+              <circle cx="72" cy="58" r="0.6" fill="#fef08a" opacity="0.6" />
               {LANE_X.map((lx) => (
                 <line
                   key={lx}
                   x1={lx}
-                  y1="0"
+                  y1="4"
                   x2={lx}
                   y2="82"
-                  stroke="#818cf8"
-                  strokeOpacity="0.18"
-                  strokeWidth="0.6"
+                  stroke="#d9b46a"
+                  strokeOpacity="0.24"
+                  strokeWidth="0.55"
                   strokeDasharray="2 3"
                 />
               ))}
@@ -610,16 +619,17 @@ export function MeteorBlasterArcade({
             </svg>
 
             <div
+              className="arcade-toast-ribbon"
               style={{
                 position: 'absolute',
                 top: 8,
                 left: '50%',
                 transform: 'translateX(-50%)',
                 maxWidth: 'calc(100% - 16px)',
-                padding: '3px 11px',
+                padding: '3px 12px',
                 borderRadius: 999,
-                background: 'rgba(15, 23, 42, 0.84)',
-                color: '#7dd3fc',
+                background: 'rgba(26, 20, 62, 0.88)',
+                color: '#fef08a',
                 fontSize: '0.75rem',
                 fontWeight: 800,
                 whiteSpace: 'nowrap',

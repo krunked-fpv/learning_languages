@@ -22,6 +22,7 @@ import {
   useArcadeContainerMetrics,
   useArcadeCoopReport,
   useArcadeDeck,
+  ArcadeStageDressing,
 } from './arcadeShared';
 
 const ROUND_DURATION_SECONDS = 45;
@@ -399,18 +400,23 @@ export function RhythmChefArcade({
               borderLeftWidth: 3,
               borderBottomWidth: 5,
               borderStyle: 'solid',
-              borderColor: inBeatZone ? '#f59e0b' : '#fb923c',
-              background: 'linear-gradient(180deg, #fff7ed 0%, #ffedd5 55%, #fed7aa 100%)',
+              borderColor: inBeatZone ? '#d97706' : '#b85d24',
+              background:
+                'radial-gradient(85% 60% at 12% 8%, rgba(255, 250, 236, 0.82), transparent 60%), linear-gradient(180deg, #fff8ed 0%, #fce8cc 56%, #f4cfa0 100%)',
               display: 'flex',
               flexDirection: 'column',
               gap: isCompact ? 8 : 12,
               overflow: 'hidden',
               userSelect: 'none',
+              boxShadow: 'inset 0 2px 14px rgba(74, 52, 38, 0.14)',
             }}
           >
+            <ArcadeStageDressing glowKey={score} combo={combo} fever={inBeatZone && combo >= 2} tone="warm" />
             {/* Top Status & Chef Reaction Row */}
             <div
               style={{
+                position: 'relative',
+                zIndex: 4,
                 flexShrink: 0,
                 display: 'flex',
                 alignItems: 'center',
@@ -423,11 +429,12 @@ export function RhythmChefArcade({
                   <MascotStage companionId="mateo" pose={chefPose} size={isCompact ? 42 : 54} />
                 </span>
                 <div
+                  className="arcade-toast-ribbon"
                   style={{
                     minWidth: 0,
-                    padding: '4px 10px',
+                    padding: '4px 11px',
                     borderRadius: 999,
-                    background: 'rgba(124, 45, 18, 0.86)',
+                    background: 'rgba(92, 46, 20, 0.9)',
                     color: '#fef3c7',
                     fontSize: isCompact ? '0.72rem' : '0.8rem',
                     fontWeight: 800,
@@ -474,9 +481,11 @@ export function RhythmChefArcade({
                     key={`${item.id}-${padIdx}`}
                     type="button"
                     dir="ltr"
+                    className="arcade-toy-tile"
                     onClick={() => handleTapPad(padIdx)}
                     style={{
                       position: 'relative',
+                      zIndex: 4,
                       width: '100%',
                       height: '100%',
                       minWidth: 0,
