@@ -32,9 +32,9 @@
 
 ---
 
-## Sprint 4 Backlog Proposals (`S4-###`)
+## Sprint 4 Backlog Proposals (`S4-###`) — `PROMOTED TO SPRINT 4`
 
-Ranked non-bug enhancements discovered during Sprint 3 (`PT-001`–`PT-125`) by `devon-s3` and `mila-s3` (curated by `vera-s3`):
+Promoted into [sprint_4_proposals.md](./sprint_4_proposals.md) (`Operation Celestial Summit`) and curated from Sprint 3 (`PT-001`–`PT-125`) by `devon-s3` and `mila-s3` (ranked by `vera-s3`):
 
 1. **`S4-002` — Mobile Co-Op Safe Atlas Pill Label & Compact Roster Fit (`375x667`):**
    - **Priority:** `P2` | **Origin:** `devon-s3` & `mila-s3`
