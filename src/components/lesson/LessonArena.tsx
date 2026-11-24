@@ -717,8 +717,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
       <header className="lesson-arena-header">
         <button
           type="button"
-          className="tactile-btn tactile-btn-soft"
-          style={{ padding: '7px 10px', borderRadius: 14 }}
+          className="tactile-btn tactile-btn-soft lesson-header-exit"
           aria-label="Exit lesson"
           onClick={() => {
             stopSpeech();
@@ -726,7 +725,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
             onExit();
           }}
         >
-          <X size={18} />
+          <X size={compact ? 16 : 18} />
         </button>
 
         <div className="lesson-progress-track" aria-label="Lesson progress">
@@ -749,55 +748,59 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
               : `${tierMeta.cefrLabel} · ${tierMeta.title}`}
         </span>
 
-        {isAdultLanguage(language) ? (
-          <button
-            type="button"
-            data-testid="lesson-study-break-btn"
-            aria-label="Study Break: Return to Kid Atlas"
-            className="tactile-btn tactile-btn-success"
-            style={{
-              padding: compact ? '4px 8px' : '6px 10px',
-              fontSize: compact ? '0.72rem' : '0.78rem',
-              borderRadius: 12,
-              flexShrink: 0,
-              whiteSpace: 'nowrap',
-            }}
-            onClick={handleStudyBreak}
-          >
-            <ShieldCheck size={compact ? 13 : 14} />
-            <span>Study Break</span>
-          </button>
-        ) : null}
+        {isAdultLanguage(language) || replayNonce > 0 || comboMeta.label ? (
+          <div className="lesson-header-secondary">
+            {isAdultLanguage(language) ? (
+              <button
+                type="button"
+                data-testid="lesson-study-break-btn"
+                aria-label="Study Break: Return to Kid Atlas"
+                className="tactile-btn tactile-btn-success"
+                style={{
+                  padding: compact ? '3px 8px' : '6px 10px',
+                  fontSize: compact ? '0.7rem' : '0.78rem',
+                  borderRadius: compact ? 10 : 12,
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap',
+                }}
+                onClick={handleStudyBreak}
+              >
+                <ShieldCheck size={compact ? 12 : 14} />
+                <span>Study Break</span>
+              </button>
+            ) : null}
 
-        {replayNonce > 0 ? (
-          <span
-            className="hud-pill hud-pill-static"
-            style={{
-              background: 'var(--tint-indigo-bg)',
-              borderColor: 'var(--tint-indigo-border)',
-              color: 'var(--tint-indigo-ink)',
-            }}
-          >
-            Remix
-          </span>
-        ) : null}
+            {replayNonce > 0 ? (
+              <span
+                className="hud-pill hud-pill-static"
+                style={{
+                  background: 'var(--tint-indigo-bg)',
+                  borderColor: 'var(--tint-indigo-border)',
+                  color: 'var(--tint-indigo-ink)',
+                }}
+              >
+                Remix
+              </span>
+            ) : null}
 
-        {comboMeta.label ? (
-          <span
-            className="hud-pill hud-pill-static"
-            style={{
-              background: 'var(--tint-amber-bg)',
-              borderColor: 'var(--tint-amber-border)',
-              color: 'var(--tint-amber-ink)',
-            }}
-          >
-            <Flame size={15} fill="#f59e0b" color="#f59e0b" />
-            <span>{comboMeta.label}</span>
-          </span>
+            {comboMeta.label ? (
+              <span
+                className="hud-pill hud-pill-static"
+                style={{
+                  background: 'var(--tint-amber-bg)',
+                  borderColor: 'var(--tint-amber-border)',
+                  color: 'var(--tint-amber-ink)',
+                }}
+              >
+                <Flame size={compact ? 13 : 15} fill="#f59e0b" color="#f59e0b" />
+                <span>{comboMeta.label}</span>
+              </span>
+            ) : null}
+          </div>
         ) : null}
 
         <span
-          className="hud-pill hud-pill-static"
+          className="hud-pill hud-pill-static lesson-header-hearts"
           style={{
             background: 'var(--tint-rose-bg)',
             borderColor: 'var(--tint-rose-border)',
@@ -805,7 +808,7 @@ export function LessonArena({ node, language, onExit }: LessonArenaProps) {
           }}
           aria-label={`${activeProfile.hearts} of ${activeProfile.maxHearts} hearts`}
         >
-          <Heart size={15} fill="#f43f5e" color="#f43f5e" />
+          <Heart size={compact ? 13 : 15} fill="#f43f5e" color="#f43f5e" />
           <span>
             {activeProfile.hearts}/{activeProfile.maxHearts}
           </span>

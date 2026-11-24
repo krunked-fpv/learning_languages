@@ -7,6 +7,8 @@ export interface VirtualScriptDrawerProps {
   language: LanguageCode;
   compact?: boolean;
   disabled?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onInsertChar: (value: string) => void;
 }
 
@@ -249,19 +251,34 @@ export function VirtualScriptDrawer({
   language,
   compact = false,
   disabled = false,
+  open,
+  onOpenChange,
   onInsertChar,
 }: VirtualScriptDrawerProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = open !== undefined;
+  const isOpen = isControlled ? open : internalOpen;
   const tabs = useMemo(() => getScriptTabsForLanguage(language), [language]);
   const [activeTabId, setActiveTabId] = useState<string>(() => tabs[0]?.id ?? 'default');
   const panelId = useId();
 
   useEffect(() => {
-    setOpen(false);
+    if (!isControlled) {
+      setInternalOpen(false);
+    }
     setActiveTabId(tabs[0]?.id ?? 'default');
-  }, [language, tabs]);
+  }, [language, tabs, isControlled]);
 
   const currentTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
+
+  const handleToggle = () => {
+    playSfx('tile_tap');
+    const next = !isOpen;
+    if (!isControlled) {
+      setInternalOpen(next);
+    }
+    onOpenChange?.(next);
+  };
 
   return (
     <div
@@ -270,44 +287,41 @@ export function VirtualScriptDrawer({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 6,
+        gap: compact ? 4 : 6,
         width: '100%',
       }}
     >
       <button
         type="button"
         data-testid="virtual-script-drawer-toggle"
-        aria-expanded={open}
+        aria-expanded={isOpen}
         aria-controls={panelId}
         disabled={disabled}
-        className={`tactile-btn ${open ? 'tactile-btn-indigo' : 'tactile-btn-soft'}`}
+        className={`tactile-btn ${isOpen ? 'tactile-btn-indigo' : 'tactile-btn-soft'}`}
         style={{
           padding: compact ? '3px 9px' : '4px 11px',
           fontSize: compact ? '0.72rem' : '0.76rem',
           borderRadius: 10,
         }}
-        onClick={() => {
-          playSfx('tile_tap');
-          setOpen((v) => !v);
-        }}
+        onClick={handleToggle}
       >
         <Languages size={13} />
         <span>Script Keys</span>
-        {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+        {isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
       </button>
 
-      {open && currentTab ? (
+      {isOpen && currentTab ? (
         <div
           id={panelId}
           style={{
             width: '100%',
-            padding: compact ? '6px 8px' : '8px 10px',
-            borderRadius: 14,
+            padding: compact ? '5px 7px' : '8px 10px',
+            borderRadius: compact ? 12 : 14,
             background: 'var(--card-soft-bg)',
             border: '2px solid var(--card-border)',
             display: 'flex',
             flexDirection: 'column',
-            gap: 6,
+            gap: compact ? 4 : 6,
           }}
         >
           {tabs.length > 1 ? (
@@ -318,7 +332,7 @@ export function VirtualScriptDrawer({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 5,
+                gap: compact ? 4 : 5,
                 flexWrap: 'wrap',
               }}
             >
@@ -332,8 +346,8 @@ export function VirtualScriptDrawer({
                     aria-selected={selected}
                     className={`tactile-btn ${selected ? 'tactile-btn-primary' : 'tactile-btn-soft'}`}
                     style={{
-                      padding: compact ? '2px 8px' : '3px 10px',
-                      fontSize: '0.7rem',
+                      padding: compact ? '2px 7px' : '3px 10px',
+                      fontSize: compact ? '0.68rem' : '0.7rem',
                       borderRadius: 999,
                     }}
                     onClick={() => {
@@ -353,13 +367,13 @@ export function VirtualScriptDrawer({
             dir={currentTab.dir}
             className="console-scroll-pane"
             style={{
-              maxHeight: compact ? 88 : 118,
+              maxHeight: compact ? 74 : 118,
               overflowY: 'auto',
               display: 'flex',
               flexWrap: 'wrap',
-              gap: compact ? 4 : 5,
+              gap: compact ? 3 : 5,
               justifyContent: 'center',
-              padding: '2px',
+              padding: compact ? '1px' : '2px',
             }}
           >
             {currentTab.keys.map((ch) => (
@@ -369,9 +383,9 @@ export function VirtualScriptDrawer({
                 className="tactile-tile"
                 disabled={disabled}
                 style={{
-                  padding: compact ? '3px 7px' : '4px 9px',
-                  fontSize: compact ? '0.84rem' : '0.9rem',
-                  minWidth: compact ? 28 : 34,
+                  padding: compact ? '2px 6px' : '4px 9px',
+                  fontSize: compact ? '0.82rem' : '0.9rem',
+                  minWidth: compact ? 26 : 34,
                   lineHeight: currentTab.dir === 'rtl' ? 1.5 : 1.25,
                 }}
                 onClick={() => onInsertChar(ch)}

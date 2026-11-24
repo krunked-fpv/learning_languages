@@ -32,6 +32,12 @@ import { StarlightHintButton } from './StarlightHintButton';
 import { VirtualScriptDrawer } from './VirtualScriptDrawer';
 import { WordBankTray, buildWordBankPool, getAssembledText } from './WordBankTray';
 import { REGISTER_TAG_META } from './lessonHelpers';
+import {
+  buildFreeRecallPlaceholder,
+  resolveFreeRecallInputDirection,
+  resolveFreeRecallTextAlign,
+  useFreeRecallInput,
+} from './useFreeRecallInput';
 import { useHintEngine } from './useHintEngine';
 
 export interface BossGauntletViewProps {
@@ -73,7 +79,6 @@ export function BossGauntletView({
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [selectedTileUids, setSelectedTileUids] = useState<string[]>([]);
   const [inputMode, setInputMode] = useState<'tiles' | 'type'>('tiles');
-  const [typedText, setTypedText] = useState('');
   const [peekPhonetics, setPeekPhonetics] = useState(false);
   const [turnOutcome, setTurnOutcome] = useState<{
     kind: 'ok' | 'nudge';
@@ -83,7 +88,16 @@ export function BossGauntletView({
   } | null>(null);
   const [bossCleared, setBossCleared] = useState(false);
   const [bossHintNonce, setBossHintNonce] = useState(0);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const {
+    typedText,
+    drawerOpen,
+    setDrawerOpen,
+    inputRef,
+    resetFreeRecallInput,
+    syncSelection,
+    handleTextChange,
+    insertCharAtCaret,
+  } = useFreeRecallInput();
   const checkTurnLockRef = useRef(false);
   const nextTurnLockRef = useRef(false);
   const completeLockRef = useRef(false);
@@ -93,7 +107,7 @@ export function BossGauntletView({
     setSelectedChoice(null);
     setSelectedTileUids([]);
     setInputMode('tiles');
-    setTypedText('');
+    resetFreeRecallInput();
     setPeekPhonetics(false);
     setTurnOutcome(null);
     setBossCleared(false);
@@ -101,7 +115,7 @@ export function BossGauntletView({
     checkTurnLockRef.current = false;
     nextTurnLockRef.current = false;
     completeLockRef.current = false;
-  }, [exercise.id, initialTurnIndex]);
+  }, [exercise.id, initialTurnIndex, language, resetFreeRecallInput]);
 
   useEffect(() => {
     nextTurnLockRef.current = false;
@@ -269,25 +283,14 @@ export function BossGauntletView({
           : 'listening';
 
   const bossFreeRecallBonus = computeFreeRecallHintedBonus(hint.hintTier);
+  const inputDir = resolveFreeRecallInputDirection(langDir, typedText);
+  const inputTextAlign = resolveFreeRecallTextAlign(langDir, typedText);
 
   const insertAccentChar = (ch: string) => {
     if (turnOutcome?.kind === 'ok') return;
     cancelHint();
-    playSfx('tile_tap');
-    const el = inputRef.current;
-    if (!el) {
-      setTypedText((prev) => prev + ch);
-      return;
-    }
-    const start = el.selectionStart ?? typedText.length;
-    const end = el.selectionEnd ?? typedText.length;
-    const next = typedText.slice(0, start) + ch + typedText.slice(end);
-    setTypedText(next);
+    insertCharAtCaret(ch);
     setTurnOutcome(null);
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(start + ch.length, start + ch.length);
-    });
   };
 
   const handleCheckTurn = () => {
@@ -352,7 +355,7 @@ export function BossGauntletView({
     setSelectedChoice(null);
     setSelectedTileUids([]);
     setInputMode('tiles');
-    setTypedText('');
+    resetFreeRecallInput();
     setTurnOutcome(null);
     if (turnIndex + 1 >= exercise.turns.length) {
       playSfx('chest_open');
@@ -368,19 +371,19 @@ export function BossGauntletView({
     <div
       className="tactile-card"
       style={{
-        padding: compact ? '10px 12px' : '16px 20px',
+        padding: compact ? '8px 10px' : '16px 20px',
         display: 'flex',
         flexDirection: 'column',
-        gap: compact ? 7 : 11,
+        gap: compact ? 5 : 11,
         width: '100%',
       }}
     >
       {/* Top Boss & Friendship Charge Meter */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: compact ? 9 : 12 }}>
         <MascotStage
           companionId={exercise.companionId}
           pose={companionPose}
-          size={compact ? 70 : 102}
+          size={compact ? 56 : 102}
           hintPulseNonce={bossHintNonce}
         />
 
@@ -433,13 +436,13 @@ export function BossGauntletView({
       {/* Companion Prompt Speech Bubble */}
       <div
         style={{
-          padding: compact ? '8px 11px' : '12px 14px',
-          borderRadius: 16,
+          padding: compact ? '6px 9px' : '12px 14px',
+          borderRadius: compact ? 14 : 16,
           background: 'var(--card-soft-bg)',
           border: '2px solid var(--card-border)',
           display: 'flex',
           flexDirection: 'column',
-          gap: 4,
+          gap: compact ? 3 : 4,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, flexWrap: 'wrap' }}>
@@ -599,6 +602,7 @@ export function BossGauntletView({
               onClick={() => {
                 cancelHint({ clearAssists: true });
                 playSfx('button_click');
+                setDrawerOpen(false);
                 setInputMode((m) => (m === 'tiles' ? 'type' : 'tiles'));
                 setTurnOutcome(null);
               }}
@@ -685,7 +689,7 @@ export function BossGauntletView({
           }}
         />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? 5 : 7 }}>
           {hint.freeRecallPlan && hint.hintTier > 0 ? (
             <FreeRecallHintBar
               plan={hint.freeRecallPlan}
@@ -699,76 +703,95 @@ export function BossGauntletView({
           <input
             ref={inputRef}
             type="text"
-            dir={
-              langDir === 'rtl' && /[A-Za-z]/.test(typedText) && !/[\u0600-\u06FF]/.test(typedText)
-                ? 'ltr'
-                : langDir
-            }
+            className="free-recall-input"
+            dir={inputDir}
             value={typedText}
             disabled={turnOutcome?.kind === 'ok'}
             onChange={(e) => {
               cancelHint();
-              setTypedText(e.target.value);
+              handleTextChange(e);
               setTurnOutcome(null);
             }}
+            onSelect={syncSelection}
+            onKeyUp={syncSelection}
+            onClick={syncSelection}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && submittedValue && turnOutcome?.kind !== 'ok') {
                 e.preventDefault();
                 handleCheckTurn();
               }
             }}
-            placeholder={`Type your reply in ${langMeta.dialectA ?? langMeta.name} (+${bossFreeRecallBonus.xp} XP bonus)...`}
+            placeholder={buildFreeRecallPlaceholder({
+              language,
+              direction: 'to_foreign',
+              compact,
+              variant: 'boss',
+              bossBonusXp: bossFreeRecallBonus.xp,
+            })}
             aria-label="Type your boss reply"
             style={{
               width: '100%',
-              padding: compact ? '9px 11px' : '12px 14px',
+              padding: compact ? '7px 10px' : '12px 14px',
               borderRadius: 14,
               border: '2px solid var(--lang-primary)',
               borderBottomWidth: 4,
-              fontSize: '0.96rem',
+              fontSize: compact ? '0.94rem' : '0.96rem',
               fontWeight: 800,
               lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
+              textAlign: inputTextAlign,
               color: 'var(--text-main)',
               background: 'var(--input-bg)',
               outline: 'none',
             }}
           />
-          <div
-            aria-label="Accent character bar"
-            dir={langDir}
-            className="console-scroll-pane"
-            style={{
-              maxHeight: compact ? 74 : 96,
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: hasManyAccents ? 4 : 6,
-              justifyContent: 'center',
-              padding: '2px',
-            }}
-          >
-            {langMeta.helperAccents.map((ch) => (
-              <button
-                key={ch}
-                type="button"
-                className="tactile-tile"
-                style={{
-                  padding: hasManyAccents ? '3px 7px' : '4px 10px',
-                  fontSize: hasManyAccents ? '0.84rem' : '0.9rem',
-                  minWidth: hasManyAccents ? 28 : 34,
-                  lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
-                }}
-                disabled={turnOutcome?.kind === 'ok'}
-                onClick={() => insertAccentChar(ch)}
-              >
-                {ch}
-              </button>
-            ))}
-          </div>
+          {!drawerOpen ? (
+            <div
+              aria-label="Accent character bar"
+              dir={langDir}
+              className="console-scroll-pane"
+              style={{
+                maxHeight: compact ? 66 : 96,
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: compact ? 3 : hasManyAccents ? 4 : 6,
+                justifyContent: 'center',
+                padding: '2px',
+              }}
+            >
+              {langMeta.helperAccents.map((ch) => (
+                <button
+                  key={ch}
+                  type="button"
+                  className="tactile-tile"
+                  style={{
+                    padding: compact
+                      ? '2px 6px'
+                      : hasManyAccents
+                        ? '3px 7px'
+                        : '4px 10px',
+                    fontSize: compact
+                      ? '0.82rem'
+                      : hasManyAccents
+                        ? '0.84rem'
+                        : '0.9rem',
+                    minWidth: compact ? 26 : hasManyAccents ? 28 : 34,
+                    lineHeight: langDir === 'rtl' ? 1.5 : 1.25,
+                  }}
+                  disabled={turnOutcome?.kind === 'ok'}
+                  onClick={() => insertAccentChar(ch)}
+                >
+                  {ch}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <VirtualScriptDrawer
             key={`${exercise.id}:${currentTurn.id}`}
             language={language}
             compact={compact}
             disabled={turnOutcome?.kind === 'ok'}
+            open={drawerOpen}
+            onOpenChange={setDrawerOpen}
             onInsertChar={insertAccentChar}
           />
         </div>
