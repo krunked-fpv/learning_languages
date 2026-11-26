@@ -7,3 +7,5 @@ Thumbs.db
 .temp/
 *.bak
 .vite/
+*.md
+!README.md
